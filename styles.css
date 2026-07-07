@@ -626,78 +626,44 @@ button {
 .canvas-layer.cut-piece {
   display: block;
   overflow: hidden;
-  background: transparent;
+  padding: 0;
 }
 
 .cut-piece-source {
   position: absolute;
   left: 0;
   top: 0;
+  display: block;
   transform-origin: left top;
   pointer-events: none;
 }
 
-.cut-piece::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  z-index: 2;
+.cut-piece.asset-layer {
+  display: block;
 }
 
-.cut-bottom::after,
-.cut-top::after {
-  left: 0;
-  width: 100%;
-  height: 7px;
+.cut-piece.asset-layer .cut-piece-source {
+  display: grid;
+  place-items: center;
+  background: inherit;
 }
 
-.cut-bottom::after {
-  bottom: -1px;
+.cut-piece.tape-layer .cut-piece-source,
+.cut-piece.receipt-layer .cut-piece-source,
+.cut-piece.stamp-layer .cut-piece-source {
+  background: inherit;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
 }
 
-.cut-top::after {
-  top: -1px;
+.cut-piece.receipt-layer .cut-piece-source {
+  padding-top: 11px;
 }
 
-.cut-left::after,
-.cut-right::after {
-  top: 0;
-  width: 7px;
-  height: 100%;
-}
-
-.cut-left::after {
-  left: -1px;
-}
-
-.cut-right::after {
-  right: -1px;
-}
-
-.cut-straight::after {
-  background: rgba(17, 17, 17, 0.18);
-}
-
-.cut-scallop.cut-bottom::after,
-.cut-scallop.cut-top::after {
-  background: radial-gradient(circle at 5px 50%, rgba(17, 17, 17, 0.26) 0 1.8px, transparent 2.2px) 0 50% / 10px 7px repeat-x;
-}
-
-.cut-scallop.cut-left::after,
-.cut-scallop.cut-right::after {
-  background: radial-gradient(circle at 50% 5px, rgba(17, 17, 17, 0.26) 0 1.8px, transparent 2.2px) 50% 0 / 7px 10px repeat-y;
-}
-
-.cut-tear.cut-bottom::after,
-.cut-tear.cut-top::after {
-  background:
-    linear-gradient(135deg, transparent 0 12%, rgba(17, 17, 17, 0.24) 13% 22%, transparent 23% 36%, rgba(17, 17, 17, 0.24) 37% 48%, transparent 49% 62%, rgba(17, 17, 17, 0.24) 63% 74%, transparent 75%) 0 50% / 56px 7px repeat-x;
-}
-
-.cut-tear.cut-left::after,
-.cut-tear.cut-right::after {
-  background:
-    linear-gradient(45deg, transparent 0 12%, rgba(17, 17, 17, 0.24) 13% 22%, transparent 23% 36%, rgba(17, 17, 17, 0.24) 37% 48%, transparent 49% 62%, rgba(17, 17, 17, 0.24) 63% 74%, transparent 75%) 50% 0 / 7px 56px repeat-y;
+.cut-piece.stamp-layer .cut-piece-source {
+  display: grid;
+  place-items: center;
 }
 
 .canvas-layer.selected {

@@ -325,9 +325,10 @@ function renderCanvas(selected = false, scaleClass = "") {
 function renderCanvasLayer(layer) {
   const selected = state.selectedLayer === layer.id;
   const nudge = layer.cutNudge ? ` translate(${layer.cutNudge.x}px, ${layer.cutNudge.y}px)` : "";
-  const style = `left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;transform:rotate(${layer.rotation}deg)${nudge};opacity:${layer.opacity ?? 1};${layer.radius ? `border-radius:${layer.radius}px;` : ""}${layer.type === "text" ? renderTextLayerStyle(layer) : ""}`;
+  const clipStyle = layer.clipPath ? `clip-path:${layer.clipPath};` : "";
+  const style = `left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;transform:rotate(${layer.rotation}deg)${nudge};opacity:${layer.opacity ?? 1};${layer.radius ? `border-radius:${layer.radius}px;` : ""}${clipStyle}${layer.type === "text" ? renderTextLayerStyle(layer) : ""}`;
   const cutClass = layer.cutPiece ? `cut-piece cut-${layer.cutStyle || "straight"} cut-${layer.cutEdge || "none"}` : "";
-  const visualClass = layer.cutPiece ? "" : getLayerVisualClass(layer);
+  const visualClass = getLayerVisualClass(layer);
   if (layer.type === "paper") {
     return `<div class="canvas-layer ${layer.type}-layer layer-${layer.variant || layer.type}" style="${style}" aria-hidden="true"></div>`;
   }
@@ -346,7 +347,7 @@ function renderCanvasLayer(layer) {
 function renderLayerContent(layer) {
   if (layer.cutPiece) {
     const baseStyle = `width:${layer.sourceWidth}px;height:${layer.sourceHeight}px;transform:translate(${-layer.sourceOffsetX}px, ${-layer.sourceOffsetY}px);`;
-    return `<span class="cut-piece-source ${getLayerVisualClass(layer)}" style="${baseStyle}">${renderLayerInnerContent(layer)}</span>`;
+    return `<span class="cut-piece-source" style="${baseStyle}">${renderLayerInnerContent(layer)}</span>`;
   }
   return renderLayerInnerContent(layer);
 }
@@ -1270,6 +1271,7 @@ function handleCutPointerDown(event) {
   const target = event.currentTarget;
   target.setPointerCapture?.(event.pointerId);
   const canvas = target.closest(".collage-canvas");
+  const style = cutMode.style || state.cutStyle || "straight";
   const points = [eventToCanvasPoint(event, canvas)];
   state.cutMode.points = points;
   updateCutPath(points);
@@ -1285,7 +1287,11 @@ function handleCutPointerDown(event) {
     const point = eventToCanvasPoint(moveEvent, canvas);
     const previous = points[points.length - 1];
     if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) > 2.5) {
-      points.push(point);
+      if (style === "straight") {
+        points[1] = point;
+      } else {
+        points.push(point);
+      }
       updateCutPath(points);
       armIdleFinish();
     }
@@ -1335,29 +1341,58 @@ function splitLayerByCut(layerId, points) {
 }
 
 function getCutGeometry(layer, points) {
-  const inside = points.filter((point) => (
-    point.x >= layer.x &&
-    point.x <= layer.x + layer.width &&
-    point.y >= layer.y &&
-    point.y <= layer.y + layer.height
+  const localPoints = points.map((point) => canvasPointToLayerPoint(layer, point));
+  const tolerance = 10;
+  const inside = localPoints.filter((point) => (
+    point.x >= -tolerance &&
+    point.x <= layer.width + tolerance &&
+    point.y >= -tolerance &&
+    point.y <= layer.height + tolerance
   ));
   if (!inside.length) return null;
-  const start = points[0];
-  const end = points[points.length - 1];
+  const start = localPoints[0];
+  const end = localPoints[localPoints.length - 1];
+  const localLine = {
+    start,
+    end,
+  };
+  if ((state.cutMode?.style || state.cutStyle) === "straight") {
+    const polygons = splitRectByLine(layer.width, layer.height, localLine.start, localLine.end);
+    if (polygons) {
+      return {
+        axis: "diagonal",
+        line: localLine,
+        polygons,
+        focus: polygonArea(polygons[0]) <= polygonArea(polygons[1]) ? "first" : "second",
+      };
+    }
+  }
   const horizontal = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y);
   if (horizontal) {
-    const cutY = clamp(average(inside.map((point) => point.y)) - layer.y, layer.height * 0.24, layer.height * 0.76);
+    const cutY = clamp(average(inside.map((point) => point.y)), layer.height * 0.12, layer.height * 0.88);
     return {
       axis: "horizontal",
       cut: cutY,
       focus: cutY <= layer.height / 2 ? "first" : "second",
     };
   }
-  const cutX = clamp(average(inside.map((point) => point.x)) - layer.x, layer.width * 0.24, layer.width * 0.76);
+  const cutX = clamp(average(inside.map((point) => point.x)), layer.width * 0.12, layer.width * 0.88);
   return {
     axis: "vertical",
     cut: cutX,
     focus: cutX <= layer.width / 2 ? "first" : "second",
+  };
+}
+
+function canvasPointToLayerPoint(layer, point) {
+  const centerX = layer.x + layer.width / 2;
+  const centerY = layer.y + layer.height / 2;
+  const angle = -((layer.rotation || 0) * Math.PI) / 180;
+  const dx = point.x - centerX;
+  const dy = point.y - centerY;
+  return {
+    x: dx * Math.cos(angle) - dy * Math.sin(angle) + layer.width / 2,
+    y: dx * Math.sin(angle) + dy * Math.cos(angle) + layer.height / 2,
   };
 }
 
@@ -1391,7 +1426,15 @@ function createCutPieces(layer, cut, firstSeed, secondSeed) {
   };
   first.cutNudge = cut.axis === "horizontal" ? { x: -1.5, y: -3 } : { x: -3, y: -1.5 };
   second.cutNudge = cut.axis === "horizontal" ? { x: 1.5, y: 3 } : { x: 3, y: 1.5 };
-  if (cut.axis === "horizontal") {
+  if (cut.axis === "diagonal") {
+    first.clipPath = polygonToClipPath(cut.polygons[0]);
+    second.clipPath = polygonToClipPath(cut.polygons[1]);
+    first.cutEdge = "none";
+    second.cutEdge = "none";
+    const normal = lineNormal(cut.line.start, cut.line.end);
+    first.cutNudge = { x: -normal.x * 3, y: -normal.y * 3 };
+    second.cutNudge = { x: normal.x * 3, y: normal.y * 3 };
+  } else if (cut.axis === "horizontal") {
     first.height = Math.max(18, Math.round(cut.cut));
     second.y = layer.y + first.height;
     second.height = Math.max(18, Math.round(layer.height - first.height));
@@ -1410,6 +1453,76 @@ function createCutPieces(layer, cut, firstSeed, secondSeed) {
     ...piece,
     justCut: true,
   }));
+}
+
+function splitRectByLine(width, height, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  if (Math.hypot(dx, dy) < 4) return null;
+  const corners = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height },
+  ];
+  const left = [];
+  const right = [];
+  for (let index = 0; index < corners.length; index += 1) {
+    const current = corners[index];
+    const next = corners[(index + 1) % corners.length];
+    const currentSide = lineSide(start, end, current);
+    const nextSide = lineSide(start, end, next);
+    if (currentSide >= 0) left.push(current);
+    if (currentSide <= 0) right.push(current);
+    if ((currentSide > 0 && nextSide < 0) || (currentSide < 0 && nextSide > 0)) {
+      const intersection = segmentLineIntersection(current, next, start, end);
+      if (intersection) {
+        left.push(intersection);
+        right.push(intersection);
+      }
+    }
+  }
+  if (left.length < 3 || right.length < 3) return null;
+  return [left, right];
+}
+
+function lineSide(start, end, point) {
+  return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x);
+}
+
+function segmentLineIntersection(segStart, segEnd, lineStart, lineEnd) {
+  const sx = segEnd.x - segStart.x;
+  const sy = segEnd.y - segStart.y;
+  const lx = lineEnd.x - lineStart.x;
+  const ly = lineEnd.y - lineStart.y;
+  const denominator = sx * ly - sy * lx;
+  if (Math.abs(denominator) < 0.001) return null;
+  const t = ((lineStart.x - segStart.x) * ly - (lineStart.y - segStart.y) * lx) / denominator;
+  return {
+    x: segStart.x + sx * t,
+    y: segStart.y + sy * t,
+  };
+}
+
+function polygonToClipPath(points) {
+  return `polygon(${points.map((point) => `${point.x.toFixed(2)}px ${point.y.toFixed(2)}px`).join(",")})`;
+}
+
+function polygonArea(points) {
+  let area = 0;
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    area += current.x * next.y - next.x * current.y;
+  }
+  return Math.abs(area / 2);
+}
+
+function lineNormal(start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy) || 1;
+  return { x: -dy / length, y: dx / length };
 }
 
 function restoreFragment(fragmentId) {
