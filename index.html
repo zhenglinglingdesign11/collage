@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>轻纸感拼贴工作台 MVP 原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="prototype-shell">
+      <section class="phone-frame" aria-label="拼贴应用原型">
+        <div id="app" class="app"></div>
+      </section>
+
+      <aside class="notes-panel" aria-label="原型说明">
+        <p class="eyebrow">MVP Prototype</p>
+        <h1>现代黑白灰轻纸感拼贴工作台</h1>
+        <p>
+          基于当前 Figma 视觉规范实现的高保真 Web 原型。重点验证创作页工作台、
+          主工具栏、图层工具栏、素材纸包、底部抽屉、灵感与导出闭环。
+        </p>
+        <div class="note-card">
+          <h2>可交互点</h2>
+          <ul>
+            <li>点击主工具栏：图片、素材、胶带、文字、剪刀、形状。</li>
+            <li>点击画布照片：进入图层选中状态。</li>
+            <li>点击素材页纸包：进入非结构化素材纸详情。</li>
+            <li>点击导出：查看导出预览与成功状态。</li>
+          </ul>
+        </div>
+        <div class="note-card">
+          <h2>视觉原则</h2>
+          <ul>
+            <li>UI 使用黑白灰与暖白，不使用红/蓝主色。</li>
+            <li>纸感只保留在画布与素材中。</li>
+            <li>素材页模拟“翻素材纸”，不是素材商城。</li>
+          </ul>
+        </div>
+      </aside>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
