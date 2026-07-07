@@ -6,10 +6,14 @@ const state = {
   selectedLayer: false,
   drawer: null,
   textEditing: null,
+  textToolMode: "font",
   toast: "",
   ratio: "3:4",
   assetDetail: null,
   exportSuccess: false,
+  cutStyle: "straight",
+  cutMode: null,
+  fragments: [],
   layers: [
     { id: "layer-paper", type: "paper", x: 28, y: 73, width: 255, height: 259, rotation: 1, variant: "base" },
     { id: "layer-tape-left", type: "tape", x: 32, y: 63, width: 82, height: 26, rotation: -26, variant: "yellow" },
@@ -46,8 +50,10 @@ const packs = [
 ];
 
 const layerActions = [
+  ["cut", "tool-cut", "剪切"],
   ["copy", "line-copy", "复制"],
   ["delete", "line-delete", "删除"],
+  ["tray", "share-save", "收纳"],
   ["up", "line-up", "上移"],
   ["down", "line-down", "下移"],
   ["shadow", "line-shadow", "阴影"],
@@ -89,8 +95,17 @@ const textBackgrounds = [
   ["tape", "胶带"],
 ];
 
+const textStyleTools = [
+  ["font", "Tt", "字体"],
+  ["color", "◒", "颜色"],
+  ["size", "A", "大小"],
+  ["background", "▣", "底色"],
+  ["opacity", "▦", "透明"],
+];
+
 let suppressCanvasClick = false;
 let lastTextTap = { id: null, time: 0 };
+let lastFocusedTextEditKey = 0;
 
 function svg(content, className = "svg-icon", viewBox = "0 0 32 32") {
   return `<svg class="${className}" viewBox="${viewBox}" aria-hidden="true" focusable="false">${content}</svg>`;
@@ -219,11 +234,11 @@ function renderCreateScreen() {
           ? ""
           : state.textEditing
             ? renderTextEditorPanel()
-            : state.selectedLayer
+            : state.selectedLayer && !state.cutMode
             ? renderLayerToolbar()
             : renderMainToolbar(getActiveTool())
       }
-      ${["cut", "shape"].includes(state.drawer) && !state.selectedLayer && !state.textEditing ? renderToolPalette(state.drawer) : ""}
+      ${["cut", "shape"].includes(state.drawer) && !state.selectedLayer && !state.textEditing && !state.cutMode ? renderToolPalette(state.drawer) : ""}
       ${state.editor === "empty" ? renderTabbar() : ""}
     </section>
   `;
@@ -282,6 +297,7 @@ function renderEditor() {
     <div class="canvas-stage" data-action="deselect-canvas">
       ${renderCanvas(state.selectedLayer)}
     </div>
+    ${!state.cutMode ? renderFloatingFragmentTray() : ""}
   `;
 }
 
@@ -301,28 +317,41 @@ function renderCanvas(selected = false, scaleClass = "") {
         ` : ""}
       </button>
       ${foregroundLayers.map(renderCanvasLayer).join("")}
+      ${renderCutOverlay()}
     </div>
   `;
 }
 
 function renderCanvasLayer(layer) {
   const selected = state.selectedLayer === layer.id;
-  const style = `left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;transform:rotate(${layer.rotation}deg);opacity:${layer.opacity ?? 1};${layer.radius ? `border-radius:${layer.radius}px;` : ""}${layer.type === "text" ? renderTextLayerStyle(layer) : ""}`;
+  const nudge = layer.cutNudge ? ` translate(${layer.cutNudge.x}px, ${layer.cutNudge.y}px)` : "";
+  const style = `left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;transform:rotate(${layer.rotation}deg)${nudge};opacity:${layer.opacity ?? 1};${layer.radius ? `border-radius:${layer.radius}px;` : ""}${layer.type === "text" ? renderTextLayerStyle(layer) : ""}`;
+  const cutClass = layer.cutPiece ? `cut-piece cut-${layer.cutStyle || "straight"} cut-${layer.cutEdge || "none"}` : "";
+  const visualClass = layer.cutPiece ? "" : getLayerVisualClass(layer);
   if (layer.type === "paper") {
     return `<div class="canvas-layer ${layer.type}-layer layer-${layer.variant || layer.type}" style="${style}" aria-hidden="true"></div>`;
   }
   return `
-    <button class="canvas-layer ${layer.type}-layer layer-${layer.variant || layer.type} ${layer.shadow ? "has-shadow" : ""} ${layer.tear ? "has-tear" : ""} ${selected ? "selected" : ""}"
+    <button class="canvas-layer ${visualClass} ${cutClass} ${layer.shadow ? "has-shadow" : ""} ${layer.tear ? "has-tear" : ""} ${layer.justCut ? "just-cut" : ""} ${selected ? "selected" : ""}"
+      ${layer.fragmentId ? `data-fragment-id="${layer.fragmentId}"` : ""}
       style="${style}"
       data-layer-id="${layer.id}"
       aria-label="选择${getLayerName(layer)}图层">
       ${renderLayerContent(layer)}
-      ${selected ? renderLayerControls(layer.id) : ""}
+      ${selected && !state.cutMode ? renderLayerControls(layer.id) : ""}
     </button>
   `;
 }
 
 function renderLayerContent(layer) {
+  if (layer.cutPiece) {
+    const baseStyle = `width:${layer.sourceWidth}px;height:${layer.sourceHeight}px;transform:translate(${-layer.sourceOffsetX}px, ${-layer.sourceOffsetY}px);`;
+    return `<span class="cut-piece-source ${getLayerVisualClass(layer)}" style="${baseStyle}">${renderLayerInnerContent(layer)}</span>`;
+  }
+  return renderLayerInnerContent(layer);
+}
+
+function renderLayerInnerContent(layer) {
   if (layer.type === "paper") return "";
   if (layer.type === "tape") return "";
   if (layer.type === "receipt") return "07 · 06<br />· · · · ·";
@@ -330,6 +359,10 @@ function renderLayerContent(layer) {
   if (layer.type === "stamp") return "07<br />26";
   if (layer.type === "asset") return `<span class="asset-layer-mark ${layer.variant || "paper"}"></span>`;
   return "";
+}
+
+function getLayerVisualClass(layer) {
+  return `${layer.type}-layer layer-${layer.variant || layer.type}`;
 }
 
 function renderTextLayerStyle(layer) {
@@ -385,9 +418,50 @@ function renderLayerToolbar() {
   `;
 }
 
+function renderCutOverlay() {
+  if (!state.cutMode) return "";
+  const layer = state.cutMode.layerId ? state.layers.find((item) => item.id === state.cutMode.layerId) : null;
+  const guideStyle = layer
+    ? `left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;transform:rotate(${layer.rotation}deg);`
+    : "";
+  return `
+    <div class="cut-target-guide" style="${guideStyle}" aria-hidden="true"></div>
+    <svg class="cut-path-overlay" viewBox="0 0 324 432" aria-hidden="true">
+      <path data-cut-path d="${pointsToPath(state.cutMode.points || [])}"></path>
+    </svg>
+  `;
+}
+
+function getCutStyleName(style) {
+  const names = { straight: "直边", scallop: "花边", tear: "撕边" };
+  return names[style] || names.straight;
+}
+
+function renderFragmentTray() {
+  if (!state.fragments.length) return "";
+  return `
+    <div class="fragment-tray" aria-label="碎片托盘">
+      <span>碎片托盘</span>
+      <div class="fragment-list">
+        ${state.fragments.map((fragment) => `
+          <button data-action="restore-fragment" data-fragment-id="${fragment.fragmentId}" aria-label="放回${fragment.name}">
+            <i class="fragment-chip ${fragment.type}"></i>
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderFloatingFragmentTray() {
+  if (!state.fragments.length) return "";
+  return `<div class="floating-fragment-tray">${renderFragmentTray()}</div>`;
+}
+
 function renderTextEditorPanel() {
   const layer = getSelectedLayer();
   if (!layer || layer.type !== "text") return "";
+  const activeMode = state.textToolMode || "font";
   return `
     <section class="text-editor-panel" aria-label="文字编辑面板">
       <div class="local-panel-head">
@@ -395,31 +469,69 @@ function renderTextEditorPanel() {
         <span>文字</span>
         <button data-action="commit-text-edit">完成</button>
       </div>
-      <textarea class="text-input" data-text-input rows="2" maxlength="60" aria-label="输入文字">${escapeTextarea(layer.content || "")}</textarea>
-      <div class="font-strip" aria-label="字体">
+      <textarea class="keyboard-input-proxy" data-text-input rows="2" maxlength="60" aria-label="输入文字">${escapeTextarea(layer.content || "")}</textarea>
+      ${renderTextOptionRow(layer, activeMode)}
+      <div class="text-style-row" aria-label="文字样式工具">
+        ${textStyleTools.map(([id, icon, label]) => `
+          <button class="${activeMode === id ? "active" : ""}" data-text-mode="${id}" aria-label="${label}">
+            <span>${icon}</span>
+            <small>${label}</small>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderTextOptionRow(layer, mode) {
+  if (mode === "font") {
+    return `
+      <div class="text-option-row font-strip" aria-label="字体">
         ${textFonts.map((font) => `
           <button class="${(layer.fontKey || "system") === font.id ? "active" : ""}" data-text-font="${font.id}" style="font-family:${font.family}">
             ${font.label}
           </button>
         `).join("")}
       </div>
-      <div class="text-control-row">
-        <span>大小</span>
-        <input type="range" min="14" max="44" value="${layer.fontSize || 28}" data-text-size aria-label="文字大小" />
-        <strong>${layer.fontSize || 28}</strong>
-      </div>
-      <div class="swatch-row" aria-label="文字颜色">
+    `;
+  }
+  if (mode === "color") {
+    return `
+      <div class="text-option-row swatch-row" aria-label="文字颜色">
         ${textColors.map(([color, label]) => `
           <button class="swatch ${normalizeColor(layer.color || "#111111") === normalizeColor(color) ? "active" : ""}" data-text-color="${color}" aria-label="${label}" style="--swatch:${color}"></button>
         `).join("")}
       </div>
-      <div class="background-strip" aria-label="文字底色">
+    `;
+  }
+  if (mode === "size") {
+    return `
+      <div class="text-option-row text-control-row">
+        <span>大小</span>
+        <input type="range" min="14" max="44" value="${layer.fontSize || 28}" data-text-size aria-label="文字大小" />
+        <strong>${layer.fontSize || 28}</strong>
+      </div>
+    `;
+  }
+  if (mode === "background") {
+    return `
+      <div class="text-option-row background-strip" aria-label="文字底色">
         ${textBackgrounds.map(([id, label]) => `
           <button class="${(layer.bg || "none") === id ? "active" : ""}" data-text-bg="${id}">${label}</button>
         `).join("")}
       </div>
-    </section>
-  `;
+    `;
+  }
+  if (mode === "opacity") {
+    return `
+      <div class="text-option-row text-control-row">
+        <span>透明</span>
+        <input type="range" min="30" max="100" value="${Math.round((layer.opacity ?? 1) * 100)}" data-text-opacity aria-label="文字透明度" />
+        <strong>${Math.round((layer.opacity ?? 1) * 100)}%</strong>
+      </div>
+    `;
+  }
+  return "";
 }
 
 function getSelectedLayer() {
@@ -494,7 +606,7 @@ function renderToolPalette(type) {
         ["scallop", "花边"],
         ["tear", "撕边"],
       ].map(([id, title], index) => `
-        <button class="palette-tool ${index === 0 ? "active" : ""}" data-action="add-asset" data-cut="${id}" aria-label="${title}">
+        <button class="palette-tool ${(state.cutStyle || "straight") === id ? "active" : ""}" data-action="select-cut-style" data-cut-style="${id}" aria-label="${title}">
           <span class="cut-3d ${id}"></span>
         </button>
       `).join("")}
@@ -764,7 +876,7 @@ function bindEvents() {
       if (tool === "asset") setState({ drawer: "asset" });
       if (tool === "tape") setState({ drawer: "tape" });
       if (tool === "text") addTextLayer();
-      if (tool === "cut") setState({ drawer: "cut" });
+      if (tool === "cut") setState({ drawer: "cut", selectedLayer: false, cutMode: null });
       if (tool === "shape") setState({ drawer: "shape" });
     });
   });
@@ -777,6 +889,9 @@ function bindEvents() {
   app.querySelectorAll("[data-text-font]").forEach((el) => {
     el.addEventListener("click", () => updateTextLayer({ fontKey: el.dataset.textFont }));
   });
+  app.querySelectorAll("[data-text-mode]").forEach((el) => {
+    el.addEventListener("click", () => setState({ textToolMode: el.dataset.textMode }));
+  });
   app.querySelectorAll("[data-text-color]").forEach((el) => {
     el.addEventListener("click", () => updateTextLayer({ color: el.dataset.textColor }));
   });
@@ -785,6 +900,9 @@ function bindEvents() {
   });
   app.querySelectorAll("[data-text-size]").forEach((el) => {
     el.addEventListener("input", () => updateTextLayer({ fontSize: Number(el.value) }));
+  });
+  app.querySelectorAll("[data-text-opacity]").forEach((el) => {
+    el.addEventListener("input", () => updateTextLayer({ opacity: Number(el.value) / 100 }));
   });
   app.querySelectorAll("[data-text-input]").forEach((el) => {
     el.addEventListener("input", () => updateTextLayer({ content: el.value }, false));
@@ -824,10 +942,14 @@ function handleAction(action, el) {
   if (action === "deselect") setState({ selectedLayer: false });
   if (action === "deselect-canvas") {
     if (state.textEditing) return;
+    if (state.cutMode) return;
     setState({ selectedLayer: false, drawer: null });
   }
   if (action === "back-empty") setState({ editor: "empty", selectedLayer: false });
   if (action === "close-drawer") setState({ drawer: null });
+  if (action === "select-cut-style") {
+    setState({ cutStyle: el?.dataset.cutStyle || "straight", drawer: "cut", selectedLayer: false });
+  }
   if (action === "add-asset") {
     const source = state.drawer === "tape" ? "tape" : state.drawer === "cut" ? "cut" : state.drawer === "shape" ? "shape" : "asset";
     addCanvasLayer(source, { cut: el?.dataset.cut, shape: el?.dataset.shape });
@@ -852,6 +974,12 @@ function handleAction(action, el) {
   if (action === "add-selected-asset") {
     addCanvasLayer("asset", { variant: "paper" });
   }
+  if (action === "cancel-cut") {
+    setState({ cutMode: null });
+  }
+  if (action === "restore-fragment") {
+    restoreFragment(el?.dataset.fragmentId);
+  }
 }
 
 function startTextEditing(layerId, isNew = false) {
@@ -867,7 +995,9 @@ function startTextEditing(layerId, isNew = false) {
       layerId,
       isNew,
       snapshot: { ...layer },
+      focusKey: Date.now(),
     },
+    textToolMode: "font",
   });
 }
 
@@ -921,6 +1051,10 @@ function applyLayerAction(action) {
   const index = state.layers.findIndex((layer) => layer.id === state.selectedLayer);
   if (index < 0) return;
   const layer = state.layers[index];
+  if (action === "cut") {
+    startCutMode(layer.id);
+    return;
+  }
   if (action === "copy") {
     const next = state.layerSeed + 1;
     const copy = {
@@ -938,6 +1072,10 @@ function applyLayerAction(action) {
   if (action === "delete") {
     state.layers.splice(index, 1);
     setState({ selectedLayer: false });
+    return;
+  }
+  if (action === "tray") {
+    if (!moveSelectedFragmentToTray()) showToast("只有剪下来的碎片可收纳");
     return;
   }
   if (action === "up" || action === "down") {
@@ -973,6 +1111,16 @@ function handleLayerPointerDown(event) {
   const id = event.currentTarget.dataset.layerId;
   const layer = state.layers.find((item) => item.id === id);
   if (!layer) return;
+  if (state.drawer === "cut" && !state.cutMode) {
+    event.preventDefault();
+    event.stopPropagation();
+    chooseCutTarget(layer);
+    return;
+  }
+  if (state.cutMode) {
+    handleCutPointerDown(event);
+    return;
+  }
   if (state.textEditing) {
     event.preventDefault();
     event.stopPropagation();
@@ -1022,6 +1170,7 @@ function handleLayerPointerDown(event) {
 }
 
 function handleTransformPointerDown(event) {
+  if (state.cutMode) return;
   event.stopPropagation();
   event.preventDefault();
   event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -1068,6 +1217,254 @@ function handleTransformPointerDown(event) {
   window.addEventListener("pointerup", up);
 }
 
+function startCutMode(layerId = state.selectedLayer) {
+  const layer = state.layers.find((item) => item.id === layerId);
+  if (!layerId || !layer) {
+    setState({
+      tab: "create",
+      editor: "edit",
+      drawer: "cut",
+      selectedLayer: false,
+      cutMode: null,
+    });
+    return;
+  }
+  if (!canCutLayer(layer, layerId)) return;
+  setState({
+    tab: "create",
+    editor: "edit",
+    drawer: null,
+    selectedLayer: layer.id,
+    cutMode: { layerId: layer.id, points: [], style: state.cutStyle || "straight" },
+  });
+}
+
+function chooseCutTarget(layer) {
+  if (!canCutLayer(layer, layer.id)) return;
+  setState({
+    selectedLayer: layer.id,
+    drawer: null,
+    cutMode: { layerId: layer.id, points: [], style: state.cutStyle || "straight" },
+  });
+}
+
+function canCutLayer(layer, layerId) {
+  if (!layer || layer.type === "paper" || layerId === "photo") {
+    showToast("先选中要剪开的素材");
+    return false;
+  }
+  if (layer.type === "text") {
+    showToast("文字先转成贴纸后再剪");
+    return false;
+  }
+  return true;
+}
+
+function handleCutPointerDown(event) {
+  const cutMode = state.cutMode;
+  if (!cutMode) return;
+  const layer = state.layers.find((item) => item.id === cutMode.layerId);
+  if (!layer || event.currentTarget.dataset.layerId !== layer.id) return;
+  event.preventDefault();
+  event.stopPropagation();
+  const target = event.currentTarget;
+  target.setPointerCapture?.(event.pointerId);
+  const canvas = target.closest(".collage-canvas");
+  const points = [eventToCanvasPoint(event, canvas)];
+  state.cutMode.points = points;
+  updateCutPath(points);
+  event.currentTarget.classList.add("cutting-active");
+  let idleTimer = null;
+  const armIdleFinish = () => {
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(() => {
+      if (points.length > 1) up();
+    }, 700);
+  };
+  const move = (moveEvent) => {
+    const point = eventToCanvasPoint(moveEvent, canvas);
+    const previous = points[points.length - 1];
+    if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) > 2.5) {
+      points.push(point);
+      updateCutPath(points);
+      armIdleFinish();
+    }
+  };
+  let completed = false;
+  const up = () => {
+    if (completed) return;
+    completed = true;
+    window.clearTimeout(idleTimer);
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    window.removeEventListener("pointercancel", up);
+    window.removeEventListener("mouseup", up);
+    window.removeEventListener("touchend", up);
+    target.removeEventListener("lostpointercapture", up);
+    target.classList.remove("cutting-active");
+    splitLayerByCut(layer.id, points);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+  window.addEventListener("pointercancel", up);
+  window.addEventListener("mouseup", up);
+  window.addEventListener("touchend", up);
+  target.addEventListener("lostpointercapture", up);
+}
+
+function splitLayerByCut(layerId, points) {
+  const index = state.layers.findIndex((item) => item.id === layerId);
+  const layer = state.layers[index];
+  if (!layer || points.length < 2) {
+    setState({ cutMode: { ...state.cutMode, points: [] } });
+    showToast("剪切线太短");
+    return;
+  }
+  const cut = getCutGeometry(layer, points);
+  if (!cut) {
+    setState({ cutMode: { ...state.cutMode, points: [] } });
+    showToast("剪切线需要穿过素材");
+    return;
+  }
+  const nextSeed = state.layerSeed + 2;
+  const [first, second] = createCutPieces(layer, cut, nextSeed - 1, nextSeed);
+  state.layers.splice(index, 1, first, second);
+  state.layerSeed = nextSeed;
+  setState({ cutMode: null, selectedLayer: cut.focus === "first" ? first.id : second.id });
+  showToast("已剪成两片");
+}
+
+function getCutGeometry(layer, points) {
+  const inside = points.filter((point) => (
+    point.x >= layer.x &&
+    point.x <= layer.x + layer.width &&
+    point.y >= layer.y &&
+    point.y <= layer.y + layer.height
+  ));
+  if (!inside.length) return null;
+  const start = points[0];
+  const end = points[points.length - 1];
+  const horizontal = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y);
+  if (horizontal) {
+    const cutY = clamp(average(inside.map((point) => point.y)) - layer.y, layer.height * 0.24, layer.height * 0.76);
+    return {
+      axis: "horizontal",
+      cut: cutY,
+      focus: cutY <= layer.height / 2 ? "first" : "second",
+    };
+  }
+  const cutX = clamp(average(inside.map((point) => point.x)) - layer.x, layer.width * 0.24, layer.width * 0.76);
+  return {
+    axis: "vertical",
+    cut: cutX,
+    focus: cutX <= layer.width / 2 ? "first" : "second",
+  };
+}
+
+function createCutPieces(layer, cut, firstSeed, secondSeed) {
+  const sourceWidth = layer.sourceWidth || layer.width;
+  const sourceHeight = layer.sourceHeight || layer.height;
+  const baseOffsetX = layer.sourceOffsetX || 0;
+  const baseOffsetY = layer.sourceOffsetY || 0;
+  const cutStyle = state.cutMode?.style || state.cutStyle || "straight";
+  const first = {
+    ...layer,
+    id: `layer-cut-${firstSeed}`,
+    fragmentId: `fragment-${firstSeed}`,
+    cutPiece: true,
+    cutStyle,
+    sourceWidth,
+    sourceHeight,
+    sourceOffsetX: baseOffsetX,
+    sourceOffsetY: baseOffsetY,
+  };
+  const second = {
+    ...layer,
+    id: `layer-cut-${secondSeed}`,
+    fragmentId: `fragment-${secondSeed}`,
+    cutPiece: true,
+    cutStyle,
+    sourceWidth,
+    sourceHeight,
+    sourceOffsetX: baseOffsetX,
+    sourceOffsetY: baseOffsetY,
+  };
+  first.cutNudge = cut.axis === "horizontal" ? { x: -1.5, y: -3 } : { x: -3, y: -1.5 };
+  second.cutNudge = cut.axis === "horizontal" ? { x: 1.5, y: 3 } : { x: 3, y: 1.5 };
+  if (cut.axis === "horizontal") {
+    first.height = Math.max(18, Math.round(cut.cut));
+    second.y = layer.y + first.height;
+    second.height = Math.max(18, Math.round(layer.height - first.height));
+    first.cutEdge = "bottom";
+    second.cutEdge = "top";
+    second.sourceOffsetY = baseOffsetY + first.height;
+  } else {
+    first.width = Math.max(18, Math.round(cut.cut));
+    second.x = layer.x + first.width;
+    second.width = Math.max(18, Math.round(layer.width - first.width));
+    first.cutEdge = "right";
+    second.cutEdge = "left";
+    second.sourceOffsetX = baseOffsetX + first.width;
+  }
+  return [first, second].map((piece) => ({
+    ...piece,
+    justCut: true,
+  }));
+}
+
+function restoreFragment(fragmentId) {
+  const index = state.fragments.findIndex((fragment) => fragment.fragmentId === fragmentId);
+  if (index < 0) return;
+  const [fragment] = state.fragments.splice(index, 1);
+  state.layers.push({
+    ...fragment.layer,
+    x: clamp(fragment.layer.x + 16, -24, 324 - fragment.layer.width + 24),
+    y: clamp(fragment.layer.y + 16, -24, 432 - fragment.layer.height + 24),
+    cutNudge: null,
+  });
+  setState({ selectedLayer: fragment.layer.id });
+}
+
+function moveSelectedFragmentToTray() {
+  const index = state.layers.findIndex((layer) => layer.id === state.selectedLayer);
+  if (index < 0) return false;
+  const layer = state.layers[index];
+  if (!layer.fragmentId) return false;
+  state.layers.splice(index, 1);
+  state.fragments.push({
+    fragmentId: layer.fragmentId,
+    type: layer.type,
+    name: getLayerName(layer),
+    layer: { ...layer, cutNudge: null },
+  });
+  setState({ selectedLayer: false });
+  showToast("已收进碎片托盘");
+  return true;
+}
+
+function eventToCanvasPoint(event, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const scale = rect.width / 324;
+  return {
+    x: clamp((event.clientX - rect.left) / scale, 0, 324),
+    y: clamp((event.clientY - rect.top) / scale, 0, 432),
+  };
+}
+
+function updateCutPath(points) {
+  const path = app.querySelector("[data-cut-path]");
+  if (path) path.setAttribute("d", pointsToPath(points));
+}
+
+function pointsToPath(points) {
+  if (!points || !points.length) return "";
+  return points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+}
+
+function average(values) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -1076,8 +1473,12 @@ function focusTextInput() {
   if (!state.textEditing) return;
   window.setTimeout(() => {
     const input = app.querySelector("[data-text-input]");
-    input?.focus();
-    input?.select();
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    if (lastFocusedTextEditKey !== state.textEditing.focusKey) {
+      input.select();
+      lastFocusedTextEditKey = state.textEditing.focusKey;
+    }
   }, 0);
 }
 
