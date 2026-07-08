@@ -1,0 +1,152 @@
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 18rpx 28rpx 28rpx;
+  background: #fafaf8;
+  color: #111111;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 96rpx;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: 650;
+  line-height: 44rpx;
+}
+
+.status {
+  margin-top: 4rpx;
+  color: #6f6f6f;
+  font-size: 22rpx;
+}
+
+.export-btn {
+  min-width: 156rpx;
+  height: 64rpx;
+  border-radius: 32rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 26rpx;
+  line-height: 64rpx;
+}
+
+.ratio-row {
+  display: flex;
+  gap: 10rpx;
+  padding: 8rpx 0 22rpx;
+}
+
+.ratio {
+  min-width: 96rpx;
+  height: 56rpx;
+  border-radius: 28rpx;
+  background: #f4f4f2;
+  color: #6f6f6f;
+  font-size: 24rpx;
+  line-height: 56rpx;
+}
+
+.ratio.active {
+  background: #111111;
+  color: #ffffff;
+}
+
+.demo-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12rpx;
+  padding: 14rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 28rpx rgba(17, 17, 17, 0.08);
+}
+
+.demo-actions button {
+  height: 72rpx;
+  border-radius: 16rpx;
+  background: #f7f7f5;
+  color: #111111;
+  font-size: 24rpx;
+  line-height: 72rpx;
+}
+
+.text-panel {
+  display: grid;
+  grid-template-columns: 1fr 112rpx 112rpx;
+  gap: 10rpx;
+  align-items: center;
+  margin-top: 14rpx;
+  padding: 12rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 20rpx;
+  background: #ffffff;
+}
+
+.text-input {
+  height: 68rpx;
+  box-sizing: border-box;
+  padding: 0 18rpx;
+  border-radius: 14rpx;
+  background: #f7f7f5;
+  color: #111111;
+  font-size: 26rpx;
+}
+
+.text-panel button {
+  height: 68rpx;
+  border-radius: 14rpx;
+  background: #f7f7f5;
+  color: #111111;
+  font-size: 24rpx;
+  line-height: 68rpx;
+}
+
+.text-panel .primary {
+  background: #111111;
+  color: #ffffff;
+}
+
+.stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: calc(100vh - 560rpx);
+  min-height: 460rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.canvas {
+  display: block;
+  background: #fdfdfb;
+  box-shadow: 0 18rpx 58rpx rgba(17, 17, 17, 0.12);
+}
+
+.layerbar {
+  margin-top: 14rpx;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10rpx;
+  padding: 14rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 36rpx;
+  background: #ffffff;
+  box-shadow: 0 16rpx 56rpx rgba(17, 17, 17, 0.1);
+}
+
+.layerbar button {
+  height: 72rpx;
+  min-width: 0;
+  padding: 0;
+  border-radius: 20rpx;
+  background: #f7f7f5;
+  color: #111111;
+  font-size: 23rpx;
+  line-height: 72rpx;
+}

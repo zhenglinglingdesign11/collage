@@ -1,0 +1,41 @@
+{
+  "pages": [
+    "pages/create/index",
+    "pages/assets/index",
+    "pages/inspiration/index",
+    "pages/me/index",
+    "pages/spike-editor/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "手账拼贴",
+    "navigationBarBackgroundColor": "#fafaf8",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fafaf8"
+  },
+  "tabBar": {
+    "color": "#6f6f6f",
+    "selectedColor": "#111111",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/create/index",
+        "text": "创作"
+      },
+      {
+        "pagePath": "pages/assets/index",
+        "text": "素材"
+      },
+      {
+        "pagePath": "pages/inspiration/index",
+        "text": "灵感"
+      },
+      {
+        "pagePath": "pages/me/index",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

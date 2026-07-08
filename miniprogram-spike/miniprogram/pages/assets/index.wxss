@@ -1,0 +1,39 @@
+.page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 36rpx 32rpx;
+  background: #fafaf8;
+  color: #111111;
+}
+
+.title {
+  font-size: 44rpx;
+  font-weight: 650;
+  line-height: 56rpx;
+}
+
+.section {
+  margin-top: 18rpx;
+  color: #6f6f6f;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
+.pack {
+  margin-top: 28rpx;
+  padding: 24rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 16rpx;
+  background: #ffffff;
+}
+
+.pack-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.pack-caption {
+  margin-top: 8rpx;
+  color: #6f6f6f;
+  font-size: 24rpx;
+}

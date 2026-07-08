@@ -1,0 +1,8 @@
+<view class="page">
+  <view class="title">素材</view>
+  <view class="section">P0 将在这里放素材包列表和素材纸详情。</view>
+  <view class="pack" wx:for="{{packs}}" wx:key="id">
+    <view class="pack-title">{{item.name}}</view>
+    <view class="pack-caption">{{item.description}}</view>
+  </view>
+</view>

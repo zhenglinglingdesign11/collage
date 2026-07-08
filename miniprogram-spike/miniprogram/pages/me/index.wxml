@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="title">我的</view>
+  <view class="section">最近草稿</view>
+  <view class="empty" wx:if="{{!hasDrafts}}">暂无草稿</view>
+  <button class="action" bindtap="clearCache">清理缓存</button>
+</view>

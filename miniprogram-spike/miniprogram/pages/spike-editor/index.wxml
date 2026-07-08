@@ -1,0 +1,56 @@
+<view class="page">
+  <view class="topbar">
+    <view>
+      <view class="title">拼贴 Spike</view>
+      <view class="status">{{saveStatus}}</view>
+    </view>
+    <button class="export-btn" bindtap="exportImage" loading="{{exporting}}">导出相册</button>
+  </view>
+
+  <view class="ratio-row">
+    <button wx:for="{{ratios}}" wx:key="*this" class="ratio {{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</button>
+  </view>
+
+  <view class="demo-actions">
+    <button bindtap="choosePhoto">选择图片</button>
+    <button bindtap="addTape">添加胶带</button>
+    <button bindtap="saveCurrentDraft">保存草稿</button>
+    <button bindtap="restoreDraft">恢复草稿</button>
+    <button bindtap="exportImage" loading="{{exporting}}">导出相册</button>
+  </view>
+
+  <view class="text-panel">
+    <input
+      class="text-input"
+      value="{{textDraft}}"
+      placeholder="输入要放到画布上的文字"
+      focus="{{textInputVisible}}"
+      bindinput="onTextInput"
+      confirm-type="done"
+      bindconfirm="confirmText"
+    />
+    <button bindtap="addText">聚焦</button>
+    <button class="primary" bindtap="confirmText">添加</button>
+  </view>
+
+  <view wx:if="{{selectedLayerId}}" class="layerbar">
+    <button bindtap="duplicateLayer">复制</button>
+    <button bindtap="moveLayerUp">上移</button>
+    <button bindtap="moveLayerDown">下移</button>
+    <button bindtap="deleteLayer">删除</button>
+    <button bindtap="clearSelection">完成</button>
+  </view>
+
+  <view class="stage">
+    <canvas
+      id="spikeCanvas"
+      canvas-id="spikeCanvas"
+      class="canvas"
+      style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;"
+      bindtouchstart="onTouchStart"
+      bindtouchmove="onTouchMove"
+      bindtouchend="onTouchEnd"
+      bindtouchcancel="onTouchEnd"
+    ></canvas>
+  </view>
+</view>

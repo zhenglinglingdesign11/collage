@@ -1,0 +1,5 @@
+<view class="page">
+  <view class="title">灵感</view>
+  <view class="section">P0 将在这里放灵感瀑布流和大图预览。</view>
+  <view class="idea" wx:for="{{inspirations}}" wx:key="id">{{item.title}}</view>
+</view>
