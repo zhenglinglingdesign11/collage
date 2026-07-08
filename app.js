@@ -11,9 +11,12 @@ const state = {
   toast: "",
   ratio: "3:4",
   assetDetail: null,
+  selectedDetailAssetIds: [],
+  selectedInspoImage: null,
   activeAssetCategory: "推荐",
   favoritePackIds: readFavoritePackIds(),
   exportSuccess: false,
+  exportBusy: false,
   cutStyle: "straight",
   cutMode: null,
   fragments: [],
@@ -33,7 +36,7 @@ const state = {
 };
 
 const assetCategories = ["最近", "纸张", "票据", "贴纸", "标记", "纹理"];
-const assetPageCategories = ["推荐", "纸张", "胶带", "票据", "贴纸", "标记", "纹理", "收藏"];
+const assetPageCategories = ["推荐", "收藏", "纸张", "胶带", "票据", "贴纸", "标记", "纹理"];
 const tabs = [
   { id: "create", label: "创作", icon: "tab-create" },
   { id: "assets", label: "素材", icon: "tab-assets" },
@@ -57,6 +60,79 @@ const packs = [
   { id: "mark", name: "手写标记", tone: "#f5f4f1" },
 ];
 
+const inspoImages = [
+  { src: "./imgs/0504fcbe-85ff-410d-bd83-62aef6df720c.png", alt: "手账拼贴灵感图 1", ratio: "1 / 1.16" },
+  { src: "./imgs/0a329fb5-f54f-46f3-a758-6bbc3d434153.png", alt: "手账拼贴灵感图 2", ratio: "1 / .9" },
+  { src: "./imgs/8777edb9-5cbb-4f2d-9820-a3b9d296933b.png", alt: "手账拼贴灵感图 3", ratio: "1 / 1.28" },
+  { src: "./imgs/c8dcf23a-46c3-409e-b13b-b807a174b011.png", alt: "手账拼贴灵感图 4", ratio: "1 / 1.05" },
+  { src: "./imgs/abdf1ad4-13cf-4808-bc5f-880f9169c500.png", alt: "手账拼贴灵感图 5", ratio: "1 / .86" },
+  { src: "./imgs/a580c073-0e92-4145-ae68-2ab6f113dfa5.png", alt: "手账拼贴灵感图 6", ratio: "1 / 1.22" },
+  { src: "./imgs/9f6c82fd-2646-4ca3-80ad-21c6f9df4f83.png", alt: "手账拼贴灵感图 7", ratio: "1 / 1" },
+];
+
+const detailAssets = [
+  {
+    id: "paper-small",
+    label: "纸片",
+    markup: "",
+    className: "asset-piece",
+    style: "left:72px;top:224px;width:76px;height:94px;--rot:-7deg",
+    previewClass: "asset-piece",
+    previewStyle: "--rot:-7deg",
+    layer: { type: "asset", variant: "paper-fill", width: 76, height: 94, rotation: -7 },
+  },
+  {
+    id: "paper-tall",
+    label: "长纸片",
+    markup: "",
+    className: "asset-piece",
+    style: "right:64px;top:200px;width:78px;height:105px;--rot:5deg",
+    previewClass: "asset-piece",
+    previewStyle: "--rot:5deg",
+    layer: { type: "asset", variant: "paper-fill", width: 78, height: 105, rotation: 5 },
+  },
+  {
+    id: "dot-mark",
+    label: "圆点标记",
+    markup: "·",
+    className: "circle-mark",
+    style: "right:48px;top:126px;width:45px;height:45px;background:#f5ecda",
+    previewClass: "circle-mark",
+    previewStyle: "background:#f5ecda",
+    previewMarkup: "·",
+    layer: { type: "asset", variant: "dot", width: 54, height: 54, rotation: 0 },
+  },
+  {
+    id: "frame-card",
+    label: "边框卡",
+    markup: "",
+    className: "",
+    style: "right:70px;top:360px;width:92px;height:112px;background:#fff;border:1px solid var(--ink);border-radius:8px;transform:rotate(-2deg)",
+    previewClass: "detail-frame-preview",
+    previewStyle: "transform:rotate(-2deg)",
+    layer: { type: "asset", variant: "frame", width: 92, height: 112, rotation: -2 },
+  },
+  {
+    id: "receipt",
+    label: "票据",
+    markup: "07<br />···",
+    className: "receipt",
+    style: "left:72px;bottom:150px;transform:rotate(3deg)",
+    previewClass: "receipt",
+    previewMarkup: "07<br />···",
+    layer: { type: "receipt", variant: "receipt", width: 95, height: 58, rotation: 3, content: "07<br />···" },
+  },
+  {
+    id: "mono-line",
+    label: "手绘线",
+    markup: "",
+    className: "mono-line",
+    style: "right:94px;bottom:112px;box-shadow:none",
+    previewClass: "mono-line",
+    layer: { type: "asset", variant: "line", width: 78, height: 42, rotation: -10 },
+  },
+];
+
 const layerActions = [
   ["cut", "tool-cut", "剪切"],
   ["copy", "line-copy", "复制"],
@@ -73,7 +149,6 @@ const layerActions = [
 const shareActions = [
   ["share-story", "快拍"],
   ["share-feed", "动态"],
-  ["share-save", "保存"],
   ["share-link", "复制链接"],
 ];
 
@@ -446,7 +521,7 @@ function renderLayerContent(layer) {
 function renderLayerInnerContent(layer) {
   if (layer.type === "paper") return "";
   if (layer.type === "tape") return "";
-  if (layer.type === "receipt") return "07 · 06<br />· · · · ·";
+  if (layer.type === "receipt") return layer.content || "07 · 06<br />· · · · ·";
   if (layer.type === "text") return `<span class="text-layer-content ${layer.bg && layer.bg !== "none" ? `text-bg-${layer.bg}` : ""}">${escapeHtml(layer.content || "写点什么...")}</span>`;
   if (layer.type === "stamp") return "07<br />26";
   if (layer.type === "asset") return `<span class="asset-layer-mark ${layer.variant || "paper"}"></span>`;
@@ -827,11 +902,6 @@ function renderAssetsScreen() {
       <div class="top-row"><h1 class="page-title" style="font-size:24px">素材包</h1></div>
       <div class="sheet-page">
         <div class="category-tabs">${assetPageCategories.map((category) => `<button class="${state.activeAssetCategory === category ? "active" : ""}" data-asset-category="${category}">${category}</button>`).join("")}</div>
-        ${state.activeAssetCategory === "推荐" ? `
-          <div class="section-head" style="margin:0 0 12px"><span>最近使用</span></div>
-          <div class="recent-assets">${renderSmallAssets()}</div>
-        ` : ""}
-        <div class="section-head" style="margin:0 0 12px"><span>素材包</span></div>
         ${visiblePacks.length ? `
           <div class="pack-grid">
             ${visiblePacks.map((pack, i) => renderPackCard(pack, i)).join("")}
@@ -872,6 +942,7 @@ function renderPackCard(pack, index) {
 function renderAssetDetail() {
   const pack = packs.find((p) => p.id === state.assetDetail) || packs[0];
   const isFavorite = state.favoritePackIds.includes(pack.id);
+  const selectedDetailAssets = detailAssets.filter((asset) => state.selectedDetailAssetIds.includes(asset.id));
   return `
     <section class="screen">
       ${renderStatusBar()}
@@ -883,48 +954,80 @@ function renderAssetDetail() {
       <div class="detail-paper">
         <div class="floating-piece" style="left:44px;top:88px;width:96px;height:34px;background:#eee9df;transform:rotate(-4deg);display:grid;place-items:center;">晨间</div>
         <div class="tape floating-piece" style="left:140px;top:70px;transform:rotate(-10deg)"></div>
-        <button class="asset-piece floating-piece selected" style="left:72px;top:224px;width:76px;height:94px;--rot:-7deg" data-action="select-detail-asset"></button>
-        <button class="asset-piece floating-piece" style="right:64px;top:200px;width:78px;height:105px;--rot:5deg" data-action="select-detail-asset"></button>
-        <button class="floating-piece circle-mark" style="right:48px;top:126px;width:45px;height:45px;background:#f5ecda" data-action="select-detail-asset">·</button>
-        <button class="floating-piece" style="right:70px;top:360px;width:92px;height:112px;background:#fff;border:1px solid var(--ink);border-radius:8px;transform:rotate(-2deg)" data-action="select-detail-asset"></button>
+        ${detailAssets.map(renderDetailAssetButton).join("")}
         <div class="tape floating-piece" style="right:42px;top:392px;background:rgba(141,155,142,.8);transform:rotate(8deg)"></div>
-        <button class="receipt floating-piece" style="left:72px;bottom:150px;transform:rotate(3deg)" data-action="select-detail-asset">07<br />···</button>
-        <button class="mono-line floating-piece" style="right:94px;bottom:112px;box-shadow:none" data-action="select-detail-asset"></button>
-        <button class="add-to-canvas" data-action="add-selected-asset">✓ 添加到画布</button>
+        ${selectedDetailAssets.length ? renderSelectedDetailAssets(selectedDetailAssets) : ""}
+        <button class="add-to-canvas ${selectedDetailAssets.length ? "" : "disabled"}" data-action="add-selected-asset" ${selectedDetailAssets.length ? "" : "disabled"}>添加到画布</button>
       </div>
     </section>
   `;
 }
 
+function renderDetailAssetButton(asset) {
+  const selected = state.selectedDetailAssetIds.includes(asset.id);
+  return `
+    <button class="${asset.className} floating-piece ${selected ? "selected" : ""}" style="${asset.style}" data-action="select-detail-asset" data-detail-asset="${asset.id}" aria-label="选择${asset.label}">
+      ${asset.markup}
+    </button>
+  `;
+}
+
+function renderSelectedDetailAssets(selectedDetailAssets) {
+  return `
+    <div class="selected-asset-tray">
+      ${selectedDetailAssets.map((asset) => `
+        <span class="selected-asset-chip">
+          ${renderSelectedDetailAssetPreview(asset)}
+          <button data-action="remove-detail-asset" data-detail-asset="${asset.id}" aria-label="移除${asset.label}">×</button>
+        </span>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSelectedDetailAssetPreview(asset) {
+  return `
+    <span class="selected-asset-preview" aria-hidden="true">
+      <span class="${asset.previewClass || asset.className}" style="${asset.previewStyle || ""}">
+        ${asset.previewMarkup ?? asset.markup}
+      </span>
+    </span>
+  `;
+}
+
 function renderInspoScreen() {
-  const items = [
-    ["01", "胶带", "用透明胶压住照片角", "让照片像真的贴在纸上"],
-    ["02", "构图", "三张照片斜向叠放", "错位角度制造手作层次"],
-    ["03", "标题", "旧纸片做标题底", "撕边纸衬底 + 衬线标题"],
-    ["04", "排版", "票据拼一条时间线", "等距排列讲一天的故事"],
-    ["05", "材质", "手写标记点缀留白", "一笔墨线让画面呼吸"],
-  ];
+  const selectedImage = inspoImages[state.selectedInspoImage];
   return `
     <section class="screen">
       ${renderStatusBar()}
-      <div class="top-row"><h1 class="page-title" style="font-size:24px">灵感</h1></div>
-      <div class="category-tabs" style="padding:0 20px">${["为你推荐", "旅行", "拍立得", "手账", "极简"].map((c, i) => `<button class="${i === 0 ? "active" : ""}">${c}</button>`).join("")}</div>
-      <div class="inspo-list">
-        ${items.map(([num, tag, title, desc]) => `
-          <button class="technique-card" data-action="start-inspo">
-            <div class="demo-thumb"><div class="tape left" style="left:14px;top:20px"></div></div>
-            <div><div class="helper" style="margin:0">${num} · ${tag}</div><h3>${title}</h3><p>${desc}</p></div>
-            <div>›</div>
+      <div class="top-row inspo-top-row">
+        <h1 class="page-title" style="font-size:24px">灵感</h1>
+      </div>
+      <div class="inspo-list" aria-label="灵感图瀑布流">
+        ${inspoImages.map((item, index) => `
+          <button class="inspo-card" data-action="open-inspo-image" data-inspo-index="${index}" style="--ratio:${item.ratio}" aria-label="查看${item.alt}">
+            <img src="${item.src}" alt="${item.alt}" loading="lazy" />
           </button>
         `).join("")}
       </div>
+      ${selectedImage ? renderInspoPreview(selectedImage) : ""}
       ${renderTabbar()}
     </section>
   `;
 }
 
+function renderInspoPreview(item) {
+  return `
+    <div class="inspo-preview" data-action="close-inspo-image" role="dialog" aria-modal="true" aria-label="灵感大图预览">
+      <div class="inspo-preview-panel">
+        <button class="inspo-preview-close" data-action="close-inspo-image" aria-label="关闭">×</button>
+        <img src="${item.src}" alt="${item.alt}" />
+      </div>
+    </div>
+  `;
+}
+
 function renderMineScreen() {
-  const favoritePacks = packs.filter((pack) => state.favoritePackIds.includes(pack.id));
   return `
     <section class="screen">
       ${renderStatusBar()}
@@ -935,14 +1038,14 @@ function renderMineScreen() {
           ${renderDraft("flowers", "-1deg")}
           ${renderDraft("coffee", "1deg")}
         </div>
-        <div class="section-head"><span>收藏素材</span></div>
-        ${favoritePacks.length ? `
-          <div class="pack-grid">
-            ${favoritePacks.map((pack, i) => renderPackCard(pack, i)).join("")}
-          </div>
-        ` : `<div class="empty-note">还没有收藏的素材包</div>`}
         <div class="section-head"><span>设置</span></div>
-        <button class="technique-card"><div class="demo-thumb icon-demo" style="height:52px;width:52px">${renderIcon("line-delete")}</div><div><h3>清理缓存</h3><p>释放临时素材和导出文件</p></div><div>›</div></button>
+        <div class="settings-card">
+          <div class="settings-copy">
+            <h3>清理缓存</h3>
+            <p>释放临时素材和导出文件</p>
+          </div>
+          <button class="settings-action" data-action="clear-cache" aria-label="清理缓存">${renderIcon("line-delete")}</button>
+        </div>
       </div>
       ${renderTabbar()}
     </section>
@@ -950,22 +1053,26 @@ function renderMineScreen() {
 }
 
 function renderExportScreen() {
+  const exportButtonLabel = state.exportBusy
+    ? "保存中..."
+    : state.exportSuccess
+      ? "已保存到相册"
+      : "保存到相册";
   return `
     <section class="screen">
       ${renderStatusBar()}
       <div class="editor-topbar">
         <button class="icon-button" data-action="back-editor" aria-label="返回">${renderIcon("line-back")}</button>
         <div class="page-title" style="font-size:15px">导出预览</div>
-        <button class="icon-button" aria-label="收藏">${renderIcon("line-star")}</button>
+        <span></span>
       </div>
       <div class="export-preview">
         <div class="preview-wrap">${renderCanvas(false)}</div>
-        <div class="segmented">${["3:4", "1:1", "9:16", "PNG", "高清"].map((x, i) => `<button class="${i === 0 ? "active" : ""}">${x}</button>`).join("")}</div>
+        <button class="full-button" data-action="export-download" ${state.exportBusy ? "disabled" : ""}>${exportButtonLabel}</button>
         <div class="section-head" style="margin:0"><span>分享到</span></div>
         <div class="share-row">
           ${shareActions.map(([icon, label]) => `<button class="share-button"><span class="share-icon">${renderIcon(icon)}</span>${label}</button>`).join("")}
         </div>
-        <button class="full-button" data-action="export-success">${state.exportSuccess ? "已保存到相册" : "导出并分享"}</button>
       </div>
     </section>
   `;
@@ -973,7 +1080,7 @@ function renderExportScreen() {
 
 function bindEvents() {
   app.querySelectorAll("[data-tab]").forEach((el) => {
-    el.addEventListener("click", () => setState({ tab: el.dataset.tab, drawer: null, assetDetail: null, selectedLayer: false }));
+    el.addEventListener("click", () => setState({ tab: el.dataset.tab, drawer: null, assetDetail: null, selectedLayer: false, selectedInspoImage: null }));
   });
   app.querySelectorAll("[data-ratio]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -1026,7 +1133,7 @@ function bindEvents() {
     el.addEventListener("input", () => updateTextLayer({ content: el.value }, false));
   });
   app.querySelectorAll("[data-pack]").forEach((el) => {
-    el.addEventListener("click", () => setState({ assetDetail: el.dataset.pack, tab: "create", drawer: null }));
+    el.addEventListener("click", () => setState({ assetDetail: el.dataset.pack, selectedDetailAssetIds: [], tab: "create", drawer: null }));
   });
   app.querySelectorAll("[data-asset-category]").forEach((el) => {
     el.addEventListener("click", () => setState({ activeAssetCategory: el.dataset.assetCategory }));
@@ -1046,6 +1153,7 @@ function bindEvents() {
         return;
       }
       if (el.dataset.action === "deselect-canvas" && event.target !== el) return;
+      if (el.dataset.action === "close-inspo-image" && event.target !== el) return;
       handleAction(el.dataset.action, el);
     });
   });
@@ -1060,12 +1168,24 @@ function handleAction(action, el) {
     redoCanvas();
     return;
   }
-  if (action === "add-photo" || action === "open-draft" || action === "start-inspo") {
+  if (action === "add-photo" || action === "open-draft") {
     setState({ tab: "create", editor: "edit", selectedLayer: false, drawer: null, assetDetail: null });
+  }
+  if (action === "open-inspo-image") {
+    setState({ selectedInspoImage: Number(el?.dataset.inspoIndex) });
+    return;
+  }
+  if (action === "close-inspo-image") {
+    setState({ selectedInspoImage: null });
+    return;
   }
   if (action === "choose-album" || action === "take-photo") {
     setState({ tab: "create", editor: "edit", selectedLayer: false, drawer: null, assetDetail: null });
     showToast(action === "choose-album" ? "已选择图片" : "已拍照添加");
+  }
+  if (action === "clear-cache") {
+    showToast("缓存已清理");
+    return;
   }
   if (action === "select-layer") setState({ selectedLayer: "photo", drawer: null });
   if (action === "deselect") setState({ selectedLayer: false });
@@ -1093,19 +1213,24 @@ function handleAction(action, el) {
     if (layer?.type === "text") startTextEditing(layer.id, false);
   }
   if (action === "export") setState({ tab: "export", drawer: null, selectedLayer: false, exportSuccess: false });
-  if (action === "back-editor") setState({ tab: "create", editor: "edit", exportSuccess: false });
-  if (action === "export-success") {
-    setState({ exportSuccess: true });
-    showToast("导出成功");
-  }
-  if (action === "close-detail") setState({ tab: "assets", assetDetail: null });
+  if (action === "back-editor") setState({ tab: "create", editor: "edit", exportSuccess: false, exportBusy: false });
+  if (action === "export-download") exportCollage();
+  if (action === "close-detail") setState({ tab: "assets", assetDetail: null, selectedDetailAssetIds: [] });
   if (action === "toggle-favorite-pack") {
     toggleFavoritePack(state.assetDetail);
     return;
   }
-  if (action === "select-detail-asset") showToast("已选中素材");
+  if (action === "select-detail-asset") {
+    toggleDetailAsset(el?.dataset.detailAsset);
+    return;
+  }
+  if (action === "remove-detail-asset") {
+    removeDetailAsset(el?.dataset.detailAsset);
+    return;
+  }
   if (action === "add-selected-asset") {
-    addCanvasLayer("asset", { variant: "paper" });
+    addSelectedDetailAssetsToCanvas();
+    return;
   }
   if (action === "cancel-cut") {
     setState({ cutMode: null });
@@ -1115,6 +1240,373 @@ function handleAction(action, el) {
   }
 }
 
+async function exportCollage() {
+  if (state.exportBusy) return;
+  const canvasNode = app.querySelector(".preview-wrap .collage-canvas");
+  if (!canvasNode) {
+    showToast("没有可导出的画布");
+    return;
+  }
+  setState({ exportBusy: true, exportSuccess: false });
+  try {
+    await document.fonts?.ready;
+    const blob = await renderCanvasNodeToPng(canvasNode, {
+      ratio: state.ratio,
+      scale: 1,
+    });
+    downloadBlob(blob, createExportFileName());
+    setState({ exportBusy: false, exportSuccess: true });
+    showToast("导出成功");
+  } catch (error) {
+    console.error(error);
+    setState({ exportBusy: false, exportSuccess: false });
+    showToast("导出失败，请重试");
+  }
+}
+
+async function renderCanvasNodeToPng(canvasNode, options) {
+  const sourceWidth = 324;
+  const sourceHeight = 432;
+  const targetSize = getExportSize(options.ratio, options.scale);
+  const sourceCanvas = document.createElement("canvas");
+  sourceCanvas.width = sourceWidth;
+  sourceCanvas.height = sourceHeight;
+  drawCollageToCanvas(sourceCanvas, canvasNode);
+  const canvas = document.createElement("canvas");
+  canvas.width = targetSize.width;
+  canvas.height = targetSize.height;
+  const context = canvas.getContext("2d");
+  context.fillStyle = getComputedStyle(canvasNode).backgroundColor || "#fdfdfb";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  const fitScale = Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight);
+  const drawWidth = sourceWidth * fitScale;
+  const drawHeight = sourceHeight * fitScale;
+  context.drawImage(sourceCanvas, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight);
+  return canvasToBlob(canvas);
+}
+
+function drawCollageToCanvas(canvas, canvasNode) {
+  const context = canvas.getContext("2d");
+  drawCanvasPaper(context, canvas.width, canvas.height, getComputedStyle(canvasNode).backgroundColor || "#fdfdfb");
+  state.layers.filter((layer) => layer.type === "paper").forEach((layer) => drawExportLayer(context, layer));
+  drawExportPhotoLayer(context);
+  state.layers.filter((layer) => layer.type !== "paper").forEach((layer) => drawExportLayer(context, layer));
+}
+
+function drawCanvasPaper(context, width, height, color) {
+  context.fillStyle = color;
+  context.fillRect(0, 0, width, height);
+  context.fillStyle = "rgba(17, 17, 17, 0.04)";
+  for (let x = 0; x < width; x += 10) {
+    for (let y = 0; y < height; y += 10) {
+      context.beginPath();
+      context.arc(x, y, 0.75, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+}
+
+function drawExportPhotoLayer(context) {
+  context.save();
+  applyLayerTransform(context, { x: 55, y: 49, width: 226, height: 221, rotation: 1.6 });
+  context.fillStyle = "#ffffff";
+  context.shadowColor = "rgba(17, 17, 17, 0.12)";
+  context.shadowBlur = 18;
+  context.shadowOffsetY = 8;
+  context.fillRect(-113, -110.5, 226, 221);
+  context.shadowColor = "transparent";
+  context.translate(-105, -102.5);
+  drawCameraArt(context, 210, 205);
+  context.restore();
+}
+
+function drawExportLayer(context, layer) {
+  context.save();
+  context.globalAlpha = layer.opacity ?? 1;
+  applyLayerTransform(context, layer);
+  if (layer.shadow) {
+    context.shadowColor = "rgba(17, 17, 17, 0.16)";
+    context.shadowBlur = 20;
+    context.shadowOffsetY = 10;
+  }
+  clipExportLayer(context, layer, layer.width, layer.height);
+  if (layer.cutPiece) {
+    context.translate(-(layer.sourceOffsetX || 0), -(layer.sourceOffsetY || 0));
+    drawExportLayerContent(context, { ...layer, cutPiece: false }, layer.sourceWidth || layer.width, layer.sourceHeight || layer.height);
+  } else {
+    drawExportLayerContent(context, layer, layer.width, layer.height);
+  }
+  context.restore();
+}
+
+function applyLayerTransform(context, layer) {
+  context.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+  context.rotate(((layer.rotation || 0) * Math.PI) / 180);
+  context.translate(-layer.width / 2, -layer.height / 2);
+}
+
+function clipExportLayer(context, layer, width, height) {
+  context.beginPath();
+  if (layer.clipPath) {
+    const points = parseClipPolygon(layer.clipPath);
+    if (points.length) {
+      points.forEach((point, index) => {
+        if (index) context.lineTo(point.x, point.y);
+        else context.moveTo(point.x, point.y);
+      });
+      context.closePath();
+    } else {
+      roundedRectPath(context, 0, 0, width, height, layer.radius || 0);
+    }
+  } else if (layer.tear) {
+    context.moveTo(0, 0);
+    context.lineTo(width, 0);
+    context.lineTo(width, height * 0.92);
+    context.lineTo(width * 0.94, height);
+    context.lineTo(width * 0.84, height * 0.94);
+    context.lineTo(width * 0.72, height);
+    context.lineTo(width * 0.6, height * 0.93);
+    context.lineTo(width * 0.48, height);
+    context.lineTo(width * 0.34, height * 0.94);
+    context.lineTo(width * 0.22, height);
+    context.lineTo(width * 0.1, height * 0.93);
+    context.lineTo(0, height);
+    context.closePath();
+  } else {
+    roundedRectPath(context, 0, 0, width, height, layer.radius || 0);
+  }
+  context.clip();
+}
+
+function drawExportLayerContent(context, layer, width, height) {
+  if (layer.type === "paper") {
+    context.fillStyle = "rgba(239, 231, 216, 0.7)";
+    context.fillRect(0, 0, width, height);
+    return;
+  }
+  if (layer.type === "tape") {
+    const gradient = context.createLinearGradient(0, 0, width, height);
+    const sage = layer.variant === "sage";
+    gradient.addColorStop(0, sage ? "rgba(141, 155, 142, 0.82)" : "rgba(239, 214, 137, 0.82)");
+    gradient.addColorStop(1, sage ? "rgba(141, 155, 142, 0.54)" : "rgba(232, 196, 104, 0.62)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    return;
+  }
+  if (layer.type === "receipt") {
+    context.fillStyle = "rgba(255, 255, 255, 0.86)";
+    context.fillRect(0, 0, width, height);
+    context.fillStyle = "#242424";
+    context.font = "11px ui-monospace, monospace";
+    context.textAlign = "center";
+    context.fillText("07 · 06", width / 2, 22);
+    context.fillText("· · · · ·", width / 2, 39);
+    return;
+  }
+  if (layer.type === "text") {
+    drawExportTextLayer(context, layer, width, height);
+    return;
+  }
+  if (layer.type === "stamp") {
+    context.fillStyle = "#ffffff";
+    context.beginPath();
+    context.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = "#111111";
+    context.font = "9px ui-monospace, monospace";
+    context.textAlign = "center";
+    context.fillText("07", width / 2, height / 2 - 2);
+    context.fillText("26", width / 2, height / 2 + 10);
+    return;
+  }
+  drawExportAssetLayer(context, layer, width, height);
+}
+
+function drawExportAssetLayer(context, layer, width, height) {
+  context.fillStyle = "#ffffff";
+  roundedRectPath(context, 0, 0, width, height, layer.radius || 5);
+  context.fill();
+  const mark = {
+    x: width * 0.13,
+    y: height * 0.13,
+    width: width * 0.74,
+    height: height * 0.74,
+  };
+  context.save();
+  context.translate(mark.x, mark.y);
+  drawAssetMark(context, layer.variant || "paper", mark.width, mark.height);
+  context.restore();
+}
+
+function drawAssetMark(context, variant, width, height) {
+  context.fillStyle = variant === "sage" ? "#8d9b8e" : "#efe7d8";
+  if (variant === "circle") {
+    context.strokeStyle = "#111111";
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.arc(width / 2, height / 2, Math.min(width, height) / 2 - 1, 0, Math.PI * 2);
+    context.stroke();
+    return;
+  }
+  if (variant === "line") {
+    context.strokeStyle = "#52606a";
+    context.lineWidth = 4;
+    context.beginPath();
+    context.arc(width / 2, height * 0.35, width * 0.4, 0.15 * Math.PI, 0.85 * Math.PI);
+    context.stroke();
+    return;
+  }
+  if (["heart", "star", "tag"].includes(variant)) {
+    context.fillStyle = "#111111";
+    roundedRectPath(context, width * 0.2, height * 0.2, width * 0.6, height * 0.6, variant === "tag" ? 5 : 0);
+    context.fill();
+    return;
+  }
+  if (variant === "stripe" || variant === "sage") {
+    context.fillStyle = variant === "sage" ? "rgba(141, 155, 142, 0.85)" : "rgba(234, 212, 138, 0.85)";
+    for (let x = -height; x < width; x += 14) {
+      context.save();
+      context.translate(x, 0);
+      context.rotate(-35 * Math.PI / 180);
+      context.fillRect(0, 0, 7, height * 2);
+      context.restore();
+    }
+    return;
+  }
+  context.fillRect(0, 0, width, height);
+}
+
+function drawExportTextLayer(context, layer, width, height) {
+  const font = textFonts.find((item) => item.id === layer.fontKey) || textFonts[0];
+  const size = layer.fontSize || 28;
+  if (layer.bg && layer.bg !== "none") {
+    const bgColors = {
+      paper: "rgba(239, 231, 216, 0.92)",
+      white: "rgba(255, 255, 255, 0.86)",
+      black: "#111111",
+      tape: "rgba(233, 210, 138, 0.78)",
+    };
+    context.fillStyle = bgColors[layer.bg] || "transparent";
+    roundedRectPath(context, 0, 0, width, height, 5);
+    context.fill();
+  }
+  context.fillStyle = layer.bg === "black" ? "#ffffff" : (layer.color || "#111111");
+  context.font = `${size}px ${font.family}`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  drawMultilineText(context, layer.content || "写点什么...", width / 2, height / 2, width - 8, size * 1.15);
+}
+
+function drawMultilineText(context, text, x, y, maxWidth, lineHeight) {
+  const lines = String(text).split("\n");
+  const measured = [];
+  lines.forEach((line) => {
+    let current = "";
+    Array.from(line).forEach((character) => {
+      const next = current + character;
+      if (current && context.measureText(next).width > maxWidth) {
+        measured.push(current);
+        current = character;
+      } else {
+        current = next;
+      }
+    });
+    measured.push(current);
+  });
+  const startY = y - ((measured.length - 1) * lineHeight) / 2;
+  measured.forEach((line, index) => context.fillText(line, x, startY + index * lineHeight));
+}
+
+function drawCameraArt(context, width, height) {
+  const gradient = context.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, "#f2f3f2");
+  gradient.addColorStop(0.55, "#ffffff");
+  gradient.addColorStop(1, "#ececea");
+  context.fillStyle = gradient;
+  roundedRectPath(context, 0, 0, width, height, 4);
+  context.fill();
+  context.fillStyle = "#111111";
+  roundedRectPath(context, width * 0.2, height * 0.28, width * 0.55, height * 0.37, 16);
+  context.fill();
+  context.fillStyle = "#202224";
+  roundedRectPath(context, width * 0.28, height * 0.2, width * 0.25, height * 0.12, 8);
+  context.fill();
+  const lensGradient = context.createRadialGradient(width * 0.5, height * 0.42, 6, width * 0.5, height * 0.42, 38);
+  lensGradient.addColorStop(0, "#38414a");
+  lensGradient.addColorStop(0.48, "#0c0d0e");
+  lensGradient.addColorStop(1, "#050505");
+  context.fillStyle = lensGradient;
+  context.beginPath();
+  context.arc(width * 0.5, height * 0.42, 38, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = "rgba(110, 140, 160, 0.42)";
+  context.beginPath();
+  context.arc(width * 0.51, height * 0.38, 8, 0, Math.PI * 2);
+  context.fill();
+}
+
+function roundedRectPath(context, x, y, width, height, radius = 0) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.lineTo(x + width - safeRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  context.lineTo(x + width, y + height - safeRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  context.lineTo(x + safeRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  context.lineTo(x, y + safeRadius);
+  context.quadraticCurveTo(x, y, x + safeRadius, y);
+  context.closePath();
+}
+
+function parseClipPolygon(value) {
+  const match = String(value).match(/polygon\((.*)\)/);
+  if (!match) return [];
+  return match[1].split(",").map((pair) => {
+    const [x, y] = pair.trim().split(/\s+/);
+    return { x: parseFloat(x), y: parseFloat(y) };
+  }).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("无法生成 PNG 文件"));
+    }, "image/png");
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function createExportFileName() {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `collage-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.png`;
+}
+
+function getExportSize(ratio, scale = 1) {
+  const base = {
+    "1:1": { width: 1080, height: 1080 },
+    "9:16": { width: 1080, height: 1920 },
+    "3:4": { width: 1080, height: 1440 },
+  }[ratio] || { width: 1080, height: 1440 };
+  return {
+    width: base.width * scale,
+    height: base.height * scale,
+  };
+}
+
 function toggleFavoritePack(packId) {
   if (!packId) return;
   const favoritePackIds = state.favoritePackIds.includes(packId)
@@ -1122,6 +1614,46 @@ function toggleFavoritePack(packId) {
     : [...state.favoritePackIds, packId];
   writeFavoritePackIds(favoritePackIds);
   setState({ favoritePackIds });
+}
+
+function toggleDetailAsset(assetId) {
+  if (!assetId) return;
+  const selectedDetailAssetIds = state.selectedDetailAssetIds.includes(assetId)
+    ? state.selectedDetailAssetIds.filter((id) => id !== assetId)
+    : [...state.selectedDetailAssetIds, assetId];
+  setState({ selectedDetailAssetIds });
+}
+
+function removeDetailAsset(assetId) {
+  if (!assetId) return;
+  setState({
+    selectedDetailAssetIds: state.selectedDetailAssetIds.filter((id) => id !== assetId),
+  });
+}
+
+function addSelectedDetailAssetsToCanvas() {
+  const selectedAssets = detailAssets.filter((asset) => state.selectedDetailAssetIds.includes(asset.id));
+  if (!selectedAssets.length) return;
+  const beforeSnapshot = captureCanvasSnapshot();
+  let next = state.layerSeed;
+  selectedAssets.forEach((asset, index) => {
+    next += 1;
+    const layer = asset.layer || {};
+    state.layers.push({
+      ...layer,
+      id: `layer-user-${next}`,
+      type: layer.type || "asset",
+      x: 78 + ((next + index) % 4) * 22,
+      y: 126 + ((next + index) % 3) * 36,
+      width: layer.width || 66,
+      height: layer.height || 76,
+      rotation: layer.rotation ?? (next % 2 ? -5 : 4),
+      variant: layer.variant || "paper",
+    });
+  });
+  state.layerSeed = next;
+  recordCanvasHistory(beforeSnapshot);
+  setState({ tab: "create", editor: "edit", drawer: null, selectedLayer: false, assetDetail: null, selectedDetailAssetIds: [] });
 }
 
 function startTextEditing(layerId, isNew = false, beforeSnapshot = captureCanvasSnapshot()) {
