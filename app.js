@@ -1,4 +1,5 @@
 const app = document.querySelector("#app");
+const favoritePackStorageKey = "journal.favoritePackIds";
 
 const state = {
   tab: "create",
@@ -10,10 +11,16 @@ const state = {
   toast: "",
   ratio: "3:4",
   assetDetail: null,
+  activeAssetCategory: "推荐",
+  favoritePackIds: readFavoritePackIds(),
   exportSuccess: false,
   cutStyle: "straight",
   cutMode: null,
   fragments: [],
+  history: {
+    undo: [],
+    redo: [],
+  },
   layers: [
     { id: "layer-paper", type: "paper", x: 28, y: 73, width: 255, height: 259, rotation: 1, variant: "base" },
     { id: "layer-tape-left", type: "tape", x: 32, y: 63, width: 82, height: 26, rotation: -26, variant: "yellow" },
@@ -26,6 +33,7 @@ const state = {
 };
 
 const assetCategories = ["最近", "纸张", "票据", "贴纸", "标记", "纹理"];
+const assetPageCategories = ["推荐", "纸张", "胶带", "票据", "贴纸", "标记", "纹理", "收藏"];
 const tabs = [
   { id: "create", label: "创作", icon: "tab-create" },
   { id: "assets", label: "素材", icon: "tab-assets" },
@@ -106,6 +114,7 @@ const textStyleTools = [
 let suppressCanvasClick = false;
 let lastTextTap = { id: null, time: 0 };
 let lastFocusedTextEditKey = 0;
+const maxHistoryItems = 60;
 
 function svg(content, className = "svg-icon", viewBox = "0 0 32 32") {
   return `<svg class="${className}" viewBox="${viewBox}" aria-hidden="true" focusable="false">${content}</svg>`;
@@ -155,6 +164,7 @@ function renderIcon(name) {
     "line-undo": line(`<path d="M9 8H5v-4"/><path d="M5.5 8.5a7 7 0 1 1 1.8 7"/>`),
     "line-redo": line(`<path d="M15 8h4v-4"/><path d="M18.5 8.5a7 7 0 1 0-1.8 7"/>`),
     "line-star": line(`<path d="M12 4l2.4 5 5.4.8-3.9 3.8.9 5.4-4.8-2.6L7.2 19l.9-5.4-3.9-3.8 5.4-.8L12 4z"/>`),
+    "solid-star": line(`<path d="M12 4l2.4 5 5.4.8-3.9 3.8.9 5.4-4.8-2.6L7.2 19l.9-5.4-3.9-3.8 5.4-.8L12 4z" fill="currentColor" stroke="currentColor"/>`),
     "line-search": line(`<circle cx="11" cy="11" r="5.5"/><path d="M16 16l4 4"/>`),
     "line-copy": line(`<rect x="8" y="8" width="10" height="10" rx="2"/><path d="M6 14H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"/>`),
     "line-delete": line(`<path d="M5 7h14"/><path d="M9 7V5h6v2"/><path d="M8 10v8M12 10v8M16 10v8"/><path d="M7 7l1 14h8l1-14"/>`),
@@ -178,6 +188,87 @@ function renderIcon(name) {
 function setState(patch) {
   Object.assign(state, patch);
   render();
+}
+
+function readFavoritePackIds() {
+  try {
+    const value = window.localStorage.getItem(favoritePackStorageKey);
+    return value ? JSON.parse(value) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFavoritePackIds(favoritePackIds) {
+  try {
+    window.localStorage.setItem(favoritePackStorageKey, JSON.stringify(favoritePackIds));
+  } catch {
+    // The prototype can still work without persisted storage.
+  }
+}
+
+function cloneCanvasValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function captureCanvasSnapshot() {
+  return {
+    layers: cloneCanvasValue(state.layers),
+    fragments: cloneCanvasValue(state.fragments),
+    layerSeed: state.layerSeed,
+    ratio: state.ratio,
+    selectedLayer: state.selectedLayer,
+  };
+}
+
+function snapshotsMatch(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function recordCanvasHistory(beforeSnapshot) {
+  const afterSnapshot = captureCanvasSnapshot();
+  if (snapshotsMatch(beforeSnapshot, afterSnapshot)) return false;
+  state.history.undo.push(beforeSnapshot);
+  if (state.history.undo.length > maxHistoryItems) state.history.undo.shift();
+  state.history.redo = [];
+  return true;
+}
+
+function restoreCanvasSnapshot(snapshot) {
+  const selectedLayer = snapshot.selectedLayer === "photo" || snapshot.layers.some((layer) => layer.id === snapshot.selectedLayer)
+    ? snapshot.selectedLayer
+    : false;
+  state.layers = cloneCanvasValue(snapshot.layers);
+  state.fragments = cloneCanvasValue(snapshot.fragments);
+  state.layerSeed = snapshot.layerSeed;
+  state.ratio = snapshot.ratio;
+  setState({
+    tab: "create",
+    editor: "edit",
+    selectedLayer,
+    drawer: null,
+    textEditing: null,
+    cutMode: null,
+    assetDetail: null,
+    exportSuccess: false,
+  });
+}
+
+function undoCanvas() {
+  if (!state.history.undo.length) return;
+  const current = captureCanvasSnapshot();
+  const previous = state.history.undo.pop();
+  state.history.redo.push(current);
+  restoreCanvasSnapshot(previous);
+}
+
+function redoCanvas() {
+  if (!state.history.redo.length) return;
+  const current = captureCanvasSnapshot();
+  const next = state.history.redo.pop();
+  state.history.undo.push(current);
+  if (state.history.undo.length > maxHistoryItems) state.history.undo.shift();
+  restoreCanvasSnapshot(next);
 }
 
 function showToast(message) {
@@ -265,7 +356,7 @@ function renderEmptyCreate() {
         </div>
         <button class="material-start" data-tab="assets">
           <span class="quick-icon">${renderIcon("tab-inspo")}</span>
-          <span><strong>从素材纸包开始</strong></span>
+          <span><strong>从素材包开始</strong></span>
           <span class="material-arrow">›</span>
         </button>
         <div class="section-head"><span>最近草稿</span><button data-tab="mine">查看全部</button></div>
@@ -289,8 +380,8 @@ function renderEditor() {
       <button class="icon-button" data-action="back-empty" aria-label="返回">${renderIcon("line-back")}</button>
       <button class="ratio-pill" data-drawer="ratio">${state.ratio}</button>
       <div class="top-actions">
-        <button class="icon-button" aria-label="撤销">${renderIcon("line-undo")}</button>
-        <button class="icon-button disabled" aria-label="重做">${renderIcon("line-redo")}</button>
+        <button class="icon-button ${!state.textEditing && state.history.undo.length ? "" : "disabled"}" data-action="undo" aria-label="撤销" ${!state.textEditing && state.history.undo.length ? "" : "disabled"}>${renderIcon("line-undo")}</button>
+        <button class="icon-button ${!state.textEditing && state.history.redo.length ? "" : "disabled"}" data-action="redo" aria-label="重做" ${!state.textEditing && state.history.redo.length ? "" : "disabled"}>${renderIcon("line-redo")}</button>
         <button class="export-button" data-action="export">导出</button>
       </div>
     </div>
@@ -540,6 +631,7 @@ function getSelectedLayer() {
 }
 
 function addCanvasLayer(source = "asset", detail = {}) {
+  const beforeSnapshot = captureCanvasSnapshot();
   const next = state.layerSeed + 1;
   const isTape = source === "tape";
   const isShape = source === "shape";
@@ -558,10 +650,12 @@ function addCanvasLayer(source = "asset", detail = {}) {
   };
   state.layers.push(layer);
   state.layerSeed = next;
+  recordCanvasHistory(beforeSnapshot);
   setState({ tab: "create", editor: "edit", drawer: null, selectedLayer: false, assetDetail: null });
 }
 
 function addTextLayer() {
+  const beforeSnapshot = captureCanvasSnapshot();
   const next = state.layerSeed + 1;
   const layer = {
     id: `layer-user-${next}`,
@@ -579,7 +673,7 @@ function addTextLayer() {
   };
   state.layers.push(layer);
   state.layerSeed = next;
-  startTextEditing(layer.id, true);
+  startTextEditing(layer.id, true, beforeSnapshot);
 }
 
 function renderToolPalette(type) {
@@ -724,18 +818,25 @@ function renderOptionDrawer(title, options, actionLabel) {
 }
 
 function renderAssetsScreen() {
+  const visiblePacks = state.activeAssetCategory === "收藏"
+    ? packs.filter((pack) => state.favoritePackIds.includes(pack.id))
+    : packs;
   return `
     <section class="screen">
       ${renderStatusBar()}
-      <div class="top-row"><h1 class="page-title" style="font-size:24px">素材</h1><button class="search-button" aria-label="搜索">${renderIcon("line-search")}</button></div>
+      <div class="top-row"><h1 class="page-title" style="font-size:24px">素材包</h1></div>
       <div class="sheet-page">
-        <div class="category-tabs">${["推荐", "纸张", "胶带", "票据", "贴纸", "标记", "纹理", "收藏"].map((c, i) => `<button class="${i === 0 ? "active" : ""}">${c}</button>`).join("")}</div>
-        <div class="helper" style="margin:0 0 8px">◷ 最近使用</div>
-        <div class="recent-assets">${renderSmallAssets()}</div>
-        <div class="section-head" style="margin:0 0 12px"><span>素材纸包</span></div>
-        <div class="pack-grid">
-          ${packs.map((pack, i) => renderPackCard(pack, i)).join("")}
-        </div>
+        <div class="category-tabs">${assetPageCategories.map((category) => `<button class="${state.activeAssetCategory === category ? "active" : ""}" data-asset-category="${category}">${category}</button>`).join("")}</div>
+        ${state.activeAssetCategory === "推荐" ? `
+          <div class="section-head" style="margin:0 0 12px"><span>最近使用</span></div>
+          <div class="recent-assets">${renderSmallAssets()}</div>
+        ` : ""}
+        <div class="section-head" style="margin:0 0 12px"><span>素材包</span></div>
+        ${visiblePacks.length ? `
+          <div class="pack-grid">
+            ${visiblePacks.map((pack, i) => renderPackCard(pack, i)).join("")}
+          </div>
+        ` : `<div class="empty-note">还没有收藏的素材包</div>`}
       </div>
       ${renderTabbar()}
     </section>
@@ -753,8 +854,10 @@ function renderSmallAssets() {
 }
 
 function renderPackCard(pack, index) {
+  const isFavorite = state.favoritePackIds.includes(pack.id);
   return `
     <button class="pack-card" style="background:${pack.tone}" data-pack="${pack.id}">
+      ${isFavorite ? `<span class="pack-favorite-mark">${renderIcon("solid-star")}</span>` : ""}
       <div class="pack-scatter">
         <div class="paper-mini a" style="--rot:${index % 2 ? 7 : -8}deg"></div>
         <div class="paper-mini b" style="--rot:${index % 2 ? -4 : 5}deg"></div>
@@ -762,20 +865,20 @@ function renderPackCard(pack, index) {
         ${index === 2 ? `<div class="tape-mini"></div><div class="tape-mini" style="left:74px;top:62px;background:rgba(141,155,142,.8);transform:rotate(12deg)"></div>` : `<div class="tape-mini"></div>`}
         ${index === 3 ? `<div class="circle-mark" style="position:absolute;right:38px;top:82px;width:30px;height:30px">·</div>` : ""}
       </div>
-      <span class="pack-title">${pack.name}</span>
     </button>
   `;
 }
 
 function renderAssetDetail() {
   const pack = packs.find((p) => p.id === state.assetDetail) || packs[0];
+  const isFavorite = state.favoritePackIds.includes(pack.id);
   return `
     <section class="screen">
       ${renderStatusBar()}
       <div class="editor-topbar">
         <button class="icon-button" data-action="close-detail" aria-label="返回">${renderIcon("line-back")}</button>
         <div class="page-title" style="font-size:14px">${pack.name}</div>
-        <button class="icon-button" aria-label="收藏">${renderIcon("line-star")}</button>
+        <button class="icon-button favorite-button" data-action="toggle-favorite-pack" aria-label="${isFavorite ? "取消收藏" : "收藏"}">${renderIcon(isFavorite ? "solid-star" : "line-star")}</button>
       </div>
       <div class="detail-paper">
         <div class="floating-piece" style="left:44px;top:88px;width:96px;height:34px;background:#eee9df;transform:rotate(-4deg);display:grid;place-items:center;">晨间</div>
@@ -821,6 +924,7 @@ function renderInspoScreen() {
 }
 
 function renderMineScreen() {
+  const favoritePacks = packs.filter((pack) => state.favoritePackIds.includes(pack.id));
   return `
     <section class="screen">
       ${renderStatusBar()}
@@ -832,7 +936,11 @@ function renderMineScreen() {
           ${renderDraft("coffee", "1deg")}
         </div>
         <div class="section-head"><span>收藏素材</span></div>
-        <div class="recent-assets">${renderSmallAssets()}</div>
+        ${favoritePacks.length ? `
+          <div class="pack-grid">
+            ${favoritePacks.map((pack, i) => renderPackCard(pack, i)).join("")}
+          </div>
+        ` : `<div class="empty-note">还没有收藏的素材包</div>`}
         <div class="section-head"><span>设置</span></div>
         <button class="technique-card"><div class="demo-thumb icon-demo" style="height:52px;width:52px">${renderIcon("line-delete")}</div><div><h3>清理缓存</h3><p>释放临时素材和导出文件</p></div><div>›</div></button>
       </div>
@@ -868,7 +976,16 @@ function bindEvents() {
     el.addEventListener("click", () => setState({ tab: el.dataset.tab, drawer: null, assetDetail: null, selectedLayer: false }));
   });
   app.querySelectorAll("[data-ratio]").forEach((el) => {
-    el.addEventListener("click", () => setState({ ratio: el.dataset.ratio }));
+    el.addEventListener("click", () => {
+      if (state.editor === "empty") {
+        setState({ ratio: el.dataset.ratio });
+        return;
+      }
+      const beforeSnapshot = captureCanvasSnapshot();
+      state.ratio = el.dataset.ratio;
+      recordCanvasHistory(beforeSnapshot);
+      setState({});
+    });
   });
   app.querySelectorAll("[data-tool]").forEach((el) => {
     el.addEventListener("click", () => {
@@ -911,6 +1028,9 @@ function bindEvents() {
   app.querySelectorAll("[data-pack]").forEach((el) => {
     el.addEventListener("click", () => setState({ assetDetail: el.dataset.pack, tab: "create", drawer: null }));
   });
+  app.querySelectorAll("[data-asset-category]").forEach((el) => {
+    el.addEventListener("click", () => setState({ activeAssetCategory: el.dataset.assetCategory }));
+  });
   app.querySelectorAll("[data-transform]").forEach((el) => {
     el.addEventListener("pointerdown", handleTransformPointerDown);
   });
@@ -932,6 +1052,14 @@ function bindEvents() {
 }
 
 function handleAction(action, el) {
+  if (action === "undo") {
+    undoCanvas();
+    return;
+  }
+  if (action === "redo") {
+    redoCanvas();
+    return;
+  }
   if (action === "add-photo" || action === "open-draft" || action === "start-inspo") {
     setState({ tab: "create", editor: "edit", selectedLayer: false, drawer: null, assetDetail: null });
   }
@@ -971,6 +1099,10 @@ function handleAction(action, el) {
     showToast("导出成功");
   }
   if (action === "close-detail") setState({ tab: "assets", assetDetail: null });
+  if (action === "toggle-favorite-pack") {
+    toggleFavoritePack(state.assetDetail);
+    return;
+  }
   if (action === "select-detail-asset") showToast("已选中素材");
   if (action === "add-selected-asset") {
     addCanvasLayer("asset", { variant: "paper" });
@@ -983,7 +1115,16 @@ function handleAction(action, el) {
   }
 }
 
-function startTextEditing(layerId, isNew = false) {
+function toggleFavoritePack(packId) {
+  if (!packId) return;
+  const favoritePackIds = state.favoritePackIds.includes(packId)
+    ? state.favoritePackIds.filter((id) => id !== packId)
+    : [...state.favoritePackIds, packId];
+  writeFavoritePackIds(favoritePackIds);
+  setState({ favoritePackIds });
+}
+
+function startTextEditing(layerId, isNew = false, beforeSnapshot = captureCanvasSnapshot()) {
   const layer = state.layers.find((item) => item.id === layerId);
   if (!layer || layer.type !== "text") return;
   setState({
@@ -996,6 +1137,7 @@ function startTextEditing(layerId, isNew = false) {
       layerId,
       isNew,
       snapshot: { ...layer },
+      historySnapshot: beforeSnapshot,
       focusKey: Date.now(),
     },
     textToolMode: "font",
@@ -1038,13 +1180,16 @@ function cancelTextEditing() {
 }
 
 function commitTextEditing() {
+  const beforeSnapshot = state.textEditing?.historySnapshot;
   const layer = getSelectedLayer();
   if (layer?.type === "text" && !String(layer.content || "").trim()) {
     const index = state.layers.findIndex((item) => item.id === layer.id);
     if (index >= 0) state.layers.splice(index, 1);
+    if (beforeSnapshot) recordCanvasHistory(beforeSnapshot);
     setState({ textEditing: null, selectedLayer: false, drawer: null });
     return;
   }
+  if (beforeSnapshot) recordCanvasHistory(beforeSnapshot);
   setState({ textEditing: null, drawer: null });
 }
 
@@ -1056,6 +1201,7 @@ function applyLayerAction(action) {
     startCutMode(layer.id);
     return;
   }
+  const beforeSnapshot = captureCanvasSnapshot();
   if (action === "copy") {
     const next = state.layerSeed + 1;
     const copy = {
@@ -1067,20 +1213,22 @@ function applyLayerAction(action) {
     };
     state.layers.splice(index + 1, 0, copy);
     state.layerSeed = next;
+    recordCanvasHistory(beforeSnapshot);
     setState({ selectedLayer: copy.id });
     return;
   }
   if (action === "delete") {
     state.layers.splice(index, 1);
+    recordCanvasHistory(beforeSnapshot);
     setState({ selectedLayer: false });
     return;
   }
   if (action === "tray") {
-    if (!moveSelectedFragmentToTray()) showToast("只有剪下来的碎片可收纳");
+    if (!moveSelectedFragmentToTray(beforeSnapshot)) showToast("只有剪下来的碎片可收纳");
     return;
   }
   if (action === "up" || action === "down") {
-    moveLayerInStack(index, action);
+    if (moveLayerInStack(index, action)) recordCanvasHistory(beforeSnapshot);
     setState({});
     return;
   }
@@ -1088,23 +1236,25 @@ function applyLayerAction(action) {
   if (action === "opacity") layer.opacity = layer.opacity === 0.58 ? 1 : 0.58;
   if (action === "corner") layer.radius = layer.radius ? 0 : 12;
   if (action === "tear") layer.tear = !layer.tear;
+  recordCanvasHistory(beforeSnapshot);
   setState({});
 }
 
 function moveLayerInStack(index, direction) {
   const layer = state.layers[index];
-  if (!layer || layer.type === "paper") return;
+  if (!layer || layer.type === "paper") return false;
   const foregroundIndexes = state.layers
     .map((item, itemIndex) => (item.type === "paper" ? null : itemIndex))
     .filter((itemIndex) => itemIndex !== null);
   const currentForegroundIndex = foregroundIndexes.indexOf(index);
-  if (currentForegroundIndex < 0) return;
+  if (currentForegroundIndex < 0) return false;
   const nextForegroundIndex = direction === "up"
     ? currentForegroundIndex + 1
     : currentForegroundIndex - 1;
-  if (nextForegroundIndex < 0 || nextForegroundIndex >= foregroundIndexes.length) return;
+  if (nextForegroundIndex < 0 || nextForegroundIndex >= foregroundIndexes.length) return false;
   const swapIndex = foregroundIndexes[nextForegroundIndex];
   [state.layers[index], state.layers[swapIndex]] = [state.layers[swapIndex], state.layers[index]];
+  return true;
 }
 
 function handleLayerPointerDown(event) {
@@ -1144,6 +1294,7 @@ function handleLayerPointerDown(event) {
   app.querySelectorAll(".canvas-layer.selected").forEach((node) => node.classList.remove("selected"));
   event.currentTarget.classList.add("selected");
   render();
+  const beforeSnapshot = captureCanvasSnapshot();
   const startX = event.clientX;
   const startY = event.clientY;
   const startLayer = { x: layer.x, y: layer.y };
@@ -1164,6 +1315,7 @@ function handleLayerPointerDown(event) {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     suppressCanvasClick = didMove;
+    if (didMove) recordCanvasHistory(beforeSnapshot);
     render();
   };
   window.addEventListener("pointermove", move);
@@ -1192,6 +1344,7 @@ function handleTransformPointerDown(event) {
     rotation: layer.rotation,
     angle: Math.atan2(event.clientY - center.y, event.clientX - center.x),
   };
+  const beforeSnapshot = captureCanvasSnapshot();
   let didMove = false;
   const move = (moveEvent) => {
     didMove = true;
@@ -1212,6 +1365,7 @@ function handleTransformPointerDown(event) {
     window.removeEventListener("pointermove", move);
     window.removeEventListener("pointerup", up);
     suppressCanvasClick = didMove;
+    if (didMove) recordCanvasHistory(beforeSnapshot);
     render();
   };
   window.addEventListener("pointermove", move);
@@ -1256,6 +1410,10 @@ function canCutLayer(layer, layerId) {
   }
   if (layer.type === "text") {
     showToast("文字先转成贴纸后再剪");
+    return false;
+  }
+  if (layer.cutPiece && layer.clipPath) {
+    showToast("斜切碎片暂不支持继续剪切");
     return false;
   }
   return true;
@@ -1332,10 +1490,12 @@ function splitLayerByCut(layerId, points) {
     showToast("剪切线需要穿过素材");
     return;
   }
+  const beforeSnapshot = captureCanvasSnapshot();
   const nextSeed = state.layerSeed + 2;
   const [first, second] = createCutPieces(layer, cut, nextSeed - 1, nextSeed);
   state.layers.splice(index, 1, first, second);
   state.layerSeed = nextSeed;
+  recordCanvasHistory(beforeSnapshot);
   setState({ cutMode: null, selectedLayer: cut.focus === "first" ? first.id : second.id });
   showToast("已剪成两片");
 }
@@ -1402,8 +1562,9 @@ function createCutPieces(layer, cut, firstSeed, secondSeed) {
   const baseOffsetX = layer.sourceOffsetX || 0;
   const baseOffsetY = layer.sourceOffsetY || 0;
   const cutStyle = state.cutMode?.style || state.cutStyle || "straight";
+  const cleanLayer = stripTransientCutState(layer);
   const first = {
-    ...layer,
+    ...cleanLayer,
     id: `layer-cut-${firstSeed}`,
     fragmentId: `fragment-${firstSeed}`,
     cutPiece: true,
@@ -1414,7 +1575,7 @@ function createCutPieces(layer, cut, firstSeed, secondSeed) {
     sourceOffsetY: baseOffsetY,
   };
   const second = {
-    ...layer,
+    ...cleanLayer,
     id: `layer-cut-${secondSeed}`,
     fragmentId: `fragment-${secondSeed}`,
     cutPiece: true,
@@ -1453,6 +1614,18 @@ function createCutPieces(layer, cut, firstSeed, secondSeed) {
     ...piece,
     justCut: true,
   }));
+}
+
+function stripTransientCutState(layer) {
+  const {
+    clipPath,
+    cutEdge,
+    cutNudge,
+    justCut,
+    fragmentId,
+    ...cleanLayer
+  } = layer;
+  return cleanLayer;
 }
 
 function splitRectByLine(width, height, start, end) {
@@ -1528,6 +1701,7 @@ function lineNormal(start, end) {
 function restoreFragment(fragmentId) {
   const index = state.fragments.findIndex((fragment) => fragment.fragmentId === fragmentId);
   if (index < 0) return;
+  const beforeSnapshot = captureCanvasSnapshot();
   const [fragment] = state.fragments.splice(index, 1);
   state.layers.push({
     ...fragment.layer,
@@ -1535,10 +1709,11 @@ function restoreFragment(fragmentId) {
     y: clamp(fragment.layer.y + 16, -24, 432 - fragment.layer.height + 24),
     cutNudge: null,
   });
+  recordCanvasHistory(beforeSnapshot);
   setState({ selectedLayer: fragment.layer.id });
 }
 
-function moveSelectedFragmentToTray() {
+function moveSelectedFragmentToTray(beforeSnapshot = captureCanvasSnapshot()) {
   const index = state.layers.findIndex((layer) => layer.id === state.selectedLayer);
   if (index < 0) return false;
   const layer = state.layers[index];
@@ -1550,6 +1725,7 @@ function moveSelectedFragmentToTray() {
     name: getLayerName(layer),
     layer: { ...layer, cutNudge: null },
   });
+  recordCanvasHistory(beforeSnapshot);
   setState({ selectedLayer: false });
   showToast("已收进碎片托盘");
   return true;
