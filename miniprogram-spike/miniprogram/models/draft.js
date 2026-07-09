@@ -50,6 +50,29 @@ function createImageLayer(source, imageInfo, draft) {
   });
 }
 
+function createAssetLayer(asset, draft) {
+  const sourceWidth = asset.width || 300;
+  const sourceHeight = asset.height || 300;
+  const maxWidth = draft.width * (asset.type === layerTypes.sticker ? 0.34 : 0.52);
+  const scale = Math.min(1, maxWidth / sourceWidth);
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  return baseLayer(asset.type || layerTypes.sticker, {
+    assetId: asset.id,
+    source: asset.source,
+    x: (draft.width - width) / 2,
+    y: (draft.height - height) / 2,
+    width,
+    height,
+    rotation: asset.type === layerTypes.sticker ? -4 : -2,
+    zIndex: nextLayerOrder(draft),
+    style: {
+      packId: asset.packId || "",
+      name: asset.name || ""
+    }
+  });
+}
+
 function createTextLayer(text, draft) {
   return baseLayer(layerTypes.text, {
     text: text || "weekend",
@@ -57,12 +80,13 @@ function createTextLayer(text, draft) {
     y: draft.height * 0.68,
     width: 260,
     height: 86,
-    rotation: -6,
+    rotation: 0,
     zIndex: nextLayerOrder(draft),
     style: {
       fontSize: 54,
       color: "#111111",
-      fontFamily: "serif"
+      fontFamily: "sans-serif",
+      fontLabel: "系统"
     }
   });
 }
@@ -158,6 +182,7 @@ module.exports = {
   ratioSizeMap,
   createDraft,
   createImageLayer,
+  createAssetLayer,
   createTextLayer,
   createTapeLayer,
   createPaperLayer,

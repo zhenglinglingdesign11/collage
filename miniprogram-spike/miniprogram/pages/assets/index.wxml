@@ -1,8 +1,14 @@
 <view class="page">
   <view class="title">素材</view>
-  <view class="section">P0 将在这里放素材包列表和素材纸详情。</view>
+  <view class="section">点击素材包里的单个素材后，后续会加入待使用素材并回到创作页。</view>
   <view class="pack" wx:for="{{packs}}" wx:key="id">
+    <image class="pack-sheet" mode="aspectFill" src="{{item.sheet}}"></image>
     <view class="pack-title">{{item.name}}</view>
     <view class="pack-caption">{{item.description}}</view>
+    <view class="item-row">
+      <view class="item-card" wx:for="{{item.items}}" wx:for-item="asset" wx:key="id">
+        <image class="item-thumb" mode="aspectFit" src="{{asset.thumb}}"></image>
+      </view>
+    </view>
   </view>
 </view>

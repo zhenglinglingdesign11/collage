@@ -42,7 +42,12 @@
   },
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "file",
+        "value": "assets/papers/pack-sheet.png"
+      }
+    ],
     "include": []
   },
   "editorSetting": {}

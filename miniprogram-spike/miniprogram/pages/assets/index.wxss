@@ -25,6 +25,15 @@
   border: 1rpx solid #e8e6e1;
   border-radius: 16rpx;
   background: #ffffff;
+  overflow: hidden;
+}
+
+.pack-sheet {
+  width: 100%;
+  height: 420rpx;
+  margin-bottom: 22rpx;
+  border-radius: 12rpx;
+  background: #f7f7f5;
 }
 
 .pack-title {
@@ -36,4 +45,25 @@
   margin-top: 8rpx;
   color: #6f6f6f;
   font-size: 24rpx;
+}
+
+.item-row {
+  margin-top: 20rpx;
+  white-space: nowrap;
+}
+
+.item-card {
+  display: inline-flex;
+  width: 148rpx;
+  height: 148rpx;
+  margin-right: 16rpx;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14rpx;
+  background: #f7f7f5;
+}
+
+.item-thumb {
+  width: 132rpx;
+  height: 132rpx;
 }

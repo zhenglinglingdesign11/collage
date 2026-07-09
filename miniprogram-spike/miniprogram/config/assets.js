@@ -1,34 +1,57 @@
 const assetPacks = [
   {
-    id: "starter-paper",
-    name: "纸张与胶带",
-    description: "P0 内置素材包，用于验证从素材到画布的添加路径。",
-    cover: "",
+    id: "papers",
+    name: "复古纸张",
+    description: "可写字的纸片、便签和拼贴底纸。",
+    cover: "/assets/papers/pack-sheet.png",
+    sheet: "/assets/papers/pack-sheet.png",
     version: 1,
     items: [
       {
-        id: "paper-cream-01",
+        id: "paper-01",
         type: "paper",
-        name: "浅米纸片",
-        color: "#efe7d8",
-        width: 300,
-        height: 360
+        name: "横线纸片",
+        source: "/assets/papers/items/paper-01.png",
+        thumb: "/assets/papers/items/paper-01.png",
+        width: 371,
+        height: 377
       },
       {
-        id: "tape-sage-01",
-        type: "tape",
-        name: "鼠尾草胶带",
-        color: "#8c9a8d",
-        width: 260,
-        height: 76
+        id: "paper-02",
+        type: "paper",
+        name: "撕边便签",
+        source: "/assets/papers/items/paper-02.png",
+        thumb: "/assets/papers/items/paper-02.png",
+        width: 324,
+        height: 352
+      }
+    ]
+  },
+  {
+    id: "stickers",
+    name: "贴纸",
+    description: "可点选加入画布的装饰贴纸。",
+    cover: "/assets/stickers/pack-sheet.png",
+    sheet: "/assets/stickers/pack-sheet.png",
+    version: 1,
+    items: [
+      {
+        id: "cat-01",
+        type: "sticker",
+        name: "小猫贴纸 01",
+        source: "/assets/stickers/items/cat-01.png",
+        thumb: "/assets/stickers/items/cat-01.png",
+        width: 289,
+        height: 269
       },
       {
-        id: "tape-yellow-01",
-        type: "tape",
-        name: "淡黄胶带",
-        color: "#e9d28a",
-        width: 260,
-        height: 76
+        id: "cat-02",
+        type: "sticker",
+        name: "小猫贴纸 02",
+        source: "/assets/stickers/items/cat-02.png",
+        thumb: "/assets/stickers/items/cat-02.png",
+        width: 221,
+        height: 295
       }
     ]
   }
@@ -42,8 +65,25 @@ function getAssetPack(packId) {
   return assetPacks.find((pack) => pack.id === packId) || null;
 }
 
+function getAssetItems() {
+  return assetPacks.reduce((items, pack) => {
+    const packItems = pack.items.map((item) => ({
+      ...item,
+      packId: pack.id,
+      packName: pack.name
+    }));
+    return items.concat(packItems);
+  }, []);
+}
+
+function getAssetItem(assetId) {
+  return getAssetItems().find((item) => item.id === assetId) || null;
+}
+
 module.exports = {
   assetPacks,
   getAssetPacks,
-  getAssetPack
+  getAssetPack,
+  getAssetItems,
+  getAssetItem
 };

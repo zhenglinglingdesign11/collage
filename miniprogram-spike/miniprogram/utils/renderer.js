@@ -25,9 +25,13 @@ function drawLayer(ctx, layer) {
   ctx.translate(cx, cy);
   ctx.rotate((layer.rotation || 0) * Math.PI / 180);
   ctx.setGlobalAlpha(layer.opacity == null ? 1 : layer.opacity);
-  ctx.setShadow(0, 14, 30, "rgba(17, 17, 17, 0.12)");
+  if (layer.shadow) {
+    ctx.setShadow(0, 18, 36, "rgba(17, 17, 17, 0.18)");
+  } else {
+    ctx.setShadow(0, 8, 18, "rgba(17, 17, 17, 0.08)");
+  }
 
-  if (layer.type === "image" && layer.source) {
+  if (layer.source) {
     ctx.drawImage(layer.source, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
   } else if (layer.type === "text") {
     drawText(ctx, layer);
@@ -40,11 +44,60 @@ function drawLayer(ctx, layer) {
 }
 
 function drawPaper(ctx, layer) {
-  ctx.setFillStyle(layer.style && layer.style.color ? layer.style.color : "#ffffff");
-  ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  const style = layer.style || {};
+  ctx.setFillStyle(style.color || "#ffffff");
+  if (style.shape === "circle") {
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(layer.width, layer.height) / 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (layer.radius) {
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
+    ctx.fill();
+  } else {
+    ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  }
   ctx.setShadow(0, 0, 0, "transparent");
   ctx.setStrokeStyle("rgba(17,17,17,0.08)");
-  ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  if (style.shape === "circle") {
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.min(layer.width, layer.height) / 2, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (layer.tear) {
+    drawTearStroke(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  } else if (layer.radius) {
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
+    ctx.stroke();
+  } else {
+    ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  }
+}
+
+function roundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius || 0, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawTearStroke(ctx, x, y, width, height) {
+  ctx.beginPath();
+  const step = width / 12;
+  ctx.moveTo(x, y);
+  for (let i = 1; i <= 12; i += 1) {
+    ctx.lineTo(x + step * i, y + (i % 2 ? 8 : -2));
+  }
+  ctx.lineTo(x + width, y + height);
+  ctx.lineTo(x, y + height);
+  ctx.closePath();
+  ctx.stroke();
 }
 
 function drawTape(ctx, layer) {
@@ -61,11 +114,70 @@ function drawTape(ctx, layer) {
 function drawText(ctx, layer) {
   const style = layer.style || {};
   ctx.setShadow(0, 0, 0, "transparent");
+  if (style.background && style.background !== "transparent") {
+    ctx.setFillStyle(style.background);
+    const radius = style.background === "#111111" ? 18 : 12;
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, radius);
+    ctx.fill();
+  }
   ctx.setFillStyle(style.color || "#111111");
-  ctx.setFontSize(style.fontSize || 48);
+  const fontSize = style.fontSize || 48;
+  ctx.setFontSize(fontSize);
+  if ("font" in ctx) {
+    ctx.font = fontString(style.fontFamily, fontSize);
+  }
   ctx.setTextBaseline("middle");
   ctx.setTextAlign("center");
-  ctx.fillText(layer.text || "文字", 0, 0, layer.width);
+  drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width);
+}
+
+function fontString(fontFamily, fontSize) {
+  const family = fontFamily || "sans-serif";
+  const families = family.split(",").map((item) => {
+    const name = item.trim();
+    if (!name) return "";
+    if (name.indexOf(" ") >= 0 || /[\u4e00-\u9fa5]/.test(name)) {
+      return `"${name}"`;
+    }
+    return name;
+  }).filter(Boolean);
+  return `${fontSize}px ${families.join(", ") || "sans-serif"}`;
+}
+
+function drawStyledText(ctx, text, style, fontSize, maxWidth) {
+  const label = style.fontLabel || "系统";
+  if (label === "打字机") {
+    drawMonospaceText(ctx, text, fontSize, maxWidth);
+    return;
+  }
+  if (label === "手写") {
+    ctx.save();
+    ctx.rotate(-3 * Math.PI / 180);
+    ctx.fillText(text, 0, 0, maxWidth);
+    ctx.restore();
+    return;
+  }
+  if (label === "衬线") {
+    ctx.fillText(text, 0, 0, maxWidth);
+    ctx.fillText(text, 1.2, 0, maxWidth);
+    return;
+  }
+  if (label === "圆体") {
+    ctx.fillText(text, 0, 0, maxWidth);
+    ctx.fillText(text, 0.8, 0.8, maxWidth);
+    return;
+  }
+  ctx.fillText(text, 0, 0, maxWidth);
+}
+
+function drawMonospaceText(ctx, text, fontSize, maxWidth) {
+  const chars = String(text).split("");
+  const charWidth = Math.min(fontSize * 0.68, maxWidth / Math.max(chars.length, 1));
+  const totalWidth = charWidth * chars.length;
+  const startX = -totalWidth / 2 + charWidth / 2;
+  chars.forEach((char, index) => {
+    ctx.fillText(char, startX + index * charWidth, 0, charWidth);
+  });
 }
 
 function drawSelection(ctx, layer) {
