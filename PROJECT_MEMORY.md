@@ -443,6 +443,7 @@ iOS 复用策略：
 详细文档：
 
 - `docs/MINIPROGRAM_MVP_PLAN.md`
+- `docs/PROTOTYPE_COMPONENT_MAPPING.md`
 
 ## 后续专项
 

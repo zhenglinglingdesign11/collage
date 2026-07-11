@@ -25,11 +25,9 @@ function createDraft(ratio = "3:4") {
     width: size.width,
     height: size.height,
     background: "#fdfdfb",
-    layers: normalizeLayerOrder([
-      createPaperLayer(),
-      createTapeLayer("胶带", "#ead48a", 260, 220, -14)
-    ]),
+    layers: [],
     assets: [],
+    thumbnailPath: "",
     updatedAt: Date.now()
   };
 }
@@ -45,7 +43,7 @@ function createImageLayer(source, imageInfo, draft) {
     y: (draft.height - height) / 2,
     width,
     height,
-    rotation: -2,
+    rotation: 0,
     zIndex: nextLayerOrder(draft)
   });
 }
@@ -64,7 +62,7 @@ function createAssetLayer(asset, draft) {
     y: (draft.height - height) / 2,
     width,
     height,
-    rotation: asset.type === layerTypes.sticker ? -4 : -2,
+    rotation: 0,
     zIndex: nextLayerOrder(draft),
     style: {
       packId: asset.packId || "",
@@ -171,6 +169,7 @@ function migrateDraft(draft) {
     background: draft.background || "#fdfdfb",
     layers: normalizeLayerOrder(Array.isArray(draft.layers) ? draft.layers : []),
     assets: Array.isArray(draft.assets) ? draft.assets : [],
+    thumbnailPath: draft.thumbnailPath || "",
     updatedAt: draft.updatedAt || Date.now()
   };
 }

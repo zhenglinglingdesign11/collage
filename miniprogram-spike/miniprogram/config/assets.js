@@ -3,8 +3,8 @@ const assetPacks = [
     id: "papers",
     name: "复古纸张",
     description: "可写字的纸片、便签和拼贴底纸。",
-    cover: "/assets/papers/pack-sheet.png",
-    sheet: "/assets/papers/pack-sheet.png",
+    cover: "/assets/papers/pack-sheet.jpg",
+    sheet: "/assets/papers/pack-sheet.jpg",
     version: 1,
     items: [
       {
@@ -31,8 +31,8 @@ const assetPacks = [
     id: "stickers",
     name: "贴纸",
     description: "可点选加入画布的装饰贴纸。",
-    cover: "/assets/stickers/pack-sheet.png",
-    sheet: "/assets/stickers/pack-sheet.png",
+    cover: "/assets/stickers/pack-sheet.jpg",
+    sheet: "/assets/stickers/pack-sheet.jpg",
     version: 1,
     items: [
       {

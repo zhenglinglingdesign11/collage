@@ -1,72 +1,71 @@
 <view class="page">
-  <view wx:if="{{isEmptyMode}}" class="empty-content" style="padding-top: {{chromeTop}}px;">
+  <scroll-view wx:if="{{isEmptyMode}}" scroll-y class="empty-content" style="padding-top: {{chromeTop}}px;">
     <view class="empty-header">
       <view class="page-title">新拼贴</view>
     </view>
 
-    <button class="starter-panel upload-zone" bindtap="choosePhoto">
-      <view class="upload-content">
-        <view class="round-action">+</view>
-        <view class="primary-label">添加照片</view>
-        <view class="helper">从相册选择，开始你的拼贴</view>
-      </view>
-    </button>
-
-    <button class="material-start" bindtap="openAssetsTab">
-      <view class="quick-icon">
-        <view class="quick-paper back"></view>
-        <view class="quick-paper front"></view>
-      </view>
-      <view class="material-copy">
-        <view>从素材包开始</view>
-      </view>
-      <view class="material-arrow">›</view>
-    </button>
-
-    <view class="section-head">
-      <text>最近草稿</text>
-    </view>
-
-    <view wx:if="{{hasRecentDraft}}" class="draft-row">
-      <button class="draft-thumb" bindtap="openRecentDraft">
-        <view class="draft-art">
-          <view class="draft-paper"></view>
-          <view class="draft-tape"></view>
-          <view class="draft-line short"></view>
-          <view class="draft-line"></view>
+    <view class="empty-workspace">
+      <button class="starter-panel upload-zone" bindtap="choosePhoto">
+        <view class="upload-content">
+          <view class="round-action">+</view>
+          <view class="primary-label">添加照片</view>
+          <view class="helper">从相册选择，开始你的拼贴</view>
         </view>
       </button>
+
+      <button class="material-start" bindtap="openAssetsTab">
+        <view class="quick-icon">
+          <view class="quick-paper back"></view>
+          <view class="quick-paper front"></view>
+        </view>
+        <view class="material-copy">
+          <view>从素材包开始</view>
+        </view>
+        <view class="material-arrow">›</view>
+      </button>
+
+      <block wx:if="{{hasRecentDraft}}">
+        <view class="section-head">
+          <text>最近草稿</text>
+        </view>
+
+        <view class="draft-row">
+          <button wx:for="{{recentDrafts}}" wx:key="id" class="draft-thumb" data-id="{{item.id}}" bindtap="openRecentDraft">
+            <image wx:if="{{item.thumbnailPath}}" class="draft-preview" src="{{item.thumbnailPath}}" mode="aspectFill"></image>
+            <view wx:else class="draft-art">
+              <view class="draft-paper"></view>
+              <view class="draft-tape"></view>
+              <view class="draft-line short"></view>
+              <view class="draft-line"></view>
+            </view>
+          </button>
+        </view>
+      </block>
     </view>
-    <view wx:else class="empty-drafts">
-      <view class="empty-draft-stack">
-        <view class="empty-draft-card card-a"></view>
-        <view class="empty-draft-card card-b"></view>
-        <view class="empty-draft-card card-c"></view>
-        <view class="empty-draft-tape"></view>
-      </view>
-      <view class="empty-draft-copy">
-        <view>暂无草稿</view>
-        <text>添加照片后会自动保存到这里</text>
-      </view>
-    </view>
-  </view>
+  </scroll-view>
 
   <view wx:else class="editor-content">
     <view class="editor-safe" style="height: {{statusTop}}px;"></view>
     <view class="editor-topbar" style="margin-top: {{toolbarGap}}px;">
-      <view class="top-control icon-button back-button" bindtap="backToEmpty" aria-label="返回">‹</view>
+      <view class="top-control icon-button back-button" bindtap="backToEmpty" aria-label="返回">
+        <image class="line-icon" src="/assets/icons/line-back.svg" mode="aspectFit"></image>
+      </view>
       <view class="top-control ratio-pill" bindtap="toggleRatioPanel">{{ratio}}</view>
       <view class="editor-actions">
-        <view class="top-control icon-button disabled" aria-label="撤销">↶</view>
-        <view class="top-control icon-button disabled" aria-label="重做">↷</view>
+        <view class="top-control icon-button {{canUndo ? '' : 'disabled'}}" bindtap="undo" aria-label="撤销">
+          <image class="line-icon" src="/assets/icons/line-undo.svg" mode="aspectFit"></image>
+        </view>
+        <view class="top-control icon-button {{canRedo ? '' : 'disabled'}}" bindtap="redo" aria-label="重做">
+          <image class="line-icon" src="/assets/icons/line-redo.svg" mode="aspectFit"></image>
+        </view>
         <view class="top-control export-btn {{exporting ? 'disabled' : ''}}" bindtap="exportImage">{{exporting ? '导出中' : '导出'}}</view>
       </view>
     </view>
-    <view wx:if="{{ratioPanelVisible}}" class="ratio-popover" style="top: {{ratioPopoverTop}}px;">
-      <button wx:for="{{ratios}}" wx:key="*this" class="{{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</button>
-    </view>
+    <cover-view wx:if="{{ratioPanelVisible}}" class="ratio-popover" style="top: {{ratioPopoverTop}}px;">
+      <cover-view wx:for="{{ratios}}" wx:key="*this" class="ratio-option {{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</cover-view>
+    </cover-view>
 
-    <view class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}">
+    <view class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
       <canvas
         id="spikeCanvas"
         canvas-id="spikeCanvas"
@@ -76,6 +75,7 @@
         bindtouchmove="onTouchMove"
         bindtouchend="onTouchEnd"
         bindtouchcancel="onTouchEnd"
+        catchtap="noopCanvasTap"
       ></canvas>
     </view>
 
@@ -85,16 +85,15 @@
         <cover-view wx:if="{{selectedLayerType === 'text'}}" class="panel-link" bindtap="editSelectedText">编辑文字</cover-view>
       </cover-view>
       <cover-view class="layer-actions" bindtouchstart="onLayerActionsTouchStart" catchtouchmove="onLayerActionsTouchMove" bindtouchend="onLayerActionsTouchEnd" bindtouchcancel="onLayerActionsTouchEnd">
-        <cover-view class="layer-actions-track {{layerActionsDragging ? 'dragging' : ''}}" style="left: {{layerActionsOffset}}rpx;">
-          <cover-view class="layer-action" data-action="copy" bindtap="applyLayerAction"><cover-view class="la-icon">⧉</cover-view><cover-view>复制</cover-view></cover-view>
-          <cover-view class="layer-action danger" data-action="delete" bindtap="applyLayerAction"><cover-view class="la-icon">×</cover-view><cover-view>删除</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="tray" bindtap="applyLayerAction"><cover-view class="la-icon">▣</cover-view><cover-view>收纳</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="up" bindtap="applyLayerAction"><cover-view class="la-icon">↑</cover-view><cover-view>上移</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="down" bindtap="applyLayerAction"><cover-view class="la-icon">↓</cover-view><cover-view>下移</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><cover-view class="la-icon">◩</cover-view><cover-view>阴影</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><cover-view class="la-icon">◐</cover-view><cover-view>透明度</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="corner" bindtap="applyLayerAction"><cover-view class="la-icon">▢</cover-view><cover-view>圆角</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="tear" bindtap="applyLayerAction"><cover-view class="la-icon">≈</cover-view><cover-view>撕边</cover-view></cover-view>
+        <cover-view class="layer-actions-track {{layerActionsDragging ? 'dragging' : ''}}" style="transform: translateX({{layerActionsOffset}}rpx);">
+          <cover-view class="layer-action" data-action="copy" bindtap="applyLayerAction"><cover-view class="la-icon la-copy-icon"><cover-view class="copy-back"></cover-view><cover-view class="copy-front"></cover-view></cover-view><cover-view>复制</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="delete" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png"></cover-image><cover-view>删除</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="up" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-up.png"></cover-image><cover-view>上移</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="down" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-down.png"></cover-image><cover-view>下移</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><cover-view class="la-icon la-shadow-icon"><cover-view class="shadow-back"></cover-view><cover-view class="shadow-front"></cover-view></cover-view><cover-view>阴影</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><cover-view class="la-icon la-opacity-icon"><cover-view class="opacity-fill"></cover-view></cover-view><cover-view>透明度</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="corner" bindtap="applyLayerAction"><cover-view class="la-icon la-corner-icon"></cover-view><cover-view>圆角</cover-view></cover-view>
+          <cover-view class="layer-action" data-action="tear" bindtap="applyLayerAction"><cover-view class="la-icon la-tear-icon"><cover-view class="tear-line tear-line-a"></cover-view><cover-view class="tear-line tear-line-b"></cover-view></cover-view><cover-view>撕边</cover-view></cover-view>
         </cover-view>
         <cover-view class="layer-page-dots">
           <cover-view class="layer-page-dot {{layerActionsPage === 0 ? 'active' : ''}}"></cover-view>
@@ -167,25 +166,21 @@
           <cover-view wx:for="{{textColors}}" wx:key="value" class="swatch swatch-{{index}} {{textColor === item.value ? 'active' : ''}}" data-color="{{item.value}}" data-index="{{index}}" bindtap="setTextColor"></cover-view>
         </cover-view>
         <cover-view wx:if="{{textToolMode === 'size'}}" class="text-option-row text-control-row">
-          <cover-view class="text-control-title">大小</cover-view>
           <cover-view class="size-steps">
             <cover-view class="{{textSize === 42 ? 'active' : ''}}" data-size="42" bindtap="setTextSize">小</cover-view>
             <cover-view class="{{textSize === 54 ? 'active' : ''}}" data-size="54" bindtap="setTextSize">中</cover-view>
             <cover-view class="{{textSize === 68 ? 'active' : ''}}" data-size="68" bindtap="setTextSize">大</cover-view>
           </cover-view>
-          <cover-view class="text-control-value">{{textSize}}</cover-view>
         </cover-view>
         <cover-view wx:if="{{textToolMode === 'background'}}" class="text-option-row background-strip">
           <cover-view wx:for="{{textBackgrounds}}" wx:key="*this" class="{{textBackground === item ? 'active' : ''}}" data-background="{{item}}" bindtap="setTextBackground">{{item}}</cover-view>
         </cover-view>
         <cover-view wx:if="{{textToolMode === 'opacity'}}" class="text-option-row text-control-row">
-          <cover-view class="text-control-title">透明</cover-view>
           <cover-view class="size-steps">
             <cover-view class="{{textOpacity === 45 ? 'active' : ''}}" data-opacity="45" bindtap="setTextOpacity">45%</cover-view>
             <cover-view class="{{textOpacity === 70 ? 'active' : ''}}" data-opacity="70" bindtap="setTextOpacity">70%</cover-view>
             <cover-view class="{{textOpacity === 100 ? 'active' : ''}}" data-opacity="100" bindtap="setTextOpacity">100%</cover-view>
           </cover-view>
-          <cover-view class="text-control-value">{{textOpacity}}%</cover-view>
         </cover-view>
         <cover-view class="text-style-row">
           <cover-view class="text-style text-style-0 {{textToolMode === 'font' ? 'active' : ''}}" data-mode="font" bindtap="setTextToolMode"><cover-view class="text-style-icon">B</cover-view><cover-view class="text-style-label">字体</cover-view></cover-view>
@@ -198,19 +193,8 @@
 
       <block wx:if="{{activeDrawer}}">
         <cover-view class="drawer-backdrop" bindtap="closeDrawer"></cover-view>
-        <cover-view class="drawer {{activeDrawer === 'image' ? 'drawer-compact' : ''}}">
+        <cover-view class="drawer">
           <cover-view class="drawer-handle"></cover-view>
-
-          <block wx:if="{{activeDrawer === 'image'}}">
-            <cover-view class="drawer-title-row">
-              <cover-view class="drawer-title">图片</cover-view>
-            </cover-view>
-            <cover-view class="ios-action-sheet">
-              <cover-view data-source="album" bindtap="choosePhotoFromPanel">从相册选择图片</cover-view>
-              <cover-view data-source="camera" bindtap="choosePhotoFromPanel">拍照</cover-view>
-            </cover-view>
-            <cover-view class="ios-cancel" bindtap="closeDrawer">取消</cover-view>
-          </block>
 
           <block wx:if="{{activeDrawer === 'asset'}}">
             <cover-view class="drawer-title-row">
@@ -254,27 +238,27 @@
 
       <cover-view wx:if="{{!textInputVisible}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
-          <cover-view class="tool-icon">＋</cover-view>
+          <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>
           <cover-view class="tool-label">图片</cover-view>
         </cover-view>
         <cover-view class="tool tool-1 {{activeTool === 'asset' ? 'active' : ''}}" data-tool="asset" bindtap="openToolPanel">
-          <cover-view class="tool-icon">□</cover-view>
+          <cover-image class="tool-icon" src="/assets/icons/material.png"></cover-image>
           <cover-view class="tool-label">素材</cover-view>
         </cover-view>
         <cover-view class="tool tool-2 {{activeTool === 'tape' ? 'active' : ''}}" data-tool="tape" bindtap="openToolPanel">
-          <cover-view class="tool-icon">▭</cover-view>
+          <cover-image class="tool-icon" src="/assets/icons/tape.png"></cover-image>
           <cover-view class="tool-label">胶带</cover-view>
         </cover-view>
         <cover-view class="tool tool-3 {{activeTool === 'text' ? 'active' : ''}}" data-tool="text" bindtap="openToolPanel">
-          <cover-view class="tool-icon">T</cover-view>
+          <cover-image class="tool-icon" src="/assets/icons/text.png"></cover-image>
           <cover-view class="tool-label">文字</cover-view>
         </cover-view>
         <cover-view class="tool tool-4 {{activeTool === 'cut' ? 'active' : ''}}" data-tool="cut" bindtap="openToolPanel">
-          <cover-view class="tool-icon">✂</cover-view>
+          <cover-image class="tool-icon" src="/assets/icons/scissors.png"></cover-image>
           <cover-view class="tool-label">剪刀</cover-view>
         </cover-view>
         <cover-view class="tool tool-5 {{activeTool === 'shape' ? 'active' : ''}}" data-tool="shape" bindtap="openToolPanel">
-          <cover-view class="tool-icon">○</cover-view>
+          <cover-image class="tool-icon" src="/assets/icons/pattern.png"></cover-image>
           <cover-view class="tool-label">形状</cover-view>
         </cover-view>
       </cover-view>

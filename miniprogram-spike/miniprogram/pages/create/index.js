@@ -1,4 +1,4 @@
-const { saveDraft, saveAutoDraft, loadDraft, loadLatestDraft } = require("../../utils/draft-store");
+const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
 const { getAssetItems, getAssetItem } = require("../../config/assets");
 const {
@@ -14,6 +14,11 @@ const {
   drawDraft,
   hitTest
 } = require("../../utils/renderer");
+
+const LAYER_ACTIONS_PAGE_OFFSET = 560;
+const LAYER_ACTIONS_TOUCH_SLOP = 6;
+const LAYER_ACTIONS_SWIPE_THRESHOLD = 36;
+const LAYER_ACTIONS_EDGE_RESISTANCE = 0.28;
 
 Page({
   data: {
@@ -47,10 +52,14 @@ Page({
     isEmptyMode: true,
     isEditMode: false,
     hasRecentDraft: false,
+    recentDraftThumb: "",
+    recentDrafts: [],
     activeTool: "",
     activeDrawer: "",
     activePalette: "",
     assetItems: getAssetItems(),
+    canUndo: false,
+    canRedo: false,
     layerActionsOffset: 0,
     layerActionsPage: 0,
     layerActionsDragging: false,
@@ -78,8 +87,10 @@ Page({
       wx.onKeyboardHeightChange(this.keyboardHandler);
     }
     const latestDraft = loadLatestDraft();
+    const recentDrafts = this.getRecentDrafts();
     this.draft = latestDraft || createDraft("3:4");
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
     this.setEditorMode(!!latestDraft);
     const statusTop = Math.ceil((system.statusBarHeight || 0) + 2);
@@ -89,12 +100,20 @@ Page({
       statusTop,
       toolbarGap: Math.max(0, chromeTop - statusTop),
       ratioPopoverTop: Math.ceil(chromeTop + 112 * system.windowWidth / 750),
-      hasRecentDraft: !!latestDraft
+      hasRecentDraft: !!latestDraft,
+      recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
+      recentDrafts
     });
   },
 
   onReady() {
     this.render();
+  },
+
+  onShow() {
+    if (this.data.isEmptyMode) {
+      this.refreshRecentDraftState();
+    }
   },
 
   onUnload() {
@@ -125,6 +144,7 @@ Page({
     this.textEditSession = null;
     this.draft = createDraft(this.data.ratio || "3:4");
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
     this.setData({
       selectedLayerId: "",
@@ -142,6 +162,54 @@ Page({
     setTimeout(() => this.render(), 0);
   },
 
+  resetToBlankDraftForEmptyEntry() {
+    clearTimeout(this.saveTimer);
+    this.textEditSession = null;
+    this.draft = createDraft(this.data.ratio || "3:4");
+    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.resetHistory();
+    this.updateCanvasSize(this.draft.ratio);
+    this.setData({
+      selectedLayerId: "",
+      selectedLayerType: "",
+      saveStatus: "未保存",
+      textInputVisible: false,
+      textDraft: "",
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      ratioPanelVisible: false,
+      keyboardHeight: 0,
+      textPanelBottom: 0
+    });
+  },
+
+  refreshRecentDraftState() {
+    const recentDrafts = this.getRecentDrafts();
+    const latestDraft = recentDrafts[0] || loadLatestDraft();
+    this.setData({
+      hasRecentDraft: !!latestDraft,
+      recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
+      recentDrafts
+    });
+  },
+
+  hasStoredDraft() {
+    return !!loadLatestDraft();
+  },
+
+  getLatestDraftThumbnail() {
+    const latestDraft = loadLatestDraft();
+    return latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "";
+  },
+
+  getRecentDrafts() {
+    const recentDrafts = loadRecentDrafts();
+    if (recentDrafts.length) return recentDrafts;
+    const latestDraft = loadLatestDraft();
+    return latestDraft ? [latestDraft] : [];
+  },
+
   enterEditMode() {
     if (!this.data.isEditMode) {
       this.setEditorMode(true);
@@ -152,16 +220,18 @@ Page({
     wx.switchTab({ url: "/pages/assets/index" });
   },
 
-  openRecentDraft() {
+  openRecentDraft(event) {
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
-    const draft = loadLatestDraft();
+    const draftId = event && event.currentTarget && event.currentTarget.dataset.id;
+    const draft = draftId ? loadDraftById(draftId) : loadLatestDraft();
     if (!draft) {
       showError("暂无草稿");
       return;
     }
     this.draft = draft;
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.resetHistory();
     this.updateCanvasSize(draft.ratio);
     this.setEditorMode(true);
     this.setData({
@@ -172,12 +242,69 @@ Page({
       textInputVisible: false,
       textDraft: "",
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      recentDrafts: this.getRecentDrafts()
     });
     setTimeout(() => this.render(), 0);
   },
 
-  backToEmpty() {
+  async backToEmpty() {
+    if (this.backingToEmpty) return;
+    this.backingToEmpty = true;
+    const shouldLeave = await this.confirmDraftBeforeBack();
+    this.backingToEmpty = false;
+    if (!shouldLeave) return;
+    this.exitEditorToEmpty();
+  },
+
+  async confirmDraftBeforeBack() {
+    if (!this.hasDraftContent()) {
+      return true;
+    }
+    return new Promise((resolve) => {
+      const willPruneOldDraft = this.getRecentDrafts().filter((draft) => draft.id !== this.draft.id).length >= 3;
+      const actionSheetOptions = {
+        itemList: ["保存为草稿", "不保存"],
+        success: async (res) => {
+          if (res.tapIndex === 0) {
+            try {
+              clearTimeout(this.saveTimer);
+              this.draft = await this.saveDraftWithThumbnail();
+              this.setData({
+                saveStatus: "草稿已保存",
+                hasRecentDraft: true,
+                recentDraftThumb: this.draft.thumbnailPath || "",
+                recentDrafts: this.getRecentDrafts()
+              });
+              showSuccess("草稿已保存");
+              resolve(true);
+            } catch (error) {
+              showError("草稿保存失败");
+              resolve(false);
+            }
+            return;
+          }
+          if (res.tapIndex === 1) {
+            clearTimeout(this.saveTimer);
+            resolve(true);
+            return;
+          }
+          resolve(false);
+        },
+        fail: () => resolve(false)
+      };
+      if (willPruneOldDraft) {
+        actionSheetOptions.alertText = "最多3个草稿，保存将删除最早草稿";
+      }
+      wx.showActionSheet(actionSheetOptions);
+    });
+  },
+
+  hasDraftContent() {
+    return !!(this.draft && Array.isArray(this.draft.layers) && this.draft.layers.length);
+  },
+
+  exitEditorToEmpty() {
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
     this.setData({
@@ -190,7 +317,10 @@ Page({
       activePalette: "",
       ratioPanelVisible: false,
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      hasRecentDraft: this.hasStoredDraft(),
+      recentDraftThumb: this.getLatestDraftThumbnail(),
+      recentDrafts: this.getRecentDrafts()
     });
     this.setEditorMode(false);
   },
@@ -221,6 +351,87 @@ Page({
     this.ctx.draw();
   },
 
+  drawCanvasSnapshot(callback) {
+    this.ensureCanvasContext();
+    if (!this.ctx || !this.draft) {
+      if (callback) callback();
+      return;
+    }
+    drawDraft(this.ctx, this.draft, "", { dpr: this.renderScale || 1 });
+    this.ctx.draw(false, () => {
+      if (callback) callback();
+    });
+  },
+
+  resetHistory() {
+    const snapshot = serializeDraft(this.draft);
+    this.historyStack = snapshot ? [snapshot] : [];
+    this.redoStack = [];
+    this.updateHistoryState();
+  },
+
+  recordHistory() {
+    const snapshot = serializeDraft(this.draft);
+    if (!snapshot) return;
+    const lastSnapshot = this.historyStack && this.historyStack[this.historyStack.length - 1];
+    if (snapshot === lastSnapshot) {
+      this.updateHistoryState();
+      return;
+    }
+    this.historyStack = [...(this.historyStack || []), snapshot].slice(-40);
+    this.redoStack = [];
+    this.updateHistoryState();
+  },
+
+  updateHistoryState() {
+    this.setData({
+      canUndo: !!(this.historyStack && this.historyStack.length > 1),
+      canRedo: !!(this.redoStack && this.redoStack.length)
+    });
+  },
+
+  restoreHistorySnapshot(snapshot, status) {
+    const draft = parseDraftSnapshot(snapshot);
+    if (!draft) return;
+    this.textEditSession = null;
+    this.draft = draft;
+    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.updateCanvasSize(this.draft.ratio);
+    this.setData({
+      selectedLayerId: "",
+      selectedLayerType: "",
+      textInputVisible: false,
+      textDraft: "",
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      keyboardHeight: 0,
+      textPanelBottom: 0,
+      saveStatus: status
+    });
+    this.updateHistoryState();
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => {
+      this.draft = saveAutoDraft(this.draft);
+      this.setData({ saveStatus: "已自动保存", hasRecentDraft: true });
+    }, 900);
+    setTimeout(() => this.render(), 0);
+  },
+
+  undo() {
+    if (!this.historyStack || this.historyStack.length <= 1) return;
+    const current = this.historyStack.pop();
+    this.redoStack = [...(this.redoStack || []), current];
+    this.restoreHistorySnapshot(this.historyStack[this.historyStack.length - 1], "已撤销");
+  },
+
+  redo() {
+    if (!this.redoStack || !this.redoStack.length) return;
+    const snapshot = this.redoStack.pop();
+    this.historyStack = [...(this.historyStack || []), snapshot].slice(-40);
+    this.restoreHistorySnapshot(snapshot, "已恢复");
+  },
+
   changeRatio(event) {
     const ratio = event.currentTarget.dataset.ratio;
     const size = ratioSizeMap[ratio];
@@ -244,8 +455,16 @@ Page({
   },
 
   choosePhoto() {
-    this.enterEditMode();
     const source = eventSourceType(arguments[0]) || "album";
+    this.choosePhotoBySource(source);
+  },
+
+  choosePhotoBySource(source = "album") {
+    const shouldStartBlank = this.data.isEmptyMode;
+    if (shouldStartBlank) {
+      this.resetToBlankDraftForEmptyEntry();
+    }
+    this.enterEditMode();
     wx.chooseMedia({
       count: 1,
       mediaType: ["image"],
@@ -269,18 +488,44 @@ Page({
     });
   },
 
-  choosePhotoFromPanel(event) {
-    this.choosePhoto(event);
+  openImageSourceSheet() {
+    this.setData({
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      selectedLayerId: "",
+      selectedLayerType: "",
+      textInputVisible: false,
+      ratioPanelVisible: false,
+      keyboardHeight: 0,
+      textPanelBottom: 0
+    });
+    wx.showActionSheet({
+      itemList: ["从相册选择图片", "拍照"],
+      success: (res) => {
+        if (res.tapIndex === 0) {
+          this.choosePhotoBySource("album");
+          return;
+        }
+        if (res.tapIndex === 1) {
+          this.choosePhotoBySource("camera");
+        }
+      }
+    });
   },
 
   openToolPanel(event) {
     const tool = event.currentTarget.dataset.tool || "";
     this.enterEditMode();
+    if (tool === "image") {
+      this.openImageSourceSheet();
+      return;
+    }
     if (tool === "text") {
       this.addText();
       return;
     }
-    const isDrawer = ["image", "asset", "tape"].includes(tool);
+    const isDrawer = ["asset", "tape"].includes(tool);
     const isPalette = ["cut", "shape"].includes(tool);
     this.setData({
       activeTool: tool,
@@ -327,7 +572,10 @@ Page({
   onLayerActionsTouchStart(event) {
     const touch = event.touches && event.touches[0];
     this.layerActionsTouchX = touch ? touch.clientX : 0;
+    this.layerActionsTouchY = touch ? touch.clientY : 0;
     this.layerActionsStartOffset = this.data.layerActionsOffset || 0;
+    this.layerActionsDirection = "";
+    this.layerActionsPendingOffset = this.layerActionsStartOffset;
     this.layerActionsMoved = false;
     this.setData({ layerActionsDragging: true });
   },
@@ -336,23 +584,63 @@ Page({
     const touch = event.touches && event.touches[0];
     if (!touch || this.layerActionsTouchX == null) return;
     const deltaX = touch.clientX - this.layerActionsTouchX;
-    if (Math.abs(deltaX) > 5) {
+    const deltaY = touch.clientY - this.layerActionsTouchY;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+    if (!this.layerActionsDirection) {
+      if (absX < LAYER_ACTIONS_TOUCH_SLOP && absY < LAYER_ACTIONS_TOUCH_SLOP) return;
+      this.layerActionsDirection = absX > absY * 1.15 ? "horizontal" : "vertical";
+    }
+    if (this.layerActionsDirection !== "horizontal") return;
+    if (absX > LAYER_ACTIONS_TOUCH_SLOP) {
       this.layerActionsMoved = true;
     }
     const deltaRpx = deltaX * 750 / this.screenWidth;
-    const offset = this.clampLayerActionsOffset(this.layerActionsStartOffset + deltaRpx);
+    const offset = this.applyLayerActionsResistance(this.layerActionsStartOffset + deltaRpx);
+    this.layerActionsPendingOffset = offset;
+    this.layerActionsPendingPage = offset < -LAYER_ACTIONS_PAGE_OFFSET / 2 ? 1 : 0;
+    this.scheduleLayerActionsOffsetUpdate();
+  },
+
+  scheduleLayerActionsOffsetUpdate() {
+    if (this.layerActionsOffsetFrame) return;
+    const flush = () => {
+      this.layerActionsOffsetFrame = null;
+      this.setData({
+        layerActionsOffset: this.layerActionsPendingOffset,
+        layerActionsPage: this.layerActionsPendingPage || 0
+      });
+    };
+    if (typeof requestAnimationFrame === "function") {
+      this.layerActionsOffsetFrame = requestAnimationFrame(flush);
+      return;
+    }
+    this.layerActionsOffsetFrame = setTimeout(flush, 16);
+  },
+
+  flushLayerActionsOffset() {
+    if (!this.layerActionsOffsetFrame) return;
+    if (typeof cancelAnimationFrame === "function") {
+      cancelAnimationFrame(this.layerActionsOffsetFrame);
+    } else {
+      clearTimeout(this.layerActionsOffsetFrame);
+    }
+    this.layerActionsOffsetFrame = null;
     this.setData({
-      layerActionsOffset: offset,
-      layerActionsPage: offset < -280 ? 1 : 0
+      layerActionsOffset: this.layerActionsPendingOffset,
+      layerActionsPage: this.layerActionsPendingPage || 0
     });
   },
 
   onLayerActionsTouchEnd(event) {
     const touch = event.changedTouches && event.changedTouches[0];
     const deltaX = touch && this.layerActionsTouchX != null ? touch.clientX - this.layerActionsTouchX : 0;
-    const moved = !!this.layerActionsMoved || Math.abs(deltaX) > 8;
+    const moved = this.layerActionsDirection === "horizontal" && (!!this.layerActionsMoved || Math.abs(deltaX) > 8);
+    this.flushLayerActionsOffset();
     this.layerActionsTouchX = null;
+    this.layerActionsTouchY = null;
     this.layerActionsStartOffset = 0;
+    this.layerActionsDirection = "";
     this.layerActionsMoved = false;
     if (moved) {
       this.ignoreLayerActionTap = true;
@@ -362,8 +650,8 @@ Page({
       }, 180);
     }
     const currentOffset = this.data.layerActionsOffset || 0;
-    let nextPage = currentOffset < -280 ? 1 : 0;
-    if (Math.abs(deltaX) > 36) {
+    let nextPage = currentOffset < -LAYER_ACTIONS_PAGE_OFFSET / 2 ? 1 : 0;
+    if (moved && Math.abs(deltaX) > LAYER_ACTIONS_SWIPE_THRESHOLD) {
       nextPage = deltaX < 0 ? 1 : 0;
     }
     this.setLayerActionsPage(nextPage);
@@ -373,13 +661,21 @@ Page({
     const nextPage = page ? 1 : 0;
     this.setData({
       layerActionsPage: nextPage,
-      layerActionsOffset: nextPage ? -560 : 0,
+      layerActionsOffset: nextPage ? -LAYER_ACTIONS_PAGE_OFFSET : 0,
       layerActionsDragging: false
     });
   },
 
   clampLayerActionsOffset(offset) {
-    return Math.max(-560, Math.min(0, Math.round(offset)));
+    return Math.max(-LAYER_ACTIONS_PAGE_OFFSET, Math.min(0, Math.round(offset)));
+  },
+
+  applyLayerActionsResistance(offset) {
+    if (offset > 0) return Math.round(offset * LAYER_ACTIONS_EDGE_RESISTANCE);
+    if (offset < -LAYER_ACTIONS_PAGE_OFFSET) {
+      return Math.round(-LAYER_ACTIONS_PAGE_OFFSET + (offset + LAYER_ACTIONS_PAGE_OFFSET) * LAYER_ACTIONS_EDGE_RESISTANCE);
+    }
+    return Math.round(offset);
   },
 
   closeDrawer() {
@@ -661,6 +957,36 @@ Page({
     this.render();
   },
 
+  dismissFloatingPanels() {
+    if (this.data.textInputVisible) {
+      this.dismissTextEditorFromCanvas();
+      return;
+    }
+    const patch = {};
+    let shouldRender = false;
+    if (this.data.ratioPanelVisible) {
+      patch.ratioPanelVisible = false;
+    }
+    if (this.data.selectedLayerId) {
+      patch.selectedLayerId = "";
+      patch.selectedLayerType = "";
+      patch.layerActionsPage = 0;
+      patch.layerActionsOffset = 0;
+      shouldRender = true;
+    }
+    if (this.data.activePalette) {
+      patch.activeTool = "";
+      patch.activePalette = "";
+    }
+    if (!Object.keys(patch).length) return;
+    this.setData(patch);
+    if (shouldRender) {
+      this.render();
+    }
+  },
+
+  noopCanvasTap() {},
+
   onTouchStart(event) {
     if (this.data.textInputVisible) {
       this.dismissTextEditorFromCanvas();
@@ -923,10 +1249,6 @@ Page({
     }
     if (action === "copy") return this.duplicateLayer();
     if (action === "delete") return this.deleteLayer();
-    if (action === "tray") {
-      showToast("碎片收纳待接入", { icon: "none" });
-      return;
-    }
     if (action === "up") return this.moveLayerUp();
     if (action === "down") return this.moveLayerDown();
 
@@ -996,11 +1318,62 @@ Page({
     this.render();
   },
 
+  saveDraftWithThumbnail() {
+    return this.createDraftThumbnail()
+      .then((thumbnailPath) => {
+        const nextDraft = {
+          ...this.draft,
+          thumbnailPath: thumbnailPath || this.draft.thumbnailPath || ""
+        };
+        return saveDraft(nextDraft);
+      });
+  },
+
+  createDraftThumbnail() {
+    return new Promise((resolve) => {
+      this.drawCanvasSnapshot(() => {
+        wx.canvasToTempFilePath({
+          canvasId: "spikeCanvas",
+          width: this.data.canvasCssWidth,
+          height: this.data.canvasCssHeight,
+          destWidth: 360,
+          destHeight: Math.round(360 * this.draft.height / this.draft.width),
+          success: (res) => this.persistThumbnailFile(res.tempFilePath).then(resolve).catch(() => resolve("")),
+          fail: () => resolve("")
+        }, this);
+      });
+    });
+  },
+
+  persistThumbnailFile(tempFilePath) {
+    return new Promise((resolve, reject) => {
+      if (!tempFilePath || !wx.getFileSystemManager) {
+        resolve(tempFilePath || "");
+        return;
+      }
+      wx.getFileSystemManager().saveFile({
+        tempFilePath,
+        success: (res) => resolve(res.savedFilePath || tempFilePath),
+        fail: reject
+      });
+    });
+  },
+
   saveCurrentDraft() {
     clearTimeout(this.saveTimer);
-    this.draft = saveDraft(this.draft);
-    this.setData({ saveStatus: "手动草稿已保存", hasRecentDraft: true });
-    showSuccess("草稿已保存");
+    this.saveDraftWithThumbnail()
+      .then((draft) => {
+        this.draft = draft;
+        this.setData({
+          saveStatus: "手动草稿已保存",
+          hasRecentDraft: true,
+          recentDraftThumb: draft.thumbnailPath || "",
+          recentDrafts: this.getRecentDrafts()
+        });
+        showSuccess("草稿已保存");
+        this.render();
+      })
+      .catch(() => showError("草稿保存失败"));
   },
 
   restoreDraft() {
@@ -1013,6 +1386,7 @@ Page({
     }
     this.draft = draft;
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.resetHistory();
     this.updateCanvasSize(draft.ratio);
     this.setEditorMode(true);
     this.setData({ selectedLayerId: "", saveStatus: "已恢复手动草稿", hasRecentDraft: true });
@@ -1025,6 +1399,7 @@ Page({
       this.setData({ saveStatus: "编辑中..." });
       return;
     }
+    this.recordHistory();
     this.setData({ saveStatus: "保存中..." });
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => {
@@ -1062,6 +1437,23 @@ function distance(a, b) {
 
 function angle(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+function serializeDraft(draft) {
+  if (!draft) return "";
+  try {
+    return JSON.stringify(draft);
+  } catch (error) {
+    return "";
+  }
+}
+
+function parseDraftSnapshot(snapshot) {
+  try {
+    return JSON.parse(snapshot);
+  } catch (error) {
+    return null;
+  }
 }
 
 function eventSourceType(event) {

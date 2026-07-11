@@ -46,6 +46,10 @@
       {
         "type": "file",
         "value": "assets/papers/pack-sheet.png"
+      },
+      {
+        "type": "file",
+        "value": "assets/stickers/pack-sheet.png"
       }
     ],
     "include": []

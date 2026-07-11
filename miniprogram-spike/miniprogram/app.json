@@ -20,19 +20,27 @@
     "list": [
       {
         "pagePath": "pages/create/index",
-        "text": "创作"
+        "text": "创作",
+        "iconPath": "assets/icons/tabbar/tab-create.png",
+        "selectedIconPath": "assets/icons/tabbar/tab-create-active.png"
       },
       {
         "pagePath": "pages/assets/index",
-        "text": "素材"
+        "text": "素材",
+        "iconPath": "assets/icons/tabbar/tab-assets.png",
+        "selectedIconPath": "assets/icons/tabbar/tab-assets-active.png"
       },
       {
         "pagePath": "pages/inspiration/index",
-        "text": "灵感"
+        "text": "灵感",
+        "iconPath": "assets/icons/tabbar/tab-inspo.png",
+        "selectedIconPath": "assets/icons/tabbar/tab-inspo-active.png"
       },
       {
         "pagePath": "pages/me/index",
-        "text": "我的"
+        "text": "我的",
+        "iconPath": "assets/icons/tabbar/tab-mine.png",
+        "selectedIconPath": "assets/icons/tabbar/tab-mine-active.png"
       }
     ]
   },
