@@ -1,14 +1,99 @@
-<view class="page">
-  <view class="title">素材</view>
-  <view class="section">点击素材包里的单个素材后，后续会加入待使用素材并回到创作页。</view>
-  <view class="pack" wx:for="{{packs}}" wx:key="id">
-    <image class="pack-sheet" mode="aspectFill" src="{{item.sheet}}"></image>
-    <view class="pack-title">{{item.name}}</view>
-    <view class="pack-caption">{{item.description}}</view>
-    <view class="item-row">
-      <view class="item-card" wx:for="{{item.items}}" wx:for-item="asset" wx:key="id">
-        <image class="item-thumb" mode="aspectFit" src="{{asset.thumb}}"></image>
+<view class="page {{detailPack ? 'detail-mode' : ''}}">
+  <block wx:if="{{!detailPack}}">
+    <view class="list-safe" style="height: {{navBarHeight}}px;"></view>
+    <scroll-view scroll-y class="sheet-page" style="height: calc(100vh - {{navBarHeight}}px);">
+      <view class="sheet-inner">
+        <view class="list-page-title">素材包</view>
+        <scroll-view scroll-x class="category-tabs" show-scrollbar="{{false}}">
+          <button
+            wx:for="{{categories}}"
+            wx:key="*this"
+            class="{{activeCategory === item ? 'active' : ''}}"
+            data-category="{{item}}"
+            bindtap="setAssetCategory"
+          >{{item}}</button>
+        </scroll-view>
+        <view wx:if="{{visiblePacks.length}}" class="pack-grid">
+          <button
+            wx:for="{{visiblePacks}}"
+            wx:key="id"
+            class="pack-card pack-card-{{index}}"
+            style="background: {{item.tone}};"
+            data-pack="{{item.id}}"
+            bindtap="openPack"
+            aria-label="{{item.name}}"
+          >
+            <view wx:if="{{item.isFavorite}}" class="pack-favorite-mark">★</view>
+            <view class="pack-scatter">
+              <view class="paper-mini a"></view>
+              <view class="paper-mini b"></view>
+              <view wx:if="{{index === 1}}" class="paper-mini c"></view>
+              <view class="tape-mini"></view>
+              <view wx:if="{{index === 1}}" class="mono-line pack-line"></view>
+              <view wx:if="{{index === 2}}" class="tape-mini sage"></view>
+              <view wx:if="{{index === 3}}" class="circle-mark pack-dot">·</view>
+            </view>
+          </button>
+        </view>
+        <view wx:else class="empty-note">还没有收藏的素材包</view>
+      </view>
+    </scroll-view>
+  </block>
+
+  <block wx:else>
+    <view class="detail-safe" style="height: {{statusTop}}px;"></view>
+    <view class="editor-topbar" style="margin-top: {{toolbarGap}}px;">
+      <view class="top-control icon-button back-button" bindtap="closeDetail" aria-label="返回">
+        <image class="line-icon" src="/assets/icons/line-back.svg" mode="aspectFit"></image>
+      </view>
+      <view class="detail-title">{{detailPack.name}}</view>
+      <view class="top-control icon-button favorite-button" bindtap="toggleFavoritePack" aria-label="{{detailPack.isFavorite ? '取消收藏' : '收藏'}}">
+        <text>{{detailPack.isFavorite ? '★' : '☆'}}</text>
       </view>
     </view>
-  </view>
+
+    <view class="detail-paper-shell" style="height: calc(100vh - {{statusTop}}px - {{toolbarGap}}px - 112rpx);">
+      <view class="detail-paper">
+        <view class="floating-piece title-piece">晨间</view>
+        <view class="tape floating-piece top-tape"></view>
+        <button
+          wx:for="{{detailPack.items}}"
+          wx:key="id"
+          class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}}"
+          data-asset-id="{{item.id}}"
+          bindtap="selectDetailAsset"
+          aria-label="选择{{item.name}}"
+        >
+          <image wx:if="{{item.thumb}}" class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
+          <view wx:else class="css-preview css-preview-{{item.id}}">
+            <text wx:if="{{item.id === 'dot-mark'}}">·</text>
+            <text wx:if="{{item.id === 'receipt-07'}}">07</text>
+          </view>
+        </button>
+        <view class="tape floating-piece bottom-tape"></view>
+
+        <scroll-view wx:if="{{selectedAssets.length}}" scroll-x class="selected-asset-tray" show-scrollbar="{{false}}">
+          <view
+            wx:for="{{selectedAssets}}"
+            wx:key="id"
+            class="selected-asset-chip"
+          >
+            <view class="selected-asset-preview">
+              <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFit"></image>
+              <view wx:else class="selected-css-preview css-preview-{{item.id}}">
+                <text wx:if="{{item.id === 'dot-mark'}}">·</text>
+                <text wx:if="{{item.id === 'receipt-07'}}">07</text>
+              </view>
+            </view>
+            <button data-asset-id="{{item.id}}" bindtap="removeDetailAsset" aria-label="移除{{item.name}}">×</button>
+          </view>
+        </scroll-view>
+        <button
+          class="add-to-canvas {{selectedAssetIds.length ? '' : 'disabled'}}"
+          disabled="{{!selectedAssetIds.length}}"
+          bindtap="addSelectedAsset"
+        >添加到画布</button>
+      </view>
+    </view>
+  </block>
 </view>

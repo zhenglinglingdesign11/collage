@@ -214,7 +214,11 @@
                 data-asset-id="{{item.id}}"
                 bindtap="addConfiguredAsset"
               >
-                <cover-image class="asset-thumb" src="{{item.thumb}}"></cover-image>
+                <cover-image wx:if="{{item.thumb}}" class="asset-thumb" src="{{item.thumb}}"></cover-image>
+                <cover-view wx:else class="asset-css-thumb asset-css-thumb-{{item.id}}">
+                  <cover-view wx:if="{{item.id === 'dot-mark'}}" class="asset-css-text">·</cover-view>
+                  <cover-view wx:if="{{item.id === 'receipt-07'}}" class="asset-css-text">07</cover-view>
+                </cover-view>
               </cover-view>
             </cover-view>
           </block>

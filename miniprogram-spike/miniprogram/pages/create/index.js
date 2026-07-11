@@ -1,6 +1,6 @@
 const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
-const { getAssetItems, getAssetItem } = require("../../config/assets");
+const { ASSET_TRANSFER_STORAGE_KEY, getAssetItems, getAssetItem } = require("../../config/assets");
 const {
   ratioSizeMap,
   createDraft,
@@ -111,6 +111,7 @@ Page({
   },
 
   onShow() {
+    this.consumePendingAssets();
     if (this.data.isEmptyMode) {
       this.refreshRecentDraftState();
     }
@@ -751,15 +752,53 @@ Page({
     const assetId = event.currentTarget.dataset.assetId;
     const asset = getAssetItem(assetId);
     if (!asset || !asset.source) {
+      if (asset && asset.layer) {
+        this.addAssetItemToDraft(asset);
+        this.closeAfterAddingLayer();
+        this.markDirty();
+        this.render();
+        return;
+      }
       showError("素材添加失败");
       return;
     }
-    const layer = createAssetLayer(asset, this.draft);
-    this.draft.layers.push(layer);
-    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.addAssetItemToDraft(asset);
     this.closeAfterAddingLayer();
     this.markDirty();
     this.render();
+  },
+
+  consumePendingAssets() {
+    const assetIds = wx.getStorageSync(ASSET_TRANSFER_STORAGE_KEY);
+    if (!Array.isArray(assetIds) || !assetIds.length) return;
+    wx.removeStorageSync(ASSET_TRANSFER_STORAGE_KEY);
+    this.enterEditMode();
+    let added = 0;
+    assetIds.forEach((assetId) => {
+      const asset = getAssetItem(assetId);
+      if (!asset) return;
+      if (this.addAssetItemToDraft(asset)) {
+        added += 1;
+      }
+    });
+    if (!added) {
+      showError("素材添加失败");
+      return;
+    }
+    this.closeAfterAddingLayer();
+    this.markDirty();
+    setTimeout(() => this.render(), 0);
+  },
+
+  addAssetItemToDraft(asset) {
+    if (!asset || !this.draft) return null;
+    const layer = asset.source
+      ? createAssetLayer(asset, this.draft)
+      : createLayerFromAsset(asset, this.draft);
+    if (!layer) return null;
+    this.draft.layers.push(layer);
+    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    return layer;
   },
 
   addText() {
@@ -1454,6 +1493,35 @@ function parseDraftSnapshot(snapshot) {
   } catch (error) {
     return null;
   }
+}
+
+function createLayerFromAsset(asset, draft) {
+  if (!asset || !asset.layer || !draft) return null;
+  const spec = JSON.parse(JSON.stringify(asset.layer));
+  const width = spec.width || 240;
+  const height = spec.height || 160;
+  return {
+    id: `${spec.type || asset.type || "asset"}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    type: spec.type || asset.type || "paper",
+    x: (draft.width - width) / 2,
+    y: (draft.height - height) / 2,
+    width,
+    height,
+    rotation: spec.rotation || 0,
+    scale: 1,
+    opacity: spec.opacity == null ? 1 : spec.opacity,
+    zIndex: (draft.layers || []).reduce((max, layer, index) => Math.max(max, layer.zIndex == null ? index : layer.zIndex), 0) + 1,
+    source: spec.source || "",
+    text: spec.text || "",
+    radius: spec.radius || 0,
+    shadow: !!spec.shadow,
+    tear: !!spec.tear,
+    style: {
+      ...(spec.style || {}),
+      packId: asset.packId || "",
+      name: asset.name || ""
+    }
+  };
 }
 
 function eventSourceType(event) {
