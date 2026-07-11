@@ -4,17 +4,19 @@
     <scroll-view scroll-y class="sheet-page" style="height: calc(100vh - {{navBarHeight}}px);">
       <view class="sheet-inner">
         <view class="list-page-title">素材包</view>
-        <scroll-view scroll-x class="category-tabs" show-scrollbar="{{false}}">
-          <button
-            wx:for="{{categories}}"
-            wx:key="*this"
-            class="{{activeCategory === item ? 'active' : ''}}"
-            data-category="{{item}}"
-            bindtap="setAssetCategory"
-          >{{item}}</button>
+        <scroll-view scroll-x class="category-tabs" show-scrollbar="{{false}}" enhanced="{{true}}">
+          <view class="category-track">
+            <view
+              wx:for="{{categories}}"
+              wx:key="*this"
+              class="category-tab {{activeCategory === item ? 'active' : ''}}"
+              data-category="{{item}}"
+              bindtap="setAssetCategory"
+            >{{item}}</view>
+          </view>
         </scroll-view>
         <view wx:if="{{visiblePacks.length}}" class="pack-grid">
-          <button
+          <view
             wx:for="{{visiblePacks}}"
             wx:key="id"
             class="pack-card pack-card-{{index}}"
@@ -24,16 +26,8 @@
             aria-label="{{item.name}}"
           >
             <view wx:if="{{item.isFavorite}}" class="pack-favorite-mark">★</view>
-            <view class="pack-scatter">
-              <view class="paper-mini a"></view>
-              <view class="paper-mini b"></view>
-              <view wx:if="{{index === 1}}" class="paper-mini c"></view>
-              <view class="tape-mini"></view>
-              <view wx:if="{{index === 1}}" class="mono-line pack-line"></view>
-              <view wx:if="{{index === 2}}" class="tape-mini sage"></view>
-              <view wx:if="{{index === 3}}" class="circle-mark pack-dot">·</view>
-            </view>
-          </button>
+            <image class="pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
+          </view>
         </view>
         <view wx:else class="empty-note">还没有收藏的素材包</view>
       </view>
@@ -54,23 +48,17 @@
 
     <view class="detail-paper-shell" style="height: calc(100vh - {{statusTop}}px - {{toolbarGap}}px - 112rpx);">
       <view class="detail-paper">
-        <view class="floating-piece title-piece">晨间</view>
-        <view class="tape floating-piece top-tape"></view>
         <button
           wx:for="{{detailPack.items}}"
           wx:key="id"
           class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}}"
+          style="{{item.detailStyle}}"
           data-asset-id="{{item.id}}"
           bindtap="selectDetailAsset"
           aria-label="选择{{item.name}}"
         >
-          <image wx:if="{{item.thumb}}" class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
-          <view wx:else class="css-preview css-preview-{{item.id}}">
-            <text wx:if="{{item.id === 'dot-mark'}}">·</text>
-            <text wx:if="{{item.id === 'receipt-07'}}">07</text>
-          </view>
+          <image class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
         </button>
-        <view class="tape floating-piece bottom-tape"></view>
 
         <scroll-view wx:if="{{selectedAssets.length}}" scroll-x class="selected-asset-tray" show-scrollbar="{{false}}">
           <view
@@ -79,11 +67,7 @@
             class="selected-asset-chip"
           >
             <view class="selected-asset-preview">
-              <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFit"></image>
-              <view wx:else class="selected-css-preview css-preview-{{item.id}}">
-                <text wx:if="{{item.id === 'dot-mark'}}">·</text>
-                <text wx:if="{{item.id === 'receipt-07'}}">07</text>
-              </view>
+              <image src="{{item.thumb}}" mode="aspectFit"></image>
             </view>
             <button data-asset-id="{{item.id}}" bindtap="removeDetailAsset" aria-label="移除{{item.name}}">×</button>
           </view>

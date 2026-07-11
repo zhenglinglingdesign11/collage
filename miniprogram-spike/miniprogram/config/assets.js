@@ -1,202 +1,227 @@
-const assetPacks = [
+const ASSET_TRANSFER_STORAGE_KEY = "journal.pendingAssetIds";
+const FAVORITE_PACK_STORAGE_KEY = "journal.favoritePackIds";
+
+const imagePackDefinitions = [
   {
-    id: "morning",
-    name: "晨间纸张",
+    id: "papers",
+    name: "复古纸张",
     category: "纸张",
     tone: "#f3f1ec",
-    cover: "/assets/packs/papers/pack-sheet.jpg",
-    sheet: "/assets/packs/papers/pack-sheet.jpg",
-    version: 1,
+    cover: "pack-sheet.png",
     items: [
-      {
-        id: "paper-01",
-        type: "paper",
-        name: "横线纸片",
-        source: "/assets/packs/papers/items/paper-01.png",
-        thumb: "/assets/packs/papers/items/paper-01.png",
-        width: 371,
-        height: 377
-      },
-      {
-        id: "paper-02",
-        type: "paper",
-        name: "撕边便签",
-        source: "/assets/packs/papers/items/paper-02.png",
-        thumb: "/assets/packs/papers/items/paper-02.png",
-        width: 324,
-        height: 352
-      },
-      {
-        id: "paper-small",
-        type: "paper",
-        name: "纸片",
-        thumb: "",
-        layer: {
-          type: "paper",
-          width: 240,
-          height: 300,
-          rotation: -7,
-          style: { color: "#efe7d8" }
-        }
-      },
-      {
-        id: "paper-tall",
-        type: "paper",
-        name: "长纸片",
-        thumb: "",
-        layer: {
-          type: "paper",
-          width: 230,
-          height: 320,
-          rotation: 5,
-          radius: 20,
-          style: { color: "#ffffff" }
-        }
-      }
+      ["1.png", 342, 352],
+      ["2.png", 291, 299],
+      ["3.png", 285, 326],
+      ["4.png", 289, 264],
+      ["5.png", 256, 348],
+      ["6.png", 356, 322],
+      ["7.png", 291, 275],
+      ["8.png", 255, 235],
+      ["9.png", 322, 231],
+      ["10.png", 303, 233]
     ]
   },
   {
-    id: "travel",
-    name: "旅途票据",
-    category: "票据",
-    tone: "#eef1f0",
-    cover: "/assets/packs/papers/pack-sheet.jpg",
-    sheet: "/assets/packs/papers/pack-sheet.jpg",
-    version: 1,
+    id: "stickers",
+    name: "贴纸",
+    category: "贴纸",
+    tone: "#f5f4f1",
+    cover: "pack-sheet.png",
     items: [
-      {
-        id: "receipt-07",
-        type: "text",
-        name: "票据",
-        thumb: "",
-        layer: {
-          type: "text",
-          text: "07\n···",
-          width: 190,
-          height: 116,
-          rotation: 3,
-          style: {
-            fontSize: 34,
-            color: "#111111",
-            fontLabel: "打字机",
-            fontFamily: "monospace",
-            background: "#ffffff"
-          }
-        }
-      },
-      {
-        id: "frame-card",
-        type: "paper",
-        name: "边框卡",
-        thumb: "",
-        layer: {
-          type: "paper",
-          width: 230,
-          height: 280,
-          rotation: -2,
-          radius: 26,
-          style: { color: "#ffffff" }
-        }
-      }
+      ["1.png", 178, 260],
+      ["2.png", 279, 197],
+      ["3.png", 213, 234],
+      ["4.png", 219, 247],
+      ["5.png", 196, 261],
+      ["6.png", 203, 303],
+      ["7.png", 294, 293],
+      ["8.png", 299, 287],
+      ["9.png", 238, 266],
+      ["10.png", 231, 267]
     ]
   },
   {
-    id: "tape",
-    name: "彩色胶带",
+    id: "jiaodai",
+    name: "胶带",
     category: "胶带",
     tone: "#f5f3ee",
-    cover: "/assets/packs/stickers/pack-sheet.jpg",
-    sheet: "/assets/packs/stickers/pack-sheet.jpg",
-    version: 1,
+    cover: "pack-sheet.png",
     items: [
-      {
-        id: "tape-yellow",
-        type: "tape",
-        name: "黄胶带",
-        thumb: "",
-        layer: {
-          type: "tape",
-          width: 260,
-          height: 76,
-          rotation: -10,
-          style: { color: "#ead48a" }
-        }
-      },
-      {
-        id: "tape-sage",
-        type: "tape",
-        name: "绿胶带",
-        thumb: "",
-        layer: {
-          type: "tape",
-          width: 260,
-          height: 76,
-          rotation: 8,
-          style: { color: "#8d9b8e" }
-        }
-      }
+      ["book-1.png", 287, 107],
+      ["book-2.png", 261, 111],
+      ["book-3.png", 255, 103],
+      ["chat-1.png", 302, 112],
+      ["chat-2.png", 323, 104],
+      ["chat-3.png", 291, 133],
+      ["profile-1.png", 282, 106],
+      ["profile-2.png", 82, 79],
+      ["profile-3.png", 191, 162],
+      ["profile-4.png", 254, 119]
     ]
   },
   {
-    id: "mark",
-    name: "手写标记",
-    category: "标记",
-    tone: "#f5f4f1",
-    cover: "/assets/packs/stickers/pack-sheet.jpg",
-    sheet: "/assets/packs/stickers/pack-sheet.jpg",
-    version: 1,
+    id: "hudiejie",
+    name: "蝴蝶结",
+    category: "贴纸",
+    tone: "#f6f0ee",
+    cover: "pack-sheet.png",
     items: [
-      {
-        id: "cat-01",
-        type: "sticker",
-        name: "小猫贴纸 01",
-        source: "/assets/packs/stickers/items/cat-01.png",
-        thumb: "/assets/packs/stickers/items/cat-01.png",
-        width: 289,
-        height: 269
-      },
-      {
-        id: "cat-02",
-        type: "sticker",
-        name: "小猫贴纸 02",
-        source: "/assets/packs/stickers/items/cat-02.png",
-        thumb: "/assets/packs/stickers/items/cat-02.png",
-        width: 221,
-        height: 295
-      },
-      {
-        id: "dot-mark",
-        type: "paper",
-        name: "圆点标记",
-        thumb: "",
-        layer: {
-          type: "paper",
-          width: 108,
-          height: 108,
-          rotation: 0,
-          radius: 54,
-          style: { color: "#f5ecda", shape: "circle" }
-        }
-      },
-      {
-        id: "mono-line",
-        type: "tape",
-        name: "手绘线",
-        thumb: "",
-        layer: {
-          type: "tape",
-          width: 190,
-          height: 14,
-          rotation: -10,
-          style: { color: "#52606a" }
-        }
-      }
+      ["1.png", 276, 250],
+      ["2.png", 269, 249],
+      ["3.png", 263, 250],
+      ["4.png", 259, 180],
+      ["5.png", 258, 179],
+      ["6.png", 261, 184],
+      ["7.png", 294, 154],
+      ["8.png", 281, 151],
+      ["9.png", 290, 147],
+      ["10.png", 273, 184]
+    ]
+  },
+  {
+    id: "jiazi",
+    name: "夹子",
+    category: "贴纸",
+    tone: "#f0f2f1",
+    cover: "pack-sheet.png",
+    items: [
+      ["1.png", 160, 215],
+      ["2.png", 107, 199],
+      ["3.png", 97, 196],
+      ["4.png", 192, 201],
+      ["5.png", 96, 160],
+      ["6.png", 110, 181],
+      ["7.png", 149, 213],
+      ["8.png", 169, 219],
+      ["9.png", 111, 214],
+      ["10.png", 229, 251]
+    ]
+  },
+  {
+    id: "leisi",
+    name: "蕾丝",
+    category: "纹理",
+    tone: "#f7f4ef",
+    cover: "pack-sheet.png",
+    items: [
+      ["1.png", 100, 749],
+      ["2.png", 72, 752],
+      ["3.png", 73, 755],
+      ["4.png", 106, 750],
+      ["5.png", 73, 749],
+      ["6.png", 114, 752],
+      ["7.png", 92, 755],
+      ["8.png", 96, 753],
+      ["9.png", 83, 751],
+      ["10.png", 66, 751]
+    ]
+  },
+  {
+    id: "sanguangtiezhi",
+    name: "三光贴纸",
+    category: "贴纸",
+    tone: "#f5f5f2",
+    cover: "pack-sheet.png",
+    items: [
+      ["1.png", 305, 323],
+      ["2.png", 68, 68],
+      ["3.png", 80, 100],
+      ["4.png", 188, 195],
+      ["5.png", 265, 269],
+      ["6.png", 122, 131],
+      ["7.png", 85, 117],
+      ["8.png", 50, 49],
+      ["9.png", 219, 222],
+      ["10.png", 237, 174]
+    ]
+  },
+  {
+    id: "sanjiao",
+    name: "三角素材",
+    category: "贴纸",
+    tone: "#f3f1ec",
+    cover: "pack-sheet.png",
+    items: [
+      ["1.png", 268, 278],
+      ["2.png", 276, 275],
+      ["3.png", 284, 276],
+      ["4.png", 282, 263],
+      ["5.png", 290, 264],
+      ["6.png", 301, 262],
+      ["7.png", 286, 258],
+      ["8.png", 283, 248],
+      ["9.png", 285, 243],
+      ["10.png", 283, 426]
+    ]
+  },
+  {
+    id: "troy",
+    name: "Troy",
+    category: "贴纸",
+    tone: "#f1f3f2",
+    cover: "pack-sheet.png",
+    items: [
+      ["1.png", 195, 156],
+      ["2.png", 177, 191],
+      ["3.png", 219, 166],
+      ["4.png", 110, 184],
+      ["5.png", 153, 130],
+      ["6.png", 177, 172],
+      ["7.png", 145, 160],
+      ["8.png", 114, 174],
+      ["9.png", 201, 172],
+      ["10.png", 212, 195]
+    ]
+  },
+  {
+    id: "xiangkuang",
+    name: "相框",
+    category: "边框",
+    tone: "#f4f0ec",
+    cover: "pack-sheet.png",
+    items: [
+      ["1.png", 284, 663],
+      ["2.png", 392, 274],
+      ["3.png", 254, 332],
+      ["4.png", 364, 171],
+      ["5.png", 273, 256],
+      ["6.png", 308, 229],
+      ["7.png", 337, 276],
+      ["8.png", 252, 167],
+      ["9.png", 353, 197],
+      ["10.png", 269, 273]
     ]
   }
 ];
 
-const ASSET_TRANSFER_STORAGE_KEY = "journal.pendingAssetIds";
-const FAVORITE_PACK_STORAGE_KEY = "journal.favoritePackIds";
+const assetPacks = imagePackDefinitions.map(createImagePack);
+
+function createImagePack(definition) {
+  const basePath = `/assets/packs/${definition.id}`;
+  const cover = `${basePath}/${definition.cover}`;
+  return {
+    id: definition.id,
+    name: definition.name,
+    category: definition.category,
+    tone: definition.tone,
+    cover,
+    sheet: cover,
+    version: 1,
+    items: definition.items.map(([fileName, width, height, label]) => {
+      const source = `${basePath}/items/${fileName}`;
+      const itemId = `${definition.id}-${fileName.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9]+/g, "-")}`;
+      return {
+        id: itemId,
+        type: "sticker",
+        name: label || `${definition.name} ${fileName.replace(/\.[^.]+$/, "")}`,
+        source,
+        thumb: source,
+        width,
+        height
+      };
+    })
+  };
+}
 
 function getAssetPacks() {
   return assetPacks;

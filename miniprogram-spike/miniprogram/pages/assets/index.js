@@ -5,7 +5,22 @@ const {
   getAssetPack
 } = require("../../config/assets");
 
-const assetPageCategories = ["推荐", "收藏", "纸张", "胶带", "票据", "贴纸", "标记", "纹理"];
+const assetPageCategories = ["推荐", "收藏", "纸张", "贴纸", "胶带", "边框", "票据", "标记", "纹理", "文字"];
+
+const detailSlots = [
+  { left: 10, top: 8, rotate: -7 },
+  { left: 56, top: 9, rotate: 5 },
+  { left: 30, top: 21, rotate: -3 },
+  { left: 9, top: 35, rotate: 6 },
+  { left: 58, top: 34, rotate: -6 },
+  { left: 32, top: 48, rotate: 4 },
+  { left: 11, top: 60, rotate: -5 },
+  { left: 56, top: 60, rotate: 6 },
+  { left: 30, top: 70, rotate: -4 },
+  { left: 62, top: 74, rotate: 5 },
+  { left: 8, top: 74, rotate: 4 },
+  { left: 42, top: 82, rotate: -6 }
+];
 
 Page({
   data: {
@@ -74,11 +89,15 @@ Page({
     if (category === "收藏") {
       return packs.filter((pack) => pack.isFavorite);
     }
+    if (category && category !== "推荐") {
+      return packs.filter((pack) => pack.category === category);
+    }
     return packs;
   },
 
   setAssetCategory(event) {
     const activeCategory = event.currentTarget.dataset.category || "推荐";
+    if (activeCategory === this.data.activeCategory) return;
     this.setData({
       activeCategory,
       visiblePacks: this.filterPacks(this.data.packs, activeCategory)
@@ -168,6 +187,7 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
       ...item,
       assetClass: `detail-item-${item.id}`,
       layoutClass: `detail-asset-${index}`,
+      detailStyle: getDetailAssetStyle(item, index),
       isCssAsset: !item.thumb,
       selected: selectedAssetIds.includes(item.id)
     }))
@@ -177,4 +197,48 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
 function getSelectedAssets(pack, selectedAssetIds) {
   if (!pack || !Array.isArray(pack.items)) return [];
   return pack.items.filter((item) => selectedAssetIds.includes(item.id));
+}
+
+function getDetailAssetStyle(item, index) {
+  const slot = detailSlots[index % detailSlots.length];
+  const size = getDetailAssetSize(item);
+  const cycleOffset = Math.floor(index / detailSlots.length) * 4;
+  const left = Math.min(76, slot.left + cycleOffset);
+  const top = Math.min(84, slot.top + cycleOffset);
+  const rotate = slot.rotate + ((index % 3) - 1);
+  return [
+    `left:${left}%`,
+    `top:${top}%`,
+    `width:${size.width}rpx`,
+    `height:${size.height}rpx`,
+    `transform:rotate(${rotate}deg)`
+  ].join(";");
+}
+
+function getDetailAssetSize(item) {
+  const sourceWidth = Math.max(1, Number(item.width) || 160);
+  const sourceHeight = Math.max(1, Number(item.height) || 160);
+  const ratio = sourceWidth / sourceHeight;
+  let maxWidth = 176;
+  let maxHeight = 176;
+
+  if (ratio >= 2.2) {
+    maxWidth = 300;
+    maxHeight = 124;
+  } else if (ratio <= 0.35) {
+    maxWidth = 122;
+    maxHeight = 410;
+  } else if (ratio <= 0.65) {
+    maxWidth = 146;
+    maxHeight = 270;
+  } else if (ratio >= 1.45) {
+    maxWidth = 236;
+    maxHeight = 150;
+  }
+
+  const scale = Math.min(maxWidth / sourceWidth, maxHeight / sourceHeight);
+  return {
+    width: Math.max(88, Math.round(sourceWidth * scale)),
+    height: Math.max(88, Math.round(sourceHeight * scale))
+  };
 }
