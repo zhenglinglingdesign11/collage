@@ -198,29 +198,46 @@
 
           <block wx:if="{{activeDrawer === 'asset'}}">
             <cover-view class="drawer-title-row">
-              <cover-view class="drawer-title">素材</cover-view>
+              <cover-view wx:if="{{activeAssetPack}}" class="drawer-back-link" bindtap="backToAssetPacks">‹</cover-view>
+              <cover-view class="drawer-title {{activeAssetPack ? 'with-back' : ''}}">{{activeAssetPack ? activeAssetPack.name : '素材'}}</cover-view>
               <cover-view class="link-button" bindtap="openAssetsTab">查看全部</cover-view>
             </cover-view>
-            <cover-view class="chip-row">
-              <cover-view class="chip active">全部</cover-view>
-              <cover-view class="chip">纸张</cover-view>
-              <cover-view class="chip">贴纸</cover-view>
-            </cover-view>
-            <cover-view class="asset-scroll">
-              <cover-view
-                wx:for="{{assetItems}}"
-                wx:key="id"
-                class="asset-card"
-                data-asset-id="{{item.id}}"
-                bindtap="addConfiguredAsset"
-              >
-                <cover-image wx:if="{{item.thumb}}" class="asset-thumb" src="{{item.thumb}}"></cover-image>
-                <cover-view wx:else class="asset-css-thumb asset-css-thumb-{{item.id}}">
-                  <cover-view wx:if="{{item.id === 'dot-mark'}}" class="asset-css-text">·</cover-view>
-                  <cover-view wx:if="{{item.id === 'receipt-07'}}" class="asset-css-text">07</cover-view>
+            <block wx:if="{{!activeAssetPack}}">
+              <cover-view class="chip-row">
+                <cover-view
+                  wx:for="{{assetCategories}}"
+                  wx:key="*this"
+                  class="chip {{activeAssetCategory === item ? 'active' : ''}}"
+                  data-category="{{item}}"
+                  bindtap="selectAssetCategory"
+                >{{item}}</cover-view>
+              </cover-view>
+              <cover-view class="asset-pack-scroll">
+                <cover-view
+                  wx:for="{{visibleAssetPacks}}"
+                  wx:key="id"
+                  class="asset-pack-card"
+                  style="background: {{item.tone}};"
+                  data-pack="{{item.id}}"
+                  bindtap="openAssetPack"
+                >
+                  <cover-image class="asset-pack-cover" src="{{item.cover}}"></cover-image>
                 </cover-view>
               </cover-view>
-            </cover-view>
+            </block>
+            <block wx:else>
+              <cover-view class="asset-scroll">
+                <cover-view
+                  wx:for="{{activeAssetPackItems}}"
+                  wx:key="id"
+                  class="asset-card"
+                  data-asset-id="{{item.id}}"
+                  bindtap="addConfiguredAsset"
+                >
+                  <cover-image class="asset-thumb" src="{{item.thumb}}" style="{{item.panelPreviewStyle}}"></cover-image>
+                </cover-view>
+              </cover-view>
+            </block>
           </block>
 
           <block wx:if="{{activeDrawer === 'tape'}}">

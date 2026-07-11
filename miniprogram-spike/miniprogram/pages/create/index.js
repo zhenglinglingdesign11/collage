@@ -1,6 +1,11 @@
 const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
-const { ASSET_TRANSFER_STORAGE_KEY, getAssetItems, getAssetItem } = require("../../config/assets");
+const {
+  ASSET_TRANSFER_STORAGE_KEY,
+  getAssetPacks,
+  getAssetItem,
+  getAssetPack
+} = require("../../config/assets");
 const {
   ratioSizeMap,
   createDraft,
@@ -57,7 +62,12 @@ Page({
     activeTool: "",
     activeDrawer: "",
     activePalette: "",
-    assetItems: getAssetItems(),
+    assetCategories: createAssetPanelCategories(),
+    activeAssetCategory: "推荐",
+    assetPacks: decorateAssetPanelPacks(getAssetPacks()),
+    visibleAssetPacks: filterAssetPanelPacks(decorateAssetPanelPacks(getAssetPacks()), "推荐"),
+    activeAssetPack: null,
+    activeAssetPackItems: [],
     canUndo: false,
     canRedo: false,
     layerActionsOffset: 0,
@@ -346,7 +356,8 @@ Page({
   },
 
   render() {
-    this.ensureCanvasContext();
+    if (this.data.isEmptyMode) return;
+    this.ctx = wx.createCanvasContext("spikeCanvas", this);
     if (!this.ctx || !this.draft) return;
     drawDraft(this.ctx, this.draft, this.data.selectedLayerId, { dpr: this.renderScale || 1 });
     this.ctx.draw();
@@ -528,7 +539,7 @@ Page({
     }
     const isDrawer = ["asset", "tape"].includes(tool);
     const isPalette = ["cut", "shape"].includes(tool);
-    this.setData({
+    const nextData = {
       activeTool: tool,
       activeDrawer: isDrawer ? tool : "",
       activePalette: isPalette ? tool : "",
@@ -537,7 +548,11 @@ Page({
       ratioPanelVisible: false,
       keyboardHeight: 0,
       textPanelBottom: 0
-    });
+    };
+    if (tool === "asset") {
+      Object.assign(nextData, this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
+    }
+    this.setData(nextData);
     setTimeout(() => this.render(), 0);
   },
 
@@ -682,8 +697,39 @@ Page({
   closeDrawer() {
     this.setData({
       activeTool: "",
-      activeDrawer: ""
+      activeDrawer: "",
+      activeAssetPack: null,
+      activeAssetPackItems: []
     });
+  },
+
+  getAssetPanelState(category, packId) {
+    const assetPacks = decorateAssetPanelPacks(getAssetPacks());
+    const activeCategory = category || "推荐";
+    const activeAssetPack = packId ? decorateAssetPanelPack(getAssetPack(packId)) : null;
+    return {
+      assetPacks,
+      activeAssetCategory: activeCategory,
+      visibleAssetPacks: filterAssetPanelPacks(assetPacks, activeCategory),
+      activeAssetPack,
+      activeAssetPackItems: activeAssetPack ? activeAssetPack.items : []
+    };
+  },
+
+  selectAssetCategory(event) {
+    const category = event.currentTarget.dataset.category || "推荐";
+    if (category === this.data.activeAssetCategory && !this.data.activeAssetPack) return;
+    this.setData(this.getAssetPanelState(category, ""));
+  },
+
+  openAssetPack(event) {
+    const packId = event.currentTarget.dataset.pack;
+    if (!packId) return;
+    this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId));
+  },
+
+  backToAssetPacks() {
+    this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
   },
 
   closePalette() {
@@ -754,7 +800,7 @@ Page({
     if (!asset || !asset.source) {
       if (asset && asset.layer) {
         this.addAssetItemToDraft(asset);
-        this.closeAfterAddingLayer();
+        this.keepAssetDrawerAfterAddingLayer();
         this.markDirty();
         this.render();
         return;
@@ -763,7 +809,7 @@ Page({
       return;
     }
     this.addAssetItemToDraft(asset);
-    this.closeAfterAddingLayer();
+    this.keepAssetDrawerAfterAddingLayer();
     this.markDirty();
     this.render();
   },
@@ -788,6 +834,7 @@ Page({
     this.closeAfterAddingLayer();
     this.markDirty();
     setTimeout(() => this.render(), 0);
+    setTimeout(() => this.render(), 80);
   },
 
   addAssetItemToDraft(asset) {
@@ -1197,6 +1244,19 @@ Page({
     });
   },
 
+  keepAssetDrawerAfterAddingLayer() {
+    this.setData({
+      selectedLayerId: "",
+      selectedLayerType: "",
+      activeTool: "asset",
+      activeDrawer: "asset",
+      activePalette: "",
+      textInputVisible: false,
+      keyboardHeight: 0,
+      textPanelBottom: 0
+    });
+  },
+
   editSelectedText() {
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "text") return;
@@ -1522,6 +1582,58 @@ function createLayerFromAsset(asset, draft) {
       name: asset.name || ""
     }
   };
+}
+
+function createAssetPanelCategories() {
+  const categories = getAssetPacks().reduce((items, pack) => {
+    if (pack.category && !items.includes(pack.category)) {
+      items.push(pack.category);
+    }
+    return items;
+  }, []);
+  return ["推荐"].concat(categories);
+}
+
+function decorateAssetPanelPacks(packs) {
+  return packs.map(decorateAssetPanelPack);
+}
+
+function decorateAssetPanelPack(pack) {
+  if (!pack) return null;
+  return {
+    ...pack,
+    itemCount: Array.isArray(pack.items) ? pack.items.length : 0,
+    items: Array.isArray(pack.items)
+      ? pack.items.map((item) => ({
+        ...item,
+        packId: pack.id,
+        packName: pack.name,
+        panelPreviewStyle: getAssetPanelPreviewStyle(item)
+      }))
+      : []
+  };
+}
+
+function filterAssetPanelPacks(packs, category) {
+  if (!category || category === "推荐") return packs;
+  return packs.filter((pack) => pack.category === category);
+}
+
+function getAssetPanelPreviewStyle(item) {
+  const maxSize = 168;
+  const sourceWidth = Math.max(1, Number(item.width) || maxSize);
+  const sourceHeight = Math.max(1, Number(item.height) || maxSize);
+  const ratio = sourceWidth / sourceHeight;
+  let width = maxSize;
+  let height = maxSize;
+  if (ratio > 1) {
+    height = Math.round(maxSize / ratio);
+  } else {
+    width = Math.round(maxSize * ratio);
+  }
+  const marginLeft = Math.max(0, Math.round((211 - width) / 2));
+  const marginTop = Math.max(0, Math.round((211 - height) / 2));
+  return `width:${width}rpx;height:${height}rpx;margin-left:${marginLeft}rpx;margin-top:${marginTop}rpx;`;
 }
 
 function eventSourceType(event) {
