@@ -1,29 +1,150 @@
 .page {
+  height: 100vh;
   min-height: 100vh;
   box-sizing: border-box;
-  padding: 36rpx 32rpx;
   background: #fafaf8;
   color: #111111;
+  overflow: hidden;
+}
+
+button {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 1;
+}
+
+button::after {
+  border: 0;
 }
 
 .title {
+  padding-top: 36rpx;
   font-size: 44rpx;
   font-weight: 650;
   line-height: 56rpx;
 }
 
-.section {
-  margin-top: 18rpx;
-  color: #6f6f6f;
-  font-size: 26rpx;
-  line-height: 38rpx;
+.sheet-header {
+  width: auto;
+  box-sizing: border-box;
+  margin: 0 40rpx;
 }
 
-.idea {
-  margin-top: 22rpx;
-  padding: 26rpx;
-  border: 1rpx solid #e8e6e1;
+.inspo-list {
+  width: 100%;
+  height: calc(100vh - 124rpx);
+  box-sizing: border-box;
+  margin-top: 32rpx;
+}
+
+.sheet-inner {
+  width: auto;
+  min-height: 100%;
+  box-sizing: border-box;
+  margin: 0 40rpx;
+  padding: 0 0 calc(172rpx + env(safe-area-inset-bottom));
+}
+
+.inspo-columns {
+  display: flex;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.inspo-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.inspo-column-right {
+  margin-left: 32rpx;
+}
+
+.inspo-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin-bottom: 32rpx;
   border-radius: 16rpx;
   background: #ffffff;
-  font-size: 28rpx;
+  box-shadow: 0 8rpx 32rpx rgba(17, 17, 17, 0.08);
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.inspo-media {
+  position: relative;
+  width: 100%;
+  height: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.inspo-image {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.inspo-preview {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 144rpx 36rpx 88rpx;
+  background: rgba(17, 17, 17, 0.62);
+}
+
+.inspo-preview-panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inspo-preview-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 20rpx;
+  background: #ffffff;
+  box-shadow: 0 36rpx 88rpx rgba(17, 17, 17, 0.28);
+}
+
+.inspo-preview-close {
+  position: absolute;
+  top: -28rpx;
+  right: -8rpx;
+  z-index: 1;
+  width: 64rpx;
+  height: 64rpx;
+  min-width: 64rpx;
+  max-width: 64rpx;
+  min-height: 64rpx;
+  max-height: 64rpx;
+  box-sizing: border-box;
+  flex: 0 0 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.94);
+  color: #111111;
+  font-size: 44rpx;
+  line-height: 60rpx;
+  box-shadow: 0 14rpx 34rpx rgba(17, 17, 17, 0.12);
 }

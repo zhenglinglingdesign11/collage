@@ -2,6 +2,8 @@ const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loa
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
 const {
   ASSET_TRANSFER_STORAGE_KEY,
+  ASSET_TRANSFER_MODE_STORAGE_KEY,
+  ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   getAssetPacks,
   getAssetItem,
   getAssetPack
@@ -228,6 +230,15 @@ Page({
   },
 
   openAssetsTab() {
+    if (this.data.isEditMode && this.data.activeDrawer === "asset") {
+      wx.setStorageSync(ASSET_ENTRY_CONTEXT_STORAGE_KEY, {
+        source: "createAssetDrawer",
+        preserveDraft: true,
+        createdAt: Date.now()
+      });
+    } else {
+      wx.removeStorageSync(ASSET_ENTRY_CONTEXT_STORAGE_KEY);
+    }
     wx.switchTab({ url: "/pages/assets/index" });
   },
 
@@ -817,7 +828,12 @@ Page({
   consumePendingAssets() {
     const assetIds = wx.getStorageSync(ASSET_TRANSFER_STORAGE_KEY);
     if (!Array.isArray(assetIds) || !assetIds.length) return;
+    const transferMode = wx.getStorageSync(ASSET_TRANSFER_MODE_STORAGE_KEY) || {};
     wx.removeStorageSync(ASSET_TRANSFER_STORAGE_KEY);
+    wx.removeStorageSync(ASSET_TRANSFER_MODE_STORAGE_KEY);
+    if (!transferMode.preserveDraft) {
+      this.resetToBlankDraftForEmptyEntry();
+    }
     this.enterEditMode();
     let added = 0;
     assetIds.forEach((assetId) => {

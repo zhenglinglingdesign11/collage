@@ -1,4 +1,6 @@
 const ASSET_TRANSFER_STORAGE_KEY = "journal.pendingAssetIds";
+const ASSET_TRANSFER_MODE_STORAGE_KEY = "journal.pendingAssetMode";
+const ASSET_ENTRY_CONTEXT_STORAGE_KEY = "journal.assetEntryContext";
 const FAVORITE_PACK_STORAGE_KEY = "journal.favoritePackIds";
 
 const imagePackDefinitions = [
@@ -260,6 +262,8 @@ function getAssetItem(assetId) {
 
 module.exports = {
   ASSET_TRANSFER_STORAGE_KEY,
+  ASSET_TRANSFER_MODE_STORAGE_KEY,
+  ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   FAVORITE_PACK_STORAGE_KEY,
   assetPacks,
   getAssetPacks,

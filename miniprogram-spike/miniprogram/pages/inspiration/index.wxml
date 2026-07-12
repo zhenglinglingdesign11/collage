@@ -1,5 +1,52 @@
 <view class="page">
-  <view class="title">灵感</view>
-  <view class="section">P0 将在这里放灵感瀑布流和大图预览。</view>
-  <view class="idea" wx:for="{{inspirations}}" wx:key="id">{{item.title}}</view>
+  <view class="sheet-header">
+    <view class="title">灵感</view>
+  </view>
+  <scroll-view scroll-y class="inspo-list" enhanced="{{true}}">
+    <view class="sheet-inner">
+      <view class="inspo-columns">
+        <view class="inspo-column">
+          <view
+            wx:for="{{leftInspirations}}"
+            wx:for-item="image"
+            wx:key="id"
+            class="inspo-card"
+            data-id="{{image.id}}"
+            data-src="{{image.src}}"
+            data-alt="{{image.alt}}"
+            bindtap="openInspiration"
+            aria-label="查看{{image.alt}}"
+          >
+            <view class="inspo-media" style="padding-top: {{image.paddingTop}};">
+              <image class="inspo-image" src="{{image.src}}" mode="aspectFill" lazy-load="{{true}}"></image>
+            </view>
+          </view>
+        </view>
+        <view class="inspo-column inspo-column-right">
+          <view
+            wx:for="{{rightInspirations}}"
+            wx:for-item="image"
+            wx:key="id"
+            class="inspo-card"
+            data-id="{{image.id}}"
+            data-src="{{image.src}}"
+            data-alt="{{image.alt}}"
+            bindtap="openInspiration"
+            aria-label="查看{{image.alt}}"
+          >
+            <view class="inspo-media" style="padding-top: {{image.paddingTop}};">
+              <image class="inspo-image" src="{{image.src}}" mode="aspectFill" lazy-load="{{true}}"></image>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{selectedImageSrc}}" class="inspo-preview" bindtap="closePreview" aria-label="灵感大图预览">
+    <view class="inspo-preview-panel" catchtap="noop">
+      <view class="inspo-preview-close" bindtap="closePreview" aria-label="关闭">×</view>
+      <image class="inspo-preview-image" src="{{selectedImageSrc}}" mode="aspectFit" aria-label="{{selectedImageAlt}}"></image>
+    </view>
+  </view>
 </view>

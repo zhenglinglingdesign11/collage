@@ -1,20 +1,22 @@
 <view class="page {{detailPack ? 'detail-mode' : ''}}">
   <block wx:if="{{!detailPack}}">
     <view class="list-safe" style="height: {{navBarHeight}}px;"></view>
-    <scroll-view scroll-y class="sheet-page" style="height: calc(100vh - {{navBarHeight}}px);">
+    <view class="sheet-header">
+      <view class="list-page-title">素材包</view>
+      <scroll-view scroll-x class="category-tabs" show-scrollbar="{{false}}" enhanced="{{true}}">
+        <view class="category-track">
+          <view
+            wx:for="{{categories}}"
+            wx:key="*this"
+            class="category-tab {{activeCategory === item ? 'active' : ''}}"
+            data-category="{{item}}"
+            bindtap="setAssetCategory"
+          >{{item}}</view>
+        </view>
+      </scroll-view>
+    </view>
+    <scroll-view scroll-y class="sheet-page" style="height: calc(100vh - {{navBarHeight}}px - 206rpx);">
       <view class="sheet-inner">
-        <view class="list-page-title">素材包</view>
-        <scroll-view scroll-x class="category-tabs" show-scrollbar="{{false}}" enhanced="{{true}}">
-          <view class="category-track">
-            <view
-              wx:for="{{categories}}"
-              wx:key="*this"
-              class="category-tab {{activeCategory === item ? 'active' : ''}}"
-              data-category="{{item}}"
-              bindtap="setAssetCategory"
-            >{{item}}</view>
-          </view>
-        </scroll-view>
         <view wx:if="{{visiblePacks.length}}" class="pack-grid">
           <view
             wx:for="{{visiblePacks}}"

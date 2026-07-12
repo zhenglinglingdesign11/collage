@@ -32,6 +32,12 @@ button::after {
   box-sizing: border-box;
 }
 
+.sheet-header {
+  width: auto;
+  box-sizing: border-box;
+  margin: 0 40rpx;
+}
+
 .sheet-inner {
   width: auto;
   min-height: 100%;
@@ -53,7 +59,7 @@ button::after {
   margin: 18rpx 0 32rpx;
   white-space: nowrap;
   color: #6f6f6f;
-  font-size: 26rpx;
+  font-size: 30rpx;
 }
 
 .category-track {
@@ -70,8 +76,8 @@ button::after {
   margin-right: 36rpx;
   padding: 0 0 12rpx;
   color: inherit;
-  font-size: 26rpx;
-  line-height: 52rpx;
+  font-size: 30rpx;
+  line-height: 54rpx;
   white-space: nowrap;
 }
 

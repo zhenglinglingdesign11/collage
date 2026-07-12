@@ -1,5 +1,7 @@
 const {
   ASSET_TRANSFER_STORAGE_KEY,
+  ASSET_TRANSFER_MODE_STORAGE_KEY,
+  ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   FAVORITE_PACK_STORAGE_KEY,
   getAssetPacks,
   getAssetPack
@@ -56,6 +58,7 @@ Page({
   },
 
   onShow() {
+    this.captureEntryContext();
     if (!this.data.detailPack) {
       wx.showTabBar({ animation: false });
     }
@@ -63,6 +66,21 @@ Page({
     const tabBar = this.getTabBar && this.getTabBar();
     if (tabBar && tabBar.setSelectedByPath) {
       tabBar.setSelectedByPath("/pages/assets/index");
+    }
+  },
+
+  onHide() {
+    if (!this.isTransferringSelectedAssets) {
+      this.assetEntryContext = null;
+    }
+    this.isTransferringSelectedAssets = false;
+  },
+
+  captureEntryContext() {
+    const context = wx.getStorageSync(ASSET_ENTRY_CONTEXT_STORAGE_KEY);
+    wx.removeStorageSync(ASSET_ENTRY_CONTEXT_STORAGE_KEY);
+    if (context && context.source === "createAssetDrawer" && context.preserveDraft) {
+      this.assetEntryContext = context;
     }
   },
 
@@ -163,7 +181,15 @@ Page({
 
   addSelectedAsset() {
     if (!this.data.selectedAssetIds.length) return;
+    const preserveDraft = !!(this.assetEntryContext && this.assetEntryContext.preserveDraft);
     wx.setStorageSync(ASSET_TRANSFER_STORAGE_KEY, this.data.selectedAssetIds);
+    wx.setStorageSync(ASSET_TRANSFER_MODE_STORAGE_KEY, {
+      preserveDraft,
+      source: preserveDraft ? "createAssetDrawer" : "assetsTab",
+      createdAt: Date.now()
+    });
+    this.assetEntryContext = null;
+    this.isTransferringSelectedAssets = true;
     this.setData({
       detailPack: null,
       selectedAssetIds: [],
