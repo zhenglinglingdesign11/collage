@@ -1,6 +1,36 @@
 <view class="page">
   <view class="title">我的</view>
-  <view class="section">最近草稿</view>
-  <view class="empty" wx:if="{{!hasDrafts}}">暂无草稿</view>
-  <button class="action" bindtap="clearCache">清理缓存</button>
+  <view class="sheet-page">
+    <view class="section-head">最近草稿</view>
+    <scroll-view wx:if="{{hasRecentDrafts}}" scroll-x class="draft-row" show-scrollbar="{{false}}" enhanced="{{true}}">
+      <view
+        wx:for="{{recentDrafts}}"
+        wx:key="id"
+        class="draft-thumb"
+        data-id="{{item.id}}"
+        bindtap="openRecentDraft"
+        aria-label="打开最近草稿"
+      >
+        <image wx:if="{{item.thumbnailPath}}" class="draft-preview" src="{{item.thumbnailPath}}" mode="aspectFill"></image>
+        <view wx:else class="draft-art">
+          <view class="draft-paper"></view>
+          <view class="draft-tape"></view>
+          <view class="draft-line short"></view>
+          <view class="draft-line"></view>
+        </view>
+      </view>
+    </scroll-view>
+    <view wx:else class="empty-note">暂无草稿</view>
+
+    <view class="section-head">设置</view>
+    <view class="settings-card">
+      <view class="settings-copy">
+        <view class="settings-title">清理缓存</view>
+        <view class="settings-desc">释放临时素材和导出文件</view>
+      </view>
+      <view class="settings-action" bindtap="clearCache" aria-label="清理缓存">
+        <image class="settings-icon" src="/assets/icons/layer-actions/delete.png" mode="aspectFit"></image>
+      </view>
+    </view>
+  </view>
 </view>

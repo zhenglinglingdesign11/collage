@@ -22,7 +22,6 @@
             wx:for="{{visiblePacks}}"
             wx:key="id"
             class="pack-card pack-card-{{index}}"
-            style="background: {{item.tone}};"
             data-pack="{{item.id}}"
             bindtap="openPack"
             aria-label="{{item.name}}"

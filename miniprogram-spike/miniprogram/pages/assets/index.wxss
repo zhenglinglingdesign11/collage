@@ -115,8 +115,9 @@ button::after {
   margin: 0 32rpx 32rpx 0;
   margin-left: 0;
   align-self: flex-start;
-  border: 1rpx solid #e8e6e1;
   border-radius: 16rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 32rpx rgba(17, 17, 17, 0.08);
   overflow: hidden;
   text-align: left;
   transform: translateZ(0);

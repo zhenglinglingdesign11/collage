@@ -26,6 +26,7 @@ const LAYER_ACTIONS_PAGE_OFFSET = 560;
 const LAYER_ACTIONS_TOUCH_SLOP = 6;
 const LAYER_ACTIONS_SWIPE_THRESHOLD = 36;
 const LAYER_ACTIONS_EDGE_RESISTANCE = 0.28;
+const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 
 Page({
   data: {
@@ -124,9 +125,27 @@ Page({
 
   onShow() {
     this.consumePendingAssets();
+    if (this.consumePendingDraftOpen()) {
+      return;
+    }
     if (this.data.isEmptyMode) {
       this.refreshRecentDraftState();
     }
+  },
+
+  consumePendingDraftOpen() {
+    const app = getApp && getApp();
+    const storedDraftId = wx.getStorageSync(PENDING_DRAFT_OPEN_KEY);
+    if (storedDraftId) {
+      wx.removeStorageSync(PENDING_DRAFT_OPEN_KEY);
+    }
+    const draftId = storedDraftId || (app && app.globalData && app.globalData.currentDraftId);
+    if (!draftId) return false;
+    if (app && app.globalData) {
+      app.globalData.currentDraftId = "";
+    }
+    this.openRecentDraft({ currentTarget: { dataset: { id: draftId } } });
+    return true;
   },
 
   onUnload() {
