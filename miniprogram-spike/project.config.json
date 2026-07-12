@@ -44,12 +44,32 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "file",
-        "value": "assets/papers/pack-sheet.png"
+        "type": "folder",
+        "value": "assets/packs/stickers"
       },
       {
-        "type": "file",
-        "value": "assets/stickers/pack-sheet.png"
+        "type": "folder",
+        "value": "assets/packs/hudiejie"
+      },
+      {
+        "type": "folder",
+        "value": "assets/packs/jiazi"
+      },
+      {
+        "type": "folder",
+        "value": "assets/packs/sanguangtiezhi"
+      },
+      {
+        "type": "folder",
+        "value": "assets/packs/sanjiao"
+      },
+      {
+        "type": "folder",
+        "value": "assets/packs/troy"
+      },
+      {
+        "type": "folder",
+        "value": "assets/packs/leisi"
       }
     ],
     "include": []

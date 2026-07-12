@@ -7,7 +7,7 @@ const imagePackDefinitions = [
     name: "复古纸张",
     category: "纸张",
     tone: "#f3f1ec",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 342, 352],
       ["2.png", 291, 299],
@@ -26,7 +26,7 @@ const imagePackDefinitions = [
     name: "贴纸",
     category: "贴纸",
     tone: "#f5f4f1",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 178, 260],
       ["2.png", 279, 197],
@@ -45,7 +45,7 @@ const imagePackDefinitions = [
     name: "胶带",
     category: "胶带",
     tone: "#f5f3ee",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["book-1.png", 287, 107],
       ["book-2.png", 261, 111],
@@ -64,7 +64,7 @@ const imagePackDefinitions = [
     name: "蝴蝶结",
     category: "贴纸",
     tone: "#f6f0ee",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 276, 250],
       ["2.png", 269, 249],
@@ -83,7 +83,7 @@ const imagePackDefinitions = [
     name: "夹子",
     category: "贴纸",
     tone: "#f0f2f1",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 160, 215],
       ["2.png", 107, 199],
@@ -102,7 +102,7 @@ const imagePackDefinitions = [
     name: "蕾丝",
     category: "纹理",
     tone: "#f7f4ef",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 100, 749],
       ["2.png", 72, 752],
@@ -121,7 +121,7 @@ const imagePackDefinitions = [
     name: "三光贴纸",
     category: "贴纸",
     tone: "#f5f5f2",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 305, 323],
       ["2.png", 68, 68],
@@ -140,7 +140,7 @@ const imagePackDefinitions = [
     name: "三角素材",
     category: "贴纸",
     tone: "#f3f1ec",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 268, 278],
       ["2.png", 276, 275],
@@ -159,7 +159,7 @@ const imagePackDefinitions = [
     name: "Troy",
     category: "贴纸",
     tone: "#f1f3f2",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 195, 156],
       ["2.png", 177, 191],
@@ -178,7 +178,7 @@ const imagePackDefinitions = [
     name: "相框",
     category: "边框",
     tone: "#f4f0ec",
-    cover: "pack-sheet.png",
+    cover: "pack-sheet.jpg",
     items: [
       ["1.png", 284, 663],
       ["2.png", 392, 274],
@@ -194,7 +194,19 @@ const imagePackDefinitions = [
   }
 ];
 
-const assetPacks = imagePackDefinitions.map(createImagePack);
+const temporarilyIgnoredPackIds = [
+  "stickers",
+  "hudiejie",
+  "jiazi",
+  "sanguangtiezhi",
+  "sanjiao",
+  "troy",
+  "leisi"
+];
+
+const assetPacks = imagePackDefinitions
+  .filter((definition) => !temporarilyIgnoredPackIds.includes(definition.id))
+  .map(createImagePack);
 
 function createImagePack(definition) {
   const basePath = `/assets/packs/${definition.id}`;
