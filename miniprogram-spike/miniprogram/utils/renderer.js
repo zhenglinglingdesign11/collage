@@ -15,6 +15,7 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
         drawSelection(ctx, layer);
       }
     });
+  drawAlignmentGuides(ctx, options.guides || [], draft);
   ctx.restore();
 }
 
@@ -198,6 +199,26 @@ function drawSelection(ctx, layer) {
     [-layer.width / 2, layer.height / 2]
   ];
   points.forEach(([x, y]) => ctx.fillRect(x - 7, y - 7, 14, 14));
+  ctx.restore();
+}
+
+function drawAlignmentGuides(ctx, guides, draft) {
+  if (!guides || !guides.length || !draft) return;
+  ctx.save();
+  ctx.setShadow(0, 0, 0, "transparent");
+  ctx.setStrokeStyle("rgba(217, 74, 56, 0.76)");
+  ctx.setLineWidth(2);
+  guides.forEach((guide) => {
+    ctx.beginPath();
+    if (guide.axis === "x") {
+      ctx.moveTo(guide.value, 0);
+      ctx.lineTo(guide.value, draft.height);
+    } else if (guide.axis === "y") {
+      ctx.moveTo(0, guide.value);
+      ctx.lineTo(draft.width, guide.value);
+    }
+    ctx.stroke();
+  });
   ctx.restore();
 }
 

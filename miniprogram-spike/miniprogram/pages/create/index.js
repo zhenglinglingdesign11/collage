@@ -26,6 +26,11 @@ const LAYER_ACTIONS_PAGE_OFFSET = 560;
 const LAYER_ACTIONS_TOUCH_SLOP = 6;
 const LAYER_ACTIONS_SWIPE_THRESHOLD = 36;
 const LAYER_ACTIONS_EDGE_RESISTANCE = 0.28;
+const ALIGNMENT_GUIDE_SCREEN_THRESHOLD = 2;
+const ALIGNMENT_GUIDE_STABLE_MOVES = 4;
+const ROTATION_GUIDE_ANGLE_THRESHOLD = 1.5;
+const ROTATION_GUIDE_STABLE_MOVES = 4;
+const ROTATION_GUIDE_LAYER_TYPES = ["image", "sticker", "paper"];
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 
 Page({
@@ -93,6 +98,9 @@ Page({
     this.ctx = wx.createCanvasContext("spikeCanvas", this);
     this.gesture = null;
     this.pendingLayerTap = null;
+    this.alignmentGuides = [];
+    this.alignmentGuideState = null;
+    this.rotationGuideState = null;
     this.keyboardHandler = (res) => {
       this.updateKeyboardHeight(res);
     };
@@ -389,7 +397,10 @@ Page({
     if (this.data.isEmptyMode) return;
     this.ctx = wx.createCanvasContext("spikeCanvas", this);
     if (!this.ctx || !this.draft) return;
-    drawDraft(this.ctx, this.draft, this.data.selectedLayerId, { dpr: this.renderScale || 1 });
+    drawDraft(this.ctx, this.draft, this.data.selectedLayerId, {
+      dpr: this.renderScale || 1,
+      guides: this.alignmentGuides || []
+    });
     this.ctx.draw();
   },
 
@@ -1179,20 +1190,24 @@ Page({
         const moveDistance = distance(this.pendingLayerTap.start, points[0]);
         this.pendingLayerTap.moved = moveDistance > 6;
       }
+      this.rotationGuideState = null;
       layer.x = this.gesture.origin.x + points[0].x - this.gesture.start.x;
       layer.y = this.gesture.origin.y + points[0].y - this.gesture.start.y;
+      this.alignmentGuides = this.getStableAlignmentGuides(this.getAlignmentGuides(layer));
     }
 
     if (this.gesture.mode === "pinch" && points.length >= 2) {
       if (this.pendingLayerTap) {
         this.pendingLayerTap.moved = true;
       }
+      this.alignmentGuideState = null;
       const nextDistance = distance(points[0], points[1]);
       const nextAngle = angle(points[0], points[1]);
       const scale = Math.max(0.25, Math.min(3, nextDistance / this.gesture.distance));
       layer.width = this.gesture.origin.width * scale;
       layer.height = this.gesture.origin.height * scale;
       layer.rotation = this.gesture.origin.rotation + nextAngle - this.gesture.angle;
+      this.alignmentGuides = this.getStableRotationGuides(this.getRotationAlignmentGuides(layer));
     }
 
     this.render();
@@ -1201,6 +1216,8 @@ Page({
   onTouchEnd() {
     const pendingTap = this.pendingLayerTap;
     const gesture = this.gesture;
+    const hadGuides = !!(this.alignmentGuides && this.alignmentGuides.length);
+    this.clearAlignmentGuides();
     if (this.gesture) {
       this.gesture = null;
       if (gesture.mode === "pinch" || (pendingTap && pendingTap.moved)) {
@@ -1218,7 +1235,86 @@ Page({
         this.selectLayer(layer);
         this.render();
       }
+    } else if (hadGuides) {
+      this.render();
     }
+  },
+
+  getAlignmentGuides(layer) {
+    if (!layer || !this.draft) return [];
+    const threshold = ALIGNMENT_GUIDE_SCREEN_THRESHOLD / (this.renderScale || 1);
+    const movingAnchors = getLayerAlignmentAnchors(layer);
+    const referenceAnchors = getCanvasAlignmentAnchors(this.draft);
+    (this.draft.layers || []).forEach((item) => {
+      if (item && item.id !== layer.id) {
+        referenceAnchors.push(...getLayerAlignmentAnchors(item));
+      }
+    });
+    const nearestX = findNearestAlignment(movingAnchors.filter((anchor) => anchor.axis === "x"), referenceAnchors, threshold);
+    const nearestY = findNearestAlignment(movingAnchors.filter((anchor) => anchor.axis === "y"), referenceAnchors, threshold);
+    return [nearestX, nearestY]
+      .filter(Boolean)
+      .map((match) => ({
+        axis: match.axis,
+        value: match.value
+      }));
+  },
+
+  getStableAlignmentGuides(guides) {
+    const key = getAlignmentGuideKey(guides);
+    if (!key) {
+      this.alignmentGuideState = null;
+      return [];
+    }
+    if (!this.alignmentGuideState || this.alignmentGuideState.key !== key) {
+      this.alignmentGuideState = {
+        key,
+        moves: 1
+      };
+      return [];
+    }
+    this.alignmentGuideState.moves += 1;
+    return this.alignmentGuideState.moves >= ALIGNMENT_GUIDE_STABLE_MOVES ? guides : [];
+  },
+
+  getRotationAlignmentGuides(layer) {
+    if (!layer || !ROTATION_GUIDE_LAYER_TYPES.includes(layer.type) || !this.draft) {
+      return { key: "", guides: [] };
+    }
+    const nearestAngle = getNearestRightAngle(layer.rotation || 0);
+    if (nearestAngle.distance > ROTATION_GUIDE_ANGLE_THRESHOLD) {
+      return { key: "", guides: [] };
+    }
+    return {
+      key: `rotation:${nearestAngle.value}`,
+      guides: [
+        { axis: "x", value: layer.x + layer.width / 2 },
+        { axis: "y", value: layer.y + layer.height / 2 }
+      ]
+    };
+  },
+
+  getStableRotationGuides(result) {
+    const key = result && result.key;
+    if (!key) {
+      this.rotationGuideState = null;
+      return [];
+    }
+    if (!this.rotationGuideState || this.rotationGuideState.key !== key) {
+      this.rotationGuideState = {
+        key,
+        moves: 1
+      };
+      return [];
+    }
+    this.rotationGuideState.moves += 1;
+    return this.rotationGuideState.moves >= ROTATION_GUIDE_STABLE_MOVES ? result.guides : [];
+  },
+
+  clearAlignmentGuides() {
+    this.alignmentGuides = [];
+    this.alignmentGuideState = null;
+    this.rotationGuideState = null;
   },
 
   toDraftPoint(touch) {
@@ -1571,6 +1667,69 @@ function distance(a, b) {
 
 function angle(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+function getCanvasAlignmentAnchors(draft) {
+  return [
+    { axis: "x", value: 0 },
+    { axis: "x", value: draft.width / 2 },
+    { axis: "x", value: draft.width },
+    { axis: "y", value: 0 },
+    { axis: "y", value: draft.height / 2 },
+    { axis: "y", value: draft.height }
+  ];
+}
+
+function getLayerAlignmentAnchors(layer) {
+  return [
+    { axis: "x", value: layer.x },
+    { axis: "x", value: layer.x + layer.width / 2 },
+    { axis: "x", value: layer.x + layer.width },
+    { axis: "y", value: layer.y },
+    { axis: "y", value: layer.y + layer.height / 2 },
+    { axis: "y", value: layer.y + layer.height }
+  ];
+}
+
+function findNearestAlignment(movingAnchors, referenceAnchors, threshold) {
+  return movingAnchors.reduce((nearest, movingAnchor) => {
+    referenceAnchors.forEach((referenceAnchor) => {
+      if (referenceAnchor.axis !== movingAnchor.axis) return;
+      const distanceToReference = Math.abs(movingAnchor.value - referenceAnchor.value);
+      if (distanceToReference > threshold) return;
+      if (!nearest || distanceToReference < nearest.distance) {
+        nearest = {
+          axis: movingAnchor.axis,
+          value: referenceAnchor.value,
+          distance: distanceToReference
+        };
+      }
+    });
+    return nearest;
+  }, null);
+}
+
+function getAlignmentGuideKey(guides) {
+  if (!guides || !guides.length) return "";
+  return guides
+    .map((guide) => `${guide.axis}:${Math.round(guide.value)}`)
+    .sort()
+    .join("|");
+}
+
+function getNearestRightAngle(rotation) {
+  const normalized = ((rotation % 360) + 360) % 360;
+  const candidates = [0, 90, 180, 270, 360];
+  return candidates.reduce((nearest, value) => {
+    const distanceToAngle = Math.abs(normalized - value);
+    if (!nearest || distanceToAngle < nearest.distance) {
+      return {
+        value: value === 360 ? 0 : value,
+        distance: distanceToAngle
+      };
+    }
+    return nearest;
+  }, null);
 }
 
 function serializeDraft(draft) {
