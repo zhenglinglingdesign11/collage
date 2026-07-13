@@ -43,6 +43,8 @@ function createImageLayer(source, imageInfo, draft) {
     y: (draft.height - height) / 2,
     width,
     height,
+    sourceWidth: imageInfo.width,
+    sourceHeight: imageInfo.height,
     rotation: 0,
     zIndex: nextLayerOrder(draft)
   });

@@ -33,7 +33,7 @@ function drawLayer(ctx, layer) {
   }
 
   if (layer.source) {
-    ctx.drawImage(layer.source, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    drawSourceLayer(ctx, layer);
   } else if (layer.type === "text") {
     drawText(ctx, layer);
   } else if (layer.type === "tape") {
@@ -42,6 +42,29 @@ function drawLayer(ctx, layer) {
     drawPaper(ctx, layer);
   }
   ctx.restore();
+}
+
+function drawSourceLayer(ctx, layer) {
+  if (layer.radius) {
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
+    ctx.clip();
+  }
+  const crop = layer.crop;
+  if (crop && crop.width > 0 && crop.height > 0) {
+    ctx.drawImage(
+      layer.source,
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      -layer.width / 2,
+      -layer.height / 2,
+      layer.width,
+      layer.height
+    );
+    return;
+  }
+  ctx.drawImage(layer.source, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
 }
 
 function drawPaper(ctx, layer) {

@@ -31,6 +31,8 @@ const ALIGNMENT_GUIDE_STABLE_MOVES = 4;
 const ROTATION_GUIDE_ANGLE_THRESHOLD = 1.5;
 const ROTATION_GUIDE_STABLE_MOVES = 4;
 const ROTATION_GUIDE_LAYER_TYPES = ["image", "sticker", "paper"];
+const CROP_HANDLE_SCREEN_SIZE = 26;
+const CROP_MIN_SIZE = 48;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 
 Page({
@@ -62,6 +64,20 @@ Page({
     textSize: 54,
     textBackground: "无",
     textOpacity: 100,
+    cropEditing: false,
+    cropRatio: "free",
+    cropImageSrc: "",
+    cropImageStyle: "",
+    cropBoxStyle: "",
+    cropRatios: [
+      { value: "free", label: "自由" },
+      { value: "original", label: "原图" },
+      { value: "1:1", label: "1:1" },
+      { value: "3:4", label: "3:4" },
+      { value: "4:3", label: "4:3" },
+      { value: "9:16", label: "9:16" },
+      { value: "16:9", label: "16:9" }
+    ],
     isEmptyMode: true,
     isEditMode: false,
     hasRecentDraft: false,
@@ -87,7 +103,8 @@ Page({
     chromeTop: 0,
     statusTop: 0,
     toolbarGap: 0,
-    ratioPopoverTop: 0
+    ratioPopoverTop: 0,
+    cropDoneRight: 16
   },
 
   onLoad() {
@@ -95,6 +112,7 @@ Page({
     const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
     this.dpr = system.pixelRatio || 1;
     this.screenWidth = system.windowWidth;
+    this.screenHeight = system.windowHeight;
     this.ctx = wx.createCanvasContext("spikeCanvas", this);
     this.gesture = null;
     this.pendingLayerTap = null;
@@ -121,6 +139,7 @@ Page({
       statusTop,
       toolbarGap: Math.max(0, chromeTop - statusTop),
       ratioPopoverTop: Math.ceil(chromeTop + 112 * system.windowWidth / 750),
+      cropDoneRight: 16,
       hasRecentDraft: !!latestDraft,
       recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
       recentDrafts
@@ -182,6 +201,7 @@ Page({
 
   startNewDraft() {
     this.textEditSession = null;
+    this.clearCropEditing();
     this.draft = createDraft(this.data.ratio || "3:4");
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -195,6 +215,8 @@ Page({
       activeTool: "",
       activeDrawer: "",
       activePalette: "",
+      cropEditing: false,
+      cropRatio: "free",
       keyboardHeight: 0,
       textPanelBottom: 0
     });
@@ -205,6 +227,7 @@ Page({
   resetToBlankDraftForEmptyEntry() {
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
+    this.clearCropEditing();
     this.draft = createDraft(this.data.ratio || "3:4");
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -219,6 +242,8 @@ Page({
       activeDrawer: "",
       activePalette: "",
       ratioPanelVisible: false,
+      cropEditing: false,
+      cropRatio: "free",
       keyboardHeight: 0,
       textPanelBottom: 0
     });
@@ -272,6 +297,7 @@ Page({
   openRecentDraft(event) {
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
+    this.clearCropEditing();
     const draftId = event && event.currentTarget && event.currentTarget.dataset.id;
     const draft = draftId ? loadDraftById(draftId) : loadLatestDraft();
     if (!draft) {
@@ -290,6 +316,8 @@ Page({
       hasRecentDraft: true,
       textInputVisible: false,
       textDraft: "",
+      cropEditing: false,
+      cropRatio: "free",
       keyboardHeight: 0,
       textPanelBottom: 0,
       recentDrafts: this.getRecentDrafts()
@@ -356,6 +384,7 @@ Page({
   exitEditorToEmpty() {
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
+    this.clearCropEditing();
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
@@ -365,6 +394,8 @@ Page({
       activeDrawer: "",
       activePalette: "",
       ratioPanelVisible: false,
+      cropEditing: false,
+      cropRatio: "free",
       keyboardHeight: 0,
       textPanelBottom: 0,
       hasRecentDraft: this.hasStoredDraft(),
@@ -394,7 +425,7 @@ Page({
   },
 
   render() {
-    if (this.data.isEmptyMode) return;
+    if (this.data.isEmptyMode || this.data.cropEditing) return;
     this.ctx = wx.createCanvasContext("spikeCanvas", this);
     if (!this.ctx || !this.draft) return;
     drawDraft(this.ctx, this.draft, this.data.selectedLayerId, {
@@ -447,6 +478,7 @@ Page({
     const draft = parseDraftSnapshot(snapshot);
     if (!draft) return;
     this.textEditSession = null;
+    this.clearCropEditing();
     this.draft = draft;
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.updateCanvasSize(this.draft.ratio);
@@ -458,6 +490,8 @@ Page({
       activeTool: "",
       activeDrawer: "",
       activePalette: "",
+      cropEditing: false,
+      cropRatio: "free",
       keyboardHeight: 0,
       textPanelBottom: 0,
       saveStatus: status
@@ -1120,6 +1154,10 @@ Page({
   noopCanvasTap() {},
 
   onTouchStart(event) {
+    if (this.data.cropEditing) {
+      this.onCropTouchStart(event);
+      return;
+    }
     if (this.data.textInputVisible) {
       this.dismissTextEditorFromCanvas();
       return;
@@ -1179,6 +1217,10 @@ Page({
   },
 
   onTouchMove(event) {
+    if (this.data.cropEditing) {
+      this.onCropTouchMove(event);
+      return;
+    }
     if (!this.gesture) return;
     const layer = this.getLayerById(this.gesture.layerId);
     if (!layer) return;
@@ -1214,6 +1256,10 @@ Page({
   },
 
   onTouchEnd() {
+    if (this.data.cropEditing) {
+      this.cropGesture = null;
+      return;
+    }
     const pendingTap = this.pendingLayerTap;
     const gesture = this.gesture;
     const hadGuides = !!(this.alignmentGuides && this.alignmentGuides.length);
@@ -1315,6 +1361,189 @@ Page({
     this.alignmentGuides = [];
     this.alignmentGuideState = null;
     this.rotationGuideState = null;
+  },
+
+  clearCropEditing() {
+    this.cropSession = null;
+    this.cropGesture = null;
+  },
+
+  beginImageCrop() {
+    const layer = this.getSelectedLayer();
+    if (!layer || layer.type !== "image") return;
+    const startCrop = () => {
+      const sourceSize = {
+        width: layer.sourceWidth || layer.width,
+        height: layer.sourceHeight || layer.height
+      };
+      const box = hasLayerCrop(layer)
+        ? clampCropBox(getLayerSourceCrop(layer), sourceSize)
+        : getFullCropBox(sourceSize);
+      const preview = getCropPreviewLayout(sourceSize, {
+        screenWidth: this.screenWidth,
+        screenHeight: this.screenHeight,
+        chromeTop: this.data.chromeTop
+      });
+      this.cropSession = {
+        layerId: layer.id,
+        originalLayer: JSON.parse(JSON.stringify(layer)),
+        sourceSize,
+        preview,
+        box
+      };
+      this.cropGesture = null;
+      this.clearAlignmentGuides();
+      this.updateCropPreviewData();
+      this.setData({
+        cropEditing: true,
+        cropRatio: "free",
+        cropImageSrc: layer.source,
+        activeTool: "",
+        activeDrawer: "",
+        activePalette: "",
+        ratioPanelVisible: false,
+        layerActionsPage: 0,
+        layerActionsOffset: 0
+      });
+    };
+    if (layer.sourceWidth && layer.sourceHeight) {
+      startCrop();
+      return;
+    }
+    wx.getImageInfo({
+      src: layer.source,
+      success: (info) => {
+        layer.sourceWidth = info.width;
+        layer.sourceHeight = info.height;
+        startCrop();
+      },
+      fail: () => {
+        layer.sourceWidth = layer.width;
+        layer.sourceHeight = layer.height;
+        startCrop();
+      }
+    });
+  },
+
+  cancelCrop() {
+    if (!this.cropSession) return;
+    const index = this.draft.layers.findIndex((layer) => layer.id === this.cropSession.layerId);
+    if (index >= 0) {
+      this.draft.layers[index] = this.cropSession.originalLayer;
+    }
+    this.cropSession = null;
+    this.cropGesture = null;
+    this.setData({
+      cropEditing: false,
+      cropRatio: "free",
+      cropImageSrc: "",
+      cropImageStyle: "",
+      cropBoxStyle: ""
+    });
+    setTimeout(() => this.render(), 0);
+  },
+
+  confirmCrop() {
+    if (!this.cropSession) return;
+    const layer = this.getLayerById(this.cropSession.layerId);
+    if (!layer) {
+      this.cancelCrop();
+      return;
+    }
+    const box = clampCropBox(this.cropSession.box, this.cropSession.sourceSize);
+    const previousCrop = getLayerSourceCrop(layer);
+    const currentCenter = {
+      x: layer.x + layer.width / 2,
+      y: layer.y + layer.height / 2
+    };
+    const displayScale = Math.min(layer.width / previousCrop.width, layer.height / previousCrop.height);
+    layer.width = box.width * displayScale;
+    layer.height = box.height * displayScale;
+    layer.x = currentCenter.x - layer.width / 2;
+    layer.y = currentCenter.y - layer.height / 2;
+    layer.crop = roundCrop(box);
+    this.cropSession = null;
+    this.cropGesture = null;
+    this.setData({
+      cropEditing: false,
+      cropRatio: "free",
+      cropImageSrc: "",
+      cropImageStyle: "",
+      cropBoxStyle: ""
+    });
+    this.markDirty();
+    setTimeout(() => this.render(), 0);
+  },
+
+  resetCrop() {
+    if (!this.cropSession) return;
+    this.cropSession.box = {
+      x: 0,
+      y: 0,
+      width: this.cropSession.sourceSize.width,
+      height: this.cropSession.sourceSize.height
+    };
+    this.updateCropPreviewData();
+    this.setData({ cropRatio: "free" });
+  },
+
+  setCropRatio(event) {
+    const ratio = event.currentTarget.dataset.ratio || "free";
+    if (!this.cropSession) return;
+    const nextBox = getCropBoxForRatio(this.cropSession.box, this.cropSession.sourceSize, ratio, this.cropSession.sourceSize);
+    this.cropSession.box = nextBox;
+    this.updateCropPreviewData();
+    this.setData({ cropRatio: ratio });
+  },
+
+  onCropTouchStart(event) {
+    const touch = event.touches && event.touches[0];
+    if (!this.cropSession || !touch) return;
+    const point = this.toCropSourcePoint(touch);
+    const handle = getCropHandle(point, this.cropSession.box, CROP_HANDLE_SCREEN_SIZE / this.cropSession.preview.scale);
+    const isInside = isPointInsideBox(point, this.cropSession.box);
+    if (!handle && !isInside) {
+      this.cropGesture = null;
+      return;
+    }
+    this.cropGesture = {
+      mode: handle ? "resize" : "move",
+      handle,
+      start: point,
+      origin: { ...this.cropSession.box }
+    };
+  },
+
+  onCropTouchMove(event) {
+    const touch = event.touches && event.touches[0];
+    if (!this.cropSession || !touch || !this.cropGesture) return;
+    const point = this.toCropSourcePoint(touch);
+    const dx = point.x - this.cropGesture.start.x;
+    const dy = point.y - this.cropGesture.start.y;
+    const ratio = getRatioValue(this.data.cropRatio, this.cropSession.sourceSize);
+    const nextBox = this.cropGesture.mode === "move"
+      ? moveCropBox(this.cropGesture.origin, dx, dy, this.cropSession.sourceSize)
+      : resizeCropBox(this.cropGesture.origin, dx, dy, this.cropGesture.handle, this.cropSession.sourceSize, ratio);
+    this.cropSession.box = nextBox;
+    this.updateCropPreviewData();
+  },
+
+  toCropSourcePoint(touch) {
+    const preview = this.cropSession.preview;
+    return {
+      x: (touch.clientX - preview.left) / preview.scale,
+      y: (touch.clientY - preview.top) / preview.scale
+    };
+  },
+
+  updateCropPreviewData() {
+    if (!this.cropSession) return;
+    const preview = this.cropSession.preview;
+    const box = this.cropSession.box;
+    this.setData({
+      cropImageStyle: `left:${preview.left}px;top:${preview.top}px;width:${preview.width}px;height:${preview.height}px;`,
+      cropBoxStyle: `left:${preview.left + box.x * preview.scale}px;top:${preview.top + box.y * preview.scale}px;width:${box.width * preview.scale}px;height:${box.height * preview.scale}px;`
+    });
   },
 
   toDraftPoint(touch) {
@@ -1477,6 +1706,7 @@ Page({
       showToast("剪切路径待接入", { icon: "none" });
       return;
     }
+    if (action === "crop") return this.beginImageCrop();
     if (action === "copy") return this.duplicateLayer();
     if (action === "delete") return this.deleteLayer();
     if (action === "up") return this.moveLayerUp();
@@ -1609,6 +1839,7 @@ Page({
   restoreDraft() {
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
+    this.clearCropEditing();
     const draft = loadDraft();
     if (!draft) {
       showError("暂无手动草稿");
@@ -1619,7 +1850,13 @@ Page({
     this.resetHistory();
     this.updateCanvasSize(draft.ratio);
     this.setEditorMode(true);
-    this.setData({ selectedLayerId: "", saveStatus: "已恢复手动草稿", hasRecentDraft: true });
+    this.setData({
+      selectedLayerId: "",
+      saveStatus: "已恢复手动草稿",
+      hasRecentDraft: true,
+      cropEditing: false,
+      cropRatio: "free"
+    });
     setTimeout(() => this.render(), 0);
   },
 
@@ -1667,6 +1904,164 @@ function distance(a, b) {
 
 function angle(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+function getLayerSourceCrop(layer) {
+  if (layer.crop && layer.crop.width > 0 && layer.crop.height > 0) {
+    return { ...layer.crop };
+  }
+  return getFullCropBox({
+    width: layer.sourceWidth || layer.width,
+    height: layer.sourceHeight || layer.height
+  });
+}
+
+function hasLayerCrop(layer) {
+  return !!(layer && layer.crop && layer.crop.width > 0 && layer.crop.height > 0);
+}
+
+function getFullCropBox(sourceSize) {
+  return {
+    x: 0,
+    y: 0,
+    width: sourceSize.width,
+    height: sourceSize.height
+  };
+}
+
+function getCropPreviewLayout(sourceSize, viewport) {
+  const screenWidth = viewport.screenWidth || 375;
+  const screenHeight = viewport.screenHeight || 667;
+  const topInset = Math.max(96, (viewport.chromeTop || 0) + 54);
+  const bottomInset = 132;
+  const maxWidth = Math.max(1, screenWidth - 48);
+  const maxHeight = Math.max(1, screenHeight - topInset - bottomInset - 24);
+  const scale = Math.min(maxWidth / sourceSize.width, maxHeight / sourceSize.height);
+  const width = sourceSize.width * scale;
+  const height = sourceSize.height * scale;
+  return {
+    left: (screenWidth - width) / 2,
+    top: topInset + (maxHeight - height) / 2,
+    width,
+    height,
+    scale
+  };
+}
+
+function roundCrop(crop) {
+  return {
+    x: Math.round(crop.x),
+    y: Math.round(crop.y),
+    width: Math.round(crop.width),
+    height: Math.round(crop.height)
+  };
+}
+
+function getRatioValue(ratio, baseCrop) {
+  if (ratio === "original" && baseCrop && baseCrop.height) {
+    return baseCrop.width / baseCrop.height;
+  }
+  if (!ratio || ratio === "free") return null;
+  const parts = ratio.split(":").map(Number);
+  return parts[0] > 0 && parts[1] > 0 ? parts[0] / parts[1] : null;
+}
+
+function getCropBoxForRatio(box, layer, ratio, baseCrop) {
+  const ratioValue = getRatioValue(ratio, baseCrop);
+  if (!ratioValue) return clampCropBox(box, layer);
+  let width = layer.width;
+  let height = width / ratioValue;
+  if (width > layer.width) {
+    width = layer.width;
+    height = width / ratioValue;
+  }
+  if (height > layer.height) {
+    height = layer.height;
+    width = height * ratioValue;
+  }
+  width = Math.max(CROP_MIN_SIZE, width);
+  height = Math.max(CROP_MIN_SIZE, height);
+  const center = {
+    x: box.x + box.width / 2,
+    y: box.y + box.height / 2
+  };
+  return clampCropBox({
+    x: center.x - width / 2,
+    y: center.y - height / 2,
+    width,
+    height
+  }, layer);
+}
+
+function getCropHandle(point, box, threshold) {
+  const handles = [
+    { name: "tl", x: box.x, y: box.y },
+    { name: "tr", x: box.x + box.width, y: box.y },
+    { name: "br", x: box.x + box.width, y: box.y + box.height },
+    { name: "bl", x: box.x, y: box.y + box.height }
+  ];
+  const match = handles.find((handle) => Math.abs(point.x - handle.x) <= threshold && Math.abs(point.y - handle.y) <= threshold);
+  return match ? match.name : "";
+}
+
+function isPointInsideBox(point, box) {
+  return point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
+}
+
+function moveCropBox(origin, dx, dy, layer) {
+  return clampCropBox({
+    ...origin,
+    x: origin.x + dx,
+    y: origin.y + dy
+  }, layer);
+}
+
+function resizeCropBox(origin, dx, dy, handle, layer, ratio) {
+  if (ratio) {
+    return resizeCropBoxWithRatio(origin, dx, dy, handle, layer, ratio);
+  }
+  const left = handle.indexOf("l") >= 0 ? origin.x + dx : origin.x;
+  const right = handle.indexOf("r") >= 0 ? origin.x + origin.width + dx : origin.x + origin.width;
+  const top = handle.indexOf("t") >= 0 ? origin.y + dy : origin.y;
+  const bottom = handle.indexOf("b") >= 0 ? origin.y + origin.height + dy : origin.y + origin.height;
+  return clampCropBox({
+    x: Math.min(left, right - CROP_MIN_SIZE),
+    y: Math.min(top, bottom - CROP_MIN_SIZE),
+    width: Math.max(CROP_MIN_SIZE, Math.abs(right - left)),
+    height: Math.max(CROP_MIN_SIZE, Math.abs(bottom - top))
+  }, layer);
+}
+
+function resizeCropBoxWithRatio(origin, dx, dy, handle, layer, ratio) {
+  const anchor = {
+    x: handle.indexOf("l") >= 0 ? origin.x + origin.width : origin.x,
+    y: handle.indexOf("t") >= 0 ? origin.y + origin.height : origin.y
+  };
+  const moving = {
+    x: handle.indexOf("l") >= 0 ? origin.x + dx : origin.x + origin.width + dx,
+    y: handle.indexOf("t") >= 0 ? origin.y + dy : origin.y + origin.height + dy
+  };
+  let width = Math.max(CROP_MIN_SIZE, Math.abs(moving.x - anchor.x));
+  let height = Math.max(CROP_MIN_SIZE, Math.abs(moving.y - anchor.y));
+  if (width / height > ratio) {
+    height = width / ratio;
+  } else {
+    width = height * ratio;
+  }
+  const x = handle.indexOf("l") >= 0 ? anchor.x - width : anchor.x;
+  const y = handle.indexOf("t") >= 0 ? anchor.y - height : anchor.y;
+  return clampCropBox({ x, y, width, height }, layer);
+}
+
+function clampCropBox(box, layer) {
+  const width = Math.min(layer.width, Math.max(CROP_MIN_SIZE, box.width));
+  const height = Math.min(layer.height, Math.max(CROP_MIN_SIZE, box.height));
+  return {
+    x: Math.min(layer.width - width, Math.max(0, box.x)),
+    y: Math.min(layer.height - height, Math.max(0, box.y)),
+    width,
+    height
+  };
 }
 
 function getCanvasAlignmentAnchors(draft) {
