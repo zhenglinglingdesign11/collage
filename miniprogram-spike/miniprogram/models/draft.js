@@ -1,4 +1,5 @@
 const SCHEMA_VERSION = 1;
+const { createTextFontStyle } = require("../config/fonts");
 
 const DRAFT_RATIOS = ["3:4", "1:1", "9:16"];
 
@@ -85,8 +86,7 @@ function createTextLayer(text, draft) {
     style: {
       fontSize: 54,
       color: "#111111",
-      fontFamily: "sans-serif",
-      fontLabel: "系统"
+      ...createTextFontStyle("system")
     }
   });
 }

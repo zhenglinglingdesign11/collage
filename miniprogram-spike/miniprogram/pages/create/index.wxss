@@ -1377,6 +1377,10 @@ button::after {
   text-align: center;
 }
 
+.layer-action.disabled {
+  opacity: 0.46;
+}
+
 .layer-page-dots {
   position: absolute;
   left: 0;
@@ -1509,6 +1513,41 @@ button::after {
   line-height: 1;
 }
 
+.la-bgcut-icon {
+  display: block;
+  font-size: 0;
+  line-height: 1;
+}
+
+.bgcut-shape {
+  position: absolute;
+  left: 12rpx;
+  top: 13rpx;
+  width: 24rpx;
+  height: 26rpx;
+  box-sizing: border-box;
+  border: 4rpx solid currentColor;
+  border-radius: 50% 50% 44% 44%;
+}
+
+.bgcut-spark {
+  position: absolute;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.bgcut-spark-a {
+  right: 7rpx;
+  top: 8rpx;
+}
+
+.bgcut-spark-b {
+  left: 7rpx;
+  bottom: 8rpx;
+}
+
 .crop-corner {
   position: absolute;
   box-sizing: border-box;
@@ -1628,7 +1667,9 @@ button::after {
 }
 
 .font-strip cover-view,
-.background-strip cover-view {
+.font-strip view,
+.background-strip cover-view,
+.background-strip view {
   display: inline-block;
   min-width: 116rpx;
   height: 56rpx;
@@ -1642,7 +1683,9 @@ button::after {
 }
 
 .font-strip cover-view.active,
-.background-strip cover-view.active {
+.font-strip view.active,
+.background-strip cover-view.active,
+.background-strip view.active {
   background: #111111;
   color: #ffffff;
 }
@@ -1681,7 +1724,8 @@ button::after {
   white-space: nowrap;
 }
 
-.size-steps cover-view {
+.size-steps cover-view,
+.size-steps view {
   display: inline-block;
   min-width: 116rpx;
   height: 56rpx;
@@ -1695,7 +1739,8 @@ button::after {
   text-align: center;
 }
 
-.size-steps cover-view.active {
+.size-steps cover-view.active,
+.size-steps view.active {
   background: #111111;
   color: #ffffff;
 }

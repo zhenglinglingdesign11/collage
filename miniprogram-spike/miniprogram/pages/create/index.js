@@ -1,5 +1,6 @@
 const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
+const { removeImageBackground } = require("../../utils/rembg-api");
 const {
   ASSET_TRANSFER_STORAGE_KEY,
   ASSET_TRANSFER_MODE_STORAGE_KEY,
@@ -8,6 +9,14 @@ const {
   getAssetItem,
   getAssetPack
 } = require("../../config/assets");
+const {
+  getTextFonts,
+  getTextFontOptions,
+  resolveTextFont,
+  getFontSource,
+  getFontCloudFileId,
+  createTextFontStyle
+} = require("../../config/fonts");
 const {
   ratioSizeMap,
   createDraft,
@@ -34,6 +43,8 @@ const ROTATION_GUIDE_LAYER_TYPES = ["image", "sticker", "paper"];
 const CROP_HANDLE_SCREEN_SIZE = 26;
 const CROP_MIN_SIZE = 48;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
+const TEXT_FONTS = getTextFonts();
+const TEXT_FONT_OPTIONS = getTextFontOptions();
 
 Page({
   data: {
@@ -45,10 +56,11 @@ Page({
     selectedLayerType: "",
     saveStatus: "未保存",
     exporting: false,
+    backgroundRemoving: false,
     textInputVisible: false,
     textDraft: "",
     textToolMode: "font",
-    textFonts: ["系统", "手写", "打字机", "衬线", "圆体"],
+    textFonts: TEXT_FONT_OPTIONS,
     textColors: [
       { value: "#111111", label: "墨黑" },
       { value: "#4a4a4a", label: "深灰" },
@@ -59,7 +71,7 @@ Page({
       { value: "#8c9a8d", label: "鼠尾草" }
     ],
     textBackgrounds: ["无", "纸底", "白底", "黑底", "胶带"],
-    textFont: "系统",
+    textFont: "system",
     textColor: "#111111",
     textSize: 54,
     textBackground: "无",
@@ -113,12 +125,18 @@ Page({
     this.dpr = system.pixelRatio || 1;
     this.screenWidth = system.windowWidth;
     this.screenHeight = system.windowHeight;
-    this.ctx = wx.createCanvasContext("spikeCanvas", this);
+    this.canvasNode = null;
+    this.ctx = null;
+    this.canvasImageCache = {};
+    this.canvasReadyPromise = null;
     this.gesture = null;
     this.pendingLayerTap = null;
     this.alignmentGuides = [];
     this.alignmentGuideState = null;
     this.rotationGuideState = null;
+    this.loadedFontFamilies = {};
+    this.fontTempUrlCache = {};
+    this.preloadPackagedFonts();
     this.keyboardHandler = (res) => {
       this.updateKeyboardHeight(res);
     };
@@ -127,7 +145,7 @@ Page({
     }
     const latestDraft = loadLatestDraft();
     const recentDrafts = this.getRecentDrafts();
-    this.draft = latestDraft || createDraft("3:4");
+    this.draft = normalizeDraftTextFonts(latestDraft || createDraft("3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
@@ -147,7 +165,75 @@ Page({
   },
 
   onReady() {
-    this.render();
+    this.ensureCanvasContext().then(() => {
+      this.preloadPackagedFonts({ force: true, scopes: ["native"] });
+      this.render();
+    });
+  },
+
+  preloadPackagedFonts(options = {}) {
+    TEXT_FONTS.filter((font) => font.packaged).forEach((font) => {
+      this.ensureTextFontLoaded(font.id, options);
+    });
+  },
+
+  ensureTextFontLoaded(fontId, options = {}) {
+    const font = resolveTextFont(fontId);
+    const scopes = options.scopes || ["webview", "native"];
+    const cacheKey = `${font.family}:${scopes.join(",")}`;
+    if (!options.force && (this.loadedFontFamilies[cacheKey] === "loaded" || this.loadedFontFamilies[cacheKey] === "loading")) return;
+    this.loadedFontFamilies[cacheKey] = "loading";
+    this.resolveFontSource(font)
+      .then((source) => {
+        if (!font || !font.packaged || !source || !wx.loadFontFace) {
+          this.loadedFontFamilies[cacheKey] = "failed";
+          return;
+        }
+        wx.loadFontFace({
+          family: font.family,
+          source: `url("${source}")`,
+          desc: {
+            style: "normal",
+            weight: "normal",
+            variant: "normal"
+          },
+          global: true,
+          scopes,
+          success: () => {
+            this.loadedFontFamilies[cacheKey] = "loaded";
+            console.info("[fonts] loadFontFace success", font.id, font.family, scopes.join(","), source);
+            this.render();
+          },
+          fail: () => {
+            this.loadedFontFamilies[cacheKey] = "failed";
+            console.warn("[fonts] loadFontFace failed", font.id, font.family, scopes.join(","), source);
+          }
+        });
+      })
+      .catch((error) => {
+        this.loadedFontFamilies[cacheKey] = "failed";
+        console.warn("[fonts] resolve source failed", font.id, font.family, error);
+      });
+  },
+
+  resolveFontSource(font) {
+    const directSource = getFontSource(font);
+    if (directSource) return Promise.resolve(directSource);
+    const fileID = getFontCloudFileId(font);
+    if (!fileID) return Promise.resolve("");
+    if (this.fontTempUrlCache[fileID]) return Promise.resolve(this.fontTempUrlCache[fileID]);
+    if (!wx.cloud || !wx.cloud.getTempFileURL) return Promise.resolve("");
+    return wx.cloud.getTempFileURL({
+      fileList: [fileID]
+    }).then((res) => {
+      const file = res.fileList && res.fileList[0];
+      const url = file && (file.tempFileURL || file.download_url || file.fileID);
+      if (url && (!file.status || file.status === 0)) {
+        this.fontTempUrlCache[fileID] = url;
+        return url;
+      }
+      throw new Error(file && file.errMsg ? file.errMsg : "empty_temp_file_url");
+    });
   },
 
   onShow() {
@@ -181,10 +267,74 @@ Page({
     }
   },
 
+  resetCanvasContext() {
+    this.canvasNode = null;
+    this.ctx = null;
+    this.canvasReadyPromise = null;
+  },
+
   ensureCanvasContext() {
-    if (!this.ctx) {
-      this.ctx = wx.createCanvasContext("spikeCanvas", this);
+    if (this.canvasNode && this.ctx) {
+      this.configureCanvasBitmap();
+      return Promise.resolve(this.ctx);
     }
+    if (this.canvasReadyPromise) return this.canvasReadyPromise;
+    this.canvasReadyPromise = new Promise((resolve) => {
+      wx.createSelectorQuery()
+        .in(this)
+        .select("#spikeCanvas")
+        .fields({ node: true, size: true })
+        .exec((res) => {
+          const canvas = res && res[0] && res[0].node;
+          if (!canvas) {
+            this.canvasReadyPromise = null;
+            resolve(null);
+            return;
+          }
+          this.canvasNode = canvas;
+          this.ctx = canvas.getContext("2d");
+          this.configureCanvasBitmap();
+          resolve(this.ctx);
+        });
+    });
+    return this.canvasReadyPromise;
+  },
+
+  configureCanvasBitmap() {
+    if (!this.canvasNode || !this.ctx) return;
+    const width = Math.max(1, Math.round((this.data.canvasCssWidth || 1) * (this.dpr || 1)));
+    const height = Math.max(1, Math.round((this.data.canvasCssHeight || 1) * (this.dpr || 1)));
+    if (this.canvasNode.width !== width) this.canvasNode.width = width;
+    if (this.canvasNode.height !== height) this.canvasNode.height = height;
+    if (this.ctx.setTransform) this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+  },
+
+  loadCanvasImage(src) {
+    if (!src || !this.canvasNode) return Promise.resolve(null);
+    const cached = this.canvasImageCache[src];
+    if (cached && cached.image) return Promise.resolve(cached.image);
+    if (cached && cached.promise) return cached.promise;
+    const image = this.canvasNode.createImage();
+    const promise = new Promise((resolve) => {
+      image.onload = () => {
+        this.canvasImageCache[src] = { image };
+        resolve(image);
+      };
+      image.onerror = () => {
+        delete this.canvasImageCache[src];
+        console.warn("[canvas] image load failed", src);
+        resolve(null);
+      };
+    });
+    this.canvasImageCache[src] = { promise };
+    image.src = src;
+    return promise;
+  },
+
+  preloadCanvasImages() {
+    if (!this.draft || !Array.isArray(this.draft.layers)) return Promise.resolve();
+    const sources = Array.from(new Set(this.draft.layers.map((layer) => layer && layer.source).filter(Boolean)));
+    return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
   setEditorMode(isEditing) {
@@ -202,7 +352,7 @@ Page({
   startNewDraft() {
     this.textEditSession = null;
     this.clearCropEditing();
-    this.draft = createDraft(this.data.ratio || "3:4");
+    this.draft = normalizeDraftTextFonts(createDraft(this.data.ratio || "3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
@@ -228,7 +378,7 @@ Page({
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
     this.clearCropEditing();
-    this.draft = createDraft(this.data.ratio || "3:4");
+    this.draft = normalizeDraftTextFonts(createDraft(this.data.ratio || "3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
@@ -304,7 +454,7 @@ Page({
       showError("暂无草稿");
       return;
     }
-    this.draft = draft;
+    this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
     this.updateCanvasSize(draft.ratio);
@@ -424,25 +574,35 @@ Page({
     });
   },
 
-  render() {
+  async render() {
     if (this.data.isEmptyMode || this.data.cropEditing) return;
-    this.ctx = wx.createCanvasContext("spikeCanvas", this);
-    if (!this.ctx || !this.draft) return;
+    const renderToken = (this.renderToken || 0) + 1;
+    this.renderToken = renderToken;
+    await this.ensureCanvasContext();
+    if (!this.ctx || !this.draft || !this.canvasNode || renderToken !== this.renderToken) return;
+    await this.preloadCanvasImages();
+    if (renderToken !== this.renderToken) return;
+    this.configureCanvasBitmap();
     drawDraft(this.ctx, this.draft, this.data.selectedLayerId, {
-      dpr: this.renderScale || 1,
+      dpr: (this.renderScale || 1) * (this.dpr || 1),
+      imageCache: getResolvedCanvasImageCache(this.canvasImageCache),
       guides: this.alignmentGuides || []
     });
-    this.ctx.draw();
   },
 
   drawCanvasSnapshot(callback) {
-    this.ensureCanvasContext();
-    if (!this.ctx || !this.draft) {
+    this.ensureCanvasContext().then(() => this.preloadCanvasImages()).then(() => {
+      if (!this.ctx || !this.draft || !this.canvasNode) {
+        if (callback) callback();
+        return;
+      }
+      this.configureCanvasBitmap();
+      drawDraft(this.ctx, this.draft, "", {
+        dpr: (this.renderScale || 1) * (this.dpr || 1),
+        imageCache: getResolvedCanvasImageCache(this.canvasImageCache)
+      });
       if (callback) callback();
-      return;
-    }
-    drawDraft(this.ctx, this.draft, "", { dpr: this.renderScale || 1 });
-    this.ctx.draw(false, () => {
+    }).catch(() => {
       if (callback) callback();
     });
   },
@@ -479,7 +639,7 @@ Page({
     if (!draft) return;
     this.textEditSession = null;
     this.clearCropEditing();
-    this.draft = draft;
+    this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.updateCanvasSize(this.draft.ratio);
     this.setData({
@@ -523,7 +683,7 @@ Page({
     const ratio = event.currentTarget.dataset.ratio;
     const size = ratioSizeMap[ratio];
     if (this.data.isEmptyMode) {
-      this.draft = createDraft(ratio);
+      this.draft = normalizeDraftTextFonts(createDraft(ratio));
       this.draft.layers = normalizeLayerOrder(this.draft.layers);
       this.updateCanvasSize(ratio);
       return;
@@ -930,6 +1090,7 @@ Page({
 
   addText() {
     this.enterEditMode();
+    this.preloadPackagedFonts({ force: true });
     let layer = this.getSelectedLayer();
     const isNewLayer = !layer || layer.type !== "text";
     if (!layer || layer.type !== "text") {
@@ -939,8 +1100,7 @@ Page({
         ...(layer.style || {}),
         fontSize: this.data.textSize || 54,
         color: this.data.textColor || "#111111",
-        fontLabel: this.data.textFont || "系统",
-        fontFamily: fontFamilyForLabel(this.data.textFont || "系统"),
+        ...createTextFontStyle(this.data.textFont || "system"),
         backgroundLabel: this.data.textBackground || "无",
         background: backgroundColorForLabel(this.data.textBackground || "无")
       };
@@ -959,7 +1119,7 @@ Page({
       activePalette: "",
       textDraft: layer.text || "",
       textToolMode: "font",
-      textFont: layer.style.fontLabel || "系统",
+      textFont: normalizeTextFontId(layer.style),
       textColor: layer.style.color || "#111111",
       textSize: layer.style.fontSize || 54,
       textBackground: layer.style.backgroundLabel || "无",
@@ -1394,6 +1554,7 @@ Page({
       this.cropGesture = null;
       this.clearAlignmentGuides();
       this.updateCropPreviewData();
+      this.resetCanvasContext();
       this.setData({
         cropEditing: true,
         cropRatio: "free",
@@ -1433,6 +1594,7 @@ Page({
     }
     this.cropSession = null;
     this.cropGesture = null;
+    this.resetCanvasContext();
     this.setData({
       cropEditing: false,
       cropRatio: "free",
@@ -1464,6 +1626,7 @@ Page({
     layer.crop = roundCrop(box);
     this.cropSession = null;
     this.cropGesture = null;
+    this.resetCanvasContext();
     this.setData({
       cropEditing: false,
       cropRatio: "free",
@@ -1620,6 +1783,7 @@ Page({
   editSelectedText() {
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "text") return;
+    this.preloadPackagedFonts({ force: true });
     this.beginTextLayerEditing(layer, { isNew: false });
     this.setData({
       activeTool: "text",
@@ -1628,7 +1792,7 @@ Page({
       textInputVisible: true,
       textDraft: layer.text || "",
       textToolMode: "font",
-      textFont: layer.style.fontLabel || "系统",
+      textFont: normalizeTextFontId(layer.style),
       textColor: layer.style.color || "#111111",
       textSize: layer.style.fontSize || 54,
       textBackground: layer.style.backgroundLabel || "无",
@@ -1638,17 +1802,20 @@ Page({
   },
 
   setTextToolMode(event) {
-    this.setData({ textToolMode: event.currentTarget.dataset.mode || "font" });
+    const mode = event.currentTarget.dataset.mode || "font";
+    if (mode === "font") {
+      this.preloadPackagedFonts({ force: true });
+    }
+    this.setData({ textToolMode: mode });
   },
 
   setTextFont(event) {
     const index = Number(event.currentTarget.dataset.index || 0);
-    const font = event.currentTarget.dataset.font || this.data.textFonts[index] || "系统";
-    this.updateEditingTextStyle({
-      fontLabel: font,
-      fontFamily: fontFamilyForLabel(font)
-    });
-    this.setData({ textFont: font });
+    const fontId = event.currentTarget.dataset.fontId || (this.data.textFonts[index] && this.data.textFonts[index].id) || "system";
+    const fontStyle = createTextFontStyle(fontId);
+    this.ensureTextFontLoaded(fontStyle.fontId);
+    this.updateEditingTextStyle(fontStyle);
+    this.setData({ textFont: fontStyle.fontId });
   },
 
   setTextColor(event) {
@@ -1701,6 +1868,7 @@ Page({
   applyLayerAction(event) {
     if (this.ignoreLayerActionTap) return;
     const action = event.currentTarget.dataset.action;
+    if (action === "removeBackground") return this.removeSelectedImageBackground();
     if (action === "cut") {
       this.setData({ activeTool: "cut", activePalette: "cut" });
       showToast("剪切路径待接入", { icon: "none" });
@@ -1720,6 +1888,34 @@ Page({
     if (action === "tear") layer.tear = !layer.tear;
     this.markDirty();
     this.render();
+  },
+
+  async removeSelectedImageBackground() {
+    if (this.data.backgroundRemoving) return;
+    const layer = this.getSelectedLayer();
+    if (!layer || layer.type !== "image" || !layer.source) return;
+    this.setData({
+      backgroundRemoving: true,
+      saveStatus: "抠图中..."
+    });
+    try {
+      const resultPath = await removeImageBackground({ filePath: layer.source });
+      const info = await getImageInfoAsync(resultPath);
+      layer.source = resultPath;
+      layer.sourceWidth = info.width || layer.sourceWidth || layer.width;
+      layer.sourceHeight = info.height || layer.sourceHeight || layer.height;
+      this.markDirty();
+      this.render();
+      showSuccess("抠图完成");
+    } catch (error) {
+      const message = error && error.message === "missing_rembg_endpoint"
+        ? "请先配置 Rembg API 地址"
+        : "抠图失败，请稍后重试";
+      this.setData({ saveStatus: "抠图失败" });
+      showError(message);
+    } finally {
+      this.setData({ backgroundRemoving: false });
+    }
   },
 
   duplicateLayer() {
@@ -1793,9 +1989,9 @@ Page({
     return new Promise((resolve) => {
       this.drawCanvasSnapshot(() => {
         wx.canvasToTempFilePath({
-          canvasId: "spikeCanvas",
-          width: this.data.canvasCssWidth,
-          height: this.data.canvasCssHeight,
+          canvas: this.canvasNode,
+          width: this.canvasNode ? this.canvasNode.width : this.data.canvasCssWidth,
+          height: this.canvasNode ? this.canvasNode.height : this.data.canvasCssHeight,
           destWidth: 360,
           destHeight: Math.round(360 * this.draft.height / this.draft.width),
           success: (res) => this.persistThumbnailFile(res.tempFilePath).then(resolve).catch(() => resolve("")),
@@ -1845,7 +2041,7 @@ Page({
       showError("暂无手动草稿");
       return;
     }
-    this.draft = draft;
+    this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
     this.updateCanvasSize(draft.ratio);
@@ -1878,23 +2074,29 @@ Page({
   exportImage() {
     if (this.data.exporting) return;
     this.setData({ exporting: true, selectedLayerId: "" });
-    this.render();
-    wx.canvasToTempFilePath({
-      canvasId: "spikeCanvas",
-      width: this.data.canvasCssWidth,
-      height: this.data.canvasCssHeight,
-      destWidth: this.draft.width,
-      destHeight: this.draft.height,
-      success: (res) => {
-        wx.saveImageToPhotosAlbum({
-          filePath: res.tempFilePath,
-          success: () => showSuccess("已保存到相册"),
-          fail: () => showModal("保存失败", "请确认已允许保存到相册后重试。", { showCancel: false })
-        });
-      },
-      fail: () => showError("导出失败"),
-      complete: () => this.setData({ exporting: false })
-    }, this);
+    this.drawCanvasSnapshot(() => {
+      if (!this.canvasNode) {
+        this.setData({ exporting: false });
+        showError("导出失败");
+        return;
+      }
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: this.canvasNode.width,
+        height: this.canvasNode.height,
+        destWidth: this.draft.width,
+        destHeight: this.draft.height,
+        success: (res) => {
+          wx.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: () => showSuccess("已保存到相册"),
+            fail: () => showModal("保存失败", "请确认已允许保存到相册后重试。", { showCancel: false })
+          });
+        },
+        fail: () => showError("导出失败"),
+        complete: () => this.setData({ exporting: false })
+      }, this);
+    });
   }
 });
 
@@ -1904,6 +2106,16 @@ function distance(a, b) {
 
 function angle(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+function getImageInfoAsync(src) {
+  return new Promise((resolve, reject) => {
+    wx.getImageInfo({
+      src,
+      success: resolve,
+      fail: reject
+    });
+  });
 }
 
 function getLayerSourceCrop(layer) {
@@ -2230,15 +2442,33 @@ function eventSourceType(event) {
   return source === "camera" ? "camera" : source === "album" ? "album" : "";
 }
 
-function fontFamilyForLabel(label) {
-  const map = {
-    "系统": "PingFang SC, sans-serif",
-    "手写": "Kaiti SC, STKaiti, cursive",
-    "打字机": "Menlo, Monaco, Consolas, monospace",
-    "衬线": "Songti SC, STSong, serif",
-    "圆体": "PingFang SC, Hiragino Sans GB, sans-serif"
-  };
-  return map[label] || "PingFang SC, sans-serif";
+function normalizeTextFontId(style = {}) {
+  return resolveTextFont(style.fontId || style.fontLabel || "system").id;
+}
+
+function normalizeDraftTextFonts(draft) {
+  if (!draft || !Array.isArray(draft.layers)) return draft;
+  draft.layers = draft.layers.map((layer) => {
+    if (!layer || layer.type !== "text") return layer;
+    const style = layer.style || {};
+    return {
+      ...layer,
+      style: {
+        ...style,
+        ...createTextFontStyle(style.fontId || style.fontLabel || "system")
+      }
+    };
+  });
+  return draft;
+}
+
+function getResolvedCanvasImageCache(cache = {}) {
+  return Object.keys(cache).reduce((result, key) => {
+    if (cache[key] && cache[key].image) {
+      result[key] = cache[key].image;
+    }
+    return result;
+  }, {});
 }
 
 function backgroundColorForLabel(label) {

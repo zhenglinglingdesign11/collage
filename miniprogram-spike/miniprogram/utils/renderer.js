@@ -5,12 +5,12 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   ctx.save();
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, draft.width, draft.height);
-  ctx.setFillStyle(draft.background || "#fdfdfb");
+  setFillStyle(ctx, draft.background || "#fdfdfb");
   ctx.fillRect(0, 0, draft.width, draft.height);
 
   getOrderedLayers(draft.layers)
     .forEach((layer) => {
-      drawLayer(ctx, layer);
+      drawLayer(ctx, layer, options);
       if (layer.id === selectedLayerId) {
         drawSelection(ctx, layer);
       }
@@ -19,21 +19,21 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   ctx.restore();
 }
 
-function drawLayer(ctx, layer) {
+function drawLayer(ctx, layer, options = {}) {
   ctx.save();
   const cx = layer.x + layer.width / 2;
   const cy = layer.y + layer.height / 2;
   ctx.translate(cx, cy);
   ctx.rotate((layer.rotation || 0) * Math.PI / 180);
-  ctx.setGlobalAlpha(layer.opacity == null ? 1 : layer.opacity);
+  setGlobalAlpha(ctx, layer.opacity == null ? 1 : layer.opacity);
   if (layer.shadow) {
-    ctx.setShadow(0, 18, 36, "rgba(17, 17, 17, 0.18)");
+    setShadow(ctx, 0, 18, 36, "rgba(17, 17, 17, 0.18)");
   } else {
-    ctx.setShadow(0, 8, 18, "rgba(17, 17, 17, 0.08)");
+    setShadow(ctx, 0, 8, 18, "rgba(17, 17, 17, 0.08)");
   }
 
   if (layer.source) {
-    drawSourceLayer(ctx, layer);
+    drawSourceLayer(ctx, layer, options);
   } else if (layer.type === "text") {
     drawText(ctx, layer);
   } else if (layer.type === "tape") {
@@ -44,15 +44,19 @@ function drawLayer(ctx, layer) {
   ctx.restore();
 }
 
-function drawSourceLayer(ctx, layer) {
+function drawSourceLayer(ctx, layer, options = {}) {
   if (layer.radius) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.clip();
   }
+  const source = options.imageCache && options.imageCache[layer.source]
+    ? options.imageCache[layer.source]
+    : layer.source;
+  if (!source) return;
   const crop = layer.crop;
   if (crop && crop.width > 0 && crop.height > 0) {
     ctx.drawImage(
-      layer.source,
+      source,
       crop.x,
       crop.y,
       crop.width,
@@ -64,12 +68,12 @@ function drawSourceLayer(ctx, layer) {
     );
     return;
   }
-  ctx.drawImage(layer.source, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  ctx.drawImage(source, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
 }
 
 function drawPaper(ctx, layer) {
   const style = layer.style || {};
-  ctx.setFillStyle(style.color || "#ffffff");
+  setFillStyle(ctx, style.color || "#ffffff");
   if (style.shape === "circle") {
     ctx.beginPath();
     ctx.arc(0, 0, Math.min(layer.width, layer.height) / 2, 0, Math.PI * 2);
@@ -80,8 +84,8 @@ function drawPaper(ctx, layer) {
   } else {
     ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   }
-  ctx.setShadow(0, 0, 0, "transparent");
-  ctx.setStrokeStyle("rgba(17,17,17,0.08)");
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setStrokeStyle(ctx, "rgba(17,17,17,0.08)");
   if (style.shape === "circle") {
     ctx.beginPath();
     ctx.arc(0, 0, Math.min(layer.width, layer.height) / 2, 0, Math.PI * 2);
@@ -126,10 +130,10 @@ function drawTearStroke(ctx, x, y, width, height) {
 
 function drawTape(ctx, layer) {
   const color = layer.style && layer.style.color ? layer.style.color : "#ead48a";
-  ctx.setFillStyle(color);
+  setFillStyle(ctx, color);
   ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
-  ctx.setShadow(0, 0, 0, "transparent");
-  ctx.setFillStyle("rgba(255,255,255,0.28)");
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setFillStyle(ctx, "rgba(255,255,255,0.28)");
   for (let x = -layer.width / 2 + 16; x < layer.width / 2; x += 34) {
     ctx.fillRect(x, -layer.height / 2, 8, layer.height);
   }
@@ -137,21 +141,19 @@ function drawTape(ctx, layer) {
 
 function drawText(ctx, layer) {
   const style = layer.style || {};
-  ctx.setShadow(0, 0, 0, "transparent");
+  setShadow(ctx, 0, 0, 0, "transparent");
   if (style.background && style.background !== "transparent") {
-    ctx.setFillStyle(style.background);
+    setFillStyle(ctx, style.background);
     const radius = style.background === "#111111" ? 18 : 12;
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, radius);
     ctx.fill();
   }
-  ctx.setFillStyle(style.color || "#111111");
+  setFillStyle(ctx, style.color || "#111111");
   const fontSize = style.fontSize || 48;
-  ctx.setFontSize(fontSize);
-  if ("font" in ctx) {
-    ctx.font = fontString(style.fontFamily, fontSize);
-  }
-  ctx.setTextBaseline("middle");
-  ctx.setTextAlign("center");
+  setFontSize(ctx, fontSize);
+  ctx.font = fontString(style.canvasFontFamily || style.fontFamily, fontSize);
+  setTextBaseline(ctx, "middle");
+  setTextAlign(ctx, "center");
   drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width);
 }
 
@@ -160,7 +162,7 @@ function fontString(fontFamily, fontSize) {
   const families = family.split(",").map((item) => {
     const name = item.trim();
     if (!name) return "";
-    if (name.indexOf(" ") >= 0 || /[\u4e00-\u9fa5]/.test(name)) {
+    if (!isGenericFontFamily(name)) {
       return `"${name}"`;
     }
     return name;
@@ -168,8 +170,13 @@ function fontString(fontFamily, fontSize) {
   return `${fontSize}px ${families.join(", ") || "sans-serif"}`;
 }
 
+function isGenericFontFamily(name) {
+  return ["serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui"].includes(name);
+}
+
 function drawStyledText(ctx, text, style, fontSize, maxWidth) {
   const label = style.fontLabel || "系统";
+  const customCanvasFont = !!style.canvasFontFamily && !isFallbackOnlyFont(style.canvasFontFamily);
   if (label === "打字机") {
     drawMonospaceText(ctx, text, fontSize, maxWidth);
     return;
@@ -177,21 +184,33 @@ function drawStyledText(ctx, text, style, fontSize, maxWidth) {
   if (label === "手写") {
     ctx.save();
     ctx.rotate(-3 * Math.PI / 180);
-    ctx.fillText(text, 0, 0, maxWidth);
+    fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
     ctx.restore();
     return;
   }
   if (label === "衬线") {
-    ctx.fillText(text, 0, 0, maxWidth);
-    ctx.fillText(text, 1.2, 0, maxWidth);
+    fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
+    fillLayerText(ctx, text, 1.2, 0, maxWidth, customCanvasFont);
     return;
   }
   if (label === "圆体") {
-    ctx.fillText(text, 0, 0, maxWidth);
-    ctx.fillText(text, 0.8, 0.8, maxWidth);
+    fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
+    fillLayerText(ctx, text, 0.8, 0.8, maxWidth, customCanvasFont);
     return;
   }
-  ctx.fillText(text, 0, 0, maxWidth);
+  fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
+}
+
+function fillLayerText(ctx, text, x, y, maxWidth, customCanvasFont) {
+  if (customCanvasFont) {
+    ctx.fillText(text, x, y);
+    return;
+  }
+  ctx.fillText(text, x, y, maxWidth);
+}
+
+function isFallbackOnlyFont(fontFamily) {
+  return fontFamily.split(",").every((item) => isGenericFontFamily(item.trim()));
 }
 
 function drawMonospaceText(ctx, text, fontSize, maxWidth) {
@@ -210,11 +229,11 @@ function drawSelection(ctx, layer) {
   const cy = layer.y + layer.height / 2;
   ctx.translate(cx, cy);
   ctx.rotate((layer.rotation || 0) * Math.PI / 180);
-  ctx.setShadow(0, 0, 0, "transparent");
-  ctx.setStrokeStyle("#111111");
-  ctx.setLineWidth(3);
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setStrokeStyle(ctx, "#111111");
+  setLineWidth(ctx, 3);
   ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
-  ctx.setFillStyle("#111111");
+  setFillStyle(ctx, "#111111");
   const points = [
     [-layer.width / 2, -layer.height / 2],
     [layer.width / 2, -layer.height / 2],
@@ -228,9 +247,9 @@ function drawSelection(ctx, layer) {
 function drawAlignmentGuides(ctx, guides, draft) {
   if (!guides || !guides.length || !draft) return;
   ctx.save();
-  ctx.setShadow(0, 0, 0, "transparent");
-  ctx.setStrokeStyle("rgba(217, 74, 56, 0.76)");
-  ctx.setLineWidth(2);
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setStrokeStyle(ctx, "rgba(217, 74, 56, 0.76)");
+  setLineWidth(ctx, 2);
   guides.forEach((guide) => {
     ctx.beginPath();
     if (guide.axis === "x") {
@@ -243,6 +262,48 @@ function drawAlignmentGuides(ctx, guides, draft) {
     ctx.stroke();
   });
   ctx.restore();
+}
+
+function setFillStyle(ctx, value) {
+  if (ctx.setFillStyle) ctx.setFillStyle(value);
+  ctx.fillStyle = value;
+}
+
+function setStrokeStyle(ctx, value) {
+  if (ctx.setStrokeStyle) ctx.setStrokeStyle(value);
+  ctx.strokeStyle = value;
+}
+
+function setLineWidth(ctx, value) {
+  if (ctx.setLineWidth) ctx.setLineWidth(value);
+  ctx.lineWidth = value;
+}
+
+function setGlobalAlpha(ctx, value) {
+  if (ctx.setGlobalAlpha) ctx.setGlobalAlpha(value);
+  ctx.globalAlpha = value;
+}
+
+function setShadow(ctx, offsetX, offsetY, blur, color) {
+  if (ctx.setShadow) ctx.setShadow(offsetX, offsetY, blur, color);
+  ctx.shadowOffsetX = offsetX;
+  ctx.shadowOffsetY = offsetY;
+  ctx.shadowBlur = blur;
+  ctx.shadowColor = color;
+}
+
+function setFontSize(ctx, value) {
+  if (ctx.setFontSize) ctx.setFontSize(value);
+}
+
+function setTextBaseline(ctx, value) {
+  if (ctx.setTextBaseline) ctx.setTextBaseline(value);
+  ctx.textBaseline = value;
+}
+
+function setTextAlign(ctx, value) {
+  if (ctx.setTextAlign) ctx.setTextAlign(value);
+  ctx.textAlign = value;
 }
 
 function hitTest(x, y, layers) {
