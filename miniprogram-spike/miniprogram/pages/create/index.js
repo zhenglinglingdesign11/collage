@@ -42,6 +42,9 @@ const ROTATION_GUIDE_STABLE_MOVES = 4;
 const ROTATION_GUIDE_LAYER_TYPES = ["image", "sticker", "paper"];
 const CROP_HANDLE_SCREEN_SIZE = 26;
 const CROP_MIN_SIZE = 48;
+const SCISSOR_BRUSH_SIZE = 56;
+const SCISSOR_MIN_CUT_SIZE = 8;
+const SCISSOR_MAX_OUTPUT_SIZE = 1600;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
@@ -116,7 +119,13 @@ Page({
     statusTop: 0,
     toolbarGap: 0,
     ratioPopoverTop: 0,
-    cropDoneRight: 16
+    cropDoneRight: 16,
+    scissorEditing: false,
+    scissorBrushSize: SCISSOR_BRUSH_SIZE,
+    scissorHasMask: false,
+    scissorBusy: false,
+    scissorCanvasWidth: 1,
+    scissorCanvasHeight: 1
   },
 
   onLoad() {
@@ -128,6 +137,11 @@ Page({
     this.canvasNode = null;
     this.ctx = null;
     this.canvasImageCache = {};
+    this.scissorCanvasNode = null;
+    this.scissorCtx = null;
+    this.scissorCanvasReadyPromise = null;
+    this.scissorSession = null;
+    this.scissorStroke = null;
     this.canvasReadyPromise = null;
     this.gesture = null;
     this.pendingLayerTap = null;
@@ -158,6 +172,7 @@ Page({
       toolbarGap: Math.max(0, chromeTop - statusTop),
       ratioPopoverTop: Math.ceil(chromeTop + 112 * system.windowWidth / 750),
       cropDoneRight: 16,
+      scissorBrushSize: SCISSOR_BRUSH_SIZE,
       hasRecentDraft: !!latestDraft,
       recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
       recentDrafts
@@ -352,6 +367,7 @@ Page({
   startNewDraft() {
     this.textEditSession = null;
     this.clearCropEditing();
+    this.clearScissorEditing();
     this.draft = normalizeDraftTextFonts(createDraft(this.data.ratio || "3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -367,6 +383,9 @@ Page({
       activePalette: "",
       cropEditing: false,
       cropRatio: "free",
+      scissorEditing: false,
+      scissorHasMask: false,
+      scissorBusy: false,
       keyboardHeight: 0,
       textPanelBottom: 0
     });
@@ -378,6 +397,7 @@ Page({
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
     this.clearCropEditing();
+    this.clearScissorEditing();
     this.draft = normalizeDraftTextFonts(createDraft(this.data.ratio || "3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -394,6 +414,9 @@ Page({
       ratioPanelVisible: false,
       cropEditing: false,
       cropRatio: "free",
+      scissorEditing: false,
+      scissorHasMask: false,
+      scissorBusy: false,
       keyboardHeight: 0,
       textPanelBottom: 0
     });
@@ -448,6 +471,7 @@ Page({
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
     this.clearCropEditing();
+    this.clearScissorEditing();
     const draftId = event && event.currentTarget && event.currentTarget.dataset.id;
     const draft = draftId ? loadDraftById(draftId) : loadLatestDraft();
     if (!draft) {
@@ -468,6 +492,9 @@ Page({
       textDraft: "",
       cropEditing: false,
       cropRatio: "free",
+      scissorEditing: false,
+      scissorHasMask: false,
+      scissorBusy: false,
       keyboardHeight: 0,
       textPanelBottom: 0,
       recentDrafts: this.getRecentDrafts()
@@ -535,6 +562,7 @@ Page({
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
     this.clearCropEditing();
+    this.clearScissorEditing();
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
@@ -546,6 +574,9 @@ Page({
       ratioPanelVisible: false,
       cropEditing: false,
       cropRatio: "free",
+      scissorEditing: false,
+      scissorHasMask: false,
+      scissorBusy: false,
       keyboardHeight: 0,
       textPanelBottom: 0,
       hasRecentDraft: this.hasStoredDraft(),
@@ -586,7 +617,8 @@ Page({
     drawDraft(this.ctx, this.draft, this.data.selectedLayerId, {
       dpr: (this.renderScale || 1) * (this.dpr || 1),
       imageCache: getResolvedCanvasImageCache(this.canvasImageCache),
-      guides: this.alignmentGuides || []
+      guides: this.alignmentGuides || [],
+      scissor: this.getScissorRenderState()
     });
   },
 
@@ -604,6 +636,253 @@ Page({
       if (callback) callback();
     }).catch(() => {
       if (callback) callback();
+    });
+  },
+
+  ensureScissorCanvasContext() {
+    if (this.scissorCanvasNode && this.scissorCtx) return Promise.resolve(this.scissorCtx);
+    if (this.scissorCanvasReadyPromise) return this.scissorCanvasReadyPromise;
+    this.scissorCanvasReadyPromise = new Promise((resolve) => {
+      wx.createSelectorQuery()
+        .in(this)
+        .select("#scissorCanvas")
+        .fields({ node: true, size: true })
+        .exec((res) => {
+          const canvas = res && res[0] && res[0].node;
+          if (!canvas) {
+            this.scissorCanvasReadyPromise = null;
+            resolve(null);
+            return;
+          }
+          this.scissorCanvasNode = canvas;
+          this.scissorCtx = canvas.getContext("2d");
+          resolve(this.scissorCtx);
+        });
+    });
+    return this.scissorCanvasReadyPromise;
+  },
+
+  loadScissorCanvasImage(src) {
+    if (!src || !this.scissorCanvasNode) return Promise.resolve(null);
+    const image = this.scissorCanvasNode.createImage();
+    return new Promise((resolve) => {
+      image.onload = () => resolve(image);
+      image.onerror = () => resolve(null);
+      image.src = src;
+    });
+  },
+
+  getScissorRenderState() {
+    if (!this.scissorSession || !this.data.scissorEditing) return null;
+    const layer = this.getLayerById(this.scissorSession.layerId);
+    if (!layer) return null;
+    return {
+      layer,
+      strokes: this.scissorSession.strokes || [],
+      brushSize: this.data.scissorBrushSize,
+      color: "rgba(217, 74, 56, 0.58)"
+    };
+  },
+
+  beginScissorCut() {
+    const layer = this.getSelectedLayer();
+    if (!layer || layer.type !== "image" || !layer.source) {
+      showToast("请先选中一张图片", { icon: "none" });
+      return;
+    }
+    this.clearAlignmentGuides();
+    this.scissorSession = {
+      layerId: layer.id,
+      strokes: []
+    };
+    this.scissorStroke = null;
+    this.setData({
+      scissorEditing: true,
+      scissorHasMask: false,
+      scissorBusy: false,
+      scissorBrushSize: SCISSOR_BRUSH_SIZE,
+      activeTool: "cut",
+      activePalette: "",
+      activeDrawer: "",
+      textInputVisible: false,
+      ratioPanelVisible: false,
+      layerActionsPage: 0,
+      layerActionsOffset: 0
+    });
+    this.render();
+  },
+
+  cancelScissorCut() {
+    this.scissorSession = null;
+    this.scissorStroke = null;
+    this.setData({
+      scissorEditing: false,
+      scissorHasMask: false,
+      scissorBusy: false,
+      activeTool: "",
+      activePalette: ""
+    });
+    this.render();
+  },
+
+  clearScissorMask() {
+    if (!this.scissorSession) return;
+    this.scissorSession.strokes = [];
+    this.scissorStroke = null;
+    this.setData({ scissorHasMask: false });
+    this.render();
+  },
+
+  onScissorTouchStart(event) {
+    if (!this.scissorSession || this.data.scissorBusy) return;
+    const touch = event.touches && event.touches[0];
+    if (!touch) return;
+    const point = this.getScissorLayerPoint(this.toDraftPoint(touch));
+    if (!point) return;
+    const stroke = {
+      size: this.data.scissorBrushSize || SCISSOR_BRUSH_SIZE,
+      points: [point]
+    };
+    this.scissorSession.strokes.push(stroke);
+    this.scissorStroke = stroke;
+    this.setData({ scissorHasMask: true });
+    this.render();
+  },
+
+  onScissorTouchMove(event) {
+    if (!this.scissorStroke || this.data.scissorBusy) return;
+    const touch = event.touches && event.touches[0];
+    if (!touch) return;
+    const point = this.getScissorLayerPoint(this.toDraftPoint(touch));
+    if (!point) return;
+    const points = this.scissorStroke.points;
+    const last = points[points.length - 1];
+    if (last && distance(last, point) < 2) return;
+    points.push(point);
+    this.render();
+  },
+
+  onScissorTouchEnd() {
+    this.scissorStroke = null;
+  },
+
+  getScissorLayerPoint(point) {
+    const layer = this.scissorSession ? this.getLayerById(this.scissorSession.layerId) : null;
+    if (!layer || !point) return null;
+    const local = draftPointToLayerLocal(point, layer);
+    if (local.x < 0 || local.x > layer.width || local.y < 0 || local.y > layer.height) return null;
+    return {
+      x: clamp(local.x, 0, layer.width),
+      y: clamp(local.y, 0, layer.height)
+    };
+  },
+
+  async confirmScissorCut() {
+    if (!this.scissorSession || this.data.scissorBusy) return;
+    const layer = this.getLayerById(this.scissorSession.layerId);
+    const strokes = this.scissorSession.strokes || [];
+    if (!layer || layer.type !== "image" || !strokes.length) {
+      showToast("先涂抹要分割的区域", { icon: "none" });
+      return;
+    }
+    const bounds = getScissorStrokeBounds(strokes, layer);
+    if (!bounds || bounds.width < SCISSOR_MIN_CUT_SIZE || bounds.height < SCISSOR_MIN_CUT_SIZE) {
+      showToast("涂抹区域太小", { icon: "none" });
+      return;
+    }
+    this.setData({
+      scissorBusy: true,
+      saveStatus: "分割中..."
+    });
+    try {
+      const tempFilePath = await this.createScissorCutImage(layer, strokes, bounds);
+      const cutInfo = await getImageInfoAsync(tempFilePath).catch(() => null);
+      const center = layerLocalPointToDraft({
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2
+      }, layer);
+      const cutLayer = {
+        ...JSON.parse(JSON.stringify(layer)),
+        id: `image-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        source: tempFilePath,
+        x: center.x - bounds.width / 2,
+        y: center.y - bounds.height / 2,
+        width: bounds.width,
+        height: bounds.height,
+        sourceWidth: cutInfo && cutInfo.width ? cutInfo.width : Math.round(bounds.width),
+        sourceHeight: cutInfo && cutInfo.height ? cutInfo.height : Math.round(bounds.height),
+        crop: null,
+        radius: 0,
+        shadow: false,
+        zIndex: (this.draft.layers || []).reduce((max, item, index) => Math.max(max, item.zIndex == null ? index : item.zIndex), 0) + 1
+      };
+      const index = this.getSelectedLayerIndex();
+      this.draft.layers.splice(index + 1, 0, cutLayer);
+      this.draft.layers = normalizeLayerOrder(this.draft.layers);
+      this.scissorSession = null;
+      this.scissorStroke = null;
+      this.setData({
+        scissorEditing: false,
+        scissorHasMask: false,
+        scissorBusy: false,
+        selectedLayerId: cutLayer.id,
+        selectedLayerType: cutLayer.type,
+        activeTool: "",
+        activePalette: ""
+      });
+      this.markDirty();
+      this.render();
+      showSuccess("已分割出新图片");
+    } catch (error) {
+      console.warn("[scissor] cut failed", error);
+      this.setData({
+        scissorBusy: false,
+        saveStatus: "分割失败"
+      });
+      showError("分割失败，请重试");
+    }
+  },
+
+  async createScissorCutImage(layer, strokes, bounds) {
+    await this.ensureScissorCanvasContext();
+    if (!this.scissorCanvasNode || !this.scissorCtx) throw new Error("missing_scissor_canvas");
+    const sourceImage = await this.loadScissorCanvasImage(layer.source);
+    if (!sourceImage) throw new Error("missing_source_image");
+    const sourceCrop = getLayerSourceCrop(layer);
+    const naturalScale = Math.max(sourceCrop.width / layer.width, sourceCrop.height / layer.height);
+    let outputScale = Math.min(2.5, Math.max(1, naturalScale));
+    const maxSide = Math.max(bounds.width, bounds.height) * outputScale;
+    if (maxSide > SCISSOR_MAX_OUTPUT_SIZE) {
+      outputScale *= SCISSOR_MAX_OUTPUT_SIZE / maxSide;
+    }
+    const outputWidth = Math.max(1, Math.round(bounds.width * outputScale));
+    const outputHeight = Math.max(1, Math.round(bounds.height * outputScale));
+    this.scissorCanvasNode.width = outputWidth;
+    this.scissorCanvasNode.height = outputHeight;
+    this.setData({
+      scissorCanvasWidth: outputWidth,
+      scissorCanvasHeight: outputHeight
+    });
+    const ctx = this.scissorCtx;
+    if (ctx.setTransform) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+    const sx = sourceCrop.x + bounds.x / layer.width * sourceCrop.width;
+    const sy = sourceCrop.y + bounds.y / layer.height * sourceCrop.height;
+    const sw = bounds.width / layer.width * sourceCrop.width;
+    const sh = bounds.height / layer.height * sourceCrop.height;
+    ctx.drawImage(sourceImage, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
+    applyScissorAlphaMask(ctx, outputWidth, outputHeight, strokes, bounds, outputScale);
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.scissorCanvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve(res.tempFilePath),
+        fail: reject
+      }, this);
     });
   },
 
@@ -1168,9 +1447,11 @@ Page({
 
   selectCutStyle(event) {
     const style = event.currentTarget.dataset.style || "straight";
-    const names = { straight: "直边", scallop: "花边", tear: "撕边" };
-    this.setData({ activeTool: "cut", activePalette: "cut" });
-    showToast(`${names[style] || "剪刀"}待接入`, { icon: "none" });
+    if (style !== "free") {
+      showToast("先试试自由涂抹", { icon: "none" });
+      return;
+    }
+    this.beginScissorCut();
   },
 
   addShape(event) {
@@ -1314,6 +1595,10 @@ Page({
   noopCanvasTap() {},
 
   onTouchStart(event) {
+    if (this.data.scissorEditing) {
+      this.onScissorTouchStart(event);
+      return;
+    }
     if (this.data.cropEditing) {
       this.onCropTouchStart(event);
       return;
@@ -1377,6 +1662,10 @@ Page({
   },
 
   onTouchMove(event) {
+    if (this.data.scissorEditing) {
+      this.onScissorTouchMove(event);
+      return;
+    }
     if (this.data.cropEditing) {
       this.onCropTouchMove(event);
       return;
@@ -1416,6 +1705,10 @@ Page({
   },
 
   onTouchEnd() {
+    if (this.data.scissorEditing) {
+      this.onScissorTouchEnd();
+      return;
+    }
     if (this.data.cropEditing) {
       this.cropGesture = null;
       return;
@@ -1526,6 +1819,11 @@ Page({
   clearCropEditing() {
     this.cropSession = null;
     this.cropGesture = null;
+  },
+
+  clearScissorEditing() {
+    this.scissorSession = null;
+    this.scissorStroke = null;
   },
 
   beginImageCrop() {
@@ -1870,9 +2168,7 @@ Page({
     const action = event.currentTarget.dataset.action;
     if (action === "removeBackground") return this.removeSelectedImageBackground();
     if (action === "cut") {
-      this.setData({ activeTool: "cut", activePalette: "cut" });
-      showToast("剪切路径待接入", { icon: "none" });
-      return;
+      return this.beginScissorCut();
     }
     if (action === "crop") return this.beginImageCrop();
     if (action === "copy") return this.duplicateLayer();
@@ -2051,7 +2347,10 @@ Page({
       saveStatus: "已恢复手动草稿",
       hasRecentDraft: true,
       cropEditing: false,
-      cropRatio: "free"
+      cropRatio: "free",
+      scissorEditing: false,
+      scissorHasMask: false,
+      scissorBusy: false
     });
     setTimeout(() => this.render(), 0);
   },
@@ -2126,6 +2425,133 @@ function getLayerSourceCrop(layer) {
     width: layer.sourceWidth || layer.width,
     height: layer.sourceHeight || layer.height
   });
+}
+
+function draftPointToLayerLocal(point, layer) {
+  const cx = layer.x + layer.width / 2;
+  const cy = layer.y + layer.height / 2;
+  const rotation = -(layer.rotation || 0) * Math.PI / 180;
+  const dx = point.x - cx;
+  const dy = point.y - cy;
+  return {
+    x: dx * Math.cos(rotation) - dy * Math.sin(rotation) + layer.width / 2,
+    y: dx * Math.sin(rotation) + dy * Math.cos(rotation) + layer.height / 2
+  };
+}
+
+function layerLocalPointToDraft(point, layer) {
+  const cx = layer.x + layer.width / 2;
+  const cy = layer.y + layer.height / 2;
+  const rotation = (layer.rotation || 0) * Math.PI / 180;
+  const dx = point.x - layer.width / 2;
+  const dy = point.y - layer.height / 2;
+  return {
+    x: cx + dx * Math.cos(rotation) - dy * Math.sin(rotation),
+    y: cy + dx * Math.sin(rotation) + dy * Math.cos(rotation)
+  };
+}
+
+function getScissorStrokeBounds(strokes, layer) {
+  const bounds = strokes.reduce((result, stroke) => {
+    const halfSize = (stroke.size || SCISSOR_BRUSH_SIZE) / 2;
+    (stroke.points || []).forEach((point) => {
+      result.minX = Math.min(result.minX, point.x - halfSize);
+      result.minY = Math.min(result.minY, point.y - halfSize);
+      result.maxX = Math.max(result.maxX, point.x + halfSize);
+      result.maxY = Math.max(result.maxY, point.y + halfSize);
+    });
+    return result;
+  }, {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  });
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY)) return null;
+  const x = clamp(bounds.minX, 0, layer.width);
+  const y = clamp(bounds.minY, 0, layer.height);
+  const maxX = clamp(bounds.maxX, 0, layer.width);
+  const maxY = clamp(bounds.maxY, 0, layer.height);
+  return {
+    x,
+    y,
+    width: Math.max(0, maxX - x),
+    height: Math.max(0, maxY - y)
+  };
+}
+
+function applyScissorAlphaMask(ctx, width, height, strokes, bounds, outputScale) {
+  if (!ctx || !ctx.getImageData || !ctx.putImageData) {
+    throw new Error("missing_image_data_api");
+  }
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const mask = new Uint8ClampedArray(width * height);
+  strokes.forEach((stroke) => {
+    const points = (stroke.points || []).map((point) => ({
+      x: (point.x - bounds.x) * outputScale,
+      y: (point.y - bounds.y) * outputScale
+    }));
+    const radius = Math.max(1, (stroke.size || SCISSOR_BRUSH_SIZE) * outputScale / 2);
+    rasterizeStroke(mask, width, height, points, radius);
+  });
+  const data = imageData.data;
+  for (let i = 0; i < mask.length; i += 1) {
+    const alphaIndex = i * 4 + 3;
+    data[alphaIndex] = Math.min(data[alphaIndex], mask[i]);
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function rasterizeStroke(mask, width, height, points, radius) {
+  if (!points.length) return;
+  if (points.length === 1) {
+    fillMaskCircle(mask, width, height, points[0].x, points[0].y, radius);
+    return;
+  }
+  for (let i = 1; i < points.length; i += 1) {
+    const from = points[i - 1];
+    const to = points[i];
+    const length = distance(from, to);
+    const steps = Math.max(1, Math.ceil(length / Math.max(1, radius / 2)));
+    for (let step = 0; step <= steps; step += 1) {
+      const t = step / steps;
+      fillMaskCircle(
+        mask,
+        width,
+        height,
+        from.x + (to.x - from.x) * t,
+        from.y + (to.y - from.y) * t,
+        radius
+      );
+    }
+  }
+}
+
+function fillMaskCircle(mask, width, height, cx, cy, radius) {
+  const minX = Math.max(0, Math.floor(cx - radius - 1));
+  const maxX = Math.min(width - 1, Math.ceil(cx + radius + 1));
+  const minY = Math.max(0, Math.floor(cy - radius - 1));
+  const maxY = Math.min(height - 1, Math.ceil(cy + radius + 1));
+  const softEdge = Math.max(1, Math.min(3, radius * 0.12));
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const dx = x + 0.5 - cx;
+      const dy = y + 0.5 - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius + softEdge) continue;
+      const alpha = dist <= radius - softEdge
+        ? 255
+        : Math.max(0, Math.round((1 - (dist - radius + softEdge) / (softEdge * 2)) * 255));
+      const index = y * width + x;
+      if (alpha > mask[index]) {
+        mask[index] = alpha;
+      }
+    }
+  }
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function hasLayerCrop(layer) {

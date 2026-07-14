@@ -15,6 +15,7 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
         drawSelection(ctx, layer);
       }
     });
+  drawScissorOverlay(ctx, options.scissor);
   drawAlignmentGuides(ctx, options.guides || [], draft);
   ctx.restore();
 }
@@ -264,6 +265,43 @@ function drawAlignmentGuides(ctx, guides, draft) {
   ctx.restore();
 }
 
+function drawScissorOverlay(ctx, scissor) {
+  if (!scissor || !scissor.layer || !Array.isArray(scissor.strokes) || !scissor.strokes.length) return;
+  const layer = scissor.layer;
+  ctx.save();
+  const cx = layer.x + layer.width / 2;
+  const cy = layer.y + layer.height / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate((layer.rotation || 0) * Math.PI / 180);
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setStrokeStyle(ctx, scissor.color || "rgba(217, 74, 56, 0.58)");
+  setLineCap(ctx, "round");
+  setLineJoin(ctx, "round");
+  roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius || 0);
+  ctx.clip();
+  scissor.strokes.forEach((stroke) => {
+    const points = stroke.points || [];
+    if (!points.length) return;
+    setLineWidth(ctx, stroke.size || scissor.brushSize || 42);
+    ctx.beginPath();
+    points.forEach((point, index) => {
+      const x = point.x - layer.width / 2;
+      const y = point.y - layer.height / 2;
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    if (points.length === 1) {
+      const point = points[0];
+      ctx.lineTo(point.x - layer.width / 2 + 0.01, point.y - layer.height / 2 + 0.01);
+    }
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
 function setFillStyle(ctx, value) {
   if (ctx.setFillStyle) ctx.setFillStyle(value);
   ctx.fillStyle = value;
@@ -277,6 +315,16 @@ function setStrokeStyle(ctx, value) {
 function setLineWidth(ctx, value) {
   if (ctx.setLineWidth) ctx.setLineWidth(value);
   ctx.lineWidth = value;
+}
+
+function setLineCap(ctx, value) {
+  if (ctx.setLineCap) ctx.setLineCap(value);
+  ctx.lineCap = value;
+}
+
+function setLineJoin(ctx, value) {
+  if (ctx.setLineJoin) ctx.setLineJoin(value);
+  ctx.lineJoin = value;
 }
 
 function setGlobalAlpha(ctx, value) {

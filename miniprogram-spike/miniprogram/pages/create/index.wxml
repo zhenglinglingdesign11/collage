@@ -65,7 +65,7 @@
       <cover-view wx:for="{{ratios}}" wx:key="*this" class="ratio-option {{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</cover-view>
     </cover-view>
 
-    <view wx:if="{{!cropEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
+    <view wx:if="{{!cropEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || scissorEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{scissorEditing ? 'scissor-editing' : ''}}" bindtap="dismissFloatingPanels">
       <canvas
         type="2d"
         id="spikeCanvas"
@@ -76,6 +76,12 @@
         bindtouchend="onTouchEnd"
         bindtouchcancel="onTouchEnd"
         catchtap="noopCanvasTap"
+      ></canvas>
+      <canvas
+        type="2d"
+        id="scissorCanvas"
+        class="scissor-export-canvas"
+        style="width: {{scissorCanvasWidth}}px; height: {{scissorCanvasHeight}}px;"
       ></canvas>
     </view>
 
@@ -105,7 +111,7 @@
       </view>
     </view>
 
-    <cover-view wx:if="{{selectedLayerId && !textInputVisible && !cropEditing}}" class="layer-toolbar">
+    <cover-view wx:if="{{selectedLayerId && !textInputVisible && !cropEditing && !scissorEditing}}" class="layer-toolbar">
       <cover-view class="layer-head">
         <cover-view class="layer-title">已选中图层</cover-view>
         <cover-view wx:if="{{selectedLayerType === 'text'}}" class="panel-link" bindtap="editSelectedText">编辑文字</cover-view>
@@ -117,6 +123,7 @@
           <cover-view class="layer-action" data-action="copy" bindtap="applyLayerAction"><cover-view class="la-icon la-copy-icon"><cover-view class="copy-back"></cover-view><cover-view class="copy-front"></cover-view></cover-view><cover-view>复制</cover-view></cover-view>
           <cover-view class="layer-action" data-action="delete" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png"></cover-image><cover-view>删除</cover-view></cover-view>
           <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="crop" bindtap="applyLayerAction"><cover-view class="la-icon la-crop-icon"><cover-view class="crop-corner crop-corner-a"></cover-view><cover-view class="crop-corner crop-corner-b"></cover-view></cover-view><cover-view>裁切</cover-view></cover-view>
+          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/scissors.png"></cover-image><cover-view>剪刀</cover-view></cover-view>
           <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action {{backgroundRemoving ? 'disabled' : ''}}" data-action="removeBackground" bindtap="applyLayerAction"><cover-view class="la-icon la-bgcut-icon"><cover-view class="bgcut-spark bgcut-spark-a"></cover-view><cover-view class="bgcut-shape"></cover-view><cover-view class="bgcut-spark bgcut-spark-b"></cover-view></cover-view><cover-view>{{backgroundRemoving ? '处理中' : '抠图'}}</cover-view></cover-view>
           <cover-view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><cover-view class="la-icon la-shadow-icon"><cover-view class="shadow-back"></cover-view><cover-view class="shadow-front"></cover-view></cover-view><cover-view>阴影</cover-view></cover-view>
           <cover-view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><cover-view class="la-icon la-opacity-icon"><cover-view class="opacity-fill"></cover-view></cover-view><cover-view>透明度</cover-view></cover-view>
@@ -130,15 +137,27 @@
       </cover-view>
     </cover-view>
 
-    <block wx:if="{{(!selectedLayerId || textInputVisible) && !cropEditing}}">
+    <cover-view wx:if="{{scissorEditing}}" class="scissor-panel">
+      <cover-view class="local-panel-head">
+        <cover-view class="local-panel-cancel" bindtap="cancelScissorCut">取消</cover-view>
+        <cover-view class="local-panel-title">剪刀</cover-view>
+        <cover-view class="local-panel-done {{scissorHasMask && !scissorBusy ? '' : 'disabled'}}" bindtap="confirmScissorCut">{{scissorBusy ? '处理中' : '完成'}}</cover-view>
+      </cover-view>
+      <cover-view class="scissor-help">涂抹要分割出来的区域</cover-view>
+      <cover-view class="scissor-actions">
+        <cover-view class="scissor-action {{scissorHasMask && !scissorBusy ? '' : 'disabled'}}" bindtap="clearScissorMask">清空</cover-view>
+      </cover-view>
+    </cover-view>
+
+    <block wx:if="{{(!selectedLayerId || textInputVisible) && !cropEditing && !scissorEditing}}">
       <cover-view wx:if="{{activePalette === 'cut'}}" class="tool-palette cut-palette">
-        <cover-view class="palette-tool palette-tool-0 active" data-style="straight" bindtap="selectCutStyle">
+        <cover-view class="palette-tool palette-tool-0 active" data-style="free" bindtap="selectCutStyle">
           <cover-view class="cut-3d straight"></cover-view>
-          <cover-view class="palette-label">直边</cover-view>
+          <cover-view class="palette-label">自由涂抹</cover-view>
         </cover-view>
         <cover-view class="palette-tool palette-tool-1" data-style="scallop" bindtap="selectCutStyle">
           <cover-view class="cut-3d scallop"></cover-view>
-          <cover-view class="palette-label">花边</cover-view>
+          <cover-view class="palette-label">套索</cover-view>
         </cover-view>
         <cover-view class="palette-tool palette-tool-2" data-style="tear" bindtap="selectCutStyle">
           <cover-view class="cut-3d tear"></cover-view>
@@ -206,6 +225,7 @@
             <view class="{{textSize === 42 ? 'active' : ''}}" data-size="42" bindtap="setTextSize">小</view>
             <view class="{{textSize === 54 ? 'active' : ''}}" data-size="54" bindtap="setTextSize">中</view>
             <view class="{{textSize === 68 ? 'active' : ''}}" data-size="68" bindtap="setTextSize">大</view>
+            <view class="{{textSize === 88 ? 'active' : ''}}" data-size="88" bindtap="setTextSize">超大</view>
           </view>
         </view>
         <view wx:if="{{textToolMode === 'background'}}" class="text-option-row background-strip">

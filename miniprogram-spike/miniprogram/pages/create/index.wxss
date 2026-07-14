@@ -566,6 +566,10 @@ button::after {
   top: -96rpx;
 }
 
+.canvas-stage.scissor-editing {
+  top: -48rpx;
+}
+
 .canvas {
   display: block;
   position: relative;
@@ -574,12 +578,23 @@ button::after {
   box-shadow: 0 18rpx 58rpx rgba(17, 17, 17, 0.12);
 }
 
+.scissor-export-canvas {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .main-toolbar,
 .layer-toolbar,
 .tool-palette,
 .drawer-backdrop,
 .drawer,
-.text-editor-panel {
+.text-editor-panel,
+.scissor-panel {
   position: fixed;
   z-index: 900;
 }
@@ -1599,6 +1614,52 @@ button::after {
   background: #ffffff;
   box-shadow: 0 -16rpx 44rpx rgba(17, 17, 17, 0.06);
   z-index: 960;
+}
+
+.scissor-panel {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: calc(212rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  padding: 12rpx 36rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid #eceae5;
+  border-radius: 36rpx 36rpx 0 0;
+  background: #ffffff;
+  box-shadow: 0 -16rpx 44rpx rgba(17, 17, 17, 0.06);
+  z-index: 960;
+}
+
+.scissor-help {
+  height: 44rpx;
+  color: #6f6f6f;
+  font-size: 24rpx;
+  line-height: 44rpx;
+  text-align: center;
+}
+
+.scissor-actions {
+  height: 64rpx;
+  margin-top: 10rpx;
+  text-align: center;
+}
+
+.scissor-action {
+  display: inline-block;
+  min-width: 132rpx;
+  height: 56rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: #f7f7f5;
+  color: #111111;
+  font-size: 26rpx;
+  line-height: 56rpx;
+  text-align: center;
+}
+
+.local-panel-done.disabled,
+.scissor-action.disabled {
+  opacity: 0.42;
 }
 
 .local-panel-head {
