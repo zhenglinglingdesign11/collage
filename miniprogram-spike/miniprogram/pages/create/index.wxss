@@ -566,10 +566,6 @@ button::after {
   top: -96rpx;
 }
 
-.canvas-stage.scissor-editing {
-  top: -48rpx;
-}
-
 .canvas {
   display: block;
   position: relative;
@@ -578,23 +574,12 @@ button::after {
   box-shadow: 0 18rpx 58rpx rgba(17, 17, 17, 0.12);
 }
 
-.scissor-export-canvas {
-  position: fixed;
-  left: -9999px;
-  top: -9999px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
 .main-toolbar,
 .layer-toolbar,
 .tool-palette,
 .drawer-backdrop,
 .drawer,
-.text-editor-panel,
-.scissor-panel {
+.text-editor-panel {
   position: fixed;
   z-index: 900;
 }
@@ -685,6 +670,10 @@ button::after {
   right: 96rpx;
 }
 
+.layer-cut-palette {
+  bottom: calc(284rpx + env(safe-area-inset-bottom));
+}
+
 .palette-tool {
   position: absolute;
   bottom: 0;
@@ -697,7 +686,7 @@ button::after {
 }
 
 .cut-palette .palette-tool {
-  width: 33.3333%;
+  width: 25%;
 }
 
 .shape-palette .palette-tool {
@@ -705,8 +694,9 @@ button::after {
 }
 
 .palette-tool-0 { left: 0; }
-.cut-palette .palette-tool-1 { left: 33.3333%; }
-.cut-palette .palette-tool-2 { left: 66.6666%; }
+.cut-palette .palette-tool-1 { left: 25%; }
+.cut-palette .palette-tool-2 { left: 50%; }
+.cut-palette .palette-tool-3 { left: 75%; }
 .shape-palette .palette-tool-1 { left: 25%; }
 .shape-palette .palette-tool-2 { left: 50%; }
 .shape-palette .palette-tool-3 { left: 75%; }
@@ -759,6 +749,11 @@ button::after {
 .cut-3d.tear {
   clip-path: polygon(0 0, 100% 12%, 92% 100%, 8% 88%);
   background: #f1d4c8;
+}
+
+.cut-3d.subject {
+  border-radius: 50% 50% 42% 42%;
+  background: #d7dbc9;
 }
 
 .emboss-3d.circle {
@@ -820,18 +815,28 @@ button::after {
   position: absolute;
   left: 0;
   top: 0;
+  max-width: 420rpx;
   color: #111111;
   font-size: 32rpx;
   line-height: 68rpx;
   font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.drawer-return-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 160rpx;
+  height: 68rpx;
 }
 
 .drawer-title.with-back {
   left: 52rpx;
-  max-width: 420rpx;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  right: 0;
+  max-width: none;
 }
 
 .drawer-back-link {
@@ -889,6 +894,7 @@ button::after {
 
 .asset-scroll {
   height: 496rpx;
+  box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: normal;
@@ -896,6 +902,7 @@ button::after {
 
 .asset-pack-scroll {
   height: 428rpx;
+  box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;
   white-space: normal;
@@ -916,6 +923,7 @@ button::after {
 .asset-pack-cover {
   width: 196rpx;
   height: 232rpx;
+  display: block;
 }
 
 .asset-card {
@@ -1151,7 +1159,8 @@ button::after {
   z-index: 920;
 }
 
-.crop-fullscreen {
+.crop-fullscreen,
+.scissor-fullscreen {
   position: fixed;
   inset: 0;
   z-index: 1200;
@@ -1192,6 +1201,10 @@ button::after {
   font-weight: 650;
 }
 
+.crop-done.disabled {
+  opacity: 0.42;
+}
+
 .crop-title {
   position: absolute;
   left: 50%;
@@ -1211,11 +1224,26 @@ button::after {
   z-index: 1202;
 }
 
+.scissor-fullscreen .crop-title {
+  width: 180rpx;
+  margin-left: -90rpx;
+}
+
+.scissor-edit-canvas {
+  position: fixed;
+  display: block;
+  z-index: 1202;
+}
+
 .crop-hit-area {
   position: fixed;
   inset: 0;
   z-index: 1210;
   background: transparent;
+}
+
+.scissor-hit-area {
+  z-index: 1210;
 }
 
 .crop-box {
@@ -1293,6 +1321,27 @@ button::after {
   box-sizing: border-box;
   padding: 22rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
   background: rgba(23, 23, 23, 0.96);
+}
+
+.scissor-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1220;
+  height: calc(168rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  padding: 20rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: rgba(23, 23, 23, 0.96);
+}
+
+.scissor-bottom .scissor-help {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.scissor-bottom .scissor-action {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .crop-ratio-row {
@@ -1609,20 +1658,6 @@ button::after {
   min-height: 268rpx;
   box-sizing: border-box;
   padding: 12rpx 36rpx 12rpx;
-  border-top: 1rpx solid #eceae5;
-  border-radius: 36rpx 36rpx 0 0;
-  background: #ffffff;
-  box-shadow: 0 -16rpx 44rpx rgba(17, 17, 17, 0.06);
-  z-index: 960;
-}
-
-.scissor-panel {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  min-height: calc(212rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  padding: 12rpx 36rpx calc(28rpx + env(safe-area-inset-bottom));
   border-top: 1rpx solid #eceae5;
   border-radius: 36rpx 36rpx 0 0;
   background: #ffffff;
