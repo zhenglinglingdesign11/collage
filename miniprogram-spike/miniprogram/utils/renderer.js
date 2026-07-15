@@ -32,6 +32,11 @@ function drawLayer(ctx, layer, options = {}) {
   } else {
     setShadow(ctx, 0, 8, 18, "rgba(17, 17, 17, 0.08)");
   }
+  const clipShape = getLayerClipShape(layer);
+  if (clipShape && layer.type !== "text") {
+    drawShapePath(ctx, clipShape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    ctx.clip();
+  }
 
   if (layer.source) {
     drawSourceLayer(ctx, layer, options);
@@ -41,6 +46,9 @@ function drawLayer(ctx, layer, options = {}) {
     drawTape(ctx, layer);
   } else {
     drawPaper(ctx, layer);
+  }
+  if (clipShape && layer.type !== "text") {
+    drawEmbossEdge(ctx, clipShape, layer.width, layer.height);
   }
   ctx.restore();
 }
@@ -53,7 +61,7 @@ function drawSourceLayer(ctx, layer, options = {}) {
   const source = options.imageCache && options.imageCache[layer.source]
     ? options.imageCache[layer.source]
     : layer.source;
-  if (!source) return;
+  if (!source || typeof source === "string") return;
   const crop = layer.crop;
   if (crop && crop.width > 0 && crop.height > 0) {
     ctx.drawImage(
@@ -75,9 +83,9 @@ function drawSourceLayer(ctx, layer, options = {}) {
 function drawPaper(ctx, layer) {
   const style = layer.style || {};
   setFillStyle(ctx, style.color || "#ffffff");
-  if (style.shape === "circle") {
-    ctx.beginPath();
-    ctx.arc(0, 0, Math.min(layer.width, layer.height) / 2, 0, Math.PI * 2);
+  const shape = getLayerClipShape(layer);
+  if (shape) {
+    drawShapePath(ctx, shape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
     ctx.fill();
   } else if (layer.radius) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
@@ -87,9 +95,8 @@ function drawPaper(ctx, layer) {
   }
   setShadow(ctx, 0, 0, 0, "transparent");
   setStrokeStyle(ctx, "rgba(17,17,17,0.08)");
-  if (style.shape === "circle") {
-    ctx.beginPath();
-    ctx.arc(0, 0, Math.min(layer.width, layer.height) / 2, 0, Math.PI * 2);
+  if (shape) {
+    drawShapePath(ctx, shape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
     ctx.stroke();
   } else if (layer.tear) {
     drawTearStroke(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
@@ -99,6 +106,129 @@ function drawPaper(ctx, layer) {
   } else {
     ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   }
+}
+
+function getLayerClipShape(layer) {
+  const style = layer.style || {};
+  const shape = layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "";
+  if (shape === "note") return "tag";
+  if (shape === "rect") return "";
+  return ["circle", "heart", "star", "tag", "stamp"].includes(shape) ? shape : "";
+}
+
+function drawShapePath(ctx, shape, x, y, width, height) {
+  if (shape === "circle") {
+    const radius = Math.min(width, height) / 2;
+    ctx.beginPath();
+    ctx.arc(x + width / 2, y + height / 2, radius, 0, Math.PI * 2);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "heart") {
+    drawHeartPath(ctx, x, y, width, height);
+    return;
+  }
+  if (shape === "star") {
+    drawStarPath(ctx, x, y, width, height);
+    return;
+  }
+  if (shape === "tag") {
+    drawTagPath(ctx, x, y, width, height);
+    return;
+  }
+  if (shape === "stamp") {
+    drawStampPath(ctx, x, y, width, height);
+    return;
+  }
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+}
+
+function drawHeartPath(ctx, x, y, width, height) {
+  ctx.beginPath();
+  ctx.moveTo(x + width * 0.5, y + height * 0.88);
+  ctx.bezierCurveTo(x + width * 0.08, y + height * 0.62, x + width * 0.02, y + height * 0.28, x + width * 0.28, y + height * 0.18);
+  ctx.bezierCurveTo(x + width * 0.4, y + height * 0.13, x + width * 0.49, y + height * 0.2, x + width * 0.5, y + height * 0.33);
+  ctx.bezierCurveTo(x + width * 0.51, y + height * 0.2, x + width * 0.6, y + height * 0.13, x + width * 0.72, y + height * 0.18);
+  ctx.bezierCurveTo(x + width * 0.98, y + height * 0.28, x + width * 0.92, y + height * 0.62, x + width * 0.5, y + height * 0.88);
+  ctx.closePath();
+}
+
+function drawStarPath(ctx, x, y, width, height) {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const outer = Math.min(width, height) * 0.48;
+  const inner = outer * 0.46;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i += 1) {
+    const radius = i % 2 === 0 ? outer : inner;
+    const angle = -Math.PI / 2 + i * Math.PI / 5;
+    const px = cx + Math.cos(angle) * radius;
+    const py = cy + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+function drawTagPath(ctx, x, y, width, height) {
+  const cut = Math.min(width, height) * 0.18;
+  const radius = Math.min(width, height) * 0.08;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - cut, y);
+  ctx.lineTo(x + width, y + cut);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawStampPath(ctx, x, y, width, height) {
+  const notch = Math.max(5, Math.min(width, height) * 0.045);
+  const step = notch * 2.2;
+  ctx.beginPath();
+  ctx.moveTo(x + notch, y);
+  for (let px = x + notch; px < x + width - notch; px += step) {
+    ctx.quadraticCurveTo(px + step / 2, y + notch, Math.min(px + step, x + width - notch), y);
+  }
+  ctx.lineTo(x + width, y + notch);
+  for (let py = y + notch; py < y + height - notch; py += step) {
+    ctx.quadraticCurveTo(x + width - notch, py + step / 2, x + width, Math.min(py + step, y + height - notch));
+  }
+  ctx.lineTo(x + width - notch, y + height);
+  for (let px = x + width - notch; px > x + notch; px -= step) {
+    ctx.quadraticCurveTo(px - step / 2, y + height - notch, Math.max(px - step, x + notch), y + height);
+  }
+  ctx.lineTo(x, y + height - notch);
+  for (let py = y + height - notch; py > y + notch; py -= step) {
+    ctx.quadraticCurveTo(x + notch, py - step / 2, x, Math.max(py - step, y + notch));
+  }
+  ctx.closePath();
+}
+
+function drawEmbossEdge(ctx, shape, width, height) {
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineWidth(ctx, 3);
+  setStrokeStyle(ctx, "rgba(255,255,255,0.55)");
+  ctx.save();
+  ctx.translate(-2, -2);
+  drawShapePath(ctx, shape, -width / 2, -height / 2, width, height);
+  ctx.stroke();
+  ctx.restore();
+  setStrokeStyle(ctx, "rgba(17,17,17,0.16)");
+  ctx.save();
+  ctx.translate(2, 2);
+  drawShapePath(ctx, shape, -width / 2, -height / 2, width, height);
+  ctx.stroke();
+  ctx.restore();
+  setLineWidth(ctx, 1.5);
+  setStrokeStyle(ctx, "rgba(17,17,17,0.12)");
+  drawShapePath(ctx, shape, -width / 2, -height / 2, width, height);
+  ctx.stroke();
 }
 
 function roundedRect(ctx, x, y, width, height, radius) {

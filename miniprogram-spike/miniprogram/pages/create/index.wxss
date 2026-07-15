@@ -666,11 +666,15 @@ button::after {
 }
 
 .shape-palette {
-  left: 96rpx;
-  right: 96rpx;
+  left: 54rpx;
+  right: 54rpx;
 }
 
 .layer-cut-palette {
+  bottom: calc(284rpx + env(safe-area-inset-bottom));
+}
+
+.layer-shape-palette {
   bottom: calc(284rpx + env(safe-area-inset-bottom));
 }
 
@@ -690,16 +694,17 @@ button::after {
 }
 
 .shape-palette .palette-tool {
-  width: 25%;
+  width: 20%;
 }
 
 .palette-tool-0 { left: 0; }
 .cut-palette .palette-tool-1 { left: 25%; }
 .cut-palette .palette-tool-2 { left: 50%; }
 .cut-palette .palette-tool-3 { left: 75%; }
-.shape-palette .palette-tool-1 { left: 25%; }
-.shape-palette .palette-tool-2 { left: 50%; }
-.shape-palette .palette-tool-3 { left: 75%; }
+.shape-palette .palette-tool-1 { left: 20%; }
+.shape-palette .palette-tool-2 { left: 40%; }
+.shape-palette .palette-tool-3 { left: 60%; }
+.shape-palette .palette-tool-4 { left: 80%; }
 
 .palette-label {
   position: absolute;
@@ -791,6 +796,16 @@ button::after {
   background: #f4efe5;
 }
 
+.emboss-3d.heart {
+  width: 76rpx;
+  height: 76rpx;
+  bottom: 44rpx;
+  margin-left: -38rpx;
+  background: #f1d4c8;
+  transform: none;
+  clip-path: polygon(50% 90%, 44% 84%, 36% 78%, 27% 71%, 19% 63%, 12% 53%, 8% 43%, 7% 34%, 10% 25%, 16% 18%, 25% 14%, 34% 14%, 42% 18%, 48% 27%, 50% 34%, 52% 27%, 58% 18%, 66% 14%, 75% 14%, 84% 18%, 90% 25%, 93% 34%, 92% 43%, 88% 53%, 81% 63%, 73% 71%, 64% 78%, 56% 84%);
+}
+
 .emboss-3d.tag {
   border-radius: 24rpx 24rpx 12rpx 12rpx;
   background: #efe7d8;
@@ -800,6 +815,15 @@ button::after {
 .emboss-3d.star {
   clip-path: polygon(50% 0, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%);
   background: #ead48a;
+}
+
+.emboss-3d.stamp {
+  clip-path: polygon(7% 0, 13% 5%, 20% 0, 27% 5%, 34% 0, 41% 5%, 48% 0, 55% 5%, 62% 0, 69% 5%, 76% 0, 83% 5%, 93% 0, 100% 7%, 95% 13%, 100% 20%, 95% 27%, 100% 34%, 95% 41%, 100% 48%, 95% 55%, 100% 62%, 95% 69%, 100% 76%, 95% 83%, 100% 93%, 93% 100%, 83% 95%, 76% 100%, 69% 95%, 62% 100%, 55% 95%, 48% 100%, 41% 95%, 34% 100%, 27% 95%, 20% 100%, 13% 95%, 7% 100%, 0 93%, 5% 83%, 0 76%, 5% 69%, 0 62%, 5% 55%, 0 48%, 5% 41%, 0 34%, 5% 27%, 0 20%, 5% 13%, 0 7%);
+  background:
+    radial-gradient(circle at 0 20%, transparent 0 6rpx, #f4efe5 7rpx),
+    radial-gradient(circle at 100% 20%, transparent 0 6rpx, #f4efe5 7rpx),
+    #f4efe5;
+  box-shadow: inset 0 0 0 3rpx rgba(17, 17, 17, 0.08), 0 8rpx 18rpx rgba(17, 17, 17, 0.1);
 }
 
 .drawer-backdrop {
@@ -1185,7 +1209,8 @@ button::after {
 }
 
 .crop-fullscreen,
-.scissor-fullscreen {
+.scissor-fullscreen,
+.emboss-fullscreen {
   position: fixed;
   inset: 0;
   z-index: 1200;
@@ -1260,6 +1285,74 @@ button::after {
   z-index: 1202;
 }
 
+.emboss-preview-image {
+  position: fixed;
+  display: block;
+  z-index: 1202;
+}
+
+.emboss-dim {
+  position: fixed;
+  inset: 0;
+  z-index: 1203;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.emboss-mask {
+  position: fixed;
+  z-index: 1205;
+  box-sizing: border-box;
+}
+
+.emboss-mask-shape {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border: 4rpx solid rgba(255, 255, 255, 0.94);
+  background: rgba(217, 74, 56, 0.28);
+  box-shadow:
+    inset -5rpx -5rpx 0 rgba(17, 17, 17, 0.14),
+    inset 5rpx 5rpx 0 rgba(255, 255, 255, 0.48),
+    0 0 0 2rpx rgba(217, 74, 56, 0.38);
+}
+
+.emboss-mask-circle {
+  border-radius: 50%;
+}
+
+.emboss-mask-heart {
+  clip-path: polygon(50% 90%, 44% 84%, 36% 78%, 27% 71%, 19% 63%, 12% 53%, 8% 43%, 7% 34%, 10% 25%, 16% 18%, 25% 14%, 34% 14%, 42% 18%, 48% 27%, 50% 34%, 52% 27%, 58% 18%, 66% 14%, 75% 14%, 84% 18%, 90% 25%, 93% 34%, 92% 43%, 88% 53%, 81% 63%, 73% 71%, 64% 78%, 56% 84%);
+}
+
+.emboss-mask-star {
+  clip-path: polygon(50% 0, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%);
+}
+
+.emboss-mask-tag {
+  clip-path: polygon(0 0, 82% 0, 100% 18%, 100% 100%, 0 100%);
+  border-radius: 14rpx;
+}
+
+.emboss-mask-stamp {
+  clip-path: polygon(7% 0, 13% 5%, 20% 0, 27% 5%, 34% 0, 41% 5%, 48% 0, 55% 5%, 62% 0, 69% 5%, 76% 0, 83% 5%, 93% 0, 100% 7%, 95% 13%, 100% 20%, 95% 27%, 100% 34%, 95% 41%, 100% 48%, 95% 55%, 100% 62%, 95% 69%, 100% 76%, 95% 83%, 100% 93%, 93% 100%, 83% 95%, 76% 100%, 69% 95%, 62% 100%, 55% 95%, 48% 100%, 41% 95%, 34% 100%, 27% 95%, 20% 100%, 13% 95%, 7% 100%, 0 93%, 5% 83%, 0 76%, 5% 69%, 0 62%, 5% 55%, 0 48%, 5% 41%, 0 34%, 5% 27%, 0 20%, 5% 13%, 0 7%);
+}
+
+.emboss-handle {
+  position: absolute;
+  z-index: 1206;
+  width: 34rpx;
+  height: 34rpx;
+  box-sizing: border-box;
+  border: 6rpx solid #ffffff;
+  border-radius: 50%;
+  background: #111111;
+}
+
+.emboss-handle.handle-tl { left: -17rpx; top: -17rpx; }
+.emboss-handle.handle-tr { right: -17rpx; top: -17rpx; }
+.emboss-handle.handle-br { right: -17rpx; bottom: -17rpx; }
+.emboss-handle.handle-bl { left: -17rpx; bottom: -17rpx; }
+
 .crop-hit-area {
   position: fixed;
   inset: 0;
@@ -1268,6 +1361,10 @@ button::after {
 }
 
 .scissor-hit-area {
+  z-index: 1210;
+}
+
+.emboss-hit-area {
   z-index: 1210;
 }
 
@@ -1360,6 +1457,76 @@ button::after {
   background: rgba(23, 23, 23, 0.96);
 }
 
+.emboss-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1220;
+  height: calc(188rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  padding: 18rpx 26rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: rgba(23, 23, 23, 0.96);
+}
+
+.emboss-shape-row {
+  height: 132rpx;
+  white-space: nowrap;
+}
+
+.emboss-shape-option {
+  display: inline-block;
+  width: 118rpx;
+  height: 126rpx;
+  margin-right: 14rpx;
+  border-radius: 24rpx;
+  color: rgba(255, 255, 255, 0.68);
+  text-align: center;
+}
+
+.emboss-shape-option.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.emboss-option-icon {
+  width: 52rpx;
+  height: 52rpx;
+  margin: 18rpx auto 10rpx;
+  background: #f4efe5;
+  box-shadow: inset 0 0 0 2rpx rgba(17, 17, 17, 0.12);
+}
+
+.emboss-option-circle {
+  border-radius: 50%;
+  background: #f5dfd8;
+}
+
+.emboss-option-heart {
+  background: #f1d4c8;
+  clip-path: polygon(50% 90%, 44% 84%, 36% 78%, 27% 71%, 19% 63%, 12% 53%, 8% 43%, 7% 34%, 10% 25%, 16% 18%, 25% 14%, 34% 14%, 42% 18%, 48% 27%, 50% 34%, 52% 27%, 58% 18%, 66% 14%, 75% 14%, 84% 18%, 90% 25%, 93% 34%, 92% 43%, 88% 53%, 81% 63%, 73% 71%, 64% 78%, 56% 84%);
+}
+
+.emboss-option-star {
+  clip-path: polygon(50% 0, 61% 34%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 34%);
+  background: #ead48a;
+}
+
+.emboss-option-tag {
+  clip-path: polygon(0 0, 82% 0, 100% 18%, 100% 100%, 0 100%);
+}
+
+.emboss-option-stamp {
+  clip-path: polygon(7% 0, 13% 5%, 20% 0, 27% 5%, 34% 0, 41% 5%, 48% 0, 55% 5%, 62% 0, 69% 5%, 76% 0, 83% 5%, 93% 0, 100% 7%, 95% 13%, 100% 20%, 95% 27%, 100% 34%, 95% 41%, 100% 48%, 95% 55%, 100% 62%, 95% 69%, 100% 76%, 95% 83%, 100% 93%, 93% 100%, 83% 95%, 76% 100%, 69% 95%, 62% 100%, 55% 95%, 48% 100%, 41% 95%, 34% 100%, 27% 95%, 20% 100%, 13% 95%, 7% 100%, 0 93%, 5% 83%, 0 76%, 5% 69%, 0 62%, 5% 55%, 0 48%, 5% 41%, 0 34%, 5% 27%, 0 20%, 5% 13%, 0 7%);
+}
+
+.emboss-option-label {
+  height: 32rpx;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  text-align: center;
+}
+
 .scissor-bottom .scissor-help {
   color: rgba(255, 255, 255, 0.7);
 }
@@ -1443,7 +1610,7 @@ button::after {
   position: absolute;
   top: 0;
   left: 0;
-  width: 1260rpx;
+  width: 1420rpx;
   height: 106rpx;
   box-sizing: border-box;
   padding-left: 36rpx;
@@ -1508,7 +1675,8 @@ button::after {
 .la-copy-icon,
 .la-shadow-icon,
 .la-opacity-icon,
-.la-corner-icon {
+.la-corner-icon,
+.la-emboss-icon {
   display: block;
   font-size: 0;
   line-height: 1;
@@ -1662,6 +1830,28 @@ button::after {
   display: block;
   font-size: 0;
   line-height: 1;
+}
+
+.emboss-mark {
+  position: absolute;
+  box-sizing: border-box;
+  border: 4rpx solid currentColor;
+}
+
+.emboss-mark-a {
+  left: 7rpx;
+  top: 8rpx;
+  width: 25rpx;
+  height: 25rpx;
+  border-radius: 50%;
+}
+
+.emboss-mark-b {
+  right: 6rpx;
+  bottom: 7rpx;
+  width: 24rpx;
+  height: 24rpx;
+  transform: rotate(45deg);
 }
 
 .bgcut-shape {

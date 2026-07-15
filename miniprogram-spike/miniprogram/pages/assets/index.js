@@ -4,7 +4,9 @@ const {
   ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   FAVORITE_PACK_STORAGE_KEY,
   getAssetPacks,
-  getAssetPack
+  getAssetPack,
+  getResolvedAssetPacks,
+  getResolvedAssetPack
 } = require("../../config/assets");
 
 const assetPageCategories = ["推荐", "收藏", "纸张", "贴纸", "胶带", "边框", "票据", "标记", "纹理", "文字"];
@@ -101,6 +103,34 @@ Page({
       detailPack,
       selectedAssets: getSelectedAssets(detailPack, this.data.selectedAssetIds)
     });
+    this.refreshResolvedPacks();
+  },
+
+  refreshResolvedPacks() {
+    const requestId = Date.now();
+    this.assetRequestId = requestId;
+    const currentDetailPackId = this.data.detailPack && this.data.detailPack.id;
+    Promise.all([
+      getResolvedAssetPacks(),
+      currentDetailPackId ? getResolvedAssetPack(currentDetailPackId) : Promise.resolve(null)
+    ]).then(([resolvedPacks, resolvedDetailPack]) => {
+      if (this.assetRequestId !== requestId) return;
+      const favoritePackIds = readFavoritePackIds();
+      const packs = resolvedPacks.map((pack, index) => ({
+        ...pack,
+        index,
+        isFavorite: favoritePackIds.includes(pack.id)
+      }));
+      const detailPack = resolvedDetailPack
+        ? decoratePack(resolvedDetailPack, favoritePackIds, this.data.selectedAssetIds)
+        : null;
+      this.setData({
+        packs,
+        visiblePacks: this.filterPacks(packs, this.data.activeCategory),
+        detailPack,
+        selectedAssets: getSelectedAssets(detailPack, this.data.selectedAssetIds)
+      });
+    });
   },
 
   filterPacks(packs, category) {
@@ -132,6 +162,13 @@ Page({
       selectedAssetIds: [],
       selectedAssets: []
     });
+    getResolvedAssetPack(packId).then((resolvedPack) => {
+      if (!resolvedPack || !this.data.detailPack || this.data.detailPack.id !== packId) return;
+      this.setData({
+        detailPack: decoratePack(resolvedPack, readFavoritePackIds(), this.data.selectedAssetIds),
+        selectedAssets: getSelectedAssets(resolvedPack, this.data.selectedAssetIds)
+      });
+    });
   },
 
   closeDetail() {
@@ -160,7 +197,8 @@ Page({
     const selectedAssetIds = this.data.selectedAssetIds.includes(assetId)
       ? this.data.selectedAssetIds.filter((id) => id !== assetId)
       : this.data.selectedAssetIds.concat(assetId);
-    const detailPack = decoratePack(getAssetPack(this.data.detailPack.id), readFavoritePackIds(), selectedAssetIds);
+    const sourcePack = this.data.detailPack || getAssetPack(this.data.detailPack.id);
+    const detailPack = decoratePack(sourcePack, readFavoritePackIds(), selectedAssetIds);
     this.setData({
       selectedAssetIds,
       detailPack,
@@ -171,7 +209,8 @@ Page({
   removeDetailAsset(event) {
     const assetId = event.currentTarget.dataset.assetId;
     const selectedAssetIds = this.data.selectedAssetIds.filter((id) => id !== assetId);
-    const detailPack = decoratePack(getAssetPack(this.data.detailPack.id), readFavoritePackIds(), selectedAssetIds);
+    const sourcePack = this.data.detailPack || getAssetPack(this.data.detailPack.id);
+    const detailPack = decoratePack(sourcePack, readFavoritePackIds(), selectedAssetIds);
     this.setData({
       selectedAssetIds,
       detailPack,

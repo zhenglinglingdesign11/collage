@@ -7,7 +7,10 @@ const {
   ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   getAssetPacks,
   getAssetItem,
-  getAssetPack
+  getAssetPack,
+  getResolvedAssetPacks,
+  getResolvedAssetPack,
+  getResolvedAssetItem
 } = require("../../config/assets");
 const {
   getTextFonts,
@@ -42,12 +45,23 @@ const ROTATION_GUIDE_STABLE_MOVES = 4;
 const ROTATION_GUIDE_LAYER_TYPES = ["image", "sticker", "paper"];
 const CROP_HANDLE_SCREEN_SIZE = 26;
 const CROP_MIN_SIZE = 48;
+const EMBOSS_MIN_SIZE = 48;
 const SCISSOR_BRUSH_SIZE = 56;
 const SCISSOR_MIN_CUT_SIZE = 8;
 const SCISSOR_MAX_OUTPUT_SIZE = 1600;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
+const LEGACY_ASSET_SOURCE_MIGRATIONS = [
+  {
+    from: "cloud://cloudbase-d6g4f30s2b2a1c042.636c-cloudbase-d6g4f30s2b2a1c042-1453943164/hudiejie/",
+    to: "https://packs-1327435159.cos.ap-guangzhou.myqcloud.com/packs/hudiejie/"
+  },
+  {
+    from: "https://packs-1327435159.cos.ap-guangzhou.myqcloud.com/hudiejie/",
+    to: "https://packs-1327435159.cos.ap-guangzhou.myqcloud.com/packs/hudiejie/"
+  }
+];
 
 Page({
   data: {
@@ -84,6 +98,19 @@ Page({
     cropImageSrc: "",
     cropImageStyle: "",
     cropBoxStyle: "",
+    embossEditing: false,
+    embossShape: "circle",
+    embossImageSrc: "",
+    embossImageStyle: "",
+    embossMaskStyle: "",
+    embossMaskShapeClass: "circle",
+    embossShapes: [
+      { value: "circle", label: "圆形" },
+      { value: "heart", label: "心形" },
+      { value: "star", label: "星形" },
+      { value: "tag", label: "标签" },
+      { value: "stamp", label: "邮票" }
+    ],
     cropRatios: [
       { value: "free", label: "自由" },
       { value: "original", label: "原图" },
@@ -151,6 +178,7 @@ Page({
     this.rotationGuideState = null;
     this.loadedFontFamilies = {};
     this.fontTempUrlCache = {};
+    this.assetPanelRequestId = 0;
     this.preloadPackagedFonts();
     this.keyboardHandler = (res) => {
       this.updateKeyboardHeight(res);
@@ -164,6 +192,7 @@ Page({
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
+    this.refreshAssetPanel();
     this.setEditorMode(!!latestDraft);
     const statusTop = Math.ceil((system.statusBarHeight || 0) + 2);
     const chromeTop = menu ? Math.ceil(menu.bottom + 4) : Math.ceil((system.statusBarHeight || 0) + 44);
@@ -373,6 +402,7 @@ Page({
     this.textEditSession = null;
     this.clearCropEditing();
     this.clearScissorEditing();
+    this.clearEmbossEditing();
     this.draft = normalizeDraftTextFonts(createDraft(this.data.ratio || "3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -388,6 +418,7 @@ Page({
       activePalette: "",
       cropEditing: false,
       cropRatio: "free",
+      embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
       scissorBusy: false,
@@ -404,6 +435,7 @@ Page({
     this.textEditSession = null;
     this.clearCropEditing();
     this.clearScissorEditing();
+    this.clearEmbossEditing();
     this.draft = normalizeDraftTextFonts(createDraft(this.data.ratio || "3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -420,6 +452,7 @@ Page({
       ratioPanelVisible: false,
       cropEditing: false,
       cropRatio: "free",
+      embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
       scissorBusy: false,
@@ -479,6 +512,7 @@ Page({
     this.textEditSession = null;
     this.clearCropEditing();
     this.clearScissorEditing();
+    this.clearEmbossEditing();
     const draftId = event && event.currentTarget && event.currentTarget.dataset.id;
     const draft = draftId ? loadDraftById(draftId) : loadLatestDraft();
     if (!draft) {
@@ -499,6 +533,7 @@ Page({
       textDraft: "",
       cropEditing: false,
       cropRatio: "free",
+      embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
       scissorBusy: false,
@@ -571,6 +606,7 @@ Page({
     this.textEditSession = null;
     this.clearCropEditing();
     this.clearScissorEditing();
+    this.clearEmbossEditing();
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
@@ -582,6 +618,7 @@ Page({
       ratioPanelVisible: false,
       cropEditing: false,
       cropRatio: "free",
+      embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
       scissorBusy: false,
@@ -615,7 +652,7 @@ Page({
   },
 
   async render(retryCount = 0) {
-    if (this.data.isEmptyMode || this.data.cropEditing || this.data.scissorEditing) return;
+    if (this.data.isEmptyMode || this.data.cropEditing || this.data.scissorEditing || this.data.embossEditing) return;
     const renderToken = (this.renderToken || 0) + 1;
     this.renderToken = renderToken;
     await this.ensureCanvasContext();
@@ -1046,6 +1083,8 @@ Page({
       activePalette: "",
       cropEditing: false,
       cropRatio: "free",
+      embossEditing: false,
+      scissorEditing: false,
       keyboardHeight: 0,
       textPanelBottom: 0,
       saveStatus: status
@@ -1173,6 +1212,7 @@ Page({
   openToolPanel(event) {
     const tool = event.currentTarget.dataset.tool || "";
     this.scissorPickPending = false;
+    this.embossPickPending = false;
     this.enterEditMode();
     if (tool === "image") {
       this.openImageSourceSheet();
@@ -1182,18 +1222,39 @@ Page({
       this.addText();
       return;
     }
+    if (tool === "shape" && !this.getSelectedLayer()) {
+      this.embossPickPending = true;
+      this.setData({
+        activeTool: "shape",
+        activeDrawer: "",
+        activePalette: "",
+        selectedLayerId: "",
+        selectedLayerType: "",
+        textInputVisible: false,
+        ratioPanelVisible: false
+      });
+      showToast("请先选择一个图层", { icon: "none" });
+      return;
+    }
+    if (tool === "shape") {
+      this.beginEmbossEdit();
+      return;
+    }
     const isDrawer = ["asset", "tape"].includes(tool);
     const isPalette = ["cut", "shape"].includes(tool);
     const nextData = {
       activeTool: tool,
       activeDrawer: isDrawer ? tool : "",
       activePalette: isPalette ? tool : "",
-      selectedLayerId: "",
       textInputVisible: false,
       ratioPanelVisible: false,
       keyboardHeight: 0,
       textPanelBottom: 0
     };
+    if (tool !== "shape") {
+      nextData.selectedLayerId = "";
+      nextData.selectedLayerType = "";
+    }
     if (tool === "asset") {
       Object.assign(nextData, this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
     }
@@ -1203,6 +1264,7 @@ Page({
 
   closeToolPanel() {
     this.scissorPickPending = false;
+    this.embossPickPending = false;
     this.setData({
       activeTool: "",
       activeDrawer: "",
@@ -1349,10 +1411,10 @@ Page({
     });
   },
 
-  getAssetPanelState(category, packId) {
-    const assetPacks = decorateAssetPanelPacks(getAssetPacks());
+  getAssetPanelState(category, packId, packs, pack) {
+    const assetPacks = decorateAssetPanelPacks(packs || getAssetPacks());
     const activeCategory = category || "推荐";
-    const activeAssetPack = packId ? decorateAssetPanelPack(getAssetPack(packId)) : null;
+    const activeAssetPack = packId ? decorateAssetPanelPack(pack || getAssetPack(packId)) : null;
     return {
       assetPacks,
       activeAssetCategory: activeCategory,
@@ -1362,20 +1424,35 @@ Page({
     };
   },
 
+  refreshAssetPanel(category = this.data.activeAssetCategory || "推荐", packId = this.data.activeAssetPack && this.data.activeAssetPack.id || "") {
+    const requestId = Date.now();
+    this.assetPanelRequestId = requestId;
+    return Promise.all([
+      getResolvedAssetPacks(),
+      packId ? getResolvedAssetPack(packId) : Promise.resolve(null)
+    ]).then(([packs, pack]) => {
+      if (this.assetPanelRequestId !== requestId) return;
+      this.setData(this.getAssetPanelState(category, packId, packs, pack));
+    });
+  },
+
   selectAssetCategory(event) {
     const category = event.currentTarget.dataset.category || "推荐";
     if (category === this.data.activeAssetCategory && !this.data.activeAssetPack) return;
     this.setData(this.getAssetPanelState(category, ""));
+    this.refreshAssetPanel(category, "");
   },
 
   openAssetPack(event) {
     const packId = event.currentTarget.dataset.pack;
     if (!packId) return;
     this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId));
+    this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", packId);
   },
 
   backToAssetPacks() {
     this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
+    this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", "");
   },
 
   closePalette() {
@@ -1443,7 +1520,7 @@ Page({
     this.enterEditMode();
     const assetId = event.currentTarget.dataset.assetId;
     const asset = getAssetItem(assetId);
-    if (!asset || !asset.source) {
+    if (!asset || (!asset.source && !asset.cloudFileId)) {
       if (asset && asset.layer) {
         this.addAssetItemToDraft(asset);
         this.keepAssetDrawerAfterAddingLayer();
@@ -1454,10 +1531,16 @@ Page({
       showError("素材添加失败");
       return;
     }
-    this.addAssetItemToDraft(asset);
-    this.keepAssetDrawerAfterAddingLayer();
-    this.markDirty();
-    this.render();
+    getResolvedAssetItem(assetId).then((resolvedAsset) => {
+      if (!resolvedAsset || !resolvedAsset.source) {
+        showError("素材加载失败");
+        return;
+      }
+      this.addAssetItemToDraft(resolvedAsset);
+      this.keepAssetDrawerAfterAddingLayer();
+      this.markDirty();
+      this.render();
+    });
   },
 
   consumePendingAssets() {
@@ -1471,21 +1554,22 @@ Page({
     }
     this.enterEditMode();
     let added = 0;
-    assetIds.forEach((assetId) => {
-      const asset = getAssetItem(assetId);
-      if (!asset) return;
-      if (this.addAssetItemToDraft(asset)) {
-        added += 1;
+    Promise.all(assetIds.map(getResolvedAssetItem)).then((assets) => {
+      assets.forEach((asset) => {
+        if (!asset) return;
+        if (this.addAssetItemToDraft(asset)) {
+          added += 1;
+        }
+      });
+      if (!added) {
+        showError("素材添加失败");
+        return;
       }
+      this.closeAfterAddingLayer();
+      this.markDirty();
+      setTimeout(() => this.render(), 0);
+      setTimeout(() => this.render(), 80);
     });
-    if (!added) {
-      showError("素材添加失败");
-      return;
-    }
-    this.closeAfterAddingLayer();
-    this.markDirty();
-    setTimeout(() => this.render(), 0);
-    setTimeout(() => this.render(), 80);
   },
 
   addAssetItemToDraft(asset) {
@@ -1603,19 +1687,37 @@ Page({
   },
 
   addShape(event) {
+    if (this.data.embossEditing) {
+      this.selectEmbossShape(event);
+      return;
+    }
     this.enterEditMode();
-    const shape = event.currentTarget.dataset.shape || "rect";
-    const layer = createTapeLayer("", "#f4efe5", this.draft.width * 0.5, this.draft.height * 0.5, shape === "note" ? -4 : 0, this.draft);
-    layer.type = "paper";
-    layer.width = shape === "circle" ? 180 : 240;
-    layer.height = shape === "circle" ? 180 : shape === "note" ? 210 : 160;
+    const shape = event.currentTarget.dataset.shape || "circle";
+    const layer = this.getSelectedLayer();
+    if (!layer) {
+      showToast("请先选择一个图层", { icon: "none" });
+      this.setData({ activeTool: "", activePalette: "" });
+      return;
+    }
+    if (layer.type === "text") {
+      showToast("文字图层暂不支持压花", { icon: "none" });
+      return;
+    }
     layer.style = {
-      color: shape === "circle" ? "#f5dfd8" : "#f4efe5",
-      shape
+      ...(layer.style || {}),
+      clipShape: normalizeEmbossShape(shape),
+      embossEdge: true
     };
-    this.draft.layers.push(layer);
-    this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.closeAfterAddingLayer();
+    if (layer.radius) layer.radius = 0;
+    this.setData({
+      activeTool: "",
+      activePalette: "",
+      activeDrawer: "",
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      layerActionsPage: 0,
+      layerActionsOffset: 0
+    });
     this.markDirty();
     this.render();
   },
@@ -1733,6 +1835,7 @@ Page({
       patch.activeTool = "";
       patch.activePalette = "";
       this.scissorPickPending = false;
+      this.embossPickPending = false;
     }
     if (!Object.keys(patch).length) return;
     this.setData(patch);
@@ -1746,6 +1849,10 @@ Page({
   onTouchStart(event) {
     if (this.data.scissorEditing) {
       this.onScissorTouchStart(event);
+      return;
+    }
+    if (this.data.embossEditing) {
+      this.onEmbossTouchStart(event);
       return;
     }
     if (this.data.cropEditing) {
@@ -1775,6 +1882,23 @@ Page({
             layerActionsOffset: 0
           });
           this.beginScissorCut(target);
+          return;
+        }
+        showToast("请选择图片图层", { icon: "none" });
+        return;
+      }
+      if (this.embossPickPending) {
+        if (target && target.type === "image" && target.source) {
+          this.embossPickPending = false;
+          this.setData({
+            selectedLayerId: target.id,
+            selectedLayerType: target.type,
+            activeTool: "",
+            activePalette: "",
+            layerActionsPage: 0,
+            layerActionsOffset: 0
+          });
+          this.beginEmbossEdit();
           return;
         }
         showToast("请选择图片图层", { icon: "none" });
@@ -1832,6 +1956,10 @@ Page({
       this.onScissorTouchMove(event);
       return;
     }
+    if (this.data.embossEditing) {
+      this.onEmbossTouchMove(event);
+      return;
+    }
     if (this.data.cropEditing) {
       this.onCropTouchMove(event);
       return;
@@ -1873,6 +2001,10 @@ Page({
   onTouchEnd() {
     if (this.data.scissorEditing) {
       this.onScissorTouchEnd();
+      return;
+    }
+    if (this.data.embossEditing) {
+      this.embossGesture = null;
       return;
     }
     if (this.data.cropEditing) {
@@ -1991,6 +2123,247 @@ Page({
     this.scissorSession = null;
     this.scissorStroke = null;
     this.resetScissorCanvasContext();
+  },
+
+  clearEmbossEditing() {
+    this.embossSession = null;
+    this.embossGesture = null;
+  },
+
+  beginEmbossEdit() {
+    this.embossPickPending = false;
+    const layer = this.getSelectedLayer();
+    if (!layer) {
+      showToast("请先选择一个图层", { icon: "none" });
+      return;
+    }
+    if (layer.type !== "image" || !layer.source) {
+      showToast("请先选择图片图层", { icon: "none" });
+      return;
+    }
+    const startEmboss = () => {
+      const currentShape = normalizeEmbossShape((layer.style || {}).clipShape || layer.clipShape || "circle") || "circle";
+      const sourceSize = {
+        width: layer.sourceWidth || layer.width,
+        height: layer.sourceHeight || layer.height
+      };
+      const preview = getCropPreviewLayout({ width: layer.width, height: layer.height }, {
+        screenWidth: this.screenWidth,
+        screenHeight: this.screenHeight,
+        chromeTop: this.data.chromeTop
+      });
+      const size = Math.max(EMBOSS_MIN_SIZE, Math.min(layer.width, layer.height) * 0.72);
+      this.embossSession = {
+        layerId: layer.id,
+        originalLayer: JSON.parse(JSON.stringify(layer)),
+        sourceSize,
+        preview,
+        mask: {
+          x: (layer.width - size) / 2,
+          y: (layer.height - size) / 2,
+          width: size,
+          height: size
+        }
+      };
+      this.embossGesture = null;
+      this.updateEmbossPreviewData(currentShape);
+      this.resetCanvasContext();
+      this.setData({
+        embossEditing: true,
+        embossShape: currentShape,
+        embossImageSrc: layer.source,
+        activeTool: "shape",
+        activeDrawer: "",
+        activePalette: "",
+        ratioPanelVisible: false,
+        textInputVisible: false,
+        layerActionsPage: 0,
+        layerActionsOffset: 0
+      });
+    };
+    if (layer.sourceWidth && layer.sourceHeight) {
+      startEmboss();
+      return;
+    }
+    wx.getImageInfo({
+      src: layer.source,
+      success: (info) => {
+        layer.sourceWidth = info.width;
+        layer.sourceHeight = info.height;
+        startEmboss();
+      },
+      fail: () => {
+        layer.sourceWidth = layer.width;
+        layer.sourceHeight = layer.height;
+        startEmboss();
+      }
+    });
+  },
+
+  cancelEmbossEdit() {
+    if (!this.embossSession) return;
+    const index = this.draft.layers.findIndex((layer) => layer.id === this.embossSession.layerId);
+    if (index >= 0) {
+      this.draft.layers[index] = this.embossSession.originalLayer;
+    }
+    this.clearEmbossEditing();
+    this.embossPickPending = false;
+    this.resetCanvasContext();
+    this.setData({
+      embossEditing: false,
+      embossImageSrc: "",
+      embossImageStyle: "",
+      embossMaskStyle: "",
+      activeTool: "",
+      activePalette: ""
+    });
+    setTimeout(() => this.render(), 0);
+  },
+
+  confirmEmbossEdit() {
+    if (!this.embossSession) return;
+    const layer = this.getLayerById(this.embossSession.layerId);
+    if (!layer || layer.type !== "image") {
+      this.cancelEmbossEdit();
+      return;
+    }
+    const mask = clampEmbossMask(this.embossSession.mask, layer);
+    if (mask.width < EMBOSS_MIN_SIZE || mask.height < EMBOSS_MIN_SIZE) {
+      showToast("压花区域太小", { icon: "none" });
+      return;
+    }
+    const sourceCrop = getLayerSourceCrop(layer);
+    const nextCrop = {
+      x: sourceCrop.x + mask.x / layer.width * sourceCrop.width,
+      y: sourceCrop.y + mask.y / layer.height * sourceCrop.height,
+      width: mask.width / layer.width * sourceCrop.width,
+      height: mask.height / layer.height * sourceCrop.height
+    };
+    const center = layerLocalPointToDraft({
+      x: mask.x + mask.width / 2,
+      y: mask.y + mask.height / 2
+    }, layer);
+    layer.x = center.x - mask.width / 2;
+    layer.y = center.y - mask.height / 2;
+    layer.width = mask.width;
+    layer.height = mask.height;
+    layer.crop = roundCrop(nextCrop);
+    layer.radius = 0;
+    layer.style = {
+      ...(layer.style || {}),
+      clipShape: normalizeEmbossShape(this.data.embossShape || "circle"),
+      embossEdge: true
+    };
+    this.clearEmbossEditing();
+    this.embossPickPending = false;
+    this.resetCanvasContext();
+    this.setData({
+      embossEditing: false,
+      embossImageSrc: "",
+      embossImageStyle: "",
+      embossMaskStyle: "",
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      activeTool: "",
+      activePalette: ""
+    });
+    this.markDirty();
+    setTimeout(() => this.render(), 0);
+  },
+
+  selectEmbossShape(event) {
+    const shape = normalizeEmbossShape(event.currentTarget.dataset.shape || "circle") || "circle";
+    this.updateEmbossPreviewData(shape);
+    this.setData({ embossShape: shape });
+  },
+
+  onEmbossTouchStart(event) {
+    const touches = event.touches || [];
+    const touch = touches[0];
+    if (!this.embossSession || !touch) return;
+    if (touches.length >= 2) {
+      const points = touches.slice(0, 2).map((item) => this.toEmbossLayerPoint(item));
+      const mask = this.embossSession.mask;
+      this.embossGesture = {
+        mode: "pinch",
+        distance: distance(points[0], points[1]),
+        center: {
+          x: mask.x + mask.width / 2,
+          y: mask.y + mask.height / 2
+        },
+        origin: { ...mask }
+      };
+      return;
+    }
+    const point = this.toEmbossLayerPoint(touch);
+    const mask = this.embossSession.mask;
+    const handle = getEmbossMaskHandle(point, mask, CROP_HANDLE_SCREEN_SIZE / this.embossSession.preview.scale);
+    const isInside = isPointInsideBox(point, mask);
+    if (!handle && !isInside) {
+      this.embossGesture = null;
+      return;
+    }
+    this.embossGesture = {
+      mode: handle ? "resize" : "move",
+      handle,
+      start: point,
+      origin: { ...mask }
+    };
+  },
+
+  onEmbossTouchMove(event) {
+    const touches = event.touches || [];
+    const touch = touches[0];
+    if (!this.embossSession || !this.embossGesture || !touch) return;
+    const layer = this.getLayerById(this.embossSession.layerId);
+    if (!layer) return;
+    if (this.embossGesture.mode === "pinch" && touches.length >= 2) {
+      const points = touches.slice(0, 2).map((item) => this.toEmbossLayerPoint(item));
+      const startDistance = Math.max(1, this.embossGesture.distance || 1);
+      const scale = Math.max(0.25, Math.min(4, distance(points[0], points[1]) / startDistance));
+      const size = this.embossGesture.origin.width * scale;
+      const center = this.embossGesture.center;
+      this.embossSession.mask = clampEmbossMask({
+        x: center.x - size / 2,
+        y: center.y - size / 2,
+        width: size,
+        height: size
+      }, layer);
+      this.updateEmbossPreviewData();
+      return;
+    }
+    const point = this.toEmbossLayerPoint(touch);
+    const dx = point.x - this.embossGesture.start.x;
+    const dy = point.y - this.embossGesture.start.y;
+    const nextMask = this.embossGesture.mode === "move"
+      ? moveCropBox(this.embossGesture.origin, dx, dy, { width: layer.width, height: layer.height })
+      : resizeEmbossMask(this.embossGesture.origin, dx, dy, this.embossGesture.handle, layer);
+    this.embossSession.mask = nextMask;
+    this.updateEmbossPreviewData();
+  },
+
+  toEmbossLayerPoint(touch) {
+    const preview = this.embossSession.preview;
+    const point = getClientPoint(touch);
+    return {
+      x: (point.x - preview.left) / preview.scale,
+      y: (point.y - preview.top) / preview.scale
+    };
+  },
+
+  updateEmbossPreviewData(shape) {
+    if (!this.embossSession) return;
+    const layer = this.getLayerById(this.embossSession.layerId);
+    if (!layer) return;
+    const preview = this.embossSession.preview;
+    const mask = clampEmbossMask(this.embossSession.mask, layer);
+    this.embossSession.mask = mask;
+    const nextShape = normalizeEmbossShape(shape || this.data.embossShape || "circle") || "circle";
+    this.setData({
+      embossImageStyle: `left:${preview.left}px;top:${preview.top}px;width:${preview.width}px;height:${preview.height}px;`,
+      embossMaskStyle: `left:${preview.left + mask.x * preview.scale}px;top:${preview.top + mask.y * preview.scale}px;width:${mask.width * preview.scale}px;height:${mask.height * preview.scale}px;`,
+      embossMaskShapeClass: nextShape
+    });
   },
 
   resetScissorCanvasContext() {
@@ -2341,6 +2714,9 @@ Page({
   applyLayerAction(event) {
     if (this.ignoreLayerActionTap) return;
     const action = event.currentTarget.dataset.action;
+    if (action === "shape") {
+      return this.beginEmbossEdit();
+    }
     if (action === "cut") {
       const isOpen = this.data.activePalette === "cut";
       this.setData({
@@ -2514,6 +2890,8 @@ Page({
     clearTimeout(this.saveTimer);
     this.textEditSession = null;
     this.clearCropEditing();
+    this.clearScissorEditing();
+    this.clearEmbossEditing();
     const draft = loadDraft();
     if (!draft) {
       showError("暂无手动草稿");
@@ -2530,6 +2908,7 @@ Page({
       hasRecentDraft: true,
       cropEditing: false,
       cropRatio: "free",
+      embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
       scissorBusy: false,
@@ -2893,6 +3272,26 @@ function clampCropBox(box, layer) {
   };
 }
 
+function getEmbossMaskHandle(point, box, threshold) {
+  return getCropHandle(point, box, threshold);
+}
+
+function resizeEmbossMask(origin, dx, dy, handle, layer) {
+  const next = resizeCropBoxWithRatio(origin, dx, dy, handle, layer, 1);
+  return clampEmbossMask(next, layer);
+}
+
+function clampEmbossMask(mask, layer) {
+  const maxSize = Math.max(EMBOSS_MIN_SIZE, Math.min(layer.width, layer.height));
+  const size = Math.min(maxSize, Math.max(EMBOSS_MIN_SIZE, Math.min(mask.width, mask.height)));
+  return {
+    x: Math.min(layer.width - size, Math.max(0, mask.x)),
+    y: Math.min(layer.height - size, Math.max(0, mask.y)),
+    width: size,
+    height: size
+  };
+}
+
 function getCanvasAlignmentAnchors(draft) {
   return [
     { axis: "x", value: 0 },
@@ -3063,13 +3462,26 @@ function normalizeTextFontId(style = {}) {
   return resolveTextFont(style.fontId || style.fontLabel || "system").id;
 }
 
+function normalizeEmbossShape(shape) {
+  if (shape === "note") return "tag";
+  if (shape === "rect") return "";
+  return ["circle", "heart", "star", "tag", "stamp"].includes(shape) ? shape : "circle";
+}
+
 function normalizeDraftTextFonts(draft) {
   if (!draft || !Array.isArray(draft.layers)) return draft;
   draft.layers = draft.layers.map((layer) => {
-    if (!layer || layer.type !== "text") return layer;
+    if (!layer) return layer;
+    if (layer.type !== "text") {
+      return {
+        ...layer,
+        source: normalizeLegacyAssetSource(layer.source)
+      };
+    }
     const style = layer.style || {};
     return {
       ...layer,
+      source: normalizeLegacyAssetSource(layer.source),
       style: {
         ...style,
         ...createTextFontStyle(style.fontId || style.fontLabel || "system")
@@ -3077,6 +3489,12 @@ function normalizeDraftTextFonts(draft) {
     };
   });
   return draft;
+}
+
+function normalizeLegacyAssetSource(source) {
+  if (!source || typeof source !== "string") return source || "";
+  const migration = LEGACY_ASSET_SOURCE_MIGRATIONS.find((item) => source.startsWith(item.from));
+  return migration ? `${migration.to}${source.slice(migration.from.length)}` : source;
 }
 
 function getResolvedCanvasImageCache(cache = {}) {
