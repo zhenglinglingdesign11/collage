@@ -354,6 +354,10 @@ Page({
   },
 
   setEditorMode(isEditing) {
+    const modeChanged = this.data.isEditMode !== isEditing;
+    if (modeChanged) {
+      this.resetCanvasContext();
+    }
     this.setData({
       isEmptyMode: !isEditing,
       isEditMode: isEditing
@@ -610,11 +614,15 @@ Page({
     });
   },
 
-  async render() {
+  async render(retryCount = 0) {
     if (this.data.isEmptyMode || this.data.cropEditing || this.data.scissorEditing) return;
     const renderToken = (this.renderToken || 0) + 1;
     this.renderToken = renderToken;
     await this.ensureCanvasContext();
+    if ((!this.ctx || !this.canvasNode) && renderToken === this.renderToken && retryCount < 4) {
+      setTimeout(() => this.render(retryCount + 1), 50);
+      return;
+    }
     if (!this.ctx || !this.draft || !this.canvasNode || renderToken !== this.renderToken) return;
     await this.preloadCanvasImages();
     if (renderToken !== this.renderToken) return;
