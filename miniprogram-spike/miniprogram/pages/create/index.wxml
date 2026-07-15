@@ -141,7 +141,7 @@
           <cover-view class="layer-action" data-action="copy" bindtap="applyLayerAction"><cover-view class="la-icon la-copy-icon"><cover-view class="copy-back"></cover-view><cover-view class="copy-front"></cover-view></cover-view><cover-view>复制</cover-view></cover-view>
           <cover-view class="layer-action" data-action="delete" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png"></cover-image><cover-view>删除</cover-view></cover-view>
           <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="crop" bindtap="applyLayerAction"><cover-view class="la-icon la-crop-icon"><cover-view class="crop-corner crop-corner-a"></cover-view><cover-view class="crop-corner crop-corner-b"></cover-view></cover-view><cover-view>裁切</cover-view></cover-view>
-          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/scissors.png"></cover-image><cover-view>剪刀</cover-view></cover-view>
+          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><cover-view class="la-icon la-scissors-line-icon"><cover-view class="scissors-ring scissors-ring-a"></cover-view><cover-view class="scissors-ring scissors-ring-b"></cover-view><cover-view class="scissors-blade scissors-blade-a"></cover-view><cover-view class="scissors-blade scissors-blade-b"></cover-view><cover-view class="scissors-joint"></cover-view></cover-view><cover-view>剪刀</cover-view></cover-view>
           <cover-view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><cover-view class="la-icon la-shadow-icon"><cover-view class="shadow-back"></cover-view><cover-view class="shadow-front"></cover-view></cover-view><cover-view>阴影</cover-view></cover-view>
           <cover-view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><cover-view class="la-icon la-opacity-icon"><cover-view class="opacity-fill"></cover-view></cover-view><cover-view>透明度</cover-view></cover-view>
           <cover-view class="layer-action" data-action="corner" bindtap="applyLayerAction"><cover-view class="la-icon la-corner-icon"></cover-view><cover-view>圆角</cover-view></cover-view>
@@ -157,19 +157,19 @@
     <block wx:if="{{((!selectedLayerId || textInputVisible) || activePalette === 'cut') && !cropEditing && !scissorEditing}}">
       <cover-view wx:if="{{activePalette === 'cut'}}" class="tool-palette cut-palette {{selectedLayerId ? 'layer-cut-palette' : ''}}">
         <cover-view class="palette-tool palette-tool-0" data-style="straight" bindtap="selectCutStyle">
-          <cover-view class="cut-3d straight"></cover-view>
+          <cover-image class="cut-icon cut-icon-straight" src="/assets/icons/scissors/bolang.png"></cover-image>
           <cover-view class="palette-label">直线剪</cover-view>
         </cover-view>
         <cover-view class="palette-tool palette-tool-1" data-style="wave" bindtap="selectCutStyle">
-          <cover-view class="cut-3d scallop"></cover-view>
+          <cover-image class="cut-icon" src="/assets/icons/scissors/zhijiao.png"></cover-image>
           <cover-view class="palette-label">波浪剪</cover-view>
         </cover-view>
         <cover-view class="palette-tool palette-tool-2 active" data-style="free" bindtap="selectCutStyle">
-          <cover-view class="cut-3d tear"></cover-view>
+          <cover-image class="cut-icon" src="/assets/icons/scissors/tumo.png"></cover-image>
           <cover-view class="palette-label">涂抹剪</cover-view>
         </cover-view>
         <cover-view class="palette-tool palette-tool-3 {{backgroundRemoving ? 'disabled' : ''}}" data-style="subject" bindtap="selectCutStyle">
-          <cover-view class="cut-3d subject"></cover-view>
+          <cover-image class="cut-icon" src="/assets/icons/scissors/zhuti.png"></cover-image>
           <cover-view class="palette-label">{{backgroundRemoving ? '处理中' : '主体剪'}}</cover-view>
         </cover-view>
       </cover-view>

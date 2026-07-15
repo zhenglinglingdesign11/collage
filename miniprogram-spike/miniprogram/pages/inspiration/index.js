@@ -3,19 +3,19 @@ Page({
     inspirations: [
       {
         id: "single-material-1",
-        src: "/assets/packs/sanguangtiezhi/items/8.png",
+        src: "/assets/packs/papers/items/8.png",
         alt: "灵感单素材 1",
         ratio: 0.98
       },
       {
         id: "single-material-2",
-        src: "/assets/packs/sanguangtiezhi/items/2.png",
+        src: "/assets/packs/jiaodai/items/profile-2.png",
         alt: "灵感单素材 2",
         ratio: 1
       },
       {
         id: "single-material-3",
-        src: "/assets/packs/sanguangtiezhi/items/3.png",
+        src: "/assets/packs/xiangkuang/items/8.png",
         alt: "灵感单素材 3",
         ratio: 1.25
       },
@@ -27,19 +27,19 @@ Page({
       },
       {
         id: "single-material-5",
-        src: "/assets/packs/sanguangtiezhi/items/7.png",
+        src: "/assets/packs/papers/items/3.png",
         alt: "灵感单素材 5",
         ratio: 1.376
       },
       {
         id: "single-material-6",
-        src: "/assets/packs/jiazi/items/5.png",
+        src: "/assets/packs/jiaodai/items/book-1.png",
         alt: "灵感单素材 6",
         ratio: 1.667
       },
       {
         id: "single-material-7",
-        src: "/assets/packs/hudiejie/items/8.png",
+        src: "/assets/packs/xiangkuang/items/4.png",
         alt: "灵感单素材 7",
         ratio: 0.537
       }

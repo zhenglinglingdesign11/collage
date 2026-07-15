@@ -711,9 +711,34 @@ button::after {
   text-align: center;
 }
 
+.cut-palette .palette-label {
+  bottom: 18rpx;
+  color: #111111;
+  font-weight: 650;
+}
+
 .palette-tool.active {
   color: #111111;
   font-weight: 650;
+}
+
+.cut-icon {
+  position: absolute;
+  left: 50%;
+  bottom: 50rpx;
+  width: 76rpx;
+  height: 76rpx;
+  margin-left: -38rpx;
+  object-fit: contain;
+  transform-origin: bottom center;
+  filter: drop-shadow(0 8rpx 12rpx rgba(17, 17, 17, 0.12));
+}
+
+.palette-tool.active .cut-icon {
+  bottom: 48rpx;
+  width: 86rpx;
+  height: 86rpx;
+  margin-left: -43rpx;
 }
 
 .cut-3d,
@@ -1513,6 +1538,62 @@ button::after {
 
 .la-icon-img {
   display: block;
+}
+
+.la-scissors-line-icon {
+  font-size: 0;
+  line-height: 1;
+}
+
+.scissors-ring,
+.scissors-blade,
+.scissors-joint {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.scissors-ring {
+  width: 15rpx;
+  height: 15rpx;
+  border: 4rpx solid currentColor;
+  border-radius: 50%;
+}
+
+.scissors-ring-a {
+  left: 8rpx;
+  top: 27rpx;
+}
+
+.scissors-ring-b {
+  left: 26rpx;
+  top: 27rpx;
+}
+
+.scissors-blade {
+  left: 21rpx;
+  top: 7rpx;
+  width: 4rpx;
+  height: 25rpx;
+  border-radius: 999rpx;
+  background: currentColor;
+  transform-origin: 50% 92%;
+}
+
+.scissors-blade-a {
+  transform: rotate(-32deg);
+}
+
+.scissors-blade-b {
+  transform: rotate(32deg);
+}
+
+.scissors-joint {
+  left: 20rpx;
+  top: 24rpx;
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .shadow-back,
