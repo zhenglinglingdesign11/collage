@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Journal Collage</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要访问照片，用于把你的照片添加到拼贴画布中。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>需要保存成品图片到相册，方便你分享拼贴作品。</string>
+	<key>UILaunchScreen</key>
+	<dict/>
+</dict>
+</plist>
