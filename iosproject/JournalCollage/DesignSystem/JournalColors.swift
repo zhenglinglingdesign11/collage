@@ -27,4 +27,13 @@ extension Color {
             opacity: alpha
         )
     }
+
+    init?(hexString: String) {
+        var value = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasPrefix("#") {
+            value.removeFirst()
+        }
+        guard let number = UInt(value, radix: 16) else { return nil }
+        self.init(hex: number)
+    }
 }

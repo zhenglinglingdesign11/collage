@@ -8,7 +8,7 @@ struct MineView: View {
                     VStack(alignment: .leading, spacing: JournalSpacing.sm) {
                         Text("最近草稿")
                             .font(JournalTypography.sectionTitle)
-                        Text("草稿列表将在第 2 阶段接入本地 DraftStore。")
+                        Text("最近草稿可在创作页继续编辑。")
                             .font(JournalTypography.caption)
                             .foregroundStyle(JournalColors.textSecondary)
                     }

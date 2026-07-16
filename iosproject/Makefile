@@ -1,4 +1,4 @@
-.PHONY: assets validate project bootstrap clean
+.PHONY: assets validate preflight project bootstrap clean
 
 assets:
 	node Scripts/generate-asset-catalog.js
@@ -7,10 +7,13 @@ assets:
 validate:
 	node Scripts/validate-resources.js
 
+preflight:
+	node Scripts/preflight-acceptance.js
+
 project:
 	xcodegen generate
 
-bootstrap: assets validate project
+bootstrap: assets validate preflight project
 
 clean:
 	rm -rf build DerivedData JournalCollage.xcodeproj

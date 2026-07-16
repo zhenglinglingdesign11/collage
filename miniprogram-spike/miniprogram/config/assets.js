@@ -8,6 +8,7 @@ const remoteUrlCache = {};
 
 const temporarilyIgnoredPackIds = [
   "stickers",
+  "hudiejie",
   "jiazi",
   "sanguangtiezhi",
   "sanjiao",

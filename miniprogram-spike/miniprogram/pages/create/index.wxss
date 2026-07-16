@@ -957,6 +957,71 @@ button::after {
   white-space: normal;
 }
 
+.background-scroll {
+  height: 428rpx;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: normal;
+}
+
+.background-card {
+  position: relative;
+  display: inline-block;
+  width: 196rpx;
+  height: 232rpx;
+  margin: 0 20rpx 20rpx 0;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 24rpx;
+  box-sizing: border-box;
+  overflow: hidden;
+  vertical-align: top;
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.34);
+}
+
+.background-card:nth-child(3n) {
+  margin-right: 0;
+}
+
+.background-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.background-name {
+  position: absolute;
+  left: 12rpx;
+  right: 12rpx;
+  bottom: 12rpx;
+  height: 40rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.88);
+  color: #111111;
+  font-size: 22rpx;
+  line-height: 40rpx;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.pattern-dot {
+  background-image: radial-gradient(rgba(17, 17, 17, 0.16) 2rpx, transparent 2rpx);
+  background-size: 24rpx 24rpx;
+}
+
+.pattern-line {
+  background-image: repeating-linear-gradient(180deg, transparent 0 28rpx, rgba(17, 17, 17, 0.12) 29rpx 30rpx);
+}
+
+.pattern-square {
+  background-image:
+    linear-gradient(rgba(17, 17, 17, 0.1) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(17, 17, 17, 0.1) 1rpx, transparent 1rpx);
+  background-size: 30rpx 30rpx;
+}
+
 .asset-pack-card {
   display: inline-block;
   width: 196rpx;

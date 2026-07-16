@@ -8,6 +8,10 @@
 	<string>需要访问照片，用于把你的照片添加到拼贴画布中。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>需要保存成品图片到相册，方便你分享拼贴作品。</string>
+	<key>REMBG_ENDPOINT</key>
+	<string></string>
+	<key>REMBG_FILE_FIELD_NAME</key>
+	<string>file</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

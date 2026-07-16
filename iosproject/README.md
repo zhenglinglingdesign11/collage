@@ -66,8 +66,9 @@ The source assets currently live in the repository under `miniprogram-spike/mini
 ```bash
 make assets      # regenerate JSON and copy pack images
 make validate    # verify every catalog resource exists in the bundle folder
+make preflight   # verify app scaffold, asset catalog, and empty Draft contract
 make project     # generate JournalCollage.xcodeproj
-make bootstrap   # assets + validate + project
+make bootstrap   # assets + validate + preflight + project
 make clean       # remove generated project/build folders
 ```
 
@@ -76,3 +77,29 @@ PowerShell asset sync is also available on Windows:
 ```powershell
 powershell -ExecutionPolicy Bypass -File Scripts\sync-assets.ps1
 ```
+
+## Editor Spike Core
+
+The phase 2 editor foundation lives in:
+
+- `JournalCollage/Rendering/CanvasViewport.swift` for screen/canvas coordinate conversion.
+- `JournalCollage/Rendering/HitTesting.swift` for topmost layer picking.
+- `JournalCollage/Rendering/LayerTransform.swift` for translate/scale/rotate updates.
+- `JournalCollage/Rendering/DraftRenderer.swift` for the first SwiftUI draft preview.
+- `JournalCollage/Storage/DraftStore.swift` for local JSON draft persistence.
+- `JournalCollage/Domain/Samples/SampleDrafts.swift` for a reusable starter draft.
+
+Once macOS + Xcode is available, run the generated unit tests from Xcode or with:
+
+```bash
+xcodebuild test -project JournalCollage.xcodeproj -scheme JournalCollage -destination 'platform=iOS Simulator,name=iPhone 16'
+```
+
+Current editor capabilities wired into code:
+
+- Canvas ratio switching and fit-to-screen layout.
+- Photo import through `PhotosPicker`, saved via `ImageStore`.
+- Image, sticker, tape, paper, and text layer rendering through `DraftRenderer`.
+- Tap selection, drag translation, pinch scale, and rotation gestures through `InteractiveDraftCanvas`.
+- Copy, delete, move up, and move down commands for the selected layer.
+- Local JSON draft save, latest draft restore in the editor, and recent draft entry points on the Create screen.

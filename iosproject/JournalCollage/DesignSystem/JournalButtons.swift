@@ -2,18 +2,20 @@ import SwiftUI
 
 struct JournalIconButton: View {
     let systemName: String
+    var isEnabled = true
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(JournalColors.ink)
+                .foregroundStyle(isEnabled ? JournalColors.ink : JournalColors.textTertiary)
                 .frame(width: 36, height: 36)
                 .background(JournalColors.weak)
                 .clipShape(Circle())
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
     }
 }
 

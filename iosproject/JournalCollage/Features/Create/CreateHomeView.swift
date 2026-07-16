@@ -2,6 +2,8 @@ import SwiftUI
 
 struct CreateHomeView: View {
     @State private var draft = Draft()
+    @State private var recentDrafts: [DraftSummary] = []
+    @State private var draftStore: DraftStore?
 
     var body: some View {
         NavigationStack {
@@ -12,7 +14,8 @@ struct CreateHomeView: View {
                             .font(JournalTypography.pageTitle)
                             .foregroundStyle(JournalColors.ink)
 
-                        Button {
+                        NavigationLink {
+                            EditorView(draft: Draft())
                         } label: {
                             VStack(spacing: JournalSpacing.sm) {
                                 Image(systemName: "plus")
@@ -70,15 +73,65 @@ struct CreateHomeView: View {
                     VStack(alignment: .leading, spacing: JournalSpacing.sm) {
                         Text("最近草稿")
                             .font(JournalTypography.sectionTitle)
-                        Text("第 1 阶段先保留入口，草稿存储在第 2 阶段接入。")
-                            .font(JournalTypography.caption)
-                            .foregroundStyle(JournalColors.textSecondary)
+                        if recentDrafts.isEmpty {
+                            Text("暂无草稿")
+                                .font(JournalTypography.caption)
+                                .foregroundStyle(JournalColors.textSecondary)
+                        } else {
+                            ForEach(recentDrafts) { summary in
+                                NavigationLink {
+                                    EditorView(draft: loadDraft(id: summary.id) ?? Draft(ratio: summary.ratio))
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+                                            Text(summary.ratio.rawValue)
+                                                .font(JournalTypography.bodyStrong)
+                                                .foregroundStyle(JournalColors.ink)
+                                            Text(Date(timeIntervalSince1970: summary.updatedAt).formatted(date: .abbreviated, time: .shortened))
+                                                .font(JournalTypography.caption)
+                                                .foregroundStyle(JournalColors.textSecondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(JournalColors.textTertiary)
+                                    }
+                                    .padding(JournalSpacing.md)
+                                    .background(JournalColors.panel)
+                                    .clipShape(RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous)
+                                            .stroke(JournalColors.border)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
                 }
                 .padding(JournalSpacing.lg)
             }
             .background(JournalColors.page.ignoresSafeArea())
+            .onAppear {
+                refreshRecentDrafts()
+            }
         }
+    }
+
+    private func refreshRecentDrafts() {
+        if draftStore == nil {
+            draftStore = try? DraftStore()
+        }
+        if let store = draftStore, let summaries = try? store.list() {
+            recentDrafts = summaries
+        } else {
+            recentDrafts = []
+        }
+    }
+
+    private func loadDraft(id: String) -> Draft? {
+        guard let draftStore else { return nil }
+        return try? draftStore.load(id: id)
     }
 }
 
