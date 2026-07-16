@@ -29,19 +29,19 @@ enum RembgServiceError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .missingEndpoint:
-            return "请先配置 Rembg API 地址"
+            return L10n.t("rembg.error.missing_endpoint")
         case .missingImageFile:
-            return "未找到需要处理的图片"
+            return L10n.t("rembg.error.missing_image")
         case .invalidEndpoint:
-            return "Rembg API 地址无效"
+            return L10n.t("rembg.error.invalid_endpoint")
         case .httpError:
-            return "主体剪接口请求失败"
+            return L10n.t("rembg.error.http")
         case .unsupportedResponse:
-            return "主体剪接口返回格式不支持"
+            return L10n.t("rembg.error.unsupported")
         case .missingResult:
-            return "主体剪接口未返回图片"
+            return L10n.t("rembg.error.missing_result")
         case .downloadFailed:
-            return "主体剪结果下载失败"
+            return L10n.t("rembg.error.download_failed")
         }
     }
 }

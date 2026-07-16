@@ -55,8 +55,10 @@ struct CreateHomeView: View {
 
     private var newCollageSection: some View {
         VStack(alignment: .leading, spacing: JournalSpacing.sm) {
-            Text("新拼贴")
+            Text(L10n.t("create.title"))
                 .font(JournalTypography.pageTitle)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(JournalColors.ink)
 
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
@@ -69,11 +71,11 @@ struct CreateHomeView: View {
                         .clipShape(Circle())
                         .overlay(Circle().stroke(JournalColors.border))
 
-                    Text("添加照片")
+                    Text(L10n.t("create.add_photo.title"))
                         .font(JournalTypography.bodyStrong)
                         .foregroundStyle(JournalColors.ink)
 
-                    Text("从相册选择，开始你的拼贴")
+                    Text(L10n.t("create.add_photo.subtitle"))
                         .font(JournalTypography.caption)
                         .foregroundStyle(JournalColors.textSecondary)
                 }
@@ -103,7 +105,7 @@ struct CreateHomeView: View {
             HStack(spacing: JournalSpacing.md) {
                 Image(systemName: "square.stack.3d.up")
                     .foregroundStyle(JournalColors.ink)
-                Text("从素材包开始")
+                Text(L10n.t("create.start_assets"))
                     .font(JournalTypography.bodyStrong)
                     .foregroundStyle(JournalColors.ink)
                 Spacer()
@@ -124,10 +126,12 @@ struct CreateHomeView: View {
 
     private var recentDraftsSection: some View {
         VStack(alignment: .leading, spacing: JournalSpacing.sm) {
-            Text("最近草稿")
+            Text(L10n.t("create.recent_drafts"))
                 .font(JournalTypography.sectionTitle)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
             if recentDrafts.isEmpty {
-                Text("暂无草稿")
+                Text(L10n.t("create.no_drafts"))
                     .font(JournalTypography.caption)
                     .foregroundStyle(JournalColors.textSecondary)
             } else {
@@ -193,16 +197,16 @@ struct CreateHomeView: View {
     private func importPhoto(_ item: PhotosPickerItem?) {
         guard let item else { return }
         setupStores()
-        statusMessage = "正在导入照片"
+        statusMessage = L10n.t("editor.status.importing_photo")
 
         Task { @MainActor in
             guard let imageStore else {
-                statusMessage = "图片存储未就绪"
+                statusMessage = L10n.t("editor.status.photo_store_unready")
                 return
             }
             guard let data = try? await item.loadTransferable(type: Data.self),
                   let stored = try? imageStore.saveImageData(data) else {
-                statusMessage = "图片导入失败"
+                statusMessage = L10n.t("editor.status.photo_import_failed")
                 return
             }
 
@@ -235,7 +239,7 @@ struct CreateHomeView: View {
             statusMessage = nil
             isShowingAssets = true
         } catch {
-            statusMessage = "草稿创建失败"
+            statusMessage = L10n.t("editor.status.draft_create_failed")
         }
     }
 }

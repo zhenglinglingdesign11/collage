@@ -31,9 +31,12 @@ struct JournalPrimaryButton: View {
                     Image(systemName: systemName)
                 }
                 Text(title)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .font(JournalTypography.bodyStrong)
             .foregroundStyle(Color.white)
+            .padding(.horizontal, JournalSpacing.md)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background(JournalColors.ink)

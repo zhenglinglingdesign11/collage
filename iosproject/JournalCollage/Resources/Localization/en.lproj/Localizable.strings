@@ -1,0 +1,163 @@
+"tab.create" = "Create";
+"tab.assets" = "Assets";
+"tab.inspiration" = "Inspo";
+"tab.mine" = "Mine";
+
+"create.title" = "New Collage";
+"create.add_photo.title" = "Add Photo";
+"create.add_photo.subtitle" = "Pick a photo to start";
+"create.start_assets" = "Start with Assets";
+"create.recent_drafts" = "Drafts";
+"create.no_drafts" = "No drafts yet";
+
+"editor.status.unsaved" = "Unsaved";
+"editor.status.saved" = "Saved";
+"editor.status.save_failed" = "Save Failed";
+"editor.status.exporting" = "Exporting";
+"editor.status.export_success" = "Saved to Photos";
+"editor.status.export_failed" = "Export Failed";
+"editor.status.draft_saved" = "Draft Saved";
+"editor.status.draft_failed" = "Draft Failed";
+"editor.status.restore_success" = "Draft Restored";
+"editor.status.restore_failed" = "Restore Failed";
+"editor.status.importing_photo" = "Importing Photo";
+"editor.status.photo_store_unready" = "Photo Store Unready";
+"editor.status.photo_import_failed" = "Import Failed";
+"editor.status.draft_create_failed" = "Draft Failed";
+"editor.status.undo" = "Undone";
+"editor.status.redo" = "Redone";
+"editor.status.prune_warning" = "Old draft removed";
+"editor.status.no_image" = "No Image";
+"editor.status.subject_cutting" = "Cutting Subject";
+"editor.status.subject_done" = "Subject Cut";
+"editor.status.subject_failed" = "Subject Failed";
+"editor.status.brush_saved" = "Brush Saved";
+"editor.status.brush_failed" = "Brush Failed";
+"editor.status.brush_empty" = "Brush Area First";
+"editor.save.button" = "Save";
+"editor.export.button" = "Export";
+"editor.leave.title" = "Save draft before leaving?";
+"editor.leave.message" = "Save your changes or discard edits from this session.";
+"editor.leave.prune_message" = "Saving will remove the oldest draft. Save changes or discard edits from this session.";
+"editor.leave.save" = "Save Draft";
+"editor.leave.discard" = "Discard";
+"editor.leave.cancel" = "Cancel";
+
+"editor.toolbar.photo" = "Photo";
+"editor.toolbar.asset" = "Asset";
+"editor.toolbar.tape" = "Tape";
+"editor.toolbar.background" = "Bg";
+"editor.toolbar.text" = "Text";
+"editor.toolbar.ratio" = "Ratio";
+
+"layer.action.up" = "Up";
+"layer.action.down" = "Down";
+"layer.action.copy" = "Copy";
+"layer.action.delete" = "Delete";
+"layer.action.effects" = "Effects";
+"layer.action.crop" = "Crop";
+"layer.action.mask" = "Mask";
+"layer.action.brush" = "Brush";
+"layer.action.subject" = "Subject";
+"layer.action.edit" = "Edit";
+
+"editor.sheet.text.title" = "Text";
+"editor.sheet.text.placeholder" = "Type text";
+"editor.sheet.text.font" = "Font";
+"editor.sheet.text.background" = "Fill";
+"editor.sheet.text.size" = "Size";
+"editor.text.font.system" = "System";
+"editor.text.font.rounded" = "Rounded";
+"editor.text.font.serif" = "Serif";
+"editor.text.background.none" = "None";
+"editor.text.background.paper" = "Paper";
+"editor.text.background.white" = "White";
+"editor.text.background.black" = "Black";
+"editor.text.background.tape" = "Tape";
+
+"editor.sheet.crop.title" = "Crop";
+"editor.sheet.crop.cancel" = "Cancel";
+"editor.sheet.crop.done" = "Done";
+"editor.sheet.crop.restore" = "Original";
+"editor.sheet.crop.help" = "Drag the crop box or resize corners.";
+"editor.crop.free" = "Free";
+"editor.crop.original" = "Original";
+"editor.crop.square" = "1:1";
+"editor.crop.portrait" = "3:4";
+"editor.crop.landscape" = "4:3";
+"editor.crop.story" = "9:16";
+
+"editor.sheet.effects.title" = "Effects";
+"editor.effect.opacity" = "Opacity";
+"editor.effect.radius" = "Radius";
+"editor.effect.shadow" = "Shadow";
+"editor.effect.tear" = "Torn Edge";
+"editor.effect.tear_note" = "Torn edge is a placeholder.";
+
+"editor.sheet.mask.title" = "Mask";
+"editor.mask.none" = "None";
+"editor.mask.circle" = "Circle";
+"editor.mask.heart" = "Heart";
+"editor.mask.star" = "Star";
+"editor.mask.tag" = "Tag";
+"editor.mask.stamp" = "Stamp";
+"editor.mask.note" = "Mask material comes later.";
+
+"editor.sheet.brush.title" = "Brush Cut";
+"editor.sheet.brush.redraw" = "Redraw";
+"editor.sheet.brush.save" = "Save Brush";
+"editor.sheet.brush.help" = "Brush the area to keep.";
+
+"editor.sheet.assets.title" = "Assets";
+"editor.sheet.background.title" = "Bg";
+"editor.background.paper" = "Warm White";
+"editor.background.cream" = "Cream";
+"editor.background.line" = "Lines";
+"editor.background.square" = "Grid";
+
+"assets.title" = "Assets";
+"assets.category.recommended" = "Recommended";
+"assets.category.favorites" = "Favorites";
+"assets.empty.favorites" = "No favorites yet";
+"assets.add.button" = "Add";
+"assets.browse_all" = "All Assets";
+"assets.favorite_on" = "Favorited";
+
+"inspiration.title" = "Inspo";
+"inspiration.close" = "Close";
+
+"mine.title" = "Mine";
+"mine.recent_drafts" = "Drafts";
+"mine.clear_cache" = "Clear Cache";
+"mine.delete_data.title" = "Delete Data";
+"mine.delete_data.note" = "Delete drafts. Image cache is cleared with all local data.";
+"mine.delete_scope.title" = "Delete What?";
+"mine.delete_drafts" = "Delete Drafts";
+"mine.delete_all_data" = "Delete All Data";
+"mine.delete_all_warning" = "This deletes drafts, local image cache, and mask files. This cannot be undone.";
+"mine.delete_draft.title" = "Delete this draft?";
+"mine.delete_draft.warning" = "This deletes only this draft. This cannot be undone.";
+"mine.status.draft_store_unready" = "Drafts Unavailable";
+"mine.status.drafts_deleted" = "Drafts Deleted";
+"mine.status.all_deleted" = "All Data Deleted";
+"mine.status.delete_failed" = "Delete Failed";
+"mine.accessibility.delete_draft" = "Delete Draft";
+"mine.accessibility.open_draft" = "Open Draft";
+
+"photo.permission.save" = "Photo access is required to save.";
+"photo.save_failed" = "Could not save to Photos.";
+
+"export.error.empty" = "Canvas is invalid.";
+"export.error.render_failed" = "Export failed.";
+"export.preview.title" = "Export";
+"export.preview.section" = "Preview";
+"export.preview.loading" = "Making image";
+"export.preview.failed" = "Preview failed";
+
+"rembg.error.missing_endpoint" = "Set Rembg API first";
+"rembg.error.missing_image" = "No image found";
+"rembg.error.invalid_endpoint" = "Rembg API invalid";
+"rembg.error.http" = "Subject API failed";
+"rembg.error.unsupported" = "Subject API unsupported";
+"rembg.error.missing_result" = "No subject image";
+"rembg.error.download_failed" = "Subject download failed";

@@ -1,0 +1,163 @@
+"tab.create" = "创作";
+"tab.assets" = "素材";
+"tab.inspiration" = "灵感";
+"tab.mine" = "我的";
+
+"create.title" = "新拼贴";
+"create.add_photo.title" = "添加照片";
+"create.add_photo.subtitle" = "从相册选择，开始你的拼贴";
+"create.start_assets" = "从素材包开始";
+"create.recent_drafts" = "最近草稿";
+"create.no_drafts" = "暂无草稿";
+
+"editor.status.unsaved" = "未保存";
+"editor.status.saved" = "已保存";
+"editor.status.save_failed" = "保存失败";
+"editor.status.exporting" = "正在导出";
+"editor.status.export_success" = "已保存到相册";
+"editor.status.export_failed" = "导出失败";
+"editor.status.draft_saved" = "草稿已保存";
+"editor.status.draft_failed" = "草稿处理失败";
+"editor.status.restore_success" = "已恢复草稿";
+"editor.status.restore_failed" = "草稿恢复失败";
+"editor.status.importing_photo" = "正在导入照片";
+"editor.status.photo_store_unready" = "图片存储未就绪";
+"editor.status.photo_import_failed" = "图片导入失败";
+"editor.status.draft_create_failed" = "草稿创建失败";
+"editor.status.undo" = "已撤销";
+"editor.status.redo" = "已重做";
+"editor.status.prune_warning" = "本地草稿已达 20 个，保存将删除最早的草稿";
+"editor.status.no_image" = "请先选择图片";
+"editor.status.subject_cutting" = "主体抠图中";
+"editor.status.subject_done" = "主体抠图完成";
+"editor.status.subject_failed" = "主体抠图失败";
+"editor.status.brush_saved" = "已保存涂抹剪";
+"editor.status.brush_failed" = "涂抹剪保存失败";
+"editor.status.brush_empty" = "请先涂抹区域";
+"editor.save.button" = "保存";
+"editor.export.button" = "导出";
+"editor.leave.title" = "离开前保存草稿？";
+"editor.leave.message" = "可以保存当前编辑，或放弃本次进入编辑器后的修改。";
+"editor.leave.prune_message" = "本地草稿已达 20 个，保存将删除最早的草稿。可以保存当前编辑，或放弃本次进入编辑器后的修改。";
+"editor.leave.save" = "保存为草稿";
+"editor.leave.discard" = "不保存";
+"editor.leave.cancel" = "取消";
+
+"editor.toolbar.photo" = "图片";
+"editor.toolbar.asset" = "素材";
+"editor.toolbar.tape" = "胶带";
+"editor.toolbar.background" = "背景";
+"editor.toolbar.text" = "文字";
+"editor.toolbar.ratio" = "比例";
+
+"layer.action.up" = "上移";
+"layer.action.down" = "下移";
+"layer.action.copy" = "复制";
+"layer.action.delete" = "删除";
+"layer.action.effects" = "效果";
+"layer.action.crop" = "裁切";
+"layer.action.mask" = "形状";
+"layer.action.brush" = "涂抹";
+"layer.action.subject" = "主体";
+"layer.action.edit" = "编辑";
+
+"editor.sheet.text.title" = "文字";
+"editor.sheet.text.placeholder" = "输入文字";
+"editor.sheet.text.font" = "字体";
+"editor.sheet.text.background" = "底色";
+"editor.sheet.text.size" = "字号";
+"editor.text.font.system" = "系统";
+"editor.text.font.rounded" = "圆体";
+"editor.text.font.serif" = "衬线";
+"editor.text.background.none" = "无";
+"editor.text.background.paper" = "纸底";
+"editor.text.background.white" = "白底";
+"editor.text.background.black" = "黑底";
+"editor.text.background.tape" = "胶带";
+
+"editor.sheet.crop.title" = "裁切";
+"editor.sheet.crop.cancel" = "取消";
+"editor.sheet.crop.done" = "完成";
+"editor.sheet.crop.restore" = "还原原图";
+"editor.sheet.crop.help" = "拖动裁切框移动范围，拖拽四角调整大小。点完成后才会写入草稿。";
+"editor.crop.free" = "自由";
+"editor.crop.original" = "原图";
+"editor.crop.square" = "1:1";
+"editor.crop.portrait" = "3:4";
+"editor.crop.landscape" = "4:3";
+"editor.crop.story" = "9:16";
+
+"editor.sheet.effects.title" = "图层效果";
+"editor.effect.opacity" = "透明度";
+"editor.effect.radius" = "圆角";
+"editor.effect.shadow" = "阴影";
+"editor.effect.tear" = "撕边";
+"editor.effect.tear_note" = "撕边当前为渲染占位，后续会替换为真实不规则边缘。";
+
+"editor.sheet.mask.title" = "形状蒙版";
+"editor.mask.none" = "无";
+"editor.mask.circle" = "圆形";
+"editor.mask.heart" = "心形";
+"editor.mask.star" = "星形";
+"editor.mask.tag" = "标签";
+"editor.mask.stamp" = "邮票";
+"editor.mask.note" = "当前为形状蒙版初版，压花材质会在后续阶段叠加。";
+
+"editor.sheet.brush.title" = "涂抹剪";
+"editor.sheet.brush.redraw" = "重画";
+"editor.sheet.brush.save" = "保存涂抹剪";
+"editor.sheet.brush.help" = "涂抹保留想要的区域，保存后会生成 alpha mask 并随草稿恢复。";
+
+"editor.sheet.assets.title" = "素材";
+"editor.sheet.background.title" = "背景";
+"editor.background.paper" = "暖白";
+"editor.background.cream" = "米纸";
+"editor.background.line" = "横线";
+"editor.background.square" = "方格";
+
+"assets.title" = "素材包";
+"assets.category.recommended" = "推荐";
+"assets.category.favorites" = "收藏";
+"assets.empty.favorites" = "还没有收藏的素材包";
+"assets.add.button" = "添加";
+"assets.browse_all" = "查看全部素材";
+"assets.favorite_on" = "已收藏";
+
+"inspiration.title" = "灵感";
+"inspiration.close" = "关闭";
+
+"mine.title" = "我的";
+"mine.recent_drafts" = "最近草稿";
+"mine.clear_cache" = "清理缓存";
+"mine.delete_data.title" = "删除本地数据";
+"mine.delete_data.note" = "可删除草稿；图片缓存仅随全部本地数据一起删除。";
+"mine.delete_scope.title" = "选择清理范围";
+"mine.delete_drafts" = "删除草稿";
+"mine.delete_all_data" = "删除全部本地数据";
+"mine.delete_all_warning" = "删除全部本地数据会同时删除草稿、本地图片缓存和抠图 Mask 文件，无法撤销。";
+"mine.delete_draft.title" = "删除这个草稿？";
+"mine.delete_draft.warning" = "此操作只删除这个草稿，无法撤销。";
+"mine.status.draft_store_unready" = "无法访问本地草稿。";
+"mine.status.drafts_deleted" = "草稿已删除。";
+"mine.status.all_deleted" = "全部本地数据已删除。";
+"mine.status.delete_failed" = "删除失败，请稍后再试。";
+"mine.accessibility.delete_draft" = "删除草稿";
+"mine.accessibility.open_draft" = "打开最近草稿";
+
+"photo.permission.save" = "需要相册权限才能保存。";
+"photo.save_failed" = "保存到相册失败，请稍后再试。";
+
+"export.error.empty" = "画布尺寸无效，无法导出。";
+"export.error.render_failed" = "导出图片生成失败。";
+"export.preview.title" = "导出";
+"export.preview.section" = "导出预览";
+"export.preview.loading" = "正在生成高清图片";
+"export.preview.failed" = "未能生成预览";
+
+"rembg.error.missing_endpoint" = "请先配置 Rembg API 地址";
+"rembg.error.missing_image" = "未找到需要处理的图片";
+"rembg.error.invalid_endpoint" = "Rembg API 地址无效";
+"rembg.error.http" = "主体剪接口请求失败";
+"rembg.error.unsupported" = "主体剪接口返回格式不支持";
+"rembg.error.missing_result" = "主体剪接口未返回图片";
+"rembg.error.download_failed" = "主体剪结果下载失败";

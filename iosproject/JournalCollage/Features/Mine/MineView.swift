@@ -14,8 +14,10 @@ struct MineView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: JournalSpacing.xl) {
                     VStack(alignment: .leading, spacing: JournalSpacing.md) {
-                        Text("最近草稿")
+                        Text(L10n.t("mine.recent_drafts"))
                             .font(JournalTypography.sectionTitle)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
 
                         if recentDrafts.isEmpty {
                             EmptyDraftState()
@@ -42,9 +44,11 @@ struct MineView: View {
 
                     HStack {
                         VStack(alignment: .leading, spacing: JournalSpacing.xs) {
-                            Text("删除本地数据")
+                            Text(L10n.t("mine.delete_data.title"))
                                 .font(JournalTypography.bodyStrong)
-                            Text("可删除草稿；图片缓存仅随全部本地数据一起删除。")
+                                .lineLimit(2)
+                                .minimumScaleFactor(0.8)
+                            Text(L10n.t("mine.delete_data.note"))
                                 .font(JournalTypography.caption)
                                 .foregroundStyle(JournalColors.textSecondary)
                         }
@@ -71,7 +75,7 @@ struct MineView: View {
                 .padding(JournalSpacing.lg)
             }
             .background(JournalColors.page.ignoresSafeArea())
-            .navigationTitle("我的")
+            .navigationTitle(L10n.t("mine.title"))
             .navigationDestination(
                 isPresented: Binding(
                     get: { draftToEdit != nil },
@@ -88,31 +92,31 @@ struct MineView: View {
                 }
             }
             .confirmationDialog(
-                "选择清理范围",
+                L10n.t("mine.delete_scope.title"),
                 isPresented: $isShowingDeleteConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("删除草稿", role: .destructive) {
+                Button(L10n.t("mine.delete_drafts"), role: .destructive) {
                     deleteDrafts()
                 }
-                Button("删除全部本地数据", role: .destructive) {
+                Button(L10n.t("mine.delete_all_data"), role: .destructive) {
                     deleteAllLocalData()
                 }
-                Button("取消", role: .cancel) {}
+                Button(L10n.t("editor.leave.cancel"), role: .cancel) {}
             } message: {
-                Text("删除全部本地数据会同时删除草稿、本地图片缓存和抠图 Mask 文件，无法撤销。")
+                Text(L10n.t("mine.delete_all_warning"))
             }
             .confirmationDialog(
-                "删除这个草稿？",
+                L10n.t("mine.delete_draft.title"),
                 item: $draftPendingDeletion,
                 titleVisibility: .visible
             ) { summary in
-                Button("删除草稿", role: .destructive) {
+                Button(L10n.t("mine.delete_drafts"), role: .destructive) {
                     deleteDraft(summary)
                 }
-                Button("取消", role: .cancel) {}
+                Button(L10n.t("editor.leave.cancel"), role: .cancel) {}
             } message: { _ in
-                Text("此操作只删除这个草稿，无法撤销。")
+                Text(L10n.t("mine.delete_draft.warning"))
             }
             .onAppear {
                 refreshRecentDrafts()
@@ -139,7 +143,7 @@ struct MineView: View {
 
     private func deleteDrafts() {
         guard let store = draftStore ?? (try? DraftStore()) else {
-            statusMessage = "无法访问本地草稿。"
+            statusMessage = L10n.t("mine.status.draft_store_unready")
             return
         }
         draftStore = store
@@ -147,15 +151,15 @@ struct MineView: View {
         do {
             try store.deleteAll()
             recentDrafts = []
-            statusMessage = "草稿已删除。"
+            statusMessage = L10n.t("mine.status.drafts_deleted")
         } catch {
-            statusMessage = "删除失败，请稍后再试。"
+            statusMessage = L10n.t("mine.status.delete_failed")
         }
     }
 
     private func deleteDraft(_ summary: DraftSummary) {
         guard let store = draftStore ?? (try? DraftStore()) else {
-            statusMessage = "无法访问本地草稿。"
+            statusMessage = L10n.t("mine.status.draft_store_unready")
             return
         }
         draftStore = store
@@ -163,15 +167,15 @@ struct MineView: View {
         do {
             try store.delete(id: summary.id)
             refreshRecentDrafts()
-            statusMessage = "草稿已删除。"
+            statusMessage = L10n.t("mine.status.drafts_deleted")
         } catch {
-            statusMessage = "删除失败，请稍后再试。"
+            statusMessage = L10n.t("mine.status.delete_failed")
         }
     }
 
     private func deleteAllLocalData() {
         guard let store = draftStore ?? (try? DraftStore()) else {
-            statusMessage = "无法访问本地草稿。"
+            statusMessage = L10n.t("mine.status.draft_store_unready")
             return
         }
         draftStore = store
@@ -180,9 +184,9 @@ struct MineView: View {
             try store.deleteAll()
             try ImageStore().deleteAll()
             recentDrafts = []
-            statusMessage = "全部本地数据已删除。"
+            statusMessage = L10n.t("mine.status.all_deleted")
         } catch {
-            statusMessage = "删除失败，请稍后再试。"
+            statusMessage = L10n.t("mine.status.delete_failed")
         }
     }
 }
@@ -210,7 +214,7 @@ private struct RecentDraftCard: View {
                     }
                     .buttonStyle(.plain)
                     .padding(6)
-                    .accessibilityLabel("删除草稿")
+                    .accessibilityLabel(L10n.t("mine.accessibility.delete_draft"))
                 }
 
             Text(summary.ratio.rawValue)
@@ -232,7 +236,7 @@ private struct RecentDraftCard: View {
         )
         .contentShape(RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous))
         .onTapGesture(perform: onOpen)
-        .accessibilityLabel("打开最近草稿")
+        .accessibilityLabel(L10n.t("mine.accessibility.open_draft"))
     }
 }
 
@@ -285,7 +289,7 @@ private struct DraftPlaceholderArt: View {
 
 private struct EmptyDraftState: View {
     var body: some View {
-        Text("暂无草稿")
+        Text(L10n.t("create.no_drafts"))
             .font(JournalTypography.caption)
             .foregroundStyle(JournalColors.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)

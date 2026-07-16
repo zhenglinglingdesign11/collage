@@ -15,8 +15,10 @@ struct ExportPreviewView: View {
                 previewArea
 
                 VStack(alignment: .leading, spacing: JournalSpacing.sm) {
-                    Text("导出预览")
+                    Text(L10n.t("export.preview.section"))
                         .font(JournalTypography.sectionTitle)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(JournalColors.ink)
 
                     Text(sizeText)
@@ -36,7 +38,7 @@ struct ExportPreviewView: View {
             }
             .padding(JournalSpacing.lg)
             .background(JournalColors.page.ignoresSafeArea())
-            .navigationTitle("导出")
+            .navigationTitle(L10n.t("export.preview.title"))
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 await renderPreview()
@@ -50,7 +52,7 @@ struct ExportPreviewView: View {
             VStack(spacing: JournalSpacing.sm) {
                 ProgressView()
                     .tint(JournalColors.ink)
-                Text("正在生成高清图片")
+                Text(L10n.t("export.preview.loading"))
                     .font(JournalTypography.caption)
                     .foregroundStyle(JournalColors.textSecondary)
             }
@@ -81,7 +83,7 @@ struct ExportPreviewView: View {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(JournalColors.stampRed)
-                Text("未能生成预览")
+                Text(L10n.t("export.preview.failed"))
                     .font(JournalTypography.bodyStrong)
                     .foregroundStyle(JournalColors.ink)
             }
@@ -109,7 +111,7 @@ struct ExportPreviewView: View {
             exportedImage = try ExportRenderer.render(draft: draft, imageStore: imageStore)
         } catch {
             exportedImage = nil
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? "导出图片生成失败。"
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? L10n.t("export.error.render_failed")
         }
         isRendering = false
     }

@@ -14,17 +14,17 @@ enum LayerMaskShape: String, CaseIterable, Identifiable, Sendable {
     var label: String {
         switch self {
         case .none:
-            return "无"
+            return L10n.t("editor.mask.none")
         case .circle:
-            return "圆形"
+            return L10n.t("editor.mask.circle")
         case .heart:
-            return "心形"
+            return L10n.t("editor.mask.heart")
         case .star:
-            return "星形"
+            return L10n.t("editor.mask.star")
         case .tag:
-            return "标签"
+            return L10n.t("editor.mask.tag")
         case .stamp:
-            return "邮票"
+            return L10n.t("editor.mask.stamp")
         }
     }
 }

@@ -14,9 +14,9 @@ enum ExportRendererError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyCanvas:
-            return "画布尺寸无效，无法导出。"
+            return L10n.t("export.error.empty")
         case .renderFailed:
-            return "导出图片生成失败。"
+            return L10n.t("export.error.render_failed")
         }
     }
 }

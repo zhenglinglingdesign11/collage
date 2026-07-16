@@ -14,17 +14,17 @@ enum CropPreset: String, CaseIterable, Identifiable, Sendable {
     var label: String {
         switch self {
         case .free:
-            return "自由"
+            return L10n.t("editor.crop.free")
         case .original:
-            return "原图"
+            return L10n.t("editor.crop.original")
         case .square:
-            return "1:1"
+            return L10n.t("editor.crop.square")
         case .portrait:
-            return "3:4"
+            return L10n.t("editor.crop.portrait")
         case .landscape:
-            return "4:3"
+            return L10n.t("editor.crop.landscape")
         case .story:
-            return "9:16"
+            return L10n.t("editor.crop.story")
         }
     }
 

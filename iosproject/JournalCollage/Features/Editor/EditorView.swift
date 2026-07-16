@@ -7,7 +7,7 @@ struct EditorView: View {
     @State private var draft: Draft
     @State private var selectedLayerId: String?
     @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var saveStatus = "未保存"
+    @State private var saveStatus = L10n.t("editor.status.unsaved")
     @State private var draftStore: DraftStore?
     @State private var imageStore: ImageStore?
     @State private var assetCatalog = AssetPackCatalog(schemaVersion: 1, generatedFrom: "", packs: [])
@@ -85,17 +85,17 @@ struct EditorView: View {
             importPhoto(item)
         }
         .confirmationDialog(
-            "离开前保存草稿？",
+            L10n.t("editor.leave.title"),
             isPresented: $leaveConfirmationVisible,
             titleVisibility: .visible
         ) {
-            Button("保存为草稿") {
+            Button(L10n.t("editor.leave.save")) {
                 saveAndLeave()
             }
-            Button("不保存", role: .destructive) {
+            Button(L10n.t("editor.leave.discard"), role: .destructive) {
                 discardAndLeave()
             }
-            Button("取消", role: .cancel) {
+            Button(L10n.t("editor.leave.cancel"), role: .cancel) {
             }
         } message: {
             Text(leaveConfirmationMessage)
@@ -202,18 +202,25 @@ struct EditorView: View {
                 action: redoDraftChange
             )
 
-            Button("保存") {
+            Button(L10n.t("editor.save.button")) {
                 saveDraft()
             }
             .font(JournalTypography.bodyStrong)
             .foregroundStyle(JournalColors.ink)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, JournalSpacing.xs)
 
-            Button("导出") {
+            Button(L10n.t("editor.export.button")) {
                 exportToPhotoLibrary()
             }
             .font(JournalTypography.bodyStrong)
             .foregroundStyle(Color.white)
-            .frame(width: 64, height: 36)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, JournalSpacing.md)
+            .frame(minWidth: 64)
+            .frame(height: 36)
             .background(JournalColors.ink)
             .clipShape(Capsule())
         }
@@ -240,10 +247,10 @@ struct EditorView: View {
                     resetHistory(to: restored)
                     entryDraftSnapshot = restored
                     draftExistedOnEntry = true
-                    saveStatus = "已恢复草稿"
+                    saveStatus = L10n.t("editor.status.restore_success")
                 }
             } catch {
-                saveStatus = "草稿恢复失败"
+                saveStatus = L10n.t("editor.status.restore_failed")
             }
         }
         if entryDraftSnapshot == nil {
@@ -256,12 +263,12 @@ struct EditorView: View {
         guard let item else { return }
         Task {
             guard let imageStore else {
-                saveStatus = "图片存储未就绪"
+                saveStatus = L10n.t("editor.status.photo_store_unready")
                 return
             }
             guard let data = try? await item.loadTransferable(type: Data.self),
                   let stored = try? imageStore.saveImageData(data) else {
-                saveStatus = "图片导入失败"
+                saveStatus = L10n.t("editor.status.photo_import_failed")
                 return
             }
             var nextLayer = DraftFactory.makeImageLayer(
@@ -421,7 +428,7 @@ struct EditorView: View {
         draft = previous
         lastCommittedDraft = previous
         normalizeSelection()
-        saveDraft(status: "已撤销")
+        saveDraft(status: L10n.t("editor.status.undo"))
     }
 
     private func redoDraftChange() {
@@ -433,7 +440,7 @@ struct EditorView: View {
         draft = next
         lastCommittedDraft = next
         normalizeSelection()
-        saveDraft(status: "已重做")
+        saveDraft(status: L10n.t("editor.status.redo"))
     }
 
     private func resetHistory(to draft: Draft) {
@@ -453,13 +460,13 @@ struct EditorView: View {
 
     private var leaveConfirmationMessage: String {
         if leaveWillPruneOldestDraft {
-            return "本地草稿已达 20 个，保存将删除最早的草稿。可以保存当前编辑，或放弃本次进入编辑器后的修改。"
+            return L10n.t("editor.leave.prune_message")
         }
-        return "可以保存当前编辑，或放弃本次进入编辑器后的修改。"
+        return L10n.t("editor.leave.message")
     }
 
     private func saveAndLeave() {
-        saveDraft(status: "草稿已保存")
+        saveDraft(status: L10n.t("editor.status.draft_saved"))
         dismiss()
     }
 
@@ -471,7 +478,7 @@ struct EditorView: View {
                 try draftStore?.delete(id: draft.id)
             }
         } catch {
-            saveStatus = "草稿处理失败"
+            saveStatus = L10n.t("editor.status.draft_failed")
             return
         }
         dismiss()
@@ -481,30 +488,30 @@ struct EditorView: View {
         !draft.layers.isEmpty || draft.background != "#fdfdfb" || draft.backgroundPattern != nil || draft.backgroundImage != nil
     }
 
-    private func saveDraft(status: String = "已保存") {
+    private func saveDraft(status: String = L10n.t("editor.status.saved")) {
         do {
             let willPruneOldestDraft = (try draftStore?.willPruneOldestDraft(onSaving: draft)) ?? false
             draft = DraftThumbnailGenerator.draftWithUpdatedThumbnail(draft, imageStore: imageStore)
             try draftStore?.save(draft)
             lastCommittedDraft = draft
             saveStatus = willPruneOldestDraft
-                ? "本地草稿已达 20 个，保存将删除最早的草稿"
+                ? L10n.t("editor.status.prune_warning")
                 : status
         } catch {
-            saveStatus = "保存失败"
+            saveStatus = L10n.t("editor.status.save_failed")
         }
     }
 
     private func exportToPhotoLibrary() {
         saveDraft()
-        saveStatus = "正在导出"
+        saveStatus = L10n.t("editor.status.exporting")
         Task { @MainActor in
             do {
                 let exported = try ExportRenderer.render(draft: draft, imageStore: imageStore)
                 try await PhotoLibrarySaver.save(exported.image)
-                saveStatus = "已保存到相册"
+                saveStatus = L10n.t("editor.status.export_success")
             } catch {
-                saveStatus = (error as? LocalizedError)?.errorDescription ?? "导出失败"
+                saveStatus = (error as? LocalizedError)?.errorDescription ?? L10n.t("editor.status.export_failed")
             }
         }
     }
@@ -515,17 +522,17 @@ struct EditorView: View {
               let source = layer.source,
               let imageStore,
               let fileURL = ImageSourceResolver.url(for: source, imageStore: imageStore) else {
-            saveStatus = "请先选择图片"
+            saveStatus = L10n.t("editor.status.no_image")
             return
         }
         let layerId = layer.id
-        saveStatus = "主体剪中..."
+        saveStatus = L10n.t("editor.status.subject_cutting")
         Task { @MainActor in
             do {
                 let data = try await RembgService().removeImageBackground(fileURL: fileURL)
                 let stored = try imageStore.savePNGImageData(data)
                 guard let index = draft.layers.firstIndex(where: { $0.id == layerId }) else {
-                    saveStatus = "未选中图片"
+                    saveStatus = L10n.t("editor.status.no_image")
                     return
                 }
                 draft.layers[index].source = stored.source
@@ -533,9 +540,9 @@ struct EditorView: View {
                 draft.layers[index].sourceHeight = stored.size.height
                 draft.layers[index].style["subjectCut"] = .bool(true)
                 commitDraftChange()
-                saveStatus = "主体剪完成"
+                saveStatus = L10n.t("editor.status.subject_done")
             } catch {
-                saveStatus = (error as? LocalizedError)?.errorDescription ?? "主体剪失败，请稍后重试"
+                saveStatus = (error as? LocalizedError)?.errorDescription ?? L10n.t("editor.status.subject_failed")
             }
         }
     }
@@ -605,32 +612,32 @@ private struct EditorToolbar: View {
     var body: some View {
         HStack {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                ToolItem(systemName: "photo", label: "图片")
+                ToolItem(systemName: "photo", label: L10n.t("editor.toolbar.photo"))
             }
             .buttonStyle(.plain)
 
             Button(action: onAddAsset) {
-                ToolItem(systemName: "square.grid.2x2", label: "素材")
+                ToolItem(systemName: "square.grid.2x2", label: L10n.t("editor.toolbar.asset"))
             }
             .buttonStyle(.plain)
 
             Button(action: onAddTape) {
-                ToolItem(systemName: "rectangle.fill.on.rectangle.fill", label: "胶带")
+                ToolItem(systemName: "rectangle.fill.on.rectangle.fill", label: L10n.t("editor.toolbar.tape"))
             }
             .buttonStyle(.plain)
 
             Button(action: onAddBackground) {
-                ToolItem(systemName: "square.dotted", label: "背景")
+                ToolItem(systemName: "square.dotted", label: L10n.t("editor.toolbar.background"))
             }
             .buttonStyle(.plain)
 
             Button(action: onAddText) {
-                ToolItem(systemName: "textformat", label: "文字")
+                ToolItem(systemName: "textformat", label: L10n.t("editor.toolbar.text"))
             }
             .buttonStyle(.plain)
 
             Button(action: onChangeRatio) {
-                ToolItem(systemName: "rectangle.3.group", label: "比例")
+                ToolItem(systemName: "rectangle.3.group", label: L10n.t("editor.toolbar.ratio"))
             }
             .buttonStyle(.plain)
         }
@@ -661,43 +668,43 @@ private struct LayerCommandToolbar: View {
     var body: some View {
         HStack {
             Button(action: onMoveDown) {
-                ToolItem(systemName: "square.2.layers.3d.bottom.filled", label: "下移")
+                ToolItem(systemName: "square.2.layers.3d.bottom.filled", label: L10n.t("layer.action.down"))
             }
             Button(action: onMoveUp) {
-                ToolItem(systemName: "square.2.layers.3d.top.filled", label: "上移")
+                ToolItem(systemName: "square.2.layers.3d.top.filled", label: L10n.t("layer.action.up"))
             }
             Button(action: onCopy) {
-                ToolItem(systemName: "doc.on.doc", label: "复制")
+                ToolItem(systemName: "doc.on.doc", label: L10n.t("layer.action.copy"))
             }
             Button(action: onDelete) {
-                ToolItem(systemName: "trash", label: "删除")
+                ToolItem(systemName: "trash", label: L10n.t("layer.action.delete"))
             }
             Button(action: onEffects) {
-                ToolItem(systemName: "slider.horizontal.3", label: "效果")
+                ToolItem(systemName: "slider.horizontal.3", label: L10n.t("layer.action.effects"))
             }
             if canCrop {
                 Button(action: onCrop) {
-                    ToolItem(systemName: "crop", label: "裁切")
+                    ToolItem(systemName: "crop", label: L10n.t("layer.action.crop"))
                 }
             }
             if canMask {
                 Button(action: onMask) {
-                    ToolItem(systemName: "seal", label: "形状")
+                    ToolItem(systemName: "seal", label: L10n.t("layer.action.mask"))
                 }
             }
             if canBrushCut {
                 Button(action: onBrushCut) {
-                    ToolItem(systemName: "scissors", label: "涂抹")
+                    ToolItem(systemName: "scissors", label: L10n.t("layer.action.brush"))
                 }
             }
             if canSubjectCut {
                 Button(action: onSubjectCut) {
-                    ToolItem(systemName: "person.crop.rectangle", label: "主体")
+                    ToolItem(systemName: "person.crop.rectangle", label: L10n.t("layer.action.subject"))
                 }
             }
             if canEditText {
                 Button(action: onEditText) {
-                    ToolItem(systemName: "text.cursor", label: "编辑")
+                    ToolItem(systemName: "text.cursor", label: L10n.t("layer.action.edit"))
                 }
             }
         }
@@ -722,6 +729,8 @@ private struct ToolItem: View {
                 .font(.system(size: 18, weight: .medium))
             Text(label)
                 .font(JournalTypography.tiny)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .foregroundStyle(JournalColors.ink)
         .frame(maxWidth: .infinity)
@@ -748,16 +757,20 @@ private struct BrushCutSheet: View {
                 .padding(.top, JournalSpacing.sm)
 
             HStack {
-                Text("涂抹剪")
+                Text(L10n.t("editor.sheet.brush.title"))
                     .font(JournalTypography.sectionTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(JournalColors.ink)
                 Spacer()
-                Button("重画") {
+                Button(L10n.t("editor.sheet.brush.redraw")) {
                     strokes = []
                     currentStroke = []
                 }
                 .font(JournalTypography.bodyStrong)
                 .foregroundStyle(JournalColors.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
 
             ZStack {
@@ -817,11 +830,11 @@ private struct BrushCutSheet: View {
                     .stroke(JournalColors.border)
             )
 
-            Text("涂抹保留想要的区域，保存后会生成 alpha mask 并随草稿恢复。")
+            Text(L10n.t("editor.sheet.brush.help"))
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
 
-            JournalPrimaryButton(title: "保存涂抹剪", systemName: "checkmark") {
+            JournalPrimaryButton(title: L10n.t("editor.sheet.brush.save"), systemName: "checkmark") {
                 saveBrushMask()
             }
 
@@ -852,17 +865,17 @@ private struct BrushCutSheet: View {
 
     private func saveBrushMask() {
         guard let imageStore else {
-            onStatusChanged("图片存储未就绪")
+            onStatusChanged(L10n.t("editor.status.photo_store_unready"))
             return
         }
         guard let layerId,
               let index = draft.layers.firstIndex(where: { $0.id == layerId }) else {
-            onStatusChanged("未选中图片")
+            onStatusChanged(L10n.t("editor.status.no_image"))
             return
         }
         let normalized = BrushMaskRenderer.normalizedStrokes(from: strokes, drawingSize: drawingSize)
         guard !normalized.isEmpty else {
-            onStatusChanged("请先涂抹区域")
+            onStatusChanged(L10n.t("editor.status.brush_empty"))
             return
         }
 
@@ -872,9 +885,9 @@ private struct BrushCutSheet: View {
             draft.layers[index].style["maskSource"] = .string(source)
             draft.layers[index].style["brushPath"] = BrushMaskRenderer.jsonValue(from: normalized)
             onDraftChanged()
-            onStatusChanged("已保存涂抹剪")
+            onStatusChanged(L10n.t("editor.status.brush_saved"))
         } catch {
-            onStatusChanged("涂抹剪保存失败")
+            onStatusChanged(L10n.t("editor.status.brush_failed"))
         }
     }
 
@@ -902,8 +915,10 @@ private struct LayerMaskSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, JournalSpacing.sm)
 
-            Text("形状蒙版")
+            Text(L10n.t("editor.sheet.mask.title"))
                 .font(JournalTypography.sectionTitle)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(JournalColors.ink)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: JournalSpacing.sm) {
@@ -930,7 +945,7 @@ private struct LayerMaskSheet: View {
                 }
             }
 
-            Text("当前为形状蒙版初版，压花材质会在后续阶段叠加。")
+            Text(L10n.t("editor.mask.note"))
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
 
@@ -1000,25 +1015,31 @@ private struct CropPresetSheet: View {
                 .padding(.top, JournalSpacing.sm)
 
             HStack {
-                Button("取消") {
+                Button(L10n.t("editor.sheet.crop.cancel")) {
                     dismiss()
                 }
                 .font(JournalTypography.bodyStrong)
                 .foregroundStyle(JournalColors.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
 
                 Spacer()
 
-                Text("裁切")
+                Text(L10n.t("editor.sheet.crop.title"))
                     .font(JournalTypography.sectionTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(JournalColors.ink)
 
                 Spacer()
 
-                Button("完成") {
+                Button(L10n.t("editor.sheet.crop.done")) {
                     confirmCrop()
                 }
                 .font(JournalTypography.bodyStrong)
                 .foregroundStyle(JournalColors.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
 
             GeometryReader { proxy in
@@ -1064,6 +1085,8 @@ private struct CropPresetSheet: View {
                         Text(preset.label)
                             .font(JournalTypography.bodyStrong)
                             .foregroundStyle(selectedPreset == preset ? Color.white : JournalColors.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
                             .background(selectedPreset == preset ? JournalColors.ink : JournalColors.weak)
@@ -1076,7 +1099,7 @@ private struct CropPresetSheet: View {
             Button {
                 resetCrop()
             } label: {
-                Label("还原原图", systemImage: "arrow.counterclockwise")
+                Label(L10n.t("editor.sheet.crop.restore"), systemImage: "arrow.counterclockwise")
                     .font(JournalTypography.bodyStrong)
                     .foregroundStyle(JournalColors.ink)
                     .frame(maxWidth: .infinity)
@@ -1086,7 +1109,7 @@ private struct CropPresetSheet: View {
             }
             .buttonStyle(.plain)
 
-            Text("拖动裁切框移动范围，拖拽四角调整大小。点完成后才会写入草稿。")
+            Text(L10n.t("editor.sheet.crop.help"))
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
 
@@ -1382,12 +1405,14 @@ private struct LayerEffectsSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, JournalSpacing.sm)
 
-            Text("图层效果")
+            Text(L10n.t("editor.sheet.effects.title"))
                 .font(JournalTypography.sectionTitle)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(JournalColors.ink)
 
             effectSlider(
-                title: "透明度",
+                title: L10n.t("editor.effect.opacity"),
                 valueText: "\(Int(opacity * 100))%",
                 value: $opacity,
                 range: 0.1...1,
@@ -1397,7 +1422,7 @@ private struct LayerEffectsSheet: View {
 
             if supportsRadius {
                 effectSlider(
-                    title: "圆角",
+                    title: L10n.t("editor.effect.radius"),
                     valueText: "\(Int(radius))",
                     value: $radius,
                     range: 0...80,
@@ -1406,17 +1431,17 @@ private struct LayerEffectsSheet: View {
                 .onChange(of: radius) { _, _ in applyChanges() }
             }
 
-            Toggle("阴影", isOn: $shadow)
+            Toggle(L10n.t("editor.effect.shadow"), isOn: $shadow)
                 .font(JournalTypography.bodyStrong)
                 .tint(JournalColors.ink)
                 .onChange(of: shadow) { _, _ in applyChanges() }
 
-            Toggle("撕边", isOn: $tear)
+            Toggle(L10n.t("editor.effect.tear"), isOn: $tear)
                 .font(JournalTypography.bodyStrong)
                 .tint(JournalColors.ink)
                 .onChange(of: tear) { _, _ in applyChanges() }
 
-            Text("撕边当前为渲染占位，后续会替换为真实不规则边缘。")
+            Text(L10n.t("editor.effect.tear_note"))
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
 
@@ -1519,17 +1544,21 @@ private struct AssetDrawerSheet: View {
                 .padding(.top, JournalSpacing.sm)
 
             HStack {
-                Text("素材")
+                Text(L10n.t("editor.sheet.assets.title"))
                     .font(JournalTypography.sectionTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(JournalColors.ink)
 
                 Spacer()
 
-                Button("查看全部素材") {
+                Button(L10n.t("assets.browse_all")) {
                     onBrowseAll()
                 }
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -1540,6 +1569,8 @@ private struct AssetDrawerSheet: View {
                         }
                         .font(JournalTypography.caption)
                         .foregroundStyle((selectedPack?.id == pack.id) ? Color.white : JournalColors.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .padding(.horizontal, JournalSpacing.md)
                         .frame(height: 34)
                         .background((selectedPack?.id == pack.id) ? JournalColors.ink : JournalColors.weak)
@@ -1585,10 +1616,10 @@ private struct BackgroundPickerSheet: View {
     let onSelect: (BackgroundOption) -> Void
 
     private let options = [
-        BackgroundOption(id: "paper", name: "暖白", colorHex: "#fdfdfb", pattern: nil),
-        BackgroundOption(id: "cream", name: "米纸", colorHex: "#f4efe5", pattern: nil),
-        BackgroundOption(id: "line", name: "横线", colorHex: "#fdfdfb", pattern: "line"),
-        BackgroundOption(id: "square", name: "方格", colorHex: "#fdfdfb", pattern: "square")
+        BackgroundOption(id: "paper", name: L10n.t("editor.background.paper"), colorHex: "#fdfdfb", pattern: nil),
+        BackgroundOption(id: "cream", name: L10n.t("editor.background.cream"), colorHex: "#f4efe5", pattern: nil),
+        BackgroundOption(id: "line", name: L10n.t("editor.background.line"), colorHex: "#fdfdfb", pattern: "line"),
+        BackgroundOption(id: "square", name: L10n.t("editor.background.square"), colorHex: "#fdfdfb", pattern: "square")
     ]
 
     var body: some View {
@@ -1599,8 +1630,10 @@ private struct BackgroundPickerSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, JournalSpacing.sm)
 
-            Text("背景")
+            Text(L10n.t("editor.sheet.background.title"))
                 .font(JournalTypography.sectionTitle)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(JournalColors.ink)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: JournalSpacing.md) {
@@ -1621,6 +1654,8 @@ private struct BackgroundPickerSheet: View {
                             Text(option.name)
                                 .font(JournalTypography.caption)
                                 .foregroundStyle(JournalColors.textSecondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
                     }
                     .buttonStyle(.plain)
@@ -1673,18 +1708,18 @@ private struct TextStyleSheet: View {
     @State private var fontSize = 54.0
 
     private let fonts = [
-        ("system", "系统"),
-        ("rounded", "圆体"),
-        ("serif", "衬线")
+        ("system", "editor.text.font.system"),
+        ("rounded", "editor.text.font.rounded"),
+        ("serif", "editor.text.font.serif")
     ]
 
     private let colors = ["#111111", "#6f6f6f", "#d94a38", "#8c9a8d", "#e9d28a"]
     private let backgrounds = [
-        ("transparent", "无"),
-        ("#efe7d8", "纸底"),
-        ("#ffffff", "白底"),
-        ("#111111", "黑底"),
-        ("#ead48a", "胶带")
+        ("transparent", "editor.text.background.none"),
+        ("#efe7d8", "editor.text.background.paper"),
+        ("#ffffff", "editor.text.background.white"),
+        ("#111111", "editor.text.background.black"),
+        ("#ead48a", "editor.text.background.tape")
     ]
 
     var body: some View {
@@ -1695,20 +1730,22 @@ private struct TextStyleSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, JournalSpacing.sm)
 
-            Text("文字")
+            Text(L10n.t("editor.sheet.text.title"))
                 .font(JournalTypography.sectionTitle)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
                 .foregroundStyle(JournalColors.ink)
 
-            TextField("输入文字", text: $text, axis: .vertical)
+            TextField(L10n.t("editor.sheet.text.placeholder"), text: $text, axis: .vertical)
                 .font(JournalTypography.bodyStrong)
                 .padding(JournalSpacing.md)
                 .background(JournalColors.weak)
                 .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
                 .onChange(of: text) { _, _ in applyChanges() }
 
-            Picker("字体", selection: $fontId) {
+            Picker(L10n.t("editor.sheet.text.font"), selection: $fontId) {
                 ForEach(fonts, id: \.0) { font in
-                    Text(font.1).tag(font.0)
+                    Text(L10n.t(font.1)).tag(font.0)
                 }
             }
             .pickerStyle(.segmented)
@@ -1730,7 +1767,7 @@ private struct TextStyleSheet: View {
             }
 
             VStack(alignment: .leading, spacing: JournalSpacing.xs) {
-                Text("底色")
+                Text(L10n.t("editor.sheet.text.background"))
                     .font(JournalTypography.caption)
                     .foregroundStyle(JournalColors.textSecondary)
 
@@ -1740,9 +1777,11 @@ private struct TextStyleSheet: View {
                             backgroundHex = background.0
                             applyChanges()
                         } label: {
-                            Text(background.1)
+                            Text(L10n.t(background.1))
                                 .font(JournalTypography.caption)
                                 .foregroundStyle(backgroundHex == background.0 ? Color.white : JournalColors.ink)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 34)
                                 .background(backgroundHex == background.0 ? JournalColors.ink : JournalColors.weak)
@@ -1754,7 +1793,7 @@ private struct TextStyleSheet: View {
             }
 
             HStack {
-                Text("字号")
+                Text(L10n.t("editor.sheet.text.size"))
                     .font(JournalTypography.caption)
                     .foregroundStyle(JournalColors.textSecondary)
                 Slider(value: $fontSize, in: 28...96, step: 2)
@@ -1787,7 +1826,8 @@ private struct TextStyleSheet: View {
               let index = draft.layers.firstIndex(where: { $0.id == layerId }) else { return }
         draft.layers[index].text = text
         draft.layers[index].style["fontId"] = .string(fontId)
-        draft.layers[index].style["fontLabel"] = .string(fonts.first { $0.0 == fontId }?.1 ?? "系统")
+        let fontKey = fonts.first { $0.0 == fontId }?.1 ?? "editor.text.font.system"
+        draft.layers[index].style["fontLabel"] = .string(L10n.t(fontKey))
         draft.layers[index].style["color"] = .string(colorHex)
         draft.layers[index].style["background"] = .string(backgroundHex)
         draft.layers[index].style["fontSize"] = .number(fontSize)

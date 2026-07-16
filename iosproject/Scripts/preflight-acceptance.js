@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const childProcess = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 
@@ -28,8 +29,13 @@ function validateProjectShape() {
   assert(/type:\s*application/.test(project), "application target missing from project.yml");
   assert(/JournalCollageTests/.test(project), "unit test target missing from project.yml");
   assert(/JournalCollage\/Resources/.test(project), "resources path missing from project.yml");
+  assert(/Resources\/\*\*/.test(project), "Resources source exclusion missing from project.yml");
   assertContains("JournalCollage/App/JournalCollageApp.swift", /@main/, "SwiftUI @main app entry");
   assertContains("JournalCollage/App/RootTabView.swift", /TabView\s*\{/, "root TabView");
+  assertContains("JournalCollage/Support/L10n.swift", /NSLocalizedString\(key, comment: comment\)/, "L10n helper");
+  assert(exists("JournalCollage/Resources/Localization/en.lproj/Localizable.strings"), "English Localizable.strings missing");
+  assert(exists("JournalCollage/Resources/Localization/zh-Hans.lproj/Localizable.strings"), "Simplified Chinese Localizable.strings missing");
+  childProcess.execFileSync(process.execPath, [path.join(root, "Scripts", "validate-localization.js")], { stdio: "inherit" });
 }
 
 function validateAssetCatalog() {
@@ -96,18 +102,19 @@ function validateEditorFeatureEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /moveSelectedLayerDown/, "move layer down command");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /try draftStore\?\.save/, "draft save call");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /try store\.load/, "draft restore call");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /confirmationDialog\(\s*"离开前保存草稿？"/, "leave confirmation dialog");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\("保存为草稿"\)/, "leave save draft action");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\("不保存", role: \.destructive\)/, "leave discard draft action");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /confirmationDialog\(\s*L10n\.t\("editor\.leave\.title"\)/, "leave confirmation dialog");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.leave\.save"\)\)/, "leave save draft action");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.leave\.discard"\), role: \.destructive\)/, "leave discard draft action");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func discardAndLeave\(\)/, "discard and leave function");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /assetEntryContextStore\.save\(draftId: draft\.id\)/, "editor saves asset entry context");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\("查看全部素材"\)/, "editor asset drawer browse all entry");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("assets\.browse_all"\)\)/, "editor asset drawer browse all entry");
   assertContains("JournalCollage/Features/Create/CreateHomeView.swift", /recentDrafts: \[DraftSummary\]/, "recent drafts state");
   assertContains("JournalCollage/Features/Create/CreateHomeView.swift", /loadDraft\(id:/, "recent draft restore entrypoint");
 }
 
 function validateStageThreeEntrypoints() {
-  assertContains("JournalCollage/Features/Assets/AssetsView.swift", /selectedCategory == "收藏"/, "favorite category filter");
+  assertContains("JournalCollage/Features/Assets/AssetsView.swift", /case \.favorites:[\s\S]*?favoritePackIds\.contains\(\$0\.id\)/, "favorite category filter");
+  assertContains("JournalCollage/Features/Assets/AssetsView.swift", /private enum AssetCategorySelection: Hashable/, "localized asset category selection");
   assertContains("JournalCollage/Features/Assets/AssetsView.swift", /favoritePackIds\.contains\(\$0\.id\)/, "favorite pack visibility");
   assertContains("JournalCollage/Storage/AssetFavoriteStore.swift", /final class AssetFavoriteStore/, "asset favorite store");
   assertContains("JournalCollage/Features/Assets/AssetPackDetailView.swift", /selectedAssetIds: Set<String>/, "asset detail multi-select state");
@@ -185,8 +192,8 @@ function validateStageFiveCropEntrypoints() {
   assertContains("JournalCollage/Rendering/ImageCropper.swift", /crop\(_ image: UIImage, cropBox: CropBox\?\)/, "UIImage crop helper");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct CropPresetSheet: View/, "crop preset sheet");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /@State private var draftCrop: CropBox\?/, "local crop editing state");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\("取消"\)/, "crop cancel action");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\("完成"\)/, "crop confirm action");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.sheet\.crop\.cancel"\)\)/, "crop cancel action");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.sheet\.crop\.done"\)\)/, "crop confirm action");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func confirmCrop\(\)/, "crop confirm function");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.crop = selectedPreset == \.original/, "confirmed crop write");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct CropBoxOverlay: View/, "free crop box overlay");
@@ -251,7 +258,7 @@ function validateStageFiveSubjectCutEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /RembgService\(\)\.removeImageBackground\(fileURL: fileURL\)/, "subject cut service call");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /imageStore\.savePNGImageData\(data\)/, "subject cut PNG save");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["subjectCut"\] = \.bool\(true\)/, "subject cut style marker");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /ToolItem\(systemName: "person\.crop\.rectangle", label: "主体"\)/, "subject cut toolbar entry");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /ToolItem\(systemName: "person\.crop\.rectangle", label: L10n\.t\("layer\.action\.subject"\)\)/, "subject cut toolbar entry");
   assertContains("JournalCollageTests/Services/RembgServiceTests.swift", /testMissingEndpointFailsBeforeUpload/, "rembg missing endpoint test");
   assertContains("JournalCollageTests/Storage/ImageStoreTests.swift", /testSavesPNGImageDataAndReturnsStableSource/, "subject cut PNG storage test");
 }
@@ -266,11 +273,20 @@ function validateEditorUndoRedoEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /redoStack\.removeAll\(\)/, "redo clear on new edit");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func undoDraftChange\(\)/, "undo function");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func redoDraftChange\(\)/, "redo function");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /saveDraft\(status: "已撤销"\)/, "undo save status");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /saveDraft\(status: "已重做"\)/, "redo save status");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /saveDraft\(status: L10n\.t\("editor\.status\.undo"\)\)/, "undo save status");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /saveDraft\(status: L10n\.t\("editor\.status\.redo"\)\)/, "redo save status");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /onDraftChanged: commitDraftChange/, "interactive changes commit to history");
   assertContains("JournalCollage/DesignSystem/JournalButtons.swift", /var isEnabled = true/, "icon button disabled support");
   assertContains("JournalCollage/DesignSystem/JournalButtons.swift", /\.disabled\(!isEnabled\)/, "icon button disabled state");
+}
+
+function validateLocalizedLayoutEntrypoints() {
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.export\.button"\)\)[\s\S]*?\.padding\(\.horizontal, JournalSpacing\.md\)[\s\S]*?\.frame\(minWidth: 64\)[\s\S]*?\.frame\(height: 36\)/, "export button adaptive width");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct ToolItem: View[\s\S]*?Text\(label\)[\s\S]*?\.lineLimit\(1\)[\s\S]*?\.minimumScaleFactor\(0\.8\)/, "toolbar label compression");
+  assertContains("JournalCollage/Features/Create/CreateHomeView.swift", /Text\(L10n\.t\("create\.title"\)\)[\s\S]*?\.lineLimit\(2\)[\s\S]*?\.minimumScaleFactor\(0\.8\)/, "create title allows two lines");
+  assertContains("JournalCollage/Features/Assets/AssetsView.swift", /Text\(L10n\.t\("assets\.title"\)\)[\s\S]*?\.lineLimit\(2\)[\s\S]*?\.minimumScaleFactor\(0\.8\)/, "assets title allows two lines");
+  assertContains("JournalCollage/Features/Assets/AssetPackDetailView.swift", /Text\(L10n\.t\("assets\.add\.button"\)\)[\s\S]*?\.lineLimit\(1\)[\s\S]*?\.minimumScaleFactor\(0\.8\)[\s\S]*?\.frame\(minWidth: 132\)/, "asset detail add button adaptive width");
+  assertContains("JournalCollage/DesignSystem/JournalButtons.swift", /Text\(title\)[\s\S]*?\.lineLimit\(1\)[\s\S]*?\.minimumScaleFactor\(0\.8\)[\s\S]*?\.padding\(\.horizontal, JournalSpacing\.md\)/, "primary button text compression");
 }
 
 const checks = [
@@ -288,7 +304,8 @@ const checks = [
   ["stage 5 mask shape entrypoints", validateStageFiveMaskShapeEntrypoints],
   ["stage 5 brush cut entrypoints", validateStageFiveBrushCutEntrypoints],
   ["stage 5 subject cut entrypoints", validateStageFiveSubjectCutEntrypoints],
-  ["editor undo redo entrypoints", validateEditorUndoRedoEntrypoints]
+  ["editor undo redo entrypoints", validateEditorUndoRedoEntrypoints],
+  ["localized layout entrypoints", validateLocalizedLayoutEntrypoints]
 ];
 
 for (const [label, check] of checks) {

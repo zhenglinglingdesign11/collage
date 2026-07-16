@@ -27,7 +27,7 @@ struct InspirationView: View {
                 .padding(JournalSpacing.lg)
             }
             .background(JournalColors.page.ignoresSafeArea())
-            .navigationTitle("灵感")
+            .navigationTitle(L10n.t("inspiration.title"))
             .sheet(item: $selectedInspiration) { item in
                 InspirationPreview(item: item)
             }
@@ -118,7 +118,7 @@ private struct InspirationPreview: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("关闭")
+            .accessibilityLabel(L10n.t("inspiration.close"))
             .padding(JournalSpacing.lg)
         }
     }

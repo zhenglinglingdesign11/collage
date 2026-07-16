@@ -45,9 +45,11 @@ struct AssetPackDetailView: View {
                     Button {
                         addSelectedAssetsToCanvas()
                     } label: {
-                        Text("添加到画布")
+                        Text(L10n.t("assets.add.button"))
                             .font(JournalTypography.bodyStrong)
                             .foregroundStyle(selectedItems.isEmpty ? JournalColors.textSecondary : Color.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                             .frame(minWidth: 132)
                             .frame(height: 48)
                             .padding(.horizontal, JournalSpacing.md)
@@ -352,8 +354,8 @@ struct AssetItemTile: View {
     AssetPackDetailView(
         pack: AssetPack(
             id: "papers",
-            name: "复古纸张",
-            category: "纸张",
+            name: "Vintage Paper",
+            category: "Paper",
             tone: "#f3f1ec",
             cover: "packs/papers/pack-sheet.jpg",
             version: 1,

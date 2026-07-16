@@ -5,22 +5,22 @@ struct RootTabView: View {
         TabView {
             CreateHomeView()
                 .tabItem {
-                    Label("创作", systemImage: "plus.square.on.square")
+                    Label(L10n.t("tab.create"), systemImage: "plus.square.on.square")
                 }
 
             AssetsView()
                 .tabItem {
-                    Label("素材", systemImage: "square.grid.2x2")
+                    Label(L10n.t("tab.assets"), systemImage: "square.grid.2x2")
                 }
 
             InspirationView()
                 .tabItem {
-                    Label("灵感", systemImage: "sparkles")
+                    Label(L10n.t("tab.inspiration"), systemImage: "sparkles")
                 }
 
             MineView()
                 .tabItem {
-                    Label("我的", systemImage: "person.crop.circle")
+                    Label(L10n.t("tab.mine"), systemImage: "person.crop.circle")
                 }
         }
         .tint(JournalColors.ink)

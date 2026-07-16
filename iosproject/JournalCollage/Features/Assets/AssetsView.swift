@@ -3,41 +3,46 @@ import UIKit
 
 struct AssetsView: View {
     @State private var catalog = AssetPackCatalog(schemaVersion: 1, generatedFrom: "", packs: [])
-    @State private var selectedCategory = "推荐"
+    @State private var selectedCategory = AssetCategorySelection.recommended
     @State private var favoritePackIds: Set<String> = []
 
     private let favoriteStore = AssetFavoriteStore()
 
-    private var categories: [String] {
-        ["推荐", "收藏"] + Array(Set(catalog.packs.map(\.category))).sorted()
+    private var categories: [AssetCategorySelection] {
+        [.recommended, .favorites] + Array(Set(catalog.packs.map(\.category))).sorted().map(AssetCategorySelection.pack)
     }
 
     private var visiblePacks: [AssetPack] {
-        if selectedCategory == "收藏" {
+        switch selectedCategory {
+        case .favorites:
             return catalog.packs.filter { favoritePackIds.contains($0.id) }
-        }
-        if selectedCategory == "推荐" {
+        case .recommended:
             return catalog.packs
+        case .pack(let category):
+            return catalog.packs.filter { $0.category == category }
         }
-        return catalog.packs.filter { $0.category == selectedCategory }
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: JournalSpacing.lg) {
-                    Text("素材包")
+                    Text(L10n.t("assets.title"))
                         .font(JournalTypography.pageTitle)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                         .foregroundStyle(JournalColors.ink)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: JournalSpacing.xs) {
                             ForEach(categories, id: \.self) { category in
-                                Button(category) {
+                                Button(categoryLabel(category)) {
                                     selectedCategory = category
                                 }
                                 .font(JournalTypography.caption)
                                 .foregroundStyle(selectedCategory == category ? Color.white : JournalColors.ink)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                                 .padding(.horizontal, JournalSpacing.md)
                                 .frame(height: 34)
                                 .background(selectedCategory == category ? JournalColors.ink : JournalColors.weak)
@@ -63,7 +68,7 @@ struct AssetsView: View {
                     }
 
                     if visiblePacks.isEmpty {
-                        Text("还没有收藏的素材包")
+                        Text(L10n.t("assets.empty.favorites"))
                             .font(JournalTypography.caption)
                             .foregroundStyle(JournalColors.textSecondary)
                             .frame(maxWidth: .infinity)
@@ -86,6 +91,23 @@ struct AssetsView: View {
     private func refreshFavorites() {
         favoritePackIds = favoriteStore.favoritePackIds()
     }
+
+    private func categoryLabel(_ category: AssetCategorySelection) -> String {
+        switch category {
+        case .recommended:
+            return L10n.t("assets.category.recommended")
+        case .favorites:
+            return L10n.t("assets.category.favorites")
+        case .pack(let category):
+            return category
+        }
+    }
+}
+
+private enum AssetCategorySelection: Hashable {
+    case recommended
+    case favorites
+    case pack(String)
 }
 
 private struct AssetPackCard: View {
@@ -107,7 +129,7 @@ private struct AssetPackCard: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(JournalColors.ink)
                         .padding(10)
-                        .accessibilityLabel("已收藏")
+                        .accessibilityLabel(L10n.t("assets.favorite_on"))
                 }
             }
 
@@ -115,6 +137,7 @@ private struct AssetPackCard: View {
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
     }
 

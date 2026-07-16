@@ -59,7 +59,7 @@ enum SampleDrafts {
                 text: "weekend",
                 style: [
                     "fontId": .string("system"),
-                    "fontLabel": .string("系统"),
+                    "fontLabel": .string("System"),
                     "fontSize": .number(54),
                     "color": .string("#111111")
                 ]
