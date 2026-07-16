@@ -165,6 +165,7 @@ struct AssetPackDetailView: View {
         }
 
         if let store = try? DraftStore() {
+            draft = DraftThumbnailGenerator.draftWithUpdatedThumbnail(draft, imageStore: try? ImageStore())
             try? store.save(draft)
         }
         entryContextStore.clear()

@@ -10,6 +10,7 @@ final class ImageStore {
     private let fileManager: FileManager
     private let rootURL: URL
     private let masksURL: URL
+    private let thumbnailsURL: URL
 
     init(
         rootURL: URL? = nil,
@@ -28,8 +29,10 @@ final class ImageStore {
             self.rootURL = appSupport.appendingPathComponent("JournalCollage/Images", isDirectory: true)
         }
         self.masksURL = self.rootURL.appendingPathComponent("Masks", isDirectory: true)
+        self.thumbnailsURL = self.rootURL.appendingPathComponent("Thumbnails", isDirectory: true)
         try fileManager.createDirectory(at: self.rootURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: self.masksURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: self.thumbnailsURL, withIntermediateDirectories: true)
     }
 
     func saveImageData(_ data: Data) throws -> StoredImage {
@@ -84,6 +87,33 @@ final class ImageStore {
         let url = masksURL.appendingPathComponent(fileName)
         try data.write(to: url, options: [.atomic])
         return "masks/\(fileName)"
+    }
+
+    func saveThumbnail(_ image: UIImage, draftId: String) throws -> String {
+        let fileName = "\(safeFileName(draftId)).jpg"
+        let url = thumbnailsURL.appendingPathComponent(fileName)
+        guard let data = image.jpegData(compressionQuality: 0.82) else {
+            throw ImageStoreError.invalidImageData
+        }
+        try data.write(to: url, options: [.atomic])
+        return url.path
+    }
+
+    func deleteAll() throws {
+        if fileManager.fileExists(atPath: rootURL.path) {
+            try fileManager.removeItem(at: rootURL)
+        }
+        try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: masksURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: thumbnailsURL, withIntermediateDirectories: true)
+    }
+
+    private func safeFileName(_ value: String) -> String {
+        String(value.map { character in
+            character.isLetter || character.isNumber || character == "-" || character == "_"
+                ? character
+                : "-"
+        })
     }
 }
 

@@ -71,7 +71,8 @@ function validateEditorSpikeCore() {
   assertContains("JournalCollage/Rendering/DraftRenderer.swift", /struct DraftRenderer: View/, "DraftRenderer");
   assertContains("JournalCollage/Rendering/InteractiveDraftCanvas.swift", /struct InteractiveDraftCanvas: View/, "InteractiveDraftCanvas");
   assertContains("JournalCollage/Storage/DraftStore.swift", /final class DraftStore/, "DraftStore");
-  assertContains("JournalCollage/Storage/DraftStore.swift", /static let maxRecentDrafts = 3/, "DraftStore recent draft limit");
+  assertContains("JournalCollage/Storage/DraftStore.swift", /static let maxStoredDrafts = 20/, "DraftStore stored draft limit");
+  assertContains("JournalCollage/Storage/DraftStore.swift", /static let createRecentDraftLimit = 3/, "Create recent draft display limit");
   assertContains("JournalCollage/Storage/DraftStore.swift", /pruneRecentDrafts\(\)/, "DraftStore recent draft pruning");
   assertContains("JournalCollage/Storage/ImageStore.swift", /final class ImageStore/, "ImageStore");
   assertContains("JournalCollage/Storage/AssetEntryContextStore.swift", /final class AssetEntryContextStore/, "asset entry context store");

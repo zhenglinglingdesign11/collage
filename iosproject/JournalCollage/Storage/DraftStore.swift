@@ -8,7 +8,9 @@ struct DraftSummary: Codable, Identifiable, Equatable, Sendable {
 }
 
 final class DraftStore {
-    static let maxRecentDrafts = 3
+    static let maxStoredDrafts = 20
+    static let createRecentDraftLimit = 3
+    static let mineRecentDraftLimit = 5
 
     private let fileManager: FileManager
     private let rootURL: URL
@@ -52,11 +54,28 @@ final class DraftStore {
     }
 
     func list() throws -> [DraftSummary] {
+        try list(limit: nil)
+    }
+
+    func list(limit: Int?) throws -> [DraftSummary] {
         let urls = try fileManager.contentsOfDirectory(
             at: rootURL,
             includingPropertiesForKeys: nil
         )
-        return Array(try draftSummaries(from: urls).prefix(Self.maxRecentDrafts))
+        let summaries = try draftSummaries(from: urls)
+        if let limit {
+            return Array(summaries.prefix(limit))
+        }
+        return summaries
+    }
+
+    func willPruneOldestDraft(onSaving draft: Draft) throws -> Bool {
+        let urls = try fileManager.contentsOfDirectory(
+            at: rootURL,
+            includingPropertiesForKeys: nil
+        )
+        let summaries = try draftSummaries(from: urls)
+        return summaries.count >= Self.maxStoredDrafts && !summaries.contains { $0.id == draft.id }
     }
 
     private func draftSummaries(from urls: [URL]) throws -> [DraftSummary] {
@@ -81,7 +100,7 @@ final class DraftStore {
             includingPropertiesForKeys: nil
         )
         let summaries = try draftSummaries(from: urls)
-        for summary in summaries.dropFirst(Self.maxRecentDrafts) {
+        for summary in summaries.dropFirst(Self.maxStoredDrafts) {
             try delete(id: summary.id)
         }
     }
@@ -89,6 +108,16 @@ final class DraftStore {
     func delete(id: String) throws {
         let url = draftURL(id: id)
         if fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
+        }
+    }
+
+    func deleteAll() throws {
+        let urls = try fileManager.contentsOfDirectory(
+            at: rootURL,
+            includingPropertiesForKeys: nil
+        )
+        for url in urls where url.pathExtension == "json" {
             try fileManager.removeItem(at: url)
         }
     }

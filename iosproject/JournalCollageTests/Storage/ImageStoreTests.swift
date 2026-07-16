@@ -64,4 +64,43 @@ final class ImageStoreTests: XCTestCase {
         XCTAssertEqual(stored.size.height, 18.0)
         XCTAssertNotNil(store.url(for: stored.source))
     }
+
+    func testDeleteAllRemovesImagesAndMasks() throws {
+        let imageRenderer = UIGraphicsImageRenderer(size: CGSize(width: 18, height: 18))
+        let data = imageRenderer.pngData { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 18, height: 18))
+        }
+        let maskRenderer = UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32))
+        let mask = maskRenderer.image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 32, height: 32))
+        }
+
+        let store = try ImageStore(rootURL: tempURL)
+        let stored = try store.savePNGImageData(data)
+        let maskSource = try store.saveMaskImage(mask)
+
+        XCTAssertNotNil(store.url(for: stored.source))
+        XCTAssertNotNil(store.url(for: maskSource))
+
+        try store.deleteAll()
+
+        XCTAssertNil(store.url(for: stored.source))
+        XCTAssertNil(store.url(for: maskSource))
+    }
+
+    func testSavesThumbnailPath() throws {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 48, height: 64))
+        let image = renderer.image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 48, height: 64))
+        }
+
+        let store = try ImageStore(rootURL: tempURL)
+        let path = try store.saveThumbnail(image, draftId: "draft:unsafe/name")
+
+        XCTAssertTrue(path.hasSuffix("draft-unsafe-name.jpg"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))
+    }
 }

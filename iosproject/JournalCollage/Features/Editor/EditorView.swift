@@ -18,6 +18,7 @@ struct EditorView: View {
     @State private var entryDraftSnapshot: Draft?
     @State private var draftExistedOnEntry = false
     @State private var leaveConfirmationVisible = false
+    @State private var leaveWillPruneOldestDraft = false
     private let assetEntryContextStore = AssetEntryContextStore()
     private let restoresLatestDraft: Bool
     private let historyLimit = 50
@@ -97,7 +98,7 @@ struct EditorView: View {
             Button("取消", role: .cancel) {
             }
         } message: {
-            Text("可以保存当前编辑，或放弃本次进入编辑器后的修改。")
+            Text(leaveConfirmationMessage)
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -446,7 +447,15 @@ struct EditorView: View {
             discardAndLeave()
             return
         }
+        leaveWillPruneOldestDraft = (try? draftStore?.willPruneOldestDraft(onSaving: draft)) ?? false
         leaveConfirmationVisible = true
+    }
+
+    private var leaveConfirmationMessage: String {
+        if leaveWillPruneOldestDraft {
+            return "本地草稿已达 20 个，保存将删除最早的草稿。可以保存当前编辑，或放弃本次进入编辑器后的修改。"
+        }
+        return "可以保存当前编辑，或放弃本次进入编辑器后的修改。"
     }
 
     private func saveAndLeave() {
@@ -474,8 +483,13 @@ struct EditorView: View {
 
     private func saveDraft(status: String = "已保存") {
         do {
+            let willPruneOldestDraft = (try draftStore?.willPruneOldestDraft(onSaving: draft)) ?? false
+            draft = DraftThumbnailGenerator.draftWithUpdatedThumbnail(draft, imageStore: imageStore)
             try draftStore?.save(draft)
-            saveStatus = status
+            lastCommittedDraft = draft
+            saveStatus = willPruneOldestDraft
+                ? "本地草稿已达 20 个，保存将删除最早的草稿"
+                : status
         } catch {
             saveStatus = "保存失败"
         }
