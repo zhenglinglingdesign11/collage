@@ -11,6 +11,7 @@ final class ImageStore {
     private let rootURL: URL
     private let masksURL: URL
     private let thumbnailsURL: URL
+    private let liveURL: URL
 
     init(
         rootURL: URL? = nil,
@@ -30,9 +31,11 @@ final class ImageStore {
         }
         self.masksURL = self.rootURL.appendingPathComponent("Masks", isDirectory: true)
         self.thumbnailsURL = self.rootURL.appendingPathComponent("Thumbnails", isDirectory: true)
+        self.liveURL = self.rootURL.appendingPathComponent("Live", isDirectory: true)
         try fileManager.createDirectory(at: self.rootURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: self.masksURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: self.thumbnailsURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: self.liveURL, withIntermediateDirectories: true)
     }
 
     func saveImageData(_ data: Data) throws -> StoredImage {
@@ -73,10 +76,23 @@ final class ImageStore {
         } else if source.hasPrefix("masks/") {
             let fileName = String(source.dropFirst("masks/".count))
             url = masksURL.appendingPathComponent(fileName)
+        } else if source.hasPrefix("live/") {
+            let fileName = String(source.dropFirst("live/".count))
+            url = liveURL.appendingPathComponent(fileName)
         } else {
             return nil
         }
         return fileManager.fileExists(atPath: url.path) ? url : nil
+    }
+
+    func saveLiveVideoData(_ data: Data, fileExtension: String = "mov") throws -> String {
+        let normalizedExtension = fileExtension.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "mov"
+            : fileExtension.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let fileName = "\(UUID().uuidString).\(normalizedExtension)"
+        let url = liveURL.appendingPathComponent(fileName)
+        try data.write(to: url, options: [.atomic])
+        return "live/\(fileName)"
     }
 
     func saveMaskImage(_ image: UIImage) throws -> String {
@@ -106,6 +122,7 @@ final class ImageStore {
         try fileManager.createDirectory(at: rootURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: masksURL, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: thumbnailsURL, withIntermediateDirectories: true)
+        try fileManager.createDirectory(at: liveURL, withIntermediateDirectories: true)
     }
 
     private func safeFileName(_ value: String) -> String {

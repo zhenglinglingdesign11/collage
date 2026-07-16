@@ -150,7 +150,8 @@ function validateStageFourExportEntrypoints() {
   assertContains("JournalCollage/Features/Export/ExportPreviewView.swift", /struct ExportPreviewView: View/, "export preview view");
   assertContains("JournalCollage/Features/Export/ExportPreviewView.swift", /ExportRenderer\.render\(draft: draft, imageStore: imageStore\)/, "export preview render call");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func exportToPhotoLibrary\(\)/, "editor direct export function");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /PhotoLibrarySaver\.save\(exported\.image\)/, "editor direct photo library save");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LivePhotoExporter\.export\(draft: draft, imageStore: imageStore\)/, "editor direct photo library export");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /PhotoLibrarySaver\.save\(exported\.image\)/, "static photo library save");
 }
 
 function validateStageFiveLayerEffectsEntrypoints() {
@@ -263,6 +264,52 @@ function validateStageFiveSubjectCutEntrypoints() {
   assertContains("JournalCollageTests/Storage/ImageStoreTests.swift", /testSavesPNGImageDataAndReturnsStableSource/, "subject cut PNG storage test");
 }
 
+function validateLivePhotoImportEntrypoints() {
+  assertContains("JournalCollage/Storage/ImageStore.swift", /private let liveURL: URL/, "live photo video storage directory");
+  assertContains("JournalCollage/Storage/ImageStore.swift", /func saveLiveVideoData\(_ data: Data, fileExtension: String = "mov"\) throws -> String/, "live video resource saving");
+  assertContains("JournalCollage/Storage/ImageStore.swift", /source\.hasPrefix\("live\/"\)/, "live video resource resolving");
+  assertContains("JournalCollage/Services/LivePhotoImporter.swift", /struct ImportedLivePhoto: Equatable, Sendable/, "imported live photo model");
+  assertContains("JournalCollage/Services/LivePhotoImporter.swift", /static func isLivePhoto\(_ item: PhotosPickerItem\) -> Bool/, "live photo picker detection");
+  assertContains("JournalCollage/Services/LivePhotoImporter.swift", /PHAsset\.fetchAssets\(withLocalIdentifiers: \[localIdentifier\], options: nil\)/, "live photo asset fetch");
+  assertContains("JournalCollage/Services/LivePhotoImporter.swift", /PHAssetResource\.assetResources\(for: asset\)/, "live photo asset resources");
+  assertContains("JournalCollage/Services/LivePhotoImporter.swift", /\.pairedVideo/, "paired video extraction");
+  assertContains("JournalCollage/Services/LivePhotoImporter.swift", /imageStore\.saveLiveVideoData\(videoData, fileExtension: "mov"\)/, "paired video sandbox save");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /PhotosPicker\(selection: \$selectedPhotoItem, matching: \.any\(of: \[\.images, \.livePhotos\]\)\)/, "live photo picker filter");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LivePhotoImporter\.isLivePhoto\(item\)/, "live photo import branch");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /nextLayer\.style\["mediaType"\] = \.string\("livePhoto"\)/, "live photo media type style");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /nextLayer\.style\["livePhotoStillSource"\] = \.string\(imported\.stillSource\)/, "live photo still source style");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /nextLayer\.style\["livePhotoVideoSource"\] = \.string\(videoSource\)/, "live photo video source style");
+  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /Text\("LIVE"\)/, "live photo editor badge");
+  assertContains("JournalCollageTests/Storage/ImageStoreTests.swift", /testSavesLiveVideoDataAndReturnsStableSource/, "live video storage test");
+}
+
+function validateLivePhotoExportEntrypoints() {
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /enum LivePhotoExporter/, "live photo exporter service");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /ExportRenderer\.render\(draft: draft, imageStore: imageStore\)/, "live export still rendering");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /livePhotoVideoSource/, "live export paired video lookup");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /if liveLayers\.count > 1/, "multi live video export branch");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /AVURLAsset\(url: pairedVideoURL\)/, "live export video metadata read");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /quickTimeMetadataContentIdentifier/, "live export content identifier metadata");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /kCGImagePropertyMakerAppleDictionary/, "live export still metadata");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /PhotoLibrarySaver\.saveLivePhoto\(photoURL: stillURL, pairedVideoURL: videoURL\)/, "live export photo library save");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /PhotoLibrarySaver\.save\(exported\.image\)/, "live export static fallback");
+  assertContains("JournalCollage/Features/Export/LivePhotoExporter.swift", /PhotoLibrarySaver\.saveVideo\(fileURL: videoURL\)/, "multi live video photo library save");
+  assertContains("JournalCollage/Features/Export/MultiLiveVideoExporter.swift", /enum MultiLiveVideoExporter/, "multi live video exporter service");
+  assertContains("JournalCollage/Features/Export/MultiLiveVideoExporter.swift", /AVAssetWriter\(outputURL: outputURL, fileType: \.mov\)/, "multi live video writer");
+  assertContains("JournalCollage/Features/Export/MultiLiveVideoExporter.swift", /AVAssetImageGenerator\(asset: asset\)/, "multi live source frame generator");
+  assertContains("JournalCollage/Features/Export/MultiLiveVideoExporter.swift", /ExportRenderer\.render\(draft: draft, imageStore: imageStore, pixelSize: pixelSize\)/, "multi live static collage background");
+  assertContains("JournalCollage/Features/Export/MultiLiveVideoExporter.swift", /ImageCropper\.crop\(frame, cropBox: layer\.crop\)/, "multi live crop reuse");
+  assertContains("JournalCollage/Features/Export/MultiLiveVideoExporter.swift", /context\.rotate\(by: CGFloat\(layer\.rotation/, "multi live layer rotation");
+  assertContains("JournalCollage/Features/Export/PhotoLibrarySaver.swift", /static func saveLivePhoto\(photoURL: URL, pairedVideoURL: URL\) async throws/, "live photo library save entrypoint");
+  assertContains("JournalCollage/Features/Export/PhotoLibrarySaver.swift", /static func saveVideo\(fileURL: URL\) async throws/, "video library save entrypoint");
+  assertContains("JournalCollage/Features/Export/PhotoLibrarySaver.swift", /PHAssetCreationRequest\.forAsset\(\)/, "live photo asset creation request");
+  assertContains("JournalCollage/Features/Export/PhotoLibrarySaver.swift", /request\.addResource\(with: \.pairedVideo, fileURL: pairedVideoURL, options: videoOptions\)/, "paired video asset resource");
+  assertContains("JournalCollage/Features/Export/PhotoLibrarySaver.swift", /request\.addResource\(with: \.video, fileURL: fileURL, options: options\)/, "video asset resource");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LivePhotoExporter\.export\(draft: draft, imageStore: imageStore\)/, "editor live export entrypoint");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /editor\.status\.video_export_success/, "editor video export status");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /editor\.status\.live_photo_static_fallback/, "editor live export fallback status");
+}
+
 function validateEditorUndoRedoEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /undoStack: \[Draft\]/, "undo stack state");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /redoStack: \[Draft\]/, "redo stack state");
@@ -304,6 +351,8 @@ const checks = [
   ["stage 5 mask shape entrypoints", validateStageFiveMaskShapeEntrypoints],
   ["stage 5 brush cut entrypoints", validateStageFiveBrushCutEntrypoints],
   ["stage 5 subject cut entrypoints", validateStageFiveSubjectCutEntrypoints],
+  ["live photo import entrypoints", validateLivePhotoImportEntrypoints],
+  ["live photo export entrypoints", validateLivePhotoExportEntrypoints],
   ["editor undo redo entrypoints", validateEditorUndoRedoEntrypoints],
   ["localized layout entrypoints", validateLocalizedLayoutEntrypoints]
 ];

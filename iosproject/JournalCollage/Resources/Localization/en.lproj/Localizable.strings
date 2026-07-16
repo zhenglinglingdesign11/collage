@@ -34,6 +34,12 @@
 "editor.status.brush_saved" = "Brush Saved";
 "editor.status.brush_failed" = "Brush Failed";
 "editor.status.brush_empty" = "Brush Area First";
+"editor.status.live_photo_imported" = "Live Photo Added";
+"editor.status.live_photo_video_missing" = "Live Still Added";
+"editor.status.live_photo_failed" = "Live Photo Failed";
+"editor.status.live_photo_export_success" = "Live Photo Saved";
+"editor.status.video_export_success" = "Video Saved";
+"editor.status.live_photo_static_fallback" = "Still Photo Saved";
 "editor.save.button" = "Save";
 "editor.export.button" = "Export";
 "editor.leave.title" = "Save draft before leaving?";
@@ -146,6 +152,14 @@
 
 "photo.permission.save" = "Photo access is required to save.";
 "photo.save_failed" = "Could not save to Photos.";
+"live_photo.error.not_live" = "Choose a Live Photo.";
+"live_photo.error.missing_still" = "Live still failed.";
+"live_photo.export.error.missing_video" = "Live video unavailable.";
+"live_photo.export.error.missing_image" = "Live still unavailable.";
+"live_photo.export.error.still_write_failed" = "Live still export failed.";
+"video.export.error.invalid_video" = "Video unavailable.";
+"video.export.error.writer_failed" = "Video export failed.";
+"video.export.error.pixel_buffer_failed" = "Video frame failed.";
 
 "export.error.empty" = "Canvas is invalid.";
 "export.error.render_failed" = "Export failed.";

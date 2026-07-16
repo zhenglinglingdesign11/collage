@@ -34,6 +34,12 @@
 "editor.status.brush_saved" = "已保存涂抹剪";
 "editor.status.brush_failed" = "涂抹剪保存失败";
 "editor.status.brush_empty" = "请先涂抹区域";
+"editor.status.live_photo_imported" = "已导入 Live 图";
+"editor.status.live_photo_video_missing" = "已导入 Live 主图";
+"editor.status.live_photo_failed" = "Live 图导入失败";
+"editor.status.live_photo_export_success" = "Live 图已保存";
+"editor.status.video_export_success" = "视频已保存";
+"editor.status.live_photo_static_fallback" = "已保存静态图";
 "editor.save.button" = "保存";
 "editor.export.button" = "导出";
 "editor.leave.title" = "离开前保存草稿？";
@@ -146,6 +152,14 @@
 
 "photo.permission.save" = "需要相册权限才能保存。";
 "photo.save_failed" = "保存到相册失败，请稍后再试。";
+"live_photo.error.not_live" = "请选择 Live 图。";
+"live_photo.error.missing_still" = "Live 图主图导入失败。";
+"live_photo.export.error.missing_video" = "Live 图动态资源不可用。";
+"live_photo.export.error.missing_image" = "Live 图主图不可用。";
+"live_photo.export.error.still_write_failed" = "Live 图主图导出失败。";
+"video.export.error.invalid_video" = "视频资源不可用。";
+"video.export.error.writer_failed" = "视频导出失败。";
+"video.export.error.pixel_buffer_failed" = "视频帧生成失败。";
 
 "export.error.empty" = "画布尺寸无效，无法导出。";
 "export.error.render_failed" = "导出图片生成失败。";

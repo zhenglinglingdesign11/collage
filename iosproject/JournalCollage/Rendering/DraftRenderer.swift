@@ -67,6 +67,17 @@ struct DraftRenderer: View {
                     .stroke(JournalColors.ink, lineWidth: 1.5)
                     .frame(width: renderedWidth, height: renderedHeight)
             }
+
+            if isLivePhoto(layer) {
+                Text("LIVE")
+                    .font(JournalTypography.tiny)
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(JournalColors.ink.opacity(0.82))
+                    .clipShape(Capsule())
+                    .position(x: max(24, renderedWidth - 28), y: 16)
+            }
         }
         .opacity(layer.opacity)
         .rotationEffect(.degrees(layer.rotation))
@@ -193,6 +204,11 @@ struct DraftRenderer: View {
     private func maskShape(for layer: Layer) -> LayerMaskShape? {
         guard case .string(let value) = layer.style["maskShape"] else { return nil }
         return LayerMaskShape(rawValue: value)
+    }
+
+    private func isLivePhoto(_ layer: Layer) -> Bool {
+        guard case .string(let value) = layer.style["mediaType"] else { return false }
+        return value == "livePhoto"
     }
 
     private func alphaMaskImage(for layer: Layer) -> UIImage? {

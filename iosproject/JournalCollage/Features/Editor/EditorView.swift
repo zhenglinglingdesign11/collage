@@ -266,6 +266,10 @@ struct EditorView: View {
                 saveStatus = L10n.t("editor.status.photo_store_unready")
                 return
             }
+            if LivePhotoImporter.isLivePhoto(item) {
+                await importLivePhoto(item, imageStore: imageStore)
+                return
+            }
             guard let data = try? await item.loadTransferable(type: Data.self),
                   let stored = try? imageStore.saveImageData(data) else {
                 saveStatus = L10n.t("editor.status.photo_import_failed")
@@ -280,6 +284,35 @@ struct EditorView: View {
             draft.layers.append(nextLayer)
             selectedLayerId = nextLayer.id
             commitDraftChange()
+        }
+    }
+
+    @MainActor
+    private func importLivePhoto(_ item: PhotosPickerItem, imageStore: ImageStore) async {
+        do {
+            let imported = try await LivePhotoImporter.importLivePhoto(from: item, imageStore: imageStore)
+            var nextLayer = DraftFactory.makeImageLayer(
+                source: imported.stillSource,
+                imageSize: imported.size,
+                draft: draft
+            )
+            nextLayer.shadow = true
+            nextLayer.style["mediaType"] = .string("livePhoto")
+            nextLayer.style["livePhotoStillSource"] = .string(imported.stillSource)
+            if let videoSource = imported.videoSource {
+                nextLayer.style["livePhotoVideoSource"] = .string(videoSource)
+            }
+            if let assetIdentifier = imported.assetIdentifier {
+                nextLayer.style["livePhotoAssetIdentifier"] = .string(assetIdentifier)
+            }
+            draft.layers.append(nextLayer)
+            selectedLayerId = nextLayer.id
+            commitDraftChange()
+            saveStatus = imported.videoSource == nil
+                ? L10n.t("editor.status.live_photo_video_missing")
+                : L10n.t("editor.status.live_photo_imported")
+        } catch {
+            saveStatus = (error as? LocalizedError)?.errorDescription ?? L10n.t("editor.status.live_photo_failed")
         }
     }
 
@@ -507,9 +540,17 @@ struct EditorView: View {
         saveStatus = L10n.t("editor.status.exporting")
         Task { @MainActor in
             do {
-                let exported = try ExportRenderer.render(draft: draft, imageStore: imageStore)
-                try await PhotoLibrarySaver.save(exported.image)
-                saveStatus = L10n.t("editor.status.export_success")
+                let outcome = try await LivePhotoExporter.export(draft: draft, imageStore: imageStore)
+                switch outcome {
+                case .staticImage:
+                    saveStatus = L10n.t("editor.status.export_success")
+                case .livePhoto:
+                    saveStatus = L10n.t("editor.status.live_photo_export_success")
+                case .video:
+                    saveStatus = L10n.t("editor.status.video_export_success")
+                case .staticFallback:
+                    saveStatus = L10n.t("editor.status.live_photo_static_fallback")
+                }
             } catch {
                 saveStatus = (error as? LocalizedError)?.errorDescription ?? L10n.t("editor.status.export_failed")
             }
@@ -611,7 +652,7 @@ private struct EditorToolbar: View {
 
     var body: some View {
         HStack {
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .any(of: [.images, .livePhotos])) {
                 ToolItem(systemName: "photo", label: L10n.t("editor.toolbar.photo"))
             }
             .buttonStyle(.plain)
