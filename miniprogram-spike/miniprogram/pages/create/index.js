@@ -2808,7 +2808,8 @@ Page({
           width: layer.width,
           height: layer.height,
           rotation: layer.rotation,
-          clipPolygon: cloneClipPolygon(layer.clipPolygon)
+          clipPolygon: cloneClipPolygon(layer.clipPolygon),
+          clipPolygons: cloneClipPolygons(layer.clipPolygons)
         }
       };
     }
@@ -2860,6 +2861,9 @@ Page({
       layer.height = this.gesture.origin.height * scale;
       if (this.gesture.origin.clipPolygon) {
         layer.clipPolygon = scaleClipPolygon(this.gesture.origin.clipPolygon, scale, scale);
+      }
+      if (this.gesture.origin.clipPolygons) {
+        layer.clipPolygons = scaleClipPolygons(this.gesture.origin.clipPolygons, scale, scale);
       }
       layer.rotation = this.gesture.origin.rotation + nextAngle - this.gesture.angle;
       this.alignmentGuides = this.getStableRotationGuides(this.getRotationAlignmentGuides(layer));
@@ -4252,11 +4256,23 @@ function cloneClipPolygon(points) {
     : null;
 }
 
+function cloneClipPolygons(polygons) {
+  if (!Array.isArray(polygons)) return null;
+  const cloned = polygons
+    .map((polygon) => cloneClipPolygon(polygon))
+    .filter(Boolean);
+  return cloned.length ? cloned : null;
+}
+
 function scaleClipPolygon(points, scaleX, scaleY) {
   return points.map((point) => ({
     x: point.x * scaleX,
     y: point.y * scaleY
   }));
+}
+
+function scaleClipPolygons(polygons, scaleX, scaleY) {
+  return polygons.map((polygon) => scaleClipPolygon(polygon, scaleX, scaleY));
 }
 
 function distanceToSegment(point, start, end) {
