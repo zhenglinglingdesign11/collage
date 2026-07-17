@@ -34,9 +34,11 @@ const {
   hitTest
 } = require("../../utils/renderer");
 
-const LAYER_ACTIONS_PAGE_OFFSET = 560;
+const LAYER_ACTIONS_ITEM_WIDTH = 140;
+const LAYER_ACTIONS_TRACK_PADDING = 36;
+const LAYER_ACTIONS_VIEWPORT_WIDTH = 750;
+const LAYER_ACTIONS_END_PADDING = 24;
 const LAYER_ACTIONS_TOUCH_SLOP = 6;
-const LAYER_ACTIONS_SWIPE_THRESHOLD = 36;
 const LAYER_ACTIONS_EDGE_RESISTANCE = 0.28;
 const ALIGNMENT_GUIDE_SCREEN_THRESHOLD = 2;
 const ALIGNMENT_GUIDE_STABLE_MOVES = 4;
@@ -52,6 +54,8 @@ const SCISSOR_MAX_OUTPUT_SIZE = 1600;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
+const BACKGROUND_OPTIONS = createBackgroundOptions();
+const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
   {
     from: "cloud://cloudbase-d6g4f30s2b2a1c042.636c-cloudbase-d6g4f30s2b2a1c042-1453943164/hudiejie/",
@@ -134,6 +138,9 @@ Page({
     visibleAssetPacks: filterAssetPanelPacks(decorateAssetPanelPacks(getAssetPacks()), "推荐"),
     activeAssetPack: null,
     activeAssetPackItems: [],
+    backgroundCategories: BACKGROUND_CATEGORIES,
+    activeBackgroundCategory: "纸感",
+    visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "纸感"),
     canUndo: false,
     canRedo: false,
     layerActionsOffset: 0,
@@ -377,8 +384,12 @@ Page({
   },
 
   preloadCanvasImages() {
-    if (!this.draft || !Array.isArray(this.draft.layers)) return Promise.resolve();
-    const sources = Array.from(new Set(this.draft.layers.map((layer) => layer && layer.source).filter(Boolean)));
+    if (!this.draft) return Promise.resolve();
+    const layerSources = Array.isArray(this.draft.layers)
+      ? this.draft.layers.map((layer) => layer && layer.source).filter(Boolean)
+      : [];
+    const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
+    const sources = Array.from(new Set([backgroundSource].concat(layerSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -1240,7 +1251,7 @@ Page({
       this.beginEmbossEdit();
       return;
     }
-    const isDrawer = ["asset", "tape"].includes(tool);
+    const isDrawer = ["asset", "background"].includes(tool);
     const isPalette = ["cut", "shape"].includes(tool);
     const nextData = {
       activeTool: tool,
@@ -1257,6 +1268,10 @@ Page({
     }
     if (tool === "asset") {
       Object.assign(nextData, this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
+    }
+    if (tool === "background") {
+      nextData.activeBackgroundCategory = this.data.activeBackgroundCategory || "纸感";
+      nextData.visibleBackgrounds = filterBackgroundOptions(BACKGROUND_OPTIONS, nextData.activeBackgroundCategory);
     }
     this.setData(nextData);
     setTimeout(() => this.render(), 0);
@@ -1322,7 +1337,6 @@ Page({
     const deltaRpx = deltaX * 750 / this.screenWidth;
     const offset = this.applyLayerActionsResistance(this.layerActionsStartOffset + deltaRpx);
     this.layerActionsPendingOffset = offset;
-    this.layerActionsPendingPage = offset < -LAYER_ACTIONS_PAGE_OFFSET / 2 ? 1 : 0;
     this.scheduleLayerActionsOffsetUpdate();
   },
 
@@ -1331,8 +1345,7 @@ Page({
     const flush = () => {
       this.layerActionsOffsetFrame = null;
       this.setData({
-        layerActionsOffset: this.layerActionsPendingOffset,
-        layerActionsPage: this.layerActionsPendingPage || 0
+        layerActionsOffset: this.layerActionsPendingOffset
       });
     };
     if (typeof requestAnimationFrame === "function") {
@@ -1351,8 +1364,7 @@ Page({
     }
     this.layerActionsOffsetFrame = null;
     this.setData({
-      layerActionsOffset: this.layerActionsPendingOffset,
-      layerActionsPage: this.layerActionsPendingPage || 0
+      layerActionsOffset: this.layerActionsPendingOffset
     });
   },
 
@@ -1374,32 +1386,33 @@ Page({
       }, 180);
     }
     const currentOffset = this.data.layerActionsOffset || 0;
-    let nextPage = currentOffset < -LAYER_ACTIONS_PAGE_OFFSET / 2 ? 1 : 0;
-    if (moved && Math.abs(deltaX) > LAYER_ACTIONS_SWIPE_THRESHOLD) {
-      nextPage = deltaX < 0 ? 1 : 0;
-    }
-    this.setLayerActionsPage(nextPage);
-  },
-
-  setLayerActionsPage(page) {
-    const nextPage = page ? 1 : 0;
     this.setData({
-      layerActionsPage: nextPage,
-      layerActionsOffset: nextPage ? -LAYER_ACTIONS_PAGE_OFFSET : 0,
+      layerActionsOffset: this.clampLayerActionsOffset(currentOffset),
       layerActionsDragging: false
     });
   },
 
   clampLayerActionsOffset(offset) {
-    return Math.max(-LAYER_ACTIONS_PAGE_OFFSET, Math.min(0, Math.round(offset)));
+    const maxOffset = this.getLayerActionsMaxOffset();
+    return Math.max(-maxOffset, Math.min(0, Math.round(offset)));
   },
 
   applyLayerActionsResistance(offset) {
+    const maxOffset = this.getLayerActionsMaxOffset();
     if (offset > 0) return Math.round(offset * LAYER_ACTIONS_EDGE_RESISTANCE);
-    if (offset < -LAYER_ACTIONS_PAGE_OFFSET) {
-      return Math.round(-LAYER_ACTIONS_PAGE_OFFSET + (offset + LAYER_ACTIONS_PAGE_OFFSET) * LAYER_ACTIONS_EDGE_RESISTANCE);
+    if (offset < -maxOffset) {
+      return Math.round(-maxOffset + (offset + maxOffset) * LAYER_ACTIONS_EDGE_RESISTANCE);
     }
     return Math.round(offset);
+  },
+
+  getLayerActionsMaxOffset() {
+    const type = this.data.selectedLayerType || "";
+    let count = 8;
+    if (type === "image") count += 2;
+    if (type !== "text") count += 1;
+    const trackWidth = LAYER_ACTIONS_TRACK_PADDING + count * LAYER_ACTIONS_ITEM_WIDTH;
+    return Math.max(0, trackWidth - LAYER_ACTIONS_VIEWPORT_WIDTH + LAYER_ACTIONS_END_PADDING);
   },
 
   closeDrawer() {
@@ -1453,6 +1466,39 @@ Page({
   backToAssetPacks() {
     this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
     this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", "");
+  },
+
+  selectBackgroundCategory(event) {
+    const category = event.currentTarget.dataset.category || "纸感";
+    this.setData({
+      activeBackgroundCategory: category,
+      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, category)
+    });
+  },
+
+  applyBackground(event) {
+    const backgroundId = event.currentTarget.dataset.backgroundId;
+    const option = BACKGROUND_OPTIONS.find((item) => item.id === backgroundId);
+    if (!option) return;
+    this.enterEditMode();
+    this.draft.background = option.color || "#fdfdfb";
+    this.draft.backgroundImage = option.source
+      ? {
+        id: option.id,
+        name: option.name,
+        source: option.source,
+        width: option.width,
+        height: option.height,
+        fillMode: "cover"
+      }
+      : null;
+    this.draft.backgroundPattern = option.pattern || "";
+    this.setData({
+      activeBackgroundCategory: option.category,
+      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, option.category)
+    });
+    this.markDirty();
+    this.render();
   },
 
   closePalette() {
@@ -3460,6 +3506,80 @@ function eventSourceType(event) {
 
 function normalizeTextFontId(style = {}) {
   return resolveTextFont(style.fontId || style.fontLabel || "system").id;
+}
+
+function createBackgroundCategories(options) {
+  return options.reduce((categories, option) => {
+    if (option.category && !categories.includes(option.category)) {
+      categories.push(option.category);
+    }
+    return categories;
+  }, []);
+}
+
+function filterBackgroundOptions(options, category) {
+  return options.filter((option) => option.category === category);
+}
+
+function createBackgroundOptions() {
+  const colors = [
+    ["plain-warm", "暖白", "#fdfdfb"],
+    ["plain-white", "白色", "#ffffff"],
+    ["plain-mist", "浅灰", "#f7f7f5"],
+    ["plain-cream", "奶油", "#f4efe5"],
+    ["plain-pink", "浅粉", "#f5dfd8"],
+    ["plain-sage", "鼠尾草", "#d7dbc9"]
+  ].map(([id, name, color]) => ({
+    id,
+    name,
+    category: "纯色",
+    color
+  }));
+  const papers = [
+    ["paper-1", "旧书页", "1.png", 342, 352],
+    ["paper-2", "棉纸", "2.png", 291, 299],
+    ["paper-3", "做旧纸", "3.png", 285, 326],
+    ["paper-4", "牛皮纸", "4.png", 289, 264],
+    ["paper-5", "米色纸", "5.png", 256, 348],
+    ["paper-6", "粗纹纸", "6.png", 356, 322]
+  ].map(([id, name, fileName, width, height]) => ({
+    id,
+    name,
+    category: "纸感",
+    color: "#fdfdfb",
+    source: `/assets/packs/papers/items/${fileName}`,
+    thumb: `/assets/packs/papers/items/${fileName}`,
+    width,
+    height
+  }));
+  const grids = [
+    ["grid-dot", "点阵", "#fdfdfb", "dot"],
+    ["grid-line", "横线", "#ffffff", "line"],
+    ["grid-square", "方格", "#f7f7f5", "square"]
+  ].map(([id, name, color, pattern]) => ({
+    id,
+    name,
+    category: "格纹",
+    color,
+    pattern,
+    patternClass: `pattern-${pattern}`
+  }));
+  const patterns = [
+    ["pattern-flower", "碎花", "7.png", 291, 275],
+    ["pattern-stripe", "浅纹", "8.png", 255, 235],
+    ["pattern-vintage", "复古", "9.png", 322, 231],
+    ["pattern-collage", "拼贴", "10.png", 303, 233]
+  ].map(([id, name, fileName, width, height]) => ({
+    id,
+    name,
+    category: "图案",
+    color: "#fdfdfb",
+    source: `/assets/packs/papers/items/${fileName}`,
+    thumb: `/assets/packs/papers/items/${fileName}`,
+    width,
+    height
+  }));
+  return colors.concat(papers, grids, patterns);
 }
 
 function normalizeEmbossShape(shape) {

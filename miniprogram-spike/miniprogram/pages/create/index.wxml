@@ -166,17 +166,13 @@
           <cover-view class="layer-action" data-action="down" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-down.png"></cover-image><cover-view>下移</cover-view></cover-view>
           <cover-view class="layer-action" data-action="copy" bindtap="applyLayerAction"><cover-view class="la-icon la-copy-icon"><cover-view class="copy-back"></cover-view><cover-view class="copy-front"></cover-view></cover-view><cover-view>复制</cover-view></cover-view>
           <cover-view class="layer-action" data-action="delete" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png"></cover-image><cover-view>删除</cover-view></cover-view>
-          <cover-view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><cover-view class="la-icon la-emboss-icon"><cover-view class="emboss-mark emboss-mark-a"></cover-view><cover-view class="emboss-mark emboss-mark-b"></cover-view></cover-view><cover-view>压花</cover-view></cover-view>
           <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="crop" bindtap="applyLayerAction"><cover-view class="la-icon la-crop-icon"><cover-view class="crop-corner crop-corner-a"></cover-view><cover-view class="crop-corner crop-corner-b"></cover-view></cover-view><cover-view>裁切</cover-view></cover-view>
-          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><cover-view class="la-icon la-scissors-line-icon"><cover-view class="scissors-ring scissors-ring-a"></cover-view><cover-view class="scissors-ring scissors-ring-b"></cover-view><cover-view class="scissors-blade scissors-blade-a"></cover-view><cover-view class="scissors-blade scissors-blade-b"></cover-view><cover-view class="scissors-joint"></cover-view></cover-view><cover-view>剪刀</cover-view></cover-view>
           <cover-view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><cover-view class="la-icon la-shadow-icon"><cover-view class="shadow-back"></cover-view><cover-view class="shadow-front"></cover-view></cover-view><cover-view>阴影</cover-view></cover-view>
           <cover-view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><cover-view class="la-icon la-opacity-icon"><cover-view class="opacity-fill"></cover-view></cover-view><cover-view>透明度</cover-view></cover-view>
           <cover-view class="layer-action" data-action="corner" bindtap="applyLayerAction"><cover-view class="la-icon la-corner-icon"></cover-view><cover-view>圆角</cover-view></cover-view>
           <cover-view class="layer-action" data-action="tear" bindtap="applyLayerAction"><cover-view class="la-icon la-tear-icon"><cover-view class="tear-line tear-line-a"></cover-view><cover-view class="tear-line tear-line-b"></cover-view></cover-view><cover-view>撕边</cover-view></cover-view>
-        </cover-view>
-        <cover-view class="layer-page-dots">
-          <cover-view class="layer-page-dot {{layerActionsPage === 0 ? 'active' : ''}}"></cover-view>
-          <cover-view class="layer-page-dot {{layerActionsPage === 1 ? 'active' : ''}}"></cover-view>
+          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><cover-view class="la-icon la-scissors-line-icon"><cover-view class="scissors-ring scissors-ring-a"></cover-view><cover-view class="scissors-ring scissors-ring-b"></cover-view><cover-view class="scissors-blade scissors-blade-a"></cover-view><cover-view class="scissors-blade scissors-blade-b"></cover-view><cover-view class="scissors-joint"></cover-view></cover-view><cover-view>剪刀</cover-view></cover-view>
+          <cover-view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><cover-view class="la-icon la-emboss-icon"><cover-view class="emboss-mark emboss-mark-a"></cover-view><cover-view class="emboss-mark emboss-mark-b"></cover-view></cover-view><cover-view>压花</cover-view></cover-view>
         </cover-view>
       </cover-view>
     </cover-view>
@@ -353,10 +349,38 @@
             </view>
           </block>
 
+          <block wx:if="{{activeDrawer === 'background'}}">
+            <view class="drawer-title-row">
+              <view class="drawer-title">背景</view>
+            </view>
+            <view class="chip-row">
+              <view
+                wx:for="{{backgroundCategories}}"
+                wx:key="*this"
+                class="chip {{activeBackgroundCategory === item ? 'active' : ''}}"
+                data-category="{{item}}"
+                bindtap="selectBackgroundCategory"
+              >{{item}}</view>
+            </view>
+            <scroll-view scroll-y class="background-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+              <view
+                wx:for="{{visibleBackgrounds}}"
+                wx:key="id"
+                class="background-card {{item.source ? 'image-bg' : ''}} {{item.patternClass}}"
+                style="background-color: {{item.color}};"
+                data-background-id="{{item.id}}"
+                bindtap="applyBackground"
+              >
+                <image wx:if="{{item.thumb}}" class="background-thumb" src="{{item.thumb}}" mode="aspectFill"></image>
+                <view class="background-name">{{item.name}}</view>
+              </view>
+            </scroll-view>
+          </block>
+
         </view>
       </block>
 
-      <cover-view wx:if="{{!textInputVisible && !(activeDrawer === 'asset' && activeAssetPack) && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape'))}}" class="main-toolbar">
+      <cover-view wx:if="{{!textInputVisible && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape'))}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>
           <cover-view class="tool-label">图片</cover-view>
@@ -365,9 +389,9 @@
           <cover-image class="tool-icon" src="/assets/icons/material.png"></cover-image>
           <cover-view class="tool-label">素材</cover-view>
         </cover-view>
-        <cover-view class="tool tool-2 {{activeTool === 'tape' ? 'active' : ''}}" data-tool="tape" bindtap="openToolPanel">
-          <cover-image class="tool-icon" src="/assets/icons/tape.png"></cover-image>
-          <cover-view class="tool-label">胶带</cover-view>
+        <cover-view class="tool tool-2 {{activeTool === 'background' ? 'active' : ''}}" data-tool="background" bindtap="openToolPanel">
+          <cover-image class="tool-icon" src="/assets/icons/backpapaer.png"></cover-image>
+          <cover-view class="tool-label">背景</cover-view>
         </cover-view>
         <cover-view class="tool tool-3 {{activeTool === 'text' ? 'active' : ''}}" data-tool="text" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/text.png"></cover-image>

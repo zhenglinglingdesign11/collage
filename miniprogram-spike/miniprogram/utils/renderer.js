@@ -7,6 +7,8 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   ctx.clearRect(0, 0, draft.width, draft.height);
   setFillStyle(ctx, draft.background || "#fdfdfb");
   ctx.fillRect(0, 0, draft.width, draft.height);
+  drawBackgroundPattern(ctx, draft);
+  drawBackgroundImage(ctx, draft, options);
 
   getOrderedLayers(draft.layers)
     .forEach((layer) => {
@@ -17,6 +19,68 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
     });
   drawScissorOverlay(ctx, options.scissor);
   drawAlignmentGuides(ctx, options.guides || [], draft);
+  ctx.restore();
+}
+
+function drawBackgroundPattern(ctx, draft) {
+  const pattern = draft && draft.backgroundPattern;
+  if (!pattern) return;
+  ctx.save();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setStrokeStyle(ctx, "rgba(17,17,17,0.10)");
+  setFillStyle(ctx, "rgba(17,17,17,0.13)");
+  if (pattern === "dot") {
+    const gap = 36;
+    for (let y = gap / 2; y < draft.height; y += gap) {
+      for (let x = gap / 2; x < draft.width; x += gap) {
+        ctx.beginPath();
+        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  if (pattern === "line") {
+    setLineWidth(ctx, 1.4);
+    for (let y = 52; y < draft.height; y += 52) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(draft.width, y);
+      ctx.stroke();
+    }
+  }
+  if (pattern === "square") {
+    setLineWidth(ctx, 1.1);
+    const gap = 48;
+    for (let x = gap; x < draft.width; x += gap) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, draft.height);
+      ctx.stroke();
+    }
+    for (let y = gap; y < draft.height; y += gap) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(draft.width, y);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawBackgroundImage(ctx, draft, options = {}) {
+  const backgroundImage = draft && draft.backgroundImage;
+  if (!backgroundImage || !backgroundImage.source) return;
+  const source = options.imageCache && options.imageCache[backgroundImage.source]
+    ? options.imageCache[backgroundImage.source]
+    : null;
+  if (!source) return;
+  const sourceWidth = backgroundImage.width || source.width || draft.width;
+  const sourceHeight = backgroundImage.height || source.height || draft.height;
+  const scale = Math.max(draft.width / sourceWidth, draft.height / sourceHeight);
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  ctx.save();
+  ctx.drawImage(source, (draft.width - width) / 2, (draft.height - height) / 2, width, height);
   ctx.restore();
 }
 
