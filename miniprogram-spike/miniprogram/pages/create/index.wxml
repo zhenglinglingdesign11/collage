@@ -64,6 +64,7 @@
     <cover-view wx:if="{{ratioPanelVisible}}" class="ratio-popover" style="top: {{ratioPopoverTop}}px;">
       <cover-view wx:for="{{ratios}}" wx:key="*this" class="ratio-option {{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</cover-view>
     </cover-view>
+    <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
 
     <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
       <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
@@ -95,6 +96,34 @@
     <cover-view wx:if="{{straightCutEditing}}" class="straight-cut-actions">
       <cover-view class="straight-cut-button secondary" bindtap="cancelStraightCut">取消</cover-view>
       <cover-view class="straight-cut-button" bindtap="confirmStraightCut">完成</cover-view>
+    </cover-view>
+
+    <cover-view wx:if="{{brushEditing}}" class="brush-dev-panel">
+      <cover-view class="brush-panel-head">
+        <cover-view class="brush-panel-cancel" bindtap="cancelBrushDrawing">取消</cover-view>
+        <cover-view class="brush-panel-title">装饰笔刷</cover-view>
+        <cover-view class="brush-panel-done {{brushStrokeCount ? '' : 'disabled'}}" bindtap="confirmBrushDrawing">完成</cover-view>
+      </cover-view>
+      <cover-view class="brush-section">
+        <cover-view class="brush-section-title">笔刷</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{brushTypes}}" wx:key="value" class="brush-type {{brushType === item.value ? 'active' : ''}}" data-type="{{item.value}}" bindtap="setBrushType">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view class="brush-section brush-section-controls">
+        <cover-view class="brush-section-title">颜色</cover-view>
+        <cover-view class="brush-color-row">
+          <cover-view wx:for="{{brushColors}}" wx:key="value" class="brush-color {{brushColor === item.value ? 'active' : ''}}" style="background: {{item.value}};" data-color="{{item.value}}" bindtap="setBrushColor"></cover-view>
+        </cover-view>
+        <cover-view class="brush-section-title brush-size-title">粗细</cover-view>
+        <cover-view class="brush-size-row">
+          <cover-view wx:for="{{brushSizes}}" wx:key="value" class="brush-size {{brushSize === item.value ? 'active' : ''}}" data-size="{{item.value}}" bindtap="setBrushSize">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view class="brush-panel-actions">
+        <cover-view class="brush-panel-action {{brushStrokeCount ? '' : 'disabled'}}" bindtap="undoBrushStroke">撤销上一笔</cover-view>
+        <cover-view class="brush-panel-action danger {{brushStrokeCount ? '' : 'disabled'}}" bindtap="clearBrushDrawing">清空</cover-view>
+      </cover-view>
     </cover-view>
 
     <view wx:if="{{cropEditing}}" class="crop-fullscreen">
@@ -427,7 +456,7 @@
         </view>
       </block>
 
-      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline'))}}" class="main-toolbar">
+      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && !brushEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline'))}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>
           <cover-view class="tool-label">图片</cover-view>

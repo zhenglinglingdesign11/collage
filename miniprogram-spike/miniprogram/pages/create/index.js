@@ -54,6 +54,7 @@ const WAVE_CUT_WAVELENGTH = 76;
 const WAVE_CUT_POINT_STEP = 10;
 const EXPORT_HIGH_PIXEL_RATIO = 3;
 const EXPORT_FALLBACK_PIXEL_RATIO = 2;
+const BOW_BRUSH_SOURCE = "/assets/brushes/bow-brush.png";
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
@@ -145,6 +146,33 @@ Page({
     activeBackgroundCategory: "纸感",
     visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "纸感"),
     selectedOutlineStyle: "none",
+    brushDebugEnabled: true,
+    brushEditing: false,
+    brushColor: "#111111",
+    brushSize: 8,
+    brushType: "line",
+    brushStrokeCount: 0,
+    brushTypes: [
+      { value: "line", label: "普通" },
+      { value: "stitch", label: "缝线" },
+      { value: "knit", label: "针织" },
+      { value: "bead", label: "珠链" },
+      { value: "lace", label: "蕾丝" },
+      { value: "bow", label: "蝴蝶结" }
+    ],
+    brushColors: [
+      { value: "#111111", label: "黑" },
+      { value: "#ffffff", label: "白" },
+      { value: "#d94a38", label: "红" },
+      { value: "#f4d77a", label: "黄" },
+      { value: "#9ec7df", label: "蓝" },
+      { value: "#8c9a8d", label: "绿" }
+    ],
+    brushSizes: [
+      { value: 5, label: "细" },
+      { value: 10, label: "中" },
+      { value: 18, label: "粗" }
+    ],
     canUndo: false,
     canRedo: false,
     layerActionsOffset: 0,
@@ -414,8 +442,12 @@ Page({
     const layerSources = Array.isArray(this.draft.layers)
       ? this.draft.layers.map((layer) => layer && layer.source).filter(Boolean)
       : [];
+    const brushSources = getBrushStampSources(this.draft.layers || []);
+    const brushDraftSources = this.brushSession
+      ? getBrushStampSources([{ strokes: (this.brushSession.strokes || []).concat(this.brushStroke ? [this.brushStroke] : []) }])
+      : [];
     const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
-    const sources = Array.from(new Set([backgroundSource].concat(layerSources).filter(Boolean)));
+    const sources = Array.from(new Set([backgroundSource].concat(layerSources, brushSources, brushDraftSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -725,7 +757,8 @@ Page({
       dpr: (this.renderScale || 1) * (this.dpr || 1),
       imageCache: getResolvedCanvasImageCache(this.canvasImageCache),
       guides: this.alignmentGuides || [],
-      scissor: this.getScissorRenderState()
+      scissor: this.getScissorRenderState(),
+      brushDraft: this.getBrushRenderState()
     });
   },
 
@@ -1337,8 +1370,17 @@ Page({
     const sy = sourceCrop.y + localBounds.y / layer.height * sourceCrop.height;
     const sw = localBounds.width / layer.width * sourceCrop.width;
     const sh = localBounds.height / layer.height * sourceCrop.height;
+    const clipPolygons = getLayerClipPolygonsForNextCut(layer);
+    ctx.save();
+    if (clipPolygons.length) {
+      clipPolygons.forEach((polygon) => {
+        clipPolygonMaskPath(ctx, polygon, outputScale, localBounds);
+        ctx.clip();
+      });
+    }
     ctx.drawImage(sourceImage, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
-    this.applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds);
+    ctx.restore();
+    this.applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds, { skipPolygons: !!clipPolygons.length });
     ctx.globalCompositeOperation = "source-over";
     const path = await new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -1355,14 +1397,16 @@ Page({
     return { path, width: outputWidth, height: outputHeight, localBounds };
   },
 
-  applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds = { x: 0, y: 0 }) {
+  applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds = { x: 0, y: 0 }, options = {}) {
     const style = layer.style || {};
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
-    const polygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+    const polygons = getLayerClipPolygonsForNextCut(layer);
     ctx.fillStyle = "#000000";
-    if (polygon && polygon.length >= 3) {
-      applyPolygonAlphaMask(ctx, outputWidth, outputHeight, polygon, outputScale, localBounds);
+    if (polygons.length && !options.skipPolygons) {
+      polygons.forEach((polygon) => {
+        applyPolygonAlphaMask(ctx, outputWidth, outputHeight, polygon, outputScale, localBounds);
+      });
     } else if (clipShape) {
       ctx.globalCompositeOperation = "destination-in";
       drawEmbossMaskPath(ctx, clipShape, 0, 0, outputWidth, outputHeight);
@@ -2279,6 +2323,8 @@ Page({
     this.cancelStraightCutOverlayFrame();
     this.clearStraightCutOverlayCanvas();
     this.straightCutSession = null;
+    this.brushSession = null;
+    this.brushStroke = null;
     this.straightCutGesture = null;
     this.straightCutPickPending = false;
     this.pendingStraightCutStyle = "";
@@ -2637,6 +2683,7 @@ Page({
   },
 
   dismissFloatingPanels() {
+    if (this.data.brushEditing) return;
     if (this.data.straightCutEditing) return;
     if (this.data.textInputVisible) {
       this.dismissTextEditorFromCanvas();
@@ -2676,6 +2723,10 @@ Page({
   noopCanvasTap() {},
 
   onTouchStart(event) {
+    if (this.data.brushEditing) {
+      this.onBrushTouchStart(event);
+      return;
+    }
     if (this.data.straightCutEditing) {
       this.onStraightCutTouchStart(event);
       return;
@@ -2816,6 +2867,10 @@ Page({
   },
 
   onTouchMove(event) {
+    if (this.data.brushEditing) {
+      this.onBrushTouchMove(event);
+      return;
+    }
     if (this.data.straightCutEditing) {
       this.onStraightCutTouchMove(event);
       return;
@@ -2873,6 +2928,10 @@ Page({
   },
 
   onTouchEnd() {
+    if (this.data.brushEditing) {
+      this.onBrushTouchEnd();
+      return;
+    }
     if (this.data.straightCutEditing) {
       this.onStraightCutTouchEnd();
       return;
@@ -3718,6 +3777,131 @@ Page({
     this.render();
   },
 
+  beginBrushDrawing() {
+    this.enterEditMode();
+    this.brushSession = {
+      strokes: []
+    };
+    this.brushStroke = null;
+    this.setData({
+      brushEditing: true,
+      brushStrokeCount: 0,
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      selectedLayerId: "",
+      selectedLayerType: "",
+      textInputVisible: false,
+      ratioPanelVisible: false
+    });
+    this.render();
+  },
+
+  cancelBrushDrawing() {
+    this.brushSession = null;
+    this.brushStroke = null;
+    this.setData({
+      brushEditing: false,
+      brushStrokeCount: 0
+    });
+    this.render();
+  },
+
+  undoBrushStroke() {
+    if (!this.brushSession || !this.brushSession.strokes.length) return;
+    this.brushSession.strokes.pop();
+    this.setData({ brushStrokeCount: this.brushSession.strokes.length });
+    this.render();
+  },
+
+  clearBrushDrawing() {
+    if (!this.brushSession) return;
+    this.brushSession.strokes = [];
+    this.brushStroke = null;
+    this.setData({ brushStrokeCount: 0 });
+    this.render();
+  },
+
+  confirmBrushDrawing() {
+    const strokes = this.brushSession && this.brushSession.strokes ? this.brushSession.strokes : [];
+    if (!strokes.length) return;
+    const layer = createBrushLayer(strokes, this.draft);
+    if (!layer) return;
+    this.draft.layers.push(layer);
+    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.brushSession = null;
+    this.brushStroke = null;
+    this.setData({
+      brushEditing: false,
+      brushStrokeCount: 0,
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type
+    });
+    this.markDirty();
+    this.render();
+  },
+
+  setBrushColor(event) {
+    const color = event.currentTarget.dataset.color || "#111111";
+    this.setData({ brushColor: color });
+  },
+
+  setBrushSize(event) {
+    const size = Number(event.currentTarget.dataset.size || 8);
+    this.setData({ brushSize: Math.max(2, Math.min(32, size)) });
+  },
+
+  setBrushType(event) {
+    const type = event.currentTarget.dataset.type || "line";
+    this.setData({ brushType: type });
+  },
+
+  onBrushTouchStart(event) {
+    const touch = event.touches && event.touches[0];
+    if (!touch || !this.brushSession) return;
+    const point = clampDraftPoint(this.toDraftPoint(touch), this.draft);
+    this.brushStroke = {
+      type: this.data.brushType || "line",
+      stampSource: this.data.brushType === "bow" ? BOW_BRUSH_SOURCE : "",
+      color: this.data.brushColor || "#111111",
+      size: this.data.brushSize || 8,
+      points: [point]
+    };
+    this.render();
+  },
+
+  onBrushTouchMove(event) {
+    const touch = event.touches && event.touches[0];
+    if (!touch || !this.brushStroke) return;
+    const point = clampDraftPoint(this.toDraftPoint(touch), this.draft);
+    const points = this.brushStroke.points;
+    const last = points[points.length - 1];
+    if (distance(last, point) < 1.6) return;
+    points.push(point);
+    this.render();
+  },
+
+  onBrushTouchEnd() {
+    if (!this.brushSession || !this.brushStroke) return;
+    const stroke = this.brushStroke;
+    this.brushStroke = null;
+    if (stroke.points.length === 1) {
+      stroke.points.push({ ...stroke.points[0], x: stroke.points[0].x + 0.1 });
+    }
+    this.brushSession.strokes.push(stroke);
+    this.setData({ brushStrokeCount: this.brushSession.strokes.length });
+    this.render();
+  },
+
+  getBrushRenderState() {
+    if (!this.data.brushEditing || !this.brushSession) return null;
+    const strokes = this.brushSession.strokes.slice();
+    if (this.brushStroke) strokes.push(this.brushStroke);
+    return {
+      strokes
+    };
+  },
+
   async removeSelectedImageBackground() {
     if (this.data.backgroundRemoving) return;
     const layer = this.getSelectedLayer();
@@ -4340,15 +4524,19 @@ function applyScissorAlphaMask(ctx, width, height, strokes, bounds, outputScale)
 
 function applyPolygonAlphaMask(ctx, width, height, polygon, outputScale, localBounds = { x: 0, y: 0 }) {
   if (!ctx || !width || !height || !Array.isArray(polygon) || polygon.length < 3) return;
+  clipPolygonMaskPath(ctx, polygon, outputScale, localBounds);
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
+}
+
+function clipPolygonMaskPath(ctx, polygon, outputScale, localBounds = { x: 0, y: 0 }) {
   const offsetX = localBounds.x || 0;
   const offsetY = localBounds.y || 0;
   const shiftedPolygon = offsetX || offsetY
     ? polygon.map((point) => ({ x: point.x - offsetX, y: point.y - offsetY }))
     : polygon;
-  ctx.globalCompositeOperation = "destination-in";
   drawClipPolygonMaskPath(ctx, shiftedPolygon, outputScale);
-  ctx.fill();
-  ctx.globalCompositeOperation = "source-over";
 }
 
 function rasterizeStroke(mask, width, height, points, radius) {
@@ -4678,6 +4866,81 @@ function createLayerFromAsset(asset, draft) {
       name: asset.name || ""
     }
   };
+}
+
+function createBrushLayer(strokes, draft) {
+  const bounds = getBrushBounds(strokes, draft);
+  if (!bounds) return null;
+  const width = Math.max(8, bounds.maxX - bounds.minX);
+  const height = Math.max(8, bounds.maxY - bounds.minY);
+  return {
+    id: `brush-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    type: "brush",
+    x: bounds.minX,
+    y: bounds.minY,
+    width,
+    height,
+    brushWidth: width,
+    brushHeight: height,
+    rotation: 0,
+    scale: 1,
+    opacity: 1,
+    zIndex: (draft.layers || []).reduce((max, layer, index) => Math.max(max, layer.zIndex == null ? index : layer.zIndex), 0) + 1,
+    source: "",
+    text: "",
+    style: {},
+    strokes: strokes.map((stroke) => ({
+      type: stroke.type || "line",
+      stampSource: stroke.stampSource || (stroke.type === "bow" ? BOW_BRUSH_SOURCE : ""),
+      color: stroke.color || "#111111",
+      size: stroke.size || 8,
+      points: (stroke.points || []).map((point) => ({
+        x: point.x - bounds.minX,
+        y: point.y - bounds.minY
+      }))
+    }))
+  };
+}
+
+function getBrushBounds(strokes, draft) {
+  const result = strokes.reduce((bounds, stroke) => {
+    const padding = Math.max(4, stroke.size || 8) / 2 + 4;
+    (stroke.points || []).forEach((point) => {
+      bounds.minX = Math.min(bounds.minX, point.x - padding);
+      bounds.minY = Math.min(bounds.minY, point.y - padding);
+      bounds.maxX = Math.max(bounds.maxX, point.x + padding);
+      bounds.maxY = Math.max(bounds.maxY, point.y + padding);
+    });
+    return bounds;
+  }, {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  });
+  if (!Number.isFinite(result.minX) || !Number.isFinite(result.minY)) return null;
+  return {
+    minX: Math.max(0, result.minX),
+    minY: Math.max(0, result.minY),
+    maxX: Math.min(draft.width, result.maxX),
+    maxY: Math.min(draft.height, result.maxY)
+  };
+}
+
+function clampDraftPoint(point, draft) {
+  return {
+    x: Math.max(0, Math.min(draft.width, point.x)),
+    y: Math.max(0, Math.min(draft.height, point.y))
+  };
+}
+
+function getBrushStampSources(layers) {
+  return (layers || []).reduce((sources, layer) => {
+    (layer && layer.strokes || []).forEach((stroke) => {
+      if (stroke && stroke.stampSource) sources.push(stroke.stampSource);
+    });
+    return sources;
+  }, []);
 }
 
 function createLayerOutlineByStyle(style) {

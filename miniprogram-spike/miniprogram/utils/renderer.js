@@ -17,6 +17,7 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
         drawSelection(ctx, layer);
       }
     });
+  drawBrushDraft(ctx, options.brushDraft, options);
   drawScissorOverlay(ctx, options.scissor);
   drawAlignmentGuides(ctx, options.guides || [], draft);
   ctx.restore();
@@ -91,7 +92,9 @@ function drawLayer(ctx, layer, options = {}) {
   ctx.translate(cx, cy);
   ctx.rotate((layer.rotation || 0) * Math.PI / 180);
   setGlobalAlpha(ctx, layer.opacity == null ? 1 : layer.opacity);
-  if (layer.shadow) {
+  if (layer.type === "brush") {
+    setShadow(ctx, 0, 0, 0, "transparent");
+  } else if (layer.shadow) {
     setShadow(ctx, 0, 18, 36, "rgba(17, 17, 17, 0.18)");
   } else {
     setShadow(ctx, 0, 8, 18, "rgba(17, 17, 17, 0.08)");
@@ -119,6 +122,8 @@ function drawLayer(ctx, layer, options = {}) {
 
   if (layer.source) {
     drawSourceLayer(ctx, layer, options);
+  } else if (layer.type === "brush") {
+    drawBrushLayer(ctx, layer, options);
   } else if (layer.type === "text") {
     drawText(ctx, layer);
   } else if (layer.type === "tape") {
@@ -805,6 +810,223 @@ function drawTape(ctx, layer) {
   for (let x = -layer.width / 2 + 16; x < layer.width / 2; x += 34) {
     ctx.fillRect(x, -layer.height / 2, 8, layer.height);
   }
+}
+
+function drawBrushLayer(ctx, layer, options = {}) {
+  const baseWidth = layer.brushWidth || layer.width || 1;
+  const baseHeight = layer.brushHeight || layer.height || 1;
+  const scaleX = (layer.width || baseWidth) / baseWidth;
+  const scaleY = (layer.height || baseHeight) / baseHeight;
+  const lineScale = Math.max(0.2, (Math.abs(scaleX) + Math.abs(scaleY)) / 2);
+  drawBrushStrokes(ctx, layer.strokes || [], {
+    offsetX: -layer.width / 2,
+    offsetY: -layer.height / 2,
+    scaleX,
+    scaleY,
+    lineScale,
+    imageCache: options.imageCache || {}
+  });
+}
+
+function drawBrushDraft(ctx, brushDraft, options = {}) {
+  if (!brushDraft || !Array.isArray(brushDraft.strokes) || !brushDraft.strokes.length) return;
+  ctx.save();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  drawBrushStrokes(ctx, brushDraft.strokes, { imageCache: options.imageCache || {} });
+  ctx.restore();
+}
+
+function drawBrushStrokes(ctx, strokes, options = {}) {
+  const offsetX = options.offsetX || 0;
+  const offsetY = options.offsetY || 0;
+  const scaleX = options.scaleX == null ? 1 : options.scaleX;
+  const scaleY = options.scaleY == null ? 1 : options.scaleY;
+  const lineScale = options.lineScale == null ? 1 : options.lineScale;
+  const imageCache = options.imageCache || {};
+  setLineCap(ctx, "round");
+  setLineJoin(ctx, "round");
+  strokes.forEach((stroke) => {
+    const points = stroke.points || [];
+    if (!points.length) return;
+    const mappedPoints = points.map((point) => ({
+      x: offsetX + point.x * scaleX,
+      y: offsetY + point.y * scaleY
+    }));
+    const size = Math.max(1, (stroke.size || 8) * lineScale);
+    if (stroke.type === "stitch") {
+      drawStitchBrush(ctx, mappedPoints, stroke.color || "#111111", size);
+    } else if (stroke.type === "knit") {
+      drawKnitBrush(ctx, mappedPoints, stroke.color || "#111111", size);
+    } else if (stroke.type === "bead") {
+      drawBeadBrush(ctx, mappedPoints, stroke.color || "#111111", size);
+    } else if (stroke.type === "lace") {
+      drawLaceBrush(ctx, mappedPoints, stroke.color || "#111111", size);
+    } else if (stroke.type === "bow") {
+      drawStampBrush(ctx, mappedPoints, stroke, size, imageCache);
+    } else {
+      drawLineBrush(ctx, mappedPoints, stroke.color || "#111111", size);
+    }
+  });
+}
+
+function drawLineBrush(ctx, points, color, size) {
+  setStrokeStyle(ctx, color);
+  setLineWidth(ctx, size);
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
+  ctx.stroke();
+}
+
+function drawStitchBrush(ctx, points, color, size) {
+  const samples = sampleBrushPath(points, Math.max(9, size * 1.7));
+  setStrokeStyle(ctx, color);
+  setLineWidth(ctx, Math.max(2, size * 0.5));
+  samples.forEach((sample) => {
+    const length = Math.max(7, size * 1.25);
+    drawRotatedLine(ctx, sample.x, sample.y, sample.angle, -length / 2, 0, length / 2, 0);
+  });
+}
+
+function drawKnitBrush(ctx, points, color, size) {
+  const samples = sampleBrushPath(points, Math.max(14, size * 2.2));
+  setStrokeStyle(ctx, color);
+  setLineWidth(ctx, Math.max(1.4, size * 0.34));
+  samples.forEach((sample) => {
+    const length = Math.max(9, size * 1.45);
+    const spread = Math.max(4, size * 0.55);
+    drawRotatedLine(ctx, sample.x, sample.y, sample.angle, -spread, -length / 2, 0, length / 2);
+    drawRotatedLine(ctx, sample.x, sample.y, sample.angle, spread, -length / 2, 0, length / 2);
+  });
+}
+
+function drawBeadBrush(ctx, points, color, size) {
+  const samples = sampleBrushPath(points, Math.max(9, size * 1.65));
+  setFillStyle(ctx, color);
+  samples.forEach((sample) => {
+    ctx.beginPath();
+    ctx.arc(sample.x, sample.y, Math.max(2.5, size * 0.5), 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawLaceBrush(ctx, points, color, size) {
+  const samples = sampleBrushPath(points, Math.max(14, size * 2.05));
+  const radius = Math.max(5, size * 0.9);
+  setStrokeStyle(ctx, color);
+  setFillStyle(ctx, color);
+  setLineWidth(ctx, Math.max(1.4, size * 0.24));
+  samples.forEach((sample, index) => {
+    ctx.save();
+    ctx.translate(sample.x, sample.y);
+    ctx.rotate(sample.angle);
+    ctx.beginPath();
+    ctx.arc(0, radius * 0.12, radius, Math.PI, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-radius * 0.46, radius * 0.08, Math.max(1.4, size * 0.16), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(radius * 0.46, radius * 0.08, Math.max(1.4, size * 0.16), 0, Math.PI * 2);
+    ctx.fill();
+    if (index % 2 === 0) {
+      ctx.beginPath();
+      ctx.arc(0, -radius * 0.28, Math.max(1.3, size * 0.14), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+function drawStampBrush(ctx, points, stroke, size, imageCache) {
+  const samples = sampleBrushPath(points, Math.max(28, size * 3.2));
+  const source = stroke.stampSource || "";
+  const image = source && imageCache ? imageCache[source] : null;
+  const stampSize = Math.max(24, size * 3.4);
+  samples.forEach((sample, index) => {
+    const rotation = sample.angle + (index % 2 === 0 ? -0.16 : 0.16);
+    ctx.save();
+    ctx.translate(sample.x, sample.y);
+    ctx.rotate(rotation);
+    if (image && typeof image !== "string") {
+      ctx.drawImage(image, -stampSize / 2, -stampSize / 2, stampSize, stampSize);
+    } else {
+      drawFallbackBowStamp(ctx, stampSize, stroke.color || "#d94a38");
+    }
+    ctx.restore();
+  });
+}
+
+function drawFallbackBowStamp(ctx, size, color) {
+  const width = size;
+  const height = size * 0.68;
+  setFillStyle(ctx, color);
+  setStrokeStyle(ctx, color);
+  setLineWidth(ctx, Math.max(1.4, size * 0.08));
+  ctx.beginPath();
+  ctx.moveTo(-width * 0.08, 0);
+  ctx.bezierCurveTo(-width * 0.42, -height * 0.42, -width * 0.52, height * 0.32, -width * 0.08, height * 0.05);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(width * 0.08, 0);
+  ctx.bezierCurveTo(width * 0.42, -height * 0.42, width * 0.52, height * 0.32, width * 0.08, height * 0.05);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, Math.max(2, size * 0.12), 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawRotatedLine(ctx, x, y, angle, x1, y1, x2, y2) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  ctx.beginPath();
+  ctx.moveTo(x + x1 * cos - y1 * sin, y + x1 * sin + y1 * cos);
+  ctx.lineTo(x + x2 * cos - y2 * sin, y + x2 * sin + y2 * cos);
+  ctx.stroke();
+}
+
+function sampleBrushPath(points, spacing) {
+  if (!points || points.length < 2) return [];
+  const samples = [];
+  let carry = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1];
+    const end = points[index];
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const segmentLength = Math.sqrt(dx ** 2 + dy ** 2);
+    if (segmentLength <= 0.01) continue;
+    const angle = Math.atan2(dy, dx);
+    let distanceOnSegment = spacing - carry;
+    while (distanceOnSegment <= segmentLength) {
+      const t = distanceOnSegment / segmentLength;
+      samples.push({
+        x: start.x + dx * t,
+        y: start.y + dy * t,
+        angle
+      });
+      distanceOnSegment += spacing;
+    }
+    carry = segmentLength - (distanceOnSegment - spacing);
+    if (carry >= spacing) carry = 0;
+  }
+  if (!samples.length && points.length >= 2) {
+    const start = points[0];
+    const end = points[points.length - 1];
+    samples.push({
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2,
+      angle: Math.atan2(end.y - start.y, end.x - start.x)
+    });
+  }
+  return samples;
 }
 
 function drawText(ctx, layer) {
