@@ -49,6 +49,9 @@ const EMBOSS_MIN_SIZE = 48;
 const SCISSOR_BRUSH_SIZE = 56;
 const SCISSOR_MIN_CUT_SIZE = 8;
 const SCISSOR_MAX_OUTPUT_SIZE = 1600;
+const WAVE_CUT_AMPLITUDE = 22;
+const WAVE_CUT_WAVELENGTH = 76;
+const WAVE_CUT_POINT_STEP = 10;
 const EXPORT_HIGH_PIXEL_RATIO = 3;
 const EXPORT_FALLBACK_PIXEL_RATIO = 2;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
@@ -141,6 +144,7 @@ Page({
     backgroundCategories: BACKGROUND_CATEGORIES,
     activeBackgroundCategory: "纸感",
     visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "纸感"),
+    selectedOutlineStyle: "none",
     canUndo: false,
     canRedo: false,
     layerActionsOffset: 0,
@@ -1222,6 +1226,17 @@ Page({
   async prepareLayerForVisualSourceEdit(layer) {
     if (!this.layerNeedsVisualSourceBake(layer)) return layer;
     const baked = await this.createVisibleLayerSourceImage(layer);
+    const localBounds = baked.localBounds || { x: 0, y: 0, width: layer.width, height: layer.height };
+    if (localBounds.x || localBounds.y || localBounds.width !== layer.width || localBounds.height !== layer.height) {
+      const center = layerLocalPointToDraft({
+        x: localBounds.x + localBounds.width / 2,
+        y: localBounds.y + localBounds.height / 2
+      }, layer);
+      layer.x = center.x - localBounds.width / 2;
+      layer.y = center.y - localBounds.height / 2;
+      layer.width = localBounds.width;
+      layer.height = localBounds.height;
+    }
     layer.source = baked.path;
     layer.sourceWidth = baked.width;
     layer.sourceHeight = baked.height;
@@ -1254,22 +1269,27 @@ Page({
     const sourceImage = await this.loadScissorCanvasImage(layer.source);
     if (!sourceImage) throw new Error("missing_source_image");
     const sourceCrop = getLayerSourceCrop(layer);
+    const localBounds = getLayerVisibleLocalBounds(layer);
     const naturalScale = Math.max(sourceCrop.width / layer.width, sourceCrop.height / layer.height);
     let outputScale = Math.min(2.5, Math.max(1, naturalScale));
-    const maxSide = Math.max(layer.width, layer.height) * outputScale;
+    const maxSide = Math.max(localBounds.width, localBounds.height) * outputScale;
     if (maxSide > SCISSOR_MAX_OUTPUT_SIZE) {
       outputScale *= SCISSOR_MAX_OUTPUT_SIZE / maxSide;
     }
-    const outputWidth = Math.max(1, Math.round(layer.width * outputScale));
-    const outputHeight = Math.max(1, Math.round(layer.height * outputScale));
+    const outputWidth = Math.max(1, Math.round(localBounds.width * outputScale));
+    const outputHeight = Math.max(1, Math.round(localBounds.height * outputScale));
     this.scissorCanvasNode.width = outputWidth;
     this.scissorCanvasNode.height = outputHeight;
     const ctx = this.scissorCtx;
     if (ctx.setTransform) ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, outputWidth, outputHeight);
     ctx.globalCompositeOperation = "source-over";
-    ctx.drawImage(sourceImage, sourceCrop.x, sourceCrop.y, sourceCrop.width, sourceCrop.height, 0, 0, outputWidth, outputHeight);
-    this.applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight);
+    const sx = sourceCrop.x + localBounds.x / layer.width * sourceCrop.width;
+    const sy = sourceCrop.y + localBounds.y / layer.height * sourceCrop.height;
+    const sw = localBounds.width / layer.width * sourceCrop.width;
+    const sh = localBounds.height / layer.height * sourceCrop.height;
+    ctx.drawImage(sourceImage, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
+    this.applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds);
     ctx.globalCompositeOperation = "source-over";
     const path = await new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -1283,17 +1303,17 @@ Page({
         fail: reject
       }, this);
     });
-    return { path, width: outputWidth, height: outputHeight };
+    return { path, width: outputWidth, height: outputHeight, localBounds };
   },
 
-  applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight) {
+  applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds = { x: 0, y: 0 }) {
     const style = layer.style || {};
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
     const polygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
     ctx.fillStyle = "#000000";
     if (polygon && polygon.length >= 3) {
-      applyPolygonAlphaMask(ctx, outputWidth, outputHeight, polygon, outputScale);
+      applyPolygonAlphaMask(ctx, outputWidth, outputHeight, polygon, outputScale, localBounds);
     } else if (clipShape) {
       ctx.globalCompositeOperation = "destination-in";
       drawEmbossMaskPath(ctx, clipShape, 0, 0, outputWidth, outputHeight);
@@ -1310,7 +1330,14 @@ Page({
     const frame = layer.excludeFrame || style.excludeFrame || null;
     if (excludeShape && frame && frame.width > 0 && frame.height > 0) {
       ctx.globalCompositeOperation = "destination-out";
-      drawEmbossMaskPath(ctx, excludeShape, frame.x * outputScale, frame.y * outputScale, frame.width * outputScale, frame.height * outputScale);
+      drawEmbossMaskPath(
+        ctx,
+        excludeShape,
+        (frame.x - (localBounds.x || 0)) * outputScale,
+        (frame.y - (localBounds.y || 0)) * outputScale,
+        frame.width * outputScale,
+        frame.height * outputScale
+      );
       ctx.fill();
     }
     ctx.globalCompositeOperation = "source-over";
@@ -1498,6 +1525,7 @@ Page({
     const tool = event.currentTarget.dataset.tool || "";
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
+    this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     this.enterEditMode();
     if (tool === "cut" && this.data.activeTool === "cut" && this.data.activePalette === "cut") {
@@ -1560,6 +1588,7 @@ Page({
   closeToolPanel() {
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
+    this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     this.setData({
       activeTool: "",
@@ -1574,6 +1603,7 @@ Page({
   collapsePanelsToMainToolbar() {
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
+    this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     this.setData({
       selectedLayerId: "",
@@ -2015,10 +2045,11 @@ Page({
     if (style === "subject") {
       return this.removeSelectedImageBackground();
     }
-    if (style === "straight") {
+    if (style === "straight" || style === "wave") {
       const layer = this.getSelectedLayer();
       if (!layer || layer.type !== "image" || !layer.source) {
         this.straightCutPickPending = true;
+        this.pendingStraightCutStyle = style;
         this.setData({
           activeTool: "cut",
           activePalette: "",
@@ -2029,7 +2060,7 @@ Page({
         showToast("请在画布上选择图片", { icon: "none" });
         return;
       }
-      this.beginStraightCut(layer);
+      this.beginStraightCut(layer, style);
       return;
     }
     if (style !== "free") {
@@ -2052,37 +2083,75 @@ Page({
     this.beginScissorCut(layer);
   },
 
-  beginStraightCut(targetLayer) {
+  beginStraightCut(targetLayer, style = "straight") {
     const layer = targetLayer || this.getSelectedLayer();
     if (!layer || layer.type !== "image" || !layer.source) {
       showToast("请选择图片图层", { icon: "none" });
       return;
     }
-    const start = layerLocalPointToDraft({ x: layer.width * 0.16, y: layer.height * 0.5 }, layer);
-    const end = layerLocalPointToDraft({ x: layer.width * 0.84, y: layer.height * 0.5 }, layer);
-    this.straightCutSession = {
-      layerId: layer.id,
-      start,
-      end
+    const cutStyle = style === "wave" ? "wave" : "straight";
+    const originalLayer = JSON.parse(JSON.stringify(layer));
+    const startCut = () => {
+      const start = layerLocalPointToDraft({ x: layer.width * 0.16, y: layer.height * 0.5 }, layer);
+      const end = layerLocalPointToDraft({ x: layer.width * 0.84, y: layer.height * 0.5 }, layer);
+      this.straightCutSession = {
+        layerId: layer.id,
+        style: cutStyle,
+        originalLayer,
+        start,
+        end
+      };
+      this.straightCutGesture = null;
+      this.setData({
+        straightCutEditing: true,
+        selectedLayerId: layer.id,
+        selectedLayerType: layer.type,
+        activeTool: "cut",
+        activePalette: "",
+        activeDrawer: "",
+        textInputVisible: false,
+        ratioPanelVisible: false,
+        layerActionsPage: 0,
+        layerActionsOffset: 0
+      });
+      setTimeout(() => this.drawStraightCutOverlay(), 0);
+      this.render();
     };
-    this.straightCutGesture = null;
-    this.setData({
-      straightCutEditing: true,
-      selectedLayerId: layer.id,
-      selectedLayerType: layer.type,
-      activeTool: "cut",
-      activePalette: "",
-      activeDrawer: "",
-      textInputVisible: false,
-      ratioPanelVisible: false,
-      layerActionsPage: 0,
-      layerActionsOffset: 0
+    const prepareAndStart = () => {
+      this.setData({ saveStatus: "准备剪切..." });
+      this.prepareLayerForVisualSourceEdit(layer)
+        .then(startCut)
+        .catch((error) => {
+          console.warn("[straight-cut] prepare source failed", error);
+          showError("图片准备失败，请重试");
+        });
+    };
+    if (layer.sourceWidth && layer.sourceHeight) {
+      prepareAndStart();
+      return;
+    }
+    wx.getImageInfo({
+      src: layer.source,
+      success: (info) => {
+        layer.sourceWidth = info.width;
+        layer.sourceHeight = info.height;
+        prepareAndStart();
+      },
+      fail: () => {
+        layer.sourceWidth = layer.width;
+        layer.sourceHeight = layer.height;
+        prepareAndStart();
+      }
     });
-    setTimeout(() => this.drawStraightCutOverlay(), 0);
-    this.render();
   },
 
   cancelStraightCut() {
+    if (this.straightCutSession && this.straightCutSession.originalLayer && this.draft) {
+      const index = this.draft.layers.findIndex((layer) => layer.id === this.straightCutSession.layerId);
+      if (index >= 0) {
+        this.draft.layers[index] = this.straightCutSession.originalLayer;
+      }
+    }
     this.clearStraightCutEditing();
     this.render();
   },
@@ -2099,7 +2168,9 @@ Page({
     }
     const start = draftPointToLayerLocal(session.start, layer);
     const end = draftPointToLayerLocal(session.end, layer);
-    const polygons = splitRectByLine(layer.width, layer.height, start, end);
+    const polygons = session.style === "wave"
+      ? splitRectByWave(layer.width, layer.height, start, end)
+      : splitRectByLine(layer.width, layer.height, start, end);
     if (!polygons) {
       showToast("剪切线需要穿过图片", { icon: "none" });
       return;
@@ -2115,7 +2186,7 @@ Page({
       id: `${layer.type}-cut-${Date.now()}-a`,
       clipPolygon: polygons[0],
       cutPiece: true,
-      cutStyle: "straight",
+      cutStyle: session.style === "wave" ? "wave" : "straight",
       x: layer.x + nudge.x,
       y: layer.y + nudge.y
     };
@@ -2124,7 +2195,7 @@ Page({
       id: `${layer.type}-cut-${Date.now()}-b`,
       clipPolygon: polygons[1],
       cutPiece: true,
-      cutStyle: "straight",
+      cutStyle: session.style === "wave" ? "wave" : "straight",
       x: layer.x - nudge.x,
       y: layer.y - nudge.y
     };
@@ -2160,6 +2231,7 @@ Page({
     this.straightCutSession = null;
     this.straightCutGesture = null;
     this.straightCutPickPending = false;
+    this.pendingStraightCutStyle = "";
     this.straightCutCanvasNode = null;
     this.straightCutCtx = null;
     this.straightCutCanvasReadyPromise = null;
@@ -2316,13 +2388,24 @@ Page({
     const height = this.data.canvasCssHeight || 1;
     ctx.clearRect(0, 0, width, height);
     ctx.save();
+    if (metrics.clipPath && metrics.clipPath.length) {
+      ctx.beginPath();
+      metrics.clipPath.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.closePath();
+      ctx.clip();
+    }
     ctx.strokeStyle = "rgba(17, 17, 17, 0.78)";
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     if (ctx.setLineDash) ctx.setLineDash([7, 6]);
     ctx.beginPath();
-    ctx.moveTo(metrics.start.x, metrics.start.y);
-    ctx.lineTo(metrics.end.x, metrics.end.y);
+    metrics.path.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point.x, point.y);
+      else ctx.lineTo(point.x, point.y);
+    });
     ctx.stroke();
     if (ctx.setLineDash) ctx.setLineDash([]);
     this.drawStraightCutHandle(ctx, metrics.start);
@@ -2346,9 +2429,31 @@ Page({
     const session = this.straightCutSession;
     if (!session) return null;
     const scale = this.renderScale || 1;
+    const layer = this.getLayerById(session.layerId);
+    let path = [session.start, session.end];
+    let clipPath = null;
+    if (session.style === "wave" && layer) {
+      const start = draftPointToLayerLocal(session.start, layer);
+      const end = draftPointToLayerLocal(session.end, layer);
+      path = createWavePathPoints(layer.width, layer.height, start, end)
+        .map((point) => layerLocalPointToDraft(point, layer));
+    }
+    if (layer) {
+      clipPath = [
+        { x: 0, y: 0 },
+        { x: layer.width, y: 0 },
+        { x: layer.width, y: layer.height },
+        { x: 0, y: layer.height }
+      ].map((point) => {
+        const draftPoint = layerLocalPointToDraft(point, layer);
+        return { x: draftPoint.x * scale, y: draftPoint.y * scale };
+      });
+    }
     return {
       start: { x: session.start.x * scale, y: session.start.y * scale },
-      end: { x: session.end.x * scale, y: session.end.y * scale }
+      end: { x: session.end.x * scale, y: session.end.y * scale },
+      path: path.map((point) => ({ x: point.x * scale, y: point.y * scale })),
+      clipPath
     };
   },
 
@@ -2507,6 +2612,7 @@ Page({
       patch.activePalette = "";
       this.scissorPickPending = false;
       this.straightCutPickPending = false;
+      this.pendingStraightCutStyle = "";
       this.embossPickPending = false;
     }
     if (!Object.keys(patch).length) return;
@@ -2554,7 +2660,9 @@ Page({
       }
       if (this.straightCutPickPending) {
         if (target && target.type === "image" && target.source) {
+          const cutStyle = this.pendingStraightCutStyle === "wave" ? "wave" : "straight";
           this.straightCutPickPending = false;
+          this.pendingStraightCutStyle = "";
           this.setData({
             selectedLayerId: target.id,
             selectedLayerType: target.type,
@@ -2563,7 +2671,7 @@ Page({
             layerActionsPage: 0,
             layerActionsOffset: 0
           });
-          this.beginStraightCut(target);
+          this.beginStraightCut(target, cutStyle);
           return;
         }
         showToast("请选择图片图层", { icon: "none" });
@@ -3364,6 +3472,7 @@ Page({
     this.setData({
       selectedLayerId: layer.id,
       selectedLayerType: layer.type,
+      selectedOutlineStyle: getLayerOutlineStyleKey(layer.outline),
       activeTool: "",
       activeDrawer: "",
       activePalette: "",
@@ -3503,6 +3612,19 @@ Page({
       });
       return;
     }
+    if (action === "outline") {
+      const layer = this.getSelectedLayer();
+      const isOpen = this.data.activePalette === "outline";
+      this.setData({
+        activeTool: isOpen ? "" : "outline",
+        activePalette: isOpen ? "" : "outline",
+        activeDrawer: "",
+        selectedOutlineStyle: layer ? getLayerOutlineStyleKey(layer.outline) : "none",
+        textInputVisible: false,
+        ratioPanelVisible: false
+      });
+      return;
+    }
     if (action === "crop") return this.beginImageCrop();
     if (action === "copy") return this.duplicateLayer();
     if (action === "delete") return this.deleteLayer();
@@ -3522,6 +3644,21 @@ Page({
         delete layer.tearSeed;
       }
     }
+    this.markDirty();
+    this.render();
+  },
+
+  selectOutlineStyle(event) {
+    const style = event.currentTarget.dataset.style || "white";
+    const layer = this.getSelectedLayer();
+    if (!layer) {
+      showToast("请先选择一个图层", { icon: "none" });
+      return;
+    }
+    layer.outline = createLayerOutlineByStyle(style);
+    this.setData({
+      selectedOutlineStyle: getLayerOutlineStyleKey(layer.outline)
+    });
     this.markDirty();
     this.render();
   },
@@ -3789,6 +3926,34 @@ function getLayerSourceCrop(layer) {
   });
 }
 
+function getLayerVisibleLocalBounds(layer) {
+  const fullBounds = { x: 0, y: 0, width: layer.width, height: layer.height };
+  const polygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+  if (!polygon || polygon.length < 3) return fullBounds;
+  const bounds = polygon.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    minY: Math.min(result.minY, point.y),
+    maxX: Math.max(result.maxX, point.x),
+    maxY: Math.max(result.maxY, point.y)
+  }), {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  });
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY)) return fullBounds;
+  const x = clamp(Math.floor(bounds.minX), 0, layer.width);
+  const y = clamp(Math.floor(bounds.minY), 0, layer.height);
+  const maxX = clamp(Math.ceil(bounds.maxX), x + 1, layer.width);
+  const maxY = clamp(Math.ceil(bounds.maxY), y + 1, layer.height);
+  return {
+    x,
+    y,
+    width: Math.max(1, maxX - x),
+    height: Math.max(1, maxY - y)
+  };
+}
+
 function draftPointToLayerLocal(point, layer) {
   const cx = layer.x + layer.width / 2;
   const cy = layer.y + layer.height / 2;
@@ -3842,6 +4007,128 @@ function splitRectByLine(width, height, start, end) {
   }
   if (first.length < 3 || second.length < 3) return null;
   return [first, second];
+}
+
+function splitRectByWave(width, height, start, end) {
+  const path = createWavePathPoints(width, height, start, end);
+  if (path.length < 2) return null;
+  const normal = lineNormal(start, end);
+  const offset = Math.hypot(width, height) * 2;
+  const firstSide = [
+    ...path,
+    ...path.slice().reverse().map((point) => ({
+      x: point.x + normal.x * offset,
+      y: point.y + normal.y * offset
+    }))
+  ];
+  const secondSide = [
+    ...path.slice().reverse(),
+    ...path.map((point) => ({
+      x: point.x - normal.x * offset,
+      y: point.y - normal.y * offset
+    }))
+  ];
+  const first = clipPolygonToRect(firstSide, width, height);
+  const second = clipPolygonToRect(secondSide, width, height);
+  if (first.length < 3 || second.length < 3) return null;
+  if (polygonArea(first) < 1 || polygonArea(second) < 1) return null;
+  return [dedupePolygonPoints(first), dedupePolygonPoints(second)];
+}
+
+function createWavePathPoints(width, height, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 8) return [];
+  const unit = { x: dx / length, y: dy / length };
+  const normal = { x: -unit.y, y: unit.x };
+  const corners = [
+    { x: 0, y: 0 },
+    { x: width, y: 0 },
+    { x: width, y: height },
+    { x: 0, y: height }
+  ];
+  const projections = corners.map((point) => ({
+    s: (point.x - start.x) * unit.x + (point.y - start.y) * unit.y
+  }));
+  const padding = Math.max(width, height, WAVE_CUT_WAVELENGTH);
+  const minS = Math.min(...projections.map((item) => item.s)) - padding;
+  const maxS = Math.max(...projections.map((item) => item.s)) + padding;
+  const amplitude = Math.min(WAVE_CUT_AMPLITUDE, Math.max(10, Math.min(width, height) * 0.08));
+  const wavelength = Math.max(36, Math.min(WAVE_CUT_WAVELENGTH, Math.max(36, length * 0.55)));
+  const step = Math.max(4, Math.min(WAVE_CUT_POINT_STEP, wavelength / 6));
+  const points = [];
+  for (let s = minS; s <= maxS; s += step) {
+    const wave = Math.sin(s / wavelength * Math.PI * 2) * amplitude;
+    points.push({
+      x: start.x + unit.x * s + normal.x * wave,
+      y: start.y + unit.y * s + normal.y * wave
+    });
+  }
+  const wave = Math.sin(maxS / wavelength * Math.PI * 2) * amplitude;
+  points.push({
+    x: start.x + unit.x * maxS + normal.x * wave,
+    y: start.y + unit.y * maxS + normal.y * wave
+  });
+  return points;
+}
+
+function clipPolygonToRect(points, width, height) {
+  return [
+    { inside: (point) => point.x >= 0, intersect: (a, b) => intersectAtX(a, b, 0) },
+    { inside: (point) => point.x <= width, intersect: (a, b) => intersectAtX(a, b, width) },
+    { inside: (point) => point.y >= 0, intersect: (a, b) => intersectAtY(a, b, 0) },
+    { inside: (point) => point.y <= height, intersect: (a, b) => intersectAtY(a, b, height) }
+  ].reduce((polygon, edge) => clipPolygonByEdge(polygon, edge), points);
+}
+
+function clipPolygonByEdge(points, edge) {
+  if (!points.length) return [];
+  const output = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const current = points[index];
+    const previous = points[(index + points.length - 1) % points.length];
+    const currentInside = edge.inside(current);
+    const previousInside = edge.inside(previous);
+    if (currentInside) {
+      if (!previousInside) output.push(edge.intersect(previous, current));
+      output.push(current);
+    } else if (previousInside) {
+      output.push(edge.intersect(previous, current));
+    }
+  }
+  return output.filter(Boolean);
+}
+
+function intersectAtX(a, b, x) {
+  const dx = b.x - a.x;
+  if (Math.abs(dx) < 0.001) return { x, y: a.y };
+  const t = (x - a.x) / dx;
+  return { x, y: a.y + (b.y - a.y) * t };
+}
+
+function intersectAtY(a, b, y) {
+  const dy = b.y - a.y;
+  if (Math.abs(dy) < 0.001) return { x: a.x, y };
+  const t = (y - a.y) / dy;
+  return { x: a.x + (b.x - a.x) * t, y };
+}
+
+function dedupePolygonPoints(points) {
+  const result = [];
+  points.forEach((point) => {
+    const last = result[result.length - 1];
+    if (!last || distance(last, point) > 0.5) {
+      result.push({
+        x: Math.round(point.x * 100) / 100,
+        y: Math.round(point.y * 100) / 100
+      });
+    }
+  });
+  if (result.length > 1 && distance(result[0], result[result.length - 1]) <= 0.5) {
+    result.pop();
+  }
+  return result;
 }
 
 function lineSide(start, end, point) {
@@ -3955,54 +4242,17 @@ function applyScissorAlphaMask(ctx, width, height, strokes, bounds, outputScale)
   ctx.putImageData(imageData, 0, 0);
 }
 
-function applyPolygonAlphaMask(ctx, width, height, polygon, outputScale) {
-  if (!ctx || !ctx.getImageData || !ctx.putImageData) {
-    ctx.globalCompositeOperation = "destination-in";
-    drawClipPolygonMaskPath(ctx, polygon, outputScale);
-    ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
-    return;
-  }
-  const scaledPolygon = polygon.map((point) => ({
-    x: point.x * outputScale,
-    y: point.y * outputScale
-  }));
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
-  const softEdge = Math.max(1, Math.min(2.5, outputScale));
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const point = { x: x + 0.5, y: y + 0.5 };
-      const inside = isPointInPolygon(point, scaledPolygon);
-      if (inside) continue;
-      const alphaIndex = (y * width + x) * 4 + 3;
-      const edgeDistance = distanceToPolygon(point, scaledPolygon);
-      const edgeAlpha = edgeDistance < softEdge
-        ? Math.max(0, Math.round((1 - edgeDistance / softEdge) * data[alphaIndex]))
-        : 0;
-      data[alphaIndex] = Math.min(data[alphaIndex], edgeAlpha);
-    }
-  }
-  ctx.putImageData(imageData, 0, 0);
-}
-
-function isPointInPolygon(point, polygon) {
-  let inside = false;
-  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
-    const currentPoint = polygon[index];
-    const previousPoint = polygon[previous];
-    const intersects = ((currentPoint.y > point.y) !== (previousPoint.y > point.y))
-      && (point.x < (previousPoint.x - currentPoint.x) * (point.y - currentPoint.y) / ((previousPoint.y - currentPoint.y) || 1) + currentPoint.x);
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
-
-function distanceToPolygon(point, polygon) {
-  return polygon.reduce((minDistance, current, index) => {
-    const next = polygon[(index + 1) % polygon.length];
-    return Math.min(minDistance, distanceToSegment(point, current, next));
-  }, Infinity);
+function applyPolygonAlphaMask(ctx, width, height, polygon, outputScale, localBounds = { x: 0, y: 0 }) {
+  if (!ctx || !width || !height || !Array.isArray(polygon) || polygon.length < 3) return;
+  const offsetX = localBounds.x || 0;
+  const offsetY = localBounds.y || 0;
+  const shiftedPolygon = offsetX || offsetY
+    ? polygon.map((point) => ({ x: point.x - offsetX, y: point.y - offsetY }))
+    : polygon;
+  ctx.globalCompositeOperation = "destination-in";
+  drawClipPolygonMaskPath(ctx, shiftedPolygon, outputScale);
+  ctx.fill();
+  ctx.globalCompositeOperation = "source-over";
 }
 
 function rasterizeStroke(mask, width, height, points, radius) {
@@ -4332,6 +4582,59 @@ function createLayerFromAsset(asset, draft) {
       name: asset.name || ""
     }
   };
+}
+
+function createLayerOutlineByStyle(style) {
+  if (style === "cream") {
+    return {
+      preset: "cream",
+      color: "#f4ead8",
+      width: 12,
+      opacity: 0.96
+    };
+  }
+  if (style === "dark") {
+    return {
+      preset: "dark",
+      color: "#111111",
+      width: 8,
+      opacity: 0.82
+    };
+  }
+  if (style === "red") {
+    return {
+      preset: "red",
+      color: "#d94a38",
+      width: 9,
+      opacity: 0.86
+    };
+  }
+  if (style === "double") {
+    return {
+      preset: "double",
+      strokes: [
+        { color: "#ffffff", width: 18, opacity: 0.96 },
+        { color: "#111111", width: 6, opacity: 0.72 }
+      ]
+    };
+  }
+  if (style === "none") return null;
+  return {
+    preset: "white",
+    color: "#ffffff",
+    width: 14,
+    opacity: 0.96
+  };
+}
+
+function getLayerOutlineStyleKey(outline) {
+  if (!outline) return "none";
+  if (outline.preset) return outline.preset;
+  if (Array.isArray(outline.strokes) && outline.strokes.length) return "double";
+  if (!outline.width) return "none";
+  if (outline.color === "#f4ead8") return "cream";
+  if (outline.color === "#d94a38") return "red";
+  return outline.color === "#111111" ? "dark" : "white";
 }
 
 function createAssetPanelCategories() {

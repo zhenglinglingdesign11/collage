@@ -714,12 +714,21 @@ button::after {
   right: 54rpx;
 }
 
+.outline-palette {
+  left: 26rpx;
+  right: 26rpx;
+}
+
 .layer-cut-palette {
-  bottom: calc(284rpx + env(safe-area-inset-bottom));
+  bottom: calc(246rpx + env(safe-area-inset-bottom));
 }
 
 .layer-shape-palette {
-  bottom: calc(284rpx + env(safe-area-inset-bottom));
+  bottom: calc(246rpx + env(safe-area-inset-bottom));
+}
+
+.layer-outline-palette {
+  bottom: calc(246rpx + env(safe-area-inset-bottom));
 }
 
 .palette-tool {
@@ -741,6 +750,10 @@ button::after {
   width: 20%;
 }
 
+.outline-palette .palette-tool {
+  width: 16.666%;
+}
+
 .palette-tool-0 { left: 0; }
 .cut-palette .palette-tool-1 { left: 25%; }
 .cut-palette .palette-tool-2 { left: 50%; }
@@ -749,6 +762,11 @@ button::after {
 .shape-palette .palette-tool-2 { left: 40%; }
 .shape-palette .palette-tool-3 { left: 60%; }
 .shape-palette .palette-tool-4 { left: 80%; }
+.outline-palette .palette-tool-1 { left: 16.666%; }
+.outline-palette .palette-tool-2 { left: 33.333%; }
+.outline-palette .palette-tool-3 { left: 50%; }
+.outline-palette .palette-tool-4 { left: 66.666%; }
+.outline-palette .palette-tool-5 { left: 83.333%; }
 
 .palette-label {
   position: absolute;
@@ -758,6 +776,24 @@ button::after {
   height: 32rpx;
   line-height: 32rpx;
   text-align: center;
+}
+
+.outline-palette .palette-label {
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 18rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  color: #5f5f5a;
+  font-size: 22rpx;
+  line-height: 36rpx;
+  font-weight: 500;
+}
+
+.outline-palette .palette-tool.active .palette-label {
+  background: #111111;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .cut-palette .palette-label {
@@ -809,6 +845,54 @@ button::after {
   width: 94rpx;
   height: 128rpx;
   margin-left: -47rpx;
+}
+
+.outline-swatch {
+  position: absolute;
+  left: 50%;
+  bottom: 66rpx;
+  width: 58rpx;
+  height: 42rpx;
+  margin-left: -29rpx;
+  box-sizing: border-box;
+  border-radius: 14rpx;
+  background: #efe7d8;
+  box-shadow: 0 8rpx 18rpx rgba(17, 17, 17, 0.1);
+}
+
+.outline-swatch-white {
+  border: 9rpx solid #ffffff;
+}
+
+.outline-swatch-cream {
+  border: 8rpx solid #f4ead8;
+}
+
+.outline-swatch-dark {
+  border: 7rpx solid #111111;
+}
+
+.outline-swatch-red {
+  border: 7rpx solid #d94a38;
+}
+
+.outline-swatch-double {
+  border: 9rpx solid #ffffff;
+  box-shadow:
+    inset 0 0 0 4rpx rgba(17, 17, 17, 0.72),
+    0 8rpx 18rpx rgba(17, 17, 17, 0.1);
+}
+
+.outline-swatch-none {
+  border: 2rpx dashed rgba(17, 17, 17, 0.34);
+  background: rgba(239, 231, 216, 0.5);
+}
+
+.palette-tool.active .outline-swatch {
+  bottom: 62rpx;
+  width: 70rpx;
+  height: 52rpx;
+  margin-left: -35rpx;
 }
 
 .cut-3d.straight {
@@ -1716,7 +1800,7 @@ button::after {
 
 .layer-actions-track {
   display: inline-block;
-  min-width: 100%;
+  min-width: 1640rpx;
   height: 116rpx;
   box-sizing: border-box;
   padding: 0 40rpx;
@@ -1754,6 +1838,7 @@ button::after {
 .la-shadow-icon,
 .la-opacity-icon,
 .la-corner-icon,
+.la-outline-icon,
 .la-emboss-icon {
   display: block;
   font-size: 0;
@@ -1892,6 +1977,35 @@ button::after {
   border-radius: 12rpx;
 }
 
+.la-outline-icon {
+  box-sizing: border-box;
+}
+
+.outline-back,
+.outline-front {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 9rpx;
+}
+
+.outline-back {
+  left: 7rpx;
+  top: 7rpx;
+  width: 34rpx;
+  height: 34rpx;
+  border: 5rpx solid currentColor;
+  opacity: 0.28;
+}
+
+.outline-front {
+  left: 13rpx;
+  top: 13rpx;
+  width: 22rpx;
+  height: 22rpx;
+  border: 4rpx solid currentColor;
+  background: #ffffff;
+}
+
 .la-tear-icon {
   display: block;
   font-size: 0;
@@ -1910,26 +2024,35 @@ button::after {
   line-height: 1;
 }
 
-.emboss-mark {
+.emboss-frame {
   position: absolute;
-  box-sizing: border-box;
-  border: 4rpx solid currentColor;
-}
-
-.emboss-mark-a {
   left: 7rpx;
   top: 8rpx;
-  width: 25rpx;
-  height: 25rpx;
-  border-radius: 50%;
+  width: 34rpx;
+  height: 32rpx;
+  box-sizing: border-box;
+  border: 4rpx solid currentColor;
+  border-radius: 10rpx;
 }
 
-.emboss-mark-b {
-  right: 6rpx;
-  bottom: 7rpx;
-  width: 24rpx;
-  height: 24rpx;
-  transform: rotate(45deg);
+.emboss-star {
+  position: absolute;
+  left: 14rpx;
+  top: 12rpx;
+  width: 20rpx;
+  height: 20rpx;
+  background: currentColor;
+  clip-path: polygon(50% 0, 62% 35%, 100% 35%, 69% 57%, 82% 100%, 50% 73%, 18% 100%, 31% 57%, 0 35%, 38% 35%);
+}
+
+.emboss-star-inner {
+  position: absolute;
+  left: 5rpx;
+  top: 5rpx;
+  width: 10rpx;
+  height: 10rpx;
+  background: #ffffff;
+  clip-path: polygon(50% 0, 62% 35%, 100% 35%, 69% 57%, 82% 100%, 50% 73%, 18% 100%, 31% 57%, 0 35%, 38% 35%);
 }
 
 .bgcut-shape {

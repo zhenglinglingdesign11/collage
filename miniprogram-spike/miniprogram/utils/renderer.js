@@ -132,6 +132,7 @@ function drawLayer(ctx, layer, options = {}) {
   if (excludeShape && layer.type !== "text") {
     drawExcludeEdge(ctx, excludeShape, layer);
   }
+  drawLayerOutline(ctx, layer, { clipShape, clipPolygon, hasTear });
   ctx.restore();
 }
 
@@ -191,6 +192,90 @@ function drawPaper(ctx, layer) {
   } else {
     ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   }
+}
+
+function drawLayerOutline(ctx, layer, outline = {}) {
+  if (layer.type === "text") return;
+  const style = normalizeOutline(layer.outline);
+  if (!style) return;
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineJoin(ctx, "round");
+  setLineCap(ctx, "round");
+  style.strokes.forEach((stroke) => {
+    setLineWidth(ctx, stroke.width);
+    setStrokeStyle(ctx, colorWithOpacity(stroke.color, stroke.opacity));
+    strokeLayerOutlinePath(ctx, layer, outline);
+  });
+}
+
+function strokeLayerOutlinePath(ctx, layer, outline = {}) {
+  if (outline.hasTear) {
+    drawTearPath(ctx, layer, outline);
+    ctx.stroke();
+    return;
+  }
+  if (outline.clipPolygon && outline.clipPolygon.length >= 3) {
+    drawLayerClipPolygon(ctx, outline.clipPolygon, layer);
+    ctx.stroke();
+    return;
+  }
+  if (outline.clipShape) {
+    drawShapePath(ctx, outline.clipShape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    ctx.stroke();
+    return;
+  }
+  if (layer.radius) {
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
+    ctx.stroke();
+    return;
+  }
+  ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+}
+
+function normalizeOutline(outline) {
+  if (!outline) return null;
+  const sourceStrokes = Array.isArray(outline.strokes) && outline.strokes.length
+    ? outline.strokes
+    : [outline];
+  const strokes = sourceStrokes
+    .map((stroke) => {
+      const width = Number(stroke.width || 0);
+      if (width <= 0) return null;
+      return {
+        color: stroke.color || "#ffffff",
+        width: Math.max(1, width),
+        opacity: stroke.opacity == null ? 1 : Math.max(0, Math.min(1, Number(stroke.opacity) || 0))
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.width - a.width);
+  if (!strokes.length) return null;
+  return {
+    strokes
+  };
+}
+
+function colorWithOpacity(color, opacity) {
+  if (opacity >= 1) return color;
+  if (typeof color !== "string") return color;
+  if (color.startsWith("rgba(")) return color;
+  if (color.startsWith("rgb(")) {
+    return color.replace("rgb(", "rgba(").replace(")", `, ${opacity})`);
+  }
+  const hex = color.replace("#", "");
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  }
+  return color;
 }
 
 function getLayerClipShape(layer) {
@@ -721,6 +806,7 @@ function drawTape(ctx, layer) {
 
 function drawText(ctx, layer) {
   const style = layer.style || {};
+  const outline = normalizeOutline(layer.outline);
   setShadow(ctx, 0, 0, 0, "transparent");
   if (style.background && style.background !== "transparent") {
     setFillStyle(ctx, style.background);
@@ -734,7 +820,17 @@ function drawText(ctx, layer) {
   ctx.font = fontString(style.canvasFontFamily || style.fontFamily, fontSize);
   setTextBaseline(ctx, "middle");
   setTextAlign(ctx, "center");
-  drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width);
+  if (outline) {
+    setLineJoin(ctx, "round");
+    setLineCap(ctx, "round");
+    outline.strokes.forEach((stroke) => {
+      setLineWidth(ctx, Math.max(stroke.width, fontSize * 0.1));
+      setStrokeStyle(ctx, colorWithOpacity(stroke.color, stroke.opacity));
+      drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width, "stroke");
+    });
+  }
+  setFillStyle(ctx, style.color || "#111111");
+  drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width, "fill");
 }
 
 function fontString(fontFamily, fontSize) {
@@ -754,52 +850,64 @@ function isGenericFontFamily(name) {
   return ["serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui"].includes(name);
 }
 
-function drawStyledText(ctx, text, style, fontSize, maxWidth) {
+function drawStyledText(ctx, text, style, fontSize, maxWidth, mode = "fill") {
   const label = style.fontLabel || "系统";
   const customCanvasFont = !!style.canvasFontFamily && !isFallbackOnlyFont(style.canvasFontFamily);
   if (label === "打字机") {
-    drawMonospaceText(ctx, text, fontSize, maxWidth);
+    drawMonospaceText(ctx, text, fontSize, maxWidth, mode);
     return;
   }
   if (label === "手写") {
     ctx.save();
     ctx.rotate(-3 * Math.PI / 180);
-    fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
+    paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
     ctx.restore();
     return;
   }
   if (label === "衬线") {
-    fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
-    fillLayerText(ctx, text, 1.2, 0, maxWidth, customCanvasFont);
+    paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, 1.2, 0, maxWidth, customCanvasFont, mode);
     return;
   }
   if (label === "圆体") {
-    fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
-    fillLayerText(ctx, text, 0.8, 0.8, maxWidth, customCanvasFont);
+    paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, 0.8, 0.8, maxWidth, customCanvasFont, mode);
     return;
   }
-  fillLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont);
+  paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
 }
 
-function fillLayerText(ctx, text, x, y, maxWidth, customCanvasFont) {
+function paintLayerText(ctx, text, x, y, maxWidth, customCanvasFont, mode) {
   if (customCanvasFont) {
-    ctx.fillText(text, x, y);
+    if (mode === "stroke") {
+      ctx.strokeText(text, x, y);
+    } else {
+      ctx.fillText(text, x, y);
+    }
     return;
   }
-  ctx.fillText(text, x, y, maxWidth);
+  if (mode === "stroke") {
+    ctx.strokeText(text, x, y, maxWidth);
+  } else {
+    ctx.fillText(text, x, y, maxWidth);
+  }
 }
 
 function isFallbackOnlyFont(fontFamily) {
   return fontFamily.split(",").every((item) => isGenericFontFamily(item.trim()));
 }
 
-function drawMonospaceText(ctx, text, fontSize, maxWidth) {
+function drawMonospaceText(ctx, text, fontSize, maxWidth, mode = "fill") {
   const chars = String(text).split("");
   const charWidth = Math.min(fontSize * 0.68, maxWidth / Math.max(chars.length, 1));
   const totalWidth = charWidth * chars.length;
   const startX = -totalWidth / 2 + charWidth / 2;
   chars.forEach((char, index) => {
-    ctx.fillText(char, startX + index * charWidth, 0, charWidth);
+    if (mode === "stroke") {
+      ctx.strokeText(char, startX + index * charWidth, 0, charWidth);
+    } else {
+      ctx.fillText(char, startX + index * charWidth, 0, charWidth);
+    }
   });
 }
 

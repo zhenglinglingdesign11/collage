@@ -189,14 +189,15 @@
           <view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><view class="la-icon la-shadow-icon"><view class="shadow-back"></view><view class="shadow-front"></view></view><view>阴影</view></view>
           <view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><view class="la-icon la-opacity-icon"><view class="opacity-fill"></view></view><view>透明度</view></view>
           <view class="layer-action" data-action="corner" bindtap="applyLayerAction"><view class="la-icon la-corner-icon"></view><view>圆角</view></view>
-          <view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><view class="la-icon la-scissors-line-icon"><view class="scissors-ring scissors-ring-a"></view><view class="scissors-ring scissors-ring-b"></view><view class="scissors-blade scissors-blade-a"></view><view class="scissors-blade scissors-blade-b"></view><view class="scissors-joint"></view></view><view>剪刀</view></view>
-          <view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><view class="la-icon la-emboss-icon"><view class="emboss-mark emboss-mark-a"></view><view class="emboss-mark emboss-mark-b"></view></view><view>压花</view></view>
+          <view class="layer-action" data-action="outline" bindtap="applyLayerAction"><view class="la-icon la-outline-icon"><view class="outline-back"></view><view class="outline-front"></view></view><view>描边</view></view>
           <view class="layer-action" data-action="tear" bindtap="applyLayerAction"><view class="la-icon la-tear-icon"><view class="tear-line tear-line-a"></view><view class="tear-line tear-line-b"></view></view><view>撕边</view></view>
+          <view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><view class="la-icon la-scissors-line-icon"><view class="scissors-ring scissors-ring-a"></view><view class="scissors-ring scissors-ring-b"></view><view class="scissors-blade scissors-blade-a"></view><view class="scissors-blade scissors-blade-b"></view><view class="scissors-joint"></view></view><view>剪刀</view></view>
+          <view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><view class="la-icon la-emboss-icon"><view class="emboss-frame"></view><view class="emboss-star"><view class="emboss-star-inner"></view></view></view><view>压花</view></view>
         </view>
       </scroll-view>
     </view>
 
-    <block wx:if="{{((!selectedLayerId || textInputVisible) || activePalette === 'cut' || activePalette === 'shape') && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}">
+    <block wx:if="{{((!selectedLayerId || textInputVisible) || activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline') && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}">
       <cover-view wx:if="{{activePalette === 'cut'}}" class="tool-palette cut-palette {{selectedLayerId ? 'layer-cut-palette' : ''}}">
         <cover-view class="palette-tool palette-tool-0" data-style="straight" bindtap="selectCutStyle">
           <cover-image class="cut-icon cut-icon-straight" src="/assets/icons/scissors/bolang.png"></cover-image>
@@ -213,6 +214,33 @@
         <cover-view class="palette-tool palette-tool-3 {{backgroundRemoving ? 'disabled' : ''}}" data-style="subject" bindtap="selectCutStyle">
           <cover-image class="cut-icon" src="/assets/icons/scissors/zhuti.png"></cover-image>
           <cover-view class="palette-label">{{backgroundRemoving ? '处理中' : '主体剪'}}</cover-view>
+        </cover-view>
+      </cover-view>
+
+      <cover-view wx:if="{{activePalette === 'outline'}}" class="tool-palette outline-palette layer-outline-palette">
+        <cover-view class="palette-tool palette-tool-0 {{selectedOutlineStyle === 'none' ? 'active' : ''}}" data-style="none" bindtap="selectOutlineStyle">
+          <cover-view class="outline-swatch outline-swatch-none"></cover-view>
+          <cover-view class="palette-label">无描边</cover-view>
+        </cover-view>
+        <cover-view class="palette-tool palette-tool-1 {{selectedOutlineStyle === 'white' ? 'active' : ''}}" data-style="white" bindtap="selectOutlineStyle">
+          <cover-view class="outline-swatch outline-swatch-white"></cover-view>
+          <cover-view class="palette-label">白边</cover-view>
+        </cover-view>
+        <cover-view class="palette-tool palette-tool-2 {{selectedOutlineStyle === 'cream' ? 'active' : ''}}" data-style="cream" bindtap="selectOutlineStyle">
+          <cover-view class="outline-swatch outline-swatch-cream"></cover-view>
+          <cover-view class="palette-label">奶油边</cover-view>
+        </cover-view>
+        <cover-view class="palette-tool palette-tool-3 {{selectedOutlineStyle === 'dark' ? 'active' : ''}}" data-style="dark" bindtap="selectOutlineStyle">
+          <cover-view class="outline-swatch outline-swatch-dark"></cover-view>
+          <cover-view class="palette-label">深色边</cover-view>
+        </cover-view>
+        <cover-view class="palette-tool palette-tool-4 {{selectedOutlineStyle === 'red' ? 'active' : ''}}" data-style="red" bindtap="selectOutlineStyle">
+          <cover-view class="outline-swatch outline-swatch-red"></cover-view>
+          <cover-view class="palette-label">印章红</cover-view>
+        </cover-view>
+        <cover-view class="palette-tool palette-tool-5 {{selectedOutlineStyle === 'double' ? 'active' : ''}}" data-style="double" bindtap="selectOutlineStyle">
+          <cover-view class="outline-swatch outline-swatch-double"></cover-view>
+          <cover-view class="palette-label">双层</cover-view>
         </cover-view>
       </cover-view>
 
@@ -399,7 +427,7 @@
         </view>
       </block>
 
-      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape'))}}" class="main-toolbar">
+      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline'))}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>
           <cover-view class="tool-label">图片</cover-view>
