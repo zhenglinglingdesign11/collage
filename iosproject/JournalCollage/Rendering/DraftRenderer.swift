@@ -53,6 +53,8 @@ struct DraftRenderer: View {
             layerContent(layer)
                 .frame(width: renderedWidth, height: renderedHeight)
                 .layerMask(maskShape(for: layer), cornerRadius: CGFloat(layer.radius ?? 6))
+                .excludeMask(excludeShape(for: layer), cornerRadius: CGFloat(layer.radius ?? 6))
+                .cutMask(LayerCutShape(layer))
                 .alphaMask(alphaMaskImage(for: layer))
                 .shadow(
                     color: layer.shadow == true ? .black.opacity(0.18) : .clear,
@@ -119,7 +121,7 @@ struct DraftRenderer: View {
                     .overlay(RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6)).stroke(JournalColors.border.opacity(0.65)))
             } else {
                 RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6), style: .continuous)
-                    .fill(JournalColors.weak)
+                    .fill(color(from: styleString(layer, key: "color") ?? "#f7f7f5") ?? JournalColors.weak)
                     .overlay(
                         Image(systemName: layer.type == .image ? "photo" : "square.on.square")
                             .foregroundStyle(JournalColors.textTertiary)
@@ -202,7 +204,12 @@ struct DraftRenderer: View {
     }
 
     private func maskShape(for layer: Layer) -> LayerMaskShape? {
-        guard case .string(let value) = layer.style["maskShape"] else { return nil }
+        guard case .string(let value)? = layer.style[LayerStyleKey.maskShape] else { return nil }
+        return LayerMaskShape(rawValue: value)
+    }
+
+    private func excludeShape(for layer: Layer) -> LayerMaskShape? {
+        guard case .string(let value)? = layer.style[LayerStyleKey.excludeShape] else { return nil }
         return LayerMaskShape(rawValue: value)
     }
 
@@ -212,7 +219,7 @@ struct DraftRenderer: View {
     }
 
     private func alphaMaskImage(for layer: Layer) -> UIImage? {
-        guard case .string(let source) = layer.style["maskSource"],
+        guard case .string(let source)? = layer.style[LayerStyleKey.maskSource],
               let url = ImageSourceResolver.url(for: source, imageStore: imageStore) else {
             return nil
         }

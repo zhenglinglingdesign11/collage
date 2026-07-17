@@ -215,16 +215,35 @@ function validateStageFiveMaskShapeEntrypoints() {
   assertContains("JournalCollage/Rendering/LayerMaskShape.swift", /case stamp/, "stamp mask shape");
   assertContains("JournalCollage/Rendering/LayerMaskShape.swift", /struct LayerMaskView: View/, "layer mask view");
   assertContains("JournalCollage/Rendering/LayerMaskShape.swift", /func layerMask\(_ shape: LayerMaskShape\?/, "layer mask view modifier");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct LayerMaskSheet: View/, "layer mask sheet");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["maskShape"\] = \.string\(shape\.rawValue\)/, "write layer mask shape");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\.removeValue\(forKey: "maskShape"\)/, "clear layer mask shape");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct EmbossSheet: View/, "emboss sheet");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /@State private var draftSnapshot: Draft\?/, "emboss draft snapshot");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.sheet\.emboss\.cancel"\)\)/, "emboss cancel button");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /Button\(L10n\.t\("editor\.sheet\.emboss\.done"\)\)/, "emboss done button");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func previewEmboss\(\)/, "emboss live preview");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func confirm\(\)/, "emboss confirm");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /private func cancel\(\)/, "emboss cancel restore");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /DraftFactory\.makeEmbossShapeLayer/, "standalone emboss layer");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /layer\.style\[LayerStyleKey\.maskShape\] = \.string\(shape\.rawValue\)/, "write layer mask shape");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /layer\.style\.removeValue\(forKey: LayerStyleKey\.maskShape\)/, "clear layer mask shape");
+  assertContains("JournalCollage/Rendering/LayerMaskShape.swift", /func excludeMask\(_ shape: LayerMaskShape\?/, "exclude mask view modifier");
   assertContains("JournalCollage/Rendering/DraftRenderer.swift", /\.layerMask\(maskShape\(for: layer\)/, "draft renderer mask read");
+  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /\.excludeMask\(excludeShape\(for: layer\)/, "draft renderer exclude mask read");
   assertContains("JournalCollage/Rendering/ExportRenderer.swift", /\.layerMask\(maskShape\(for: layer\)/, "export renderer mask read");
+  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /\.excludeMask\(excludeShape\(for: layer\)/, "export renderer exclude mask read");
   assertContains("JournalCollageTests/Rendering/LayerMaskShapeTests.swift", /testMaskShapeRawValuesAreStable/, "mask raw value test");
   assertContains("JournalCollageTests/Rendering/LayerMaskShapeTests.swift", /testMaskShapeCanRoundTripThroughLayerStyle/, "mask style round-trip test");
+  assertContains("JournalCollageTests/Rendering/LayerMaskShapeTests.swift", /testExcludeShapeCanRoundTripThroughLayerStyle/, "exclude style round-trip test");
 }
 
 function validateStageFiveBrushCutEntrypoints() {
+  assertContains("JournalCollage/Rendering/LayerCutShape.swift", /struct LayerCutLine: Equatable, Sendable/, "line cut model");
+  assertContains("JournalCollage/Rendering/LayerCutShape.swift", /struct LayerCutShape: Shape/, "line and wave cut shape");
+  assertContains("JournalCollage/Rendering/LayerCutShape.swift", /style == \.wave/, "wave cut branch");
+  assertContains("JournalCollage/Rendering/LayerCutShape.swift", /waveAmplitude/, "wave amplitude parameter");
+  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /\.cutMask\(LayerCutShape\(layer\)\)/, "draft renderer line and wave cut mask");
+  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /\.cutMask\(LayerCutShape\(layer\)\)/, "export renderer line and wave cut mask");
+  assertContains("JournalCollageTests/Rendering/LayerCutShapeTests.swift", /testParsesStraightCutLineFromLayerStyle/, "straight cut schema test");
+  assertContains("JournalCollageTests/Rendering/LayerCutShapeTests.swift", /testParsesWaveCutParametersFromLayerStyle/, "wave cut schema test");
   assertContains("JournalCollage/Rendering/BrushMaskRenderer.swift", /struct BrushPoint: Codable, Equatable, Sendable/, "brush point model");
   assertContains("JournalCollage/Rendering/BrushMaskRenderer.swift", /normalizedStrokes\(from strokes: \[\[CGPoint\]\], drawingSize: CGSize\)/, "brush path normalization");
   assertContains("JournalCollage/Rendering/BrushMaskRenderer.swift", /renderMask\(strokes: \[\[BrushPoint\]\]/, "alpha mask rendering");
@@ -235,8 +254,8 @@ function validateStageFiveBrushCutEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /currentStroke\.append\(value\.location\)/, "brush path recording");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /BrushMaskRenderer\.renderMask\(strokes: normalized/, "brush alpha mask generation");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /imageStore\.saveMaskImage\(image\)/, "brush mask resource save");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["maskSource"\] = \.string\(source\)/, "mask source style storage");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["brushPath"\] = BrushMaskRenderer\.jsonValue/, "brush path style storage");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\[LayerStyleKey\.maskSource\] = \.string\(source\)/, "mask source style storage");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\[LayerStyleKey\.brushPath\] = BrushMaskRenderer\.jsonValue/, "brush path style storage");
   assertContains("JournalCollage/Rendering/DraftRenderer.swift", /alphaMask\(alphaMaskImage\(for: layer\)\)/, "draft renderer alpha mask");
   assertContains("JournalCollage/Rendering/ExportRenderer.swift", /alphaMask\(alphaMaskImage\(for: layer\)\)/, "export renderer alpha mask");
   assertContains("JournalCollageTests/Rendering/BrushMaskRendererTests.swift", /testNormalizesBrushPathPoints/, "brush path normalization test");
@@ -258,8 +277,8 @@ function validateStageFiveSubjectCutEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /removeSelectedImageBackground/, "subject cut editor function");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /RembgService\(\)\.removeImageBackground\(fileURL: fileURL\)/, "subject cut service call");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /imageStore\.savePNGImageData\(data\)/, "subject cut PNG save");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["subjectCut"\] = \.bool\(true\)/, "subject cut style marker");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /ToolItem\(systemName: "person\.crop\.rectangle", label: L10n\.t\("layer\.action\.subject"\)\)/, "subject cut toolbar entry");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\[LayerStyleKey\.subjectCut\] = \.bool\(true\)/, "subject cut style marker");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /title: L10n\.t\("editor\.scissors\.subject"\)/, "subject cut scissors entry");
   assertContains("JournalCollageTests/Services/RembgServiceTests.swift", /testMissingEndpointFailsBeforeUpload/, "rembg missing endpoint test");
   assertContains("JournalCollageTests/Storage/ImageStoreTests.swift", /testSavesPNGImageDataAndReturnsStableSource/, "subject cut PNG storage test");
 }

@@ -75,6 +75,21 @@ extension View {
             self
         }
     }
+
+    @ViewBuilder
+    func excludeMask(_ shape: LayerMaskShape?, cornerRadius: CGFloat) -> some View {
+        if let shape, shape != .none {
+            compositingGroup()
+                .overlay(
+                    LayerMaskView(shape: shape, cornerRadius: cornerRadius)
+                        .foregroundStyle(Color.black)
+                        .blendMode(.destinationOut)
+                )
+                .compositingGroup()
+        } else {
+            self
+        }
+    }
 }
 
 private struct HeartShape: Shape {

@@ -34,6 +34,11 @@
 "editor.status.brush_saved" = "Brush Saved";
 "editor.status.brush_failed" = "Brush Failed";
 "editor.status.brush_empty" = "Brush Area First";
+"editor.status.select_cut_layer" = "Select Image or Asset";
+"editor.status.straight_cut_ready" = "Straight Cut Saved";
+"editor.status.wave_cut_ready" = "Wave Cut Saved";
+"editor.status.emboss_done" = "Emboss Applied";
+"editor.status.emboss_cancelled" = "Emboss Cancelled";
 "editor.status.live_photo_imported" = "Live Photo Added";
 "editor.status.live_photo_video_missing" = "Live Still Added";
 "editor.status.live_photo_failed" = "Live Photo Failed";
@@ -54,6 +59,8 @@
 "editor.toolbar.tape" = "Tape";
 "editor.toolbar.background" = "Bg";
 "editor.toolbar.text" = "Text";
+"editor.toolbar.scissors" = "Cut";
+"editor.toolbar.emboss" = "Emboss";
 "editor.toolbar.ratio" = "Ratio";
 
 "layer.action.up" = "Up";
@@ -63,6 +70,8 @@
 "layer.action.effects" = "Effects";
 "layer.action.crop" = "Crop";
 "layer.action.mask" = "Mask";
+"layer.action.scissors" = "Cut";
+"layer.action.emboss" = "Emboss";
 "layer.action.brush" = "Brush";
 "layer.action.subject" = "Subject";
 "layer.action.edit" = "Edit";
@@ -108,6 +117,29 @@
 "editor.mask.tag" = "Tag";
 "editor.mask.stamp" = "Stamp";
 "editor.mask.note" = "Mask material comes later.";
+
+"editor.sheet.scissors.title" = "Scissors";
+"editor.scissors.straight" = "Straight Cut";
+"editor.scissors.straight.detail" = "Stores the default cut line before drag editing lands.";
+"editor.scissors.wave" = "Wave Cut";
+"editor.scissors.wave.detail" = "Stores wave parameters before rendering lands.";
+"editor.scissors.brush" = "Brush Cut";
+"editor.scissors.brush.detail" = "Brush the area to keep.";
+"editor.scissors.subject" = "Subject Cut";
+"editor.scissors.subject.detail" = "Use the subject cutout service.";
+"editor.scissors.note" = "Straight and wave cuts now write draft data; rendering comes next.";
+
+"editor.sheet.emboss.title" = "Emboss";
+"editor.sheet.emboss.cancel" = "Cancel";
+"editor.sheet.emboss.done" = "Done";
+"editor.emboss.mode" = "Mode";
+"editor.emboss.mode.fill" = "Shape";
+"editor.emboss.mode.mask" = "Mask";
+"editor.emboss.mode.exclude" = "Cutout";
+"editor.emboss.add_note" = "With no layer selected, this adds a standalone shape layer.";
+"editor.emboss.layer_note" = "With a layer selected, this writes emboss fields to that layer.";
+"editor.emboss.preview.shape" = "Adds a movable emboss shape in the center of the canvas.";
+"editor.emboss.preview.layer" = "Previews the emboss effect on this layer and saves it when done.";
 
 "editor.sheet.brush.title" = "Brush Cut";
 "editor.sheet.brush.redraw" = "Redraw";

@@ -61,6 +61,27 @@ enum DraftFactory {
         )
     }
 
+    static func makeEmbossShapeLayer(shape: LayerMaskShape, draft: Draft) -> Layer {
+        let size = min(draft.width, draft.height) * 0.30
+        return Layer(
+            type: .cut,
+            x: (draft.width - size) / 2,
+            y: (draft.height - size) / 2,
+            width: size,
+            height: size,
+            opacity: 0.92,
+            zIndex: nextLayerOrder(in: draft),
+            radius: 8,
+            shadow: true,
+            style: [
+                LayerStyleKey.embossMode: .string(EmbossMode.fill.rawValue),
+                LayerStyleKey.embossShape: .string(shape.rawValue),
+                LayerStyleKey.maskShape: .string(shape.rawValue),
+                "color": .string("#efe7d8")
+            ]
+        )
+    }
+
     private static func nextLayerOrder(in draft: Draft) -> Int {
         (draft.layers.map(\.zIndex).max() ?? 0) + 1
     }

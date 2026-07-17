@@ -34,6 +34,11 @@
 "editor.status.brush_saved" = "已保存涂抹剪";
 "editor.status.brush_failed" = "涂抹剪保存失败";
 "editor.status.brush_empty" = "请先涂抹区域";
+"editor.status.select_cut_layer" = "请先选择图片或素材";
+"editor.status.straight_cut_ready" = "已记录直线剪参数";
+"editor.status.wave_cut_ready" = "已记录波浪剪参数";
+"editor.status.emboss_done" = "压花已应用";
+"editor.status.emboss_cancelled" = "已取消压花";
 "editor.status.live_photo_imported" = "已导入 Live 图";
 "editor.status.live_photo_video_missing" = "已导入 Live 主图";
 "editor.status.live_photo_failed" = "Live 图导入失败";
@@ -54,6 +59,8 @@
 "editor.toolbar.tape" = "胶带";
 "editor.toolbar.background" = "背景";
 "editor.toolbar.text" = "文字";
+"editor.toolbar.scissors" = "剪刀";
+"editor.toolbar.emboss" = "压花";
 "editor.toolbar.ratio" = "比例";
 
 "layer.action.up" = "上移";
@@ -63,6 +70,8 @@
 "layer.action.effects" = "效果";
 "layer.action.crop" = "裁切";
 "layer.action.mask" = "形状";
+"layer.action.scissors" = "剪刀";
+"layer.action.emboss" = "压花";
 "layer.action.brush" = "涂抹";
 "layer.action.subject" = "主体";
 "layer.action.edit" = "编辑";
@@ -108,6 +117,29 @@
 "editor.mask.tag" = "标签";
 "editor.mask.stamp" = "邮票";
 "editor.mask.note" = "当前为形状蒙版初版，压花材质会在后续阶段叠加。";
+
+"editor.sheet.scissors.title" = "剪刀";
+"editor.scissors.straight" = "直线剪";
+"editor.scissors.straight.detail" = "先记录默认裁切线，后续接入拖拽编辑。";
+"editor.scissors.wave" = "波浪剪";
+"editor.scissors.wave.detail" = "先记录波浪参数，后续接入真实裁切。";
+"editor.scissors.brush" = "涂抹剪";
+"editor.scissors.brush.detail" = "涂抹保留想要的区域。";
+"editor.scissors.subject" = "主体剪";
+"editor.scissors.subject.detail" = "调用主体抠图服务。";
+"editor.scissors.note" = "直线剪和波浪剪当前先落草稿数据，渲染会在下一阶段接入。";
+
+"editor.sheet.emboss.title" = "压花";
+"editor.sheet.emboss.cancel" = "取消";
+"editor.sheet.emboss.done" = "完成";
+"editor.emboss.mode" = "模式";
+"editor.emboss.mode.fill" = "形状";
+"editor.emboss.mode.mask" = "蒙版";
+"editor.emboss.mode.exclude" = "镂空";
+"editor.emboss.add_note" = "未选中图层时会添加一个独立形状图层。";
+"editor.emboss.layer_note" = "选中图层时会把形状写入当前图层的压花字段。";
+"editor.emboss.preview.shape" = "会在画布中央添加一个可移动的压花形状。";
+"editor.emboss.preview.layer" = "会实时预览当前图层的压花效果，点完成后保存。";
 
 "editor.sheet.brush.title" = "涂抹剪";
 "editor.sheet.brush.redraw" = "重画";

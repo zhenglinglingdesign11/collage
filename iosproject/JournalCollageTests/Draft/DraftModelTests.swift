@@ -37,4 +37,33 @@ final class DraftModelTests: XCTestCase {
         XCTAssertEqual(decoded.height, 1000)
         XCTAssertEqual(decoded.layers.first?.text, "weekend")
     }
+
+    func testCutStyleSchemaRoundTrip() throws {
+        var draft = Draft()
+        var layer = DraftFactory.makeImageLayer(
+            source: "images/photo.jpg",
+            imageSize: CanvasSize(width: 1000, height: 1200),
+            draft: draft
+        )
+        layer.style[LayerStyleKey.cutStyle] = .string(CutStyle.wave.rawValue)
+        layer.style[LayerStyleKey.waveAmplitude] = .number(18)
+        layer.style[LayerStyleKey.waveFrequency] = .number(6)
+        draft.layers = [layer]
+
+        let data = try JSONEncoder().encode(draft)
+        let decoded = try JSONDecoder().decode(Draft.self, from: data)
+
+        XCTAssertEqual(decoded.layers.first?.cutStyle, .wave)
+        XCTAssertEqual(decoded.layers.first?.style[LayerStyleKey.waveAmplitude], .number(18))
+    }
+
+    func testEmbossShapeLayerUsesSharedSchema() {
+        let draft = Draft()
+        let layer = DraftFactory.makeEmbossShapeLayer(shape: .stamp, draft: draft)
+
+        XCTAssertEqual(layer.type, .cut)
+        XCTAssertEqual(layer.embossMode, .fill)
+        XCTAssertEqual(layer.style[LayerStyleKey.embossShape], .string("stamp"))
+        XCTAssertEqual(layer.style[LayerStyleKey.maskShape], .string("stamp"))
+    }
 }

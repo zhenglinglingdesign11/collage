@@ -101,6 +101,8 @@ private struct ExportCanvasView: View {
         layerContent(layer)
             .frame(width: renderedWidth, height: renderedHeight)
             .layerMask(maskShape(for: layer), cornerRadius: CGFloat(layer.radius ?? 6) * scale)
+            .excludeMask(excludeShape(for: layer), cornerRadius: CGFloat(layer.radius ?? 6) * scale)
+            .cutMask(LayerCutShape(layer))
             .alphaMask(alphaMaskImage(for: layer))
             .shadow(
                 color: layer.shadow == true ? .black.opacity(0.18) : .clear,
@@ -147,7 +149,7 @@ private struct ExportCanvasView: View {
                     .clipShape(RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6) * scale, style: .continuous))
             } else {
                 RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6) * scale, style: .continuous)
-                    .fill(JournalColors.weak)
+                    .fill(color(from: styleString(layer, key: "color") ?? "#f7f7f5") ?? JournalColors.weak)
             }
         }
     }
@@ -226,12 +228,17 @@ private struct ExportCanvasView: View {
     }
 
     private func maskShape(for layer: Layer) -> LayerMaskShape? {
-        guard case .string(let value) = layer.style["maskShape"] else { return nil }
+        guard case .string(let value)? = layer.style[LayerStyleKey.maskShape] else { return nil }
+        return LayerMaskShape(rawValue: value)
+    }
+
+    private func excludeShape(for layer: Layer) -> LayerMaskShape? {
+        guard case .string(let value)? = layer.style[LayerStyleKey.excludeShape] else { return nil }
         return LayerMaskShape(rawValue: value)
     }
 
     private func alphaMaskImage(for layer: Layer) -> UIImage? {
-        guard case .string(let source) = layer.style["maskSource"],
+        guard case .string(let source)? = layer.style[LayerStyleKey.maskSource],
               let url = ImageSourceResolver.url(for: source, imageStore: imageStore) else {
             return nil
         }

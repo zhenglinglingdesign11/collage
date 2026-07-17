@@ -52,14 +52,12 @@ struct EditorView: View {
                     onEditText: openTextPanel,
                     onEffects: { activeSheet = .effects },
                     onCrop: { activeSheet = .crop },
-                    onMask: { activeSheet = .mask },
-                    onBrushCut: { activeSheet = .brushCut },
-                    onSubjectCut: removeSelectedImageBackground,
+                    onScissors: openScissorsPanel,
+                    onEmboss: openEmbossPanel,
                     canEditText: selectedLayer?.type == .text,
                     canCrop: selectedLayer?.type == .image,
-                    canMask: supportsMask(selectedLayer),
-                    canBrushCut: selectedLayer?.type == .image,
-                    canSubjectCut: selectedLayer?.type == .image
+                    canScissors: supportsScissors(selectedLayer),
+                    canEmboss: supportsEmboss(selectedLayer)
                 )
                 .padding(.horizontal, JournalSpacing.md)
                 .padding(.bottom, JournalSpacing.sm)
@@ -71,6 +69,8 @@ struct EditorView: View {
                 onAddTape: addTape,
                 onAddBackground: { activeSheet = .background },
                 onAddText: openTextPanel,
+                onScissors: openScissorsPanel,
+                onEmboss: openEmbossPanel,
                 onChangeRatio: cycleRatio
             )
             .padding(.horizontal, JournalSpacing.md)
@@ -145,12 +145,32 @@ struct EditorView: View {
                 )
                 .presentationDetents([.large])
             case .mask:
-                LayerMaskSheet(
+                EmbossSheet(
                     draft: $draft,
                     layerId: selectedLayerId,
-                    onDraftChanged: commitDraftChange
+                    onDraftChanged: commitDraftChange,
+                    onSelectLayer: { selectedLayerId = $0 },
+                    onStatusChanged: { saveStatus = $0 }
                 )
-                .presentationDetents([.height(300)])
+                .presentationDetents([.height(420), .medium])
+            case .scissors:
+                ScissorsSheet(
+                    selectedLayer: selectedLayer,
+                    onStraightCut: {
+                        prepareStraightCut()
+                        activeSheet = nil
+                    },
+                    onWaveCut: {
+                        prepareWaveCut()
+                        activeSheet = nil
+                    },
+                    onBrushCut: { activeSheet = .brushCut },
+                    onSubjectCut: {
+                        activeSheet = nil
+                        removeSelectedImageBackground()
+                    }
+                )
+                .presentationDetents([.height(330)])
             case .brushCut:
                 BrushCutSheet(
                     draft: $draft,
@@ -370,6 +390,55 @@ struct EditorView: View {
         activeSheet = .text
     }
 
+    private func openScissorsPanel() {
+        guard supportsScissors(selectedLayer) else {
+            saveStatus = L10n.t("editor.status.select_cut_layer")
+            return
+        }
+        activeSheet = .scissors
+    }
+
+    private func openEmbossPanel() {
+        activeSheet = .mask
+    }
+
+    private func prepareStraightCut() {
+        applyCutStyle(.straight) { layer in
+            layer.style[LayerStyleKey.cutLine] = .object([
+                "startX": .number(0),
+                "startY": .number(layer.height / 2),
+                "endX": .number(layer.width),
+                "endY": .number(layer.height / 2)
+            ])
+        }
+        saveStatus = L10n.t("editor.status.straight_cut_ready")
+    }
+
+    private func prepareWaveCut() {
+        applyCutStyle(.wave) { layer in
+            layer.style[LayerStyleKey.cutLine] = .object([
+                "startX": .number(0),
+                "startY": .number(layer.height / 2),
+                "endX": .number(layer.width),
+                "endY": .number(layer.height / 2)
+            ])
+            layer.style[LayerStyleKey.waveAmplitude] = .number(18)
+            layer.style[LayerStyleKey.waveFrequency] = .number(6)
+        }
+        saveStatus = L10n.t("editor.status.wave_cut_ready")
+    }
+
+    private func applyCutStyle(_ cutStyle: CutStyle, configure: (inout Layer) -> Void) {
+        guard let selectedLayerId,
+              let index = draft.layers.firstIndex(where: { $0.id == selectedLayerId }) else {
+            saveStatus = L10n.t("editor.status.select_cut_layer")
+            return
+        }
+        draft.layers[index].style[LayerStyleKey.cutStyle] = .string(cutStyle.rawValue)
+        configure(&draft.layers[index])
+        commitDraftChange()
+    }
+
     private func applyBackground(_ option: BackgroundOption) {
         draft.background = option.colorHex
         draft.backgroundPattern = option.pattern
@@ -579,7 +648,8 @@ struct EditorView: View {
                 draft.layers[index].source = stored.source
                 draft.layers[index].sourceWidth = stored.size.width
                 draft.layers[index].sourceHeight = stored.size.height
-                draft.layers[index].style["subjectCut"] = .bool(true)
+                draft.layers[index].style[LayerStyleKey.cutStyle] = .string(CutStyle.subject.rawValue)
+                draft.layers[index].style[LayerStyleKey.subjectCut] = .bool(true)
                 commitDraftChange()
                 saveStatus = L10n.t("editor.status.subject_done")
             } catch {
@@ -605,12 +675,22 @@ struct EditorView: View {
         }
     }
 
-    private func supportsMask(_ layer: Layer?) -> Bool {
+    private func supportsEmboss(_ layer: Layer?) -> Bool {
         guard let layer else { return false }
         switch layer.type {
         case .image, .sticker, .paper, .cut:
             return true
         case .text, .tape:
+            return false
+        }
+    }
+
+    private func supportsScissors(_ layer: Layer?) -> Bool {
+        guard let layer else { return false }
+        switch layer.type {
+        case .image, .sticker, .paper:
+            return true
+        case .text, .tape, .cut:
             return false
         }
     }
@@ -636,6 +716,7 @@ private enum EditorSheet: String, Identifiable {
     case effects
     case crop
     case mask
+    case scissors
     case brushCut
     case exportPreview
 
@@ -648,10 +729,13 @@ private struct EditorToolbar: View {
     let onAddTape: () -> Void
     let onAddBackground: () -> Void
     let onAddText: () -> Void
+    let onScissors: () -> Void
+    let onEmboss: () -> Void
     let onChangeRatio: () -> Void
 
     var body: some View {
-        HStack {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack {
             PhotosPicker(selection: $selectedPhotoItem, matching: .any(of: [.images, .livePhotos])) {
                 ToolItem(systemName: "photo", label: L10n.t("editor.toolbar.photo"))
             }
@@ -677,10 +761,22 @@ private struct EditorToolbar: View {
             }
             .buttonStyle(.plain)
 
+            Button(action: onScissors) {
+                ToolItem(systemName: "scissors", label: L10n.t("editor.toolbar.scissors"))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onEmboss) {
+                ToolItem(systemName: "seal", label: L10n.t("editor.toolbar.emboss"))
+            }
+            .buttonStyle(.plain)
+
             Button(action: onChangeRatio) {
                 ToolItem(systemName: "rectangle.3.group", label: L10n.t("editor.toolbar.ratio"))
             }
             .buttonStyle(.plain)
+            }
+            .frame(minWidth: 520)
         }
         .frame(height: 72)
         .background(JournalColors.panel)
@@ -697,17 +793,16 @@ private struct LayerCommandToolbar: View {
     let onEditText: () -> Void
     let onEffects: () -> Void
     let onCrop: () -> Void
-    let onMask: () -> Void
-    let onBrushCut: () -> Void
-    let onSubjectCut: () -> Void
+    let onScissors: () -> Void
+    let onEmboss: () -> Void
     let canEditText: Bool
     let canCrop: Bool
-    let canMask: Bool
-    let canBrushCut: Bool
-    let canSubjectCut: Bool
+    let canScissors: Bool
+    let canEmboss: Bool
 
     var body: some View {
-        HStack {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack {
             Button(action: onMoveDown) {
                 ToolItem(systemName: "square.2.layers.3d.bottom.filled", label: L10n.t("layer.action.down"))
             }
@@ -728,19 +823,14 @@ private struct LayerCommandToolbar: View {
                     ToolItem(systemName: "crop", label: L10n.t("layer.action.crop"))
                 }
             }
-            if canMask {
-                Button(action: onMask) {
-                    ToolItem(systemName: "seal", label: L10n.t("layer.action.mask"))
+            if canScissors {
+                Button(action: onScissors) {
+                    ToolItem(systemName: "scissors", label: L10n.t("layer.action.scissors"))
                 }
             }
-            if canBrushCut {
-                Button(action: onBrushCut) {
-                    ToolItem(systemName: "scissors", label: L10n.t("layer.action.brush"))
-                }
-            }
-            if canSubjectCut {
-                Button(action: onSubjectCut) {
-                    ToolItem(systemName: "person.crop.rectangle", label: L10n.t("layer.action.subject"))
+            if canEmboss {
+                Button(action: onEmboss) {
+                    ToolItem(systemName: "seal", label: L10n.t("layer.action.emboss"))
                 }
             }
             if canEditText {
@@ -748,6 +838,8 @@ private struct LayerCommandToolbar: View {
                     ToolItem(systemName: "text.cursor", label: L10n.t("layer.action.edit"))
                 }
             }
+            }
+            .frame(minWidth: 560)
         }
         .buttonStyle(.plain)
         .frame(height: 62)
@@ -775,6 +867,101 @@ private struct ToolItem: View {
         }
         .foregroundStyle(JournalColors.ink)
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct ScissorsSheet: View {
+    let selectedLayer: Layer?
+    let onStraightCut: () -> Void
+    let onWaveCut: () -> Void
+    let onBrushCut: () -> Void
+    let onSubjectCut: () -> Void
+
+    private var canUseImageOnlyTools: Bool {
+        selectedLayer?.type == .image
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: JournalSpacing.md) {
+            Capsule()
+                .fill(JournalColors.border)
+                .frame(width: 38, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, JournalSpacing.sm)
+
+            Text(L10n.t("editor.sheet.scissors.title"))
+                .font(JournalTypography.sectionTitle)
+                .foregroundStyle(JournalColors.ink)
+
+            VStack(spacing: JournalSpacing.sm) {
+                ScissorsOptionButton(
+                    systemName: "line.diagonal",
+                    title: L10n.t("editor.scissors.straight"),
+                    detail: L10n.t("editor.scissors.straight.detail"),
+                    action: onStraightCut
+                )
+                ScissorsOptionButton(
+                    systemName: "waveform.path",
+                    title: L10n.t("editor.scissors.wave"),
+                    detail: L10n.t("editor.scissors.wave.detail"),
+                    action: onWaveCut
+                )
+                ScissorsOptionButton(
+                    systemName: "scribble",
+                    title: L10n.t("editor.scissors.brush"),
+                    detail: L10n.t("editor.scissors.brush.detail"),
+                    action: onBrushCut,
+                    isEnabled: canUseImageOnlyTools
+                )
+                ScissorsOptionButton(
+                    systemName: "person.crop.rectangle",
+                    title: L10n.t("editor.scissors.subject"),
+                    detail: L10n.t("editor.scissors.subject.detail"),
+                    action: onSubjectCut,
+                    isEnabled: canUseImageOnlyTools
+                )
+            }
+
+            Text(L10n.t("editor.scissors.note"))
+                .font(JournalTypography.caption)
+                .foregroundStyle(JournalColors.textSecondary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, JournalSpacing.lg)
+        .background(JournalColors.panel)
+    }
+}
+
+private struct ScissorsOptionButton: View {
+    let systemName: String
+    let title: String
+    let detail: String
+    let action: () -> Void
+    var isEnabled = true
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: JournalSpacing.md) {
+                Image(systemName: systemName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(JournalTypography.bodyStrong)
+                    Text(detail)
+                        .font(JournalTypography.caption)
+                        .foregroundStyle(JournalColors.textSecondary)
+                }
+                Spacer()
+            }
+            .foregroundStyle(isEnabled ? JournalColors.ink : JournalColors.textTertiary)
+            .padding(JournalSpacing.sm)
+            .background(JournalColors.weak)
+            .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
     }
 }
 
@@ -923,8 +1110,9 @@ private struct BrushCutSheet: View {
         do {
             let image = BrushMaskRenderer.renderMask(strokes: normalized, size: maskPixelSize)
             let source = try imageStore.saveMaskImage(image)
-            draft.layers[index].style["maskSource"] = .string(source)
-            draft.layers[index].style["brushPath"] = BrushMaskRenderer.jsonValue(from: normalized)
+            draft.layers[index].style[LayerStyleKey.cutStyle] = .string(CutStyle.brush.rawValue)
+            draft.layers[index].style[LayerStyleKey.maskSource] = .string(source)
+            draft.layers[index].style[LayerStyleKey.brushPath] = BrushMaskRenderer.jsonValue(from: normalized)
             onDraftChanged()
             onStatusChanged(L10n.t("editor.status.brush_saved"))
         } catch {
@@ -941,12 +1129,27 @@ private struct BrushCutSheet: View {
     }
 }
 
-private struct LayerMaskSheet: View {
+private struct EmbossSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
     @Binding var draft: Draft
     let layerId: String?
     let onDraftChanged: () -> Void
+    let onSelectLayer: (String?) -> Void
+    let onStatusChanged: (String) -> Void
 
-    @State private var selectedShape: LayerMaskShape = .none
+    @State private var selectedShape: LayerMaskShape = .circle
+    @State private var selectedMode: EmbossMode = .mask
+    @State private var draftSnapshot: Draft?
+    @State private var editingLayerId: String?
+
+    private var availableShapes: [LayerMaskShape] {
+        LayerMaskShape.allCases.filter { $0 != .none }
+    }
+
+    private var availableModes: [EmbossMode] {
+        layerId == nil ? [.fill] : EmbossMode.allCases
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: JournalSpacing.md) {
@@ -956,17 +1159,47 @@ private struct LayerMaskSheet: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, JournalSpacing.sm)
 
-            Text(L10n.t("editor.sheet.mask.title"))
-                .font(JournalTypography.sectionTitle)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
+            HStack {
+                Button(L10n.t("editor.sheet.emboss.cancel")) {
+                    cancel()
+                }
+                .font(JournalTypography.bodyStrong)
+                .foregroundStyle(JournalColors.textSecondary)
+
+                Spacer()
+
+                Text(L10n.t("editor.sheet.emboss.title"))
+                    .font(JournalTypography.sectionTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(JournalColors.ink)
+
+                Spacer()
+
+                Button(L10n.t("editor.sheet.emboss.done")) {
+                    confirm()
+                }
+                .font(JournalTypography.bodyStrong)
                 .foregroundStyle(JournalColors.ink)
+            }
+
+            Picker(L10n.t("editor.emboss.mode"), selection: $selectedMode) {
+                ForEach(availableModes) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: selectedMode) { _, _ in
+                previewEmboss()
+            }
+
+            EmbossPreviewCard(shape: selectedShape, mode: selectedMode, hasLayerTarget: layerId != nil)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: JournalSpacing.sm) {
-                ForEach(LayerMaskShape.allCases) { shape in
+                ForEach(availableShapes) { shape in
                     Button {
                         selectedShape = shape
-                        applyShape(shape)
+                        previewEmboss()
                     } label: {
                         VStack(spacing: JournalSpacing.xs) {
                             LayerMaskView(shape: shape, cornerRadius: 8)
@@ -986,7 +1219,7 @@ private struct LayerMaskSheet: View {
                 }
             }
 
-            Text(L10n.t("editor.mask.note"))
+            Text(L10n.t(layerId == nil ? "editor.emboss.add_note" : "editor.emboss.layer_note"))
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
 
@@ -994,33 +1227,122 @@ private struct LayerMaskSheet: View {
         }
         .padding(.horizontal, JournalSpacing.lg)
         .background(JournalColors.panel)
-        .onAppear(perform: loadSelectedShape)
+        .onAppear(perform: startEditing)
     }
 
-    private func loadSelectedShape() {
-        guard let layer = selectedLayer,
-              case .string(let value) = layer.style["maskShape"],
-              let shape = LayerMaskShape(rawValue: value) else {
-            selectedShape = .none
+    private func startEditing() {
+        guard draftSnapshot == nil else { return }
+        draftSnapshot = draft
+        editingLayerId = layerId
+
+        guard let layer = selectedLayer else {
+            selectedShape = .circle
+            selectedMode = .fill
+            previewEmboss()
             return
         }
-        selectedShape = shape
+        if let mode = layer.embossMode {
+            selectedMode = mode == .fill ? .mask : mode
+        } else {
+            selectedMode = .mask
+        }
+        if case .string(let value)? = layer.style[LayerStyleKey.embossShape],
+           let shape = LayerMaskShape(rawValue: value) {
+            selectedShape = shape
+        } else if case .string(let value)? = layer.style[LayerStyleKey.maskShape],
+                  let shape = LayerMaskShape(rawValue: value) {
+            selectedShape = shape
+        } else if case .string(let value)? = layer.style[LayerStyleKey.excludeShape],
+                  let shape = LayerMaskShape(rawValue: value) {
+            selectedShape = shape
+        }
+        previewEmboss()
     }
 
-    private func applyShape(_ shape: LayerMaskShape) {
-        guard let layerId,
-              let index = draft.layers.firstIndex(where: { $0.id == layerId }) else { return }
-        if shape == .none {
-            draft.layers[index].style.removeValue(forKey: "maskShape")
-        } else {
-            draft.layers[index].style["maskShape"] = .string(shape.rawValue)
+    private func previewEmboss() {
+        if let editingLayerId,
+           let index = draft.layers.firstIndex(where: { $0.id == editingLayerId }) {
+            applyEmboss(shape: selectedShape, mode: selectedMode, to: &draft.layers[index])
+        } else if layerId == nil {
+            var layer = DraftFactory.makeEmbossShapeLayer(shape: selectedShape, draft: draft)
+            applyEmboss(shape: selectedShape, mode: .fill, to: &layer)
+            draft.layers.append(layer)
+            editingLayerId = layer.id
         }
+    }
+
+    private func confirm() {
+        previewEmboss()
         onDraftChanged()
+        onSelectLayer(editingLayerId)
+        onStatusChanged(L10n.t("editor.status.emboss_done"))
+        dismiss()
+    }
+
+    private func cancel() {
+        if let draftSnapshot {
+            draft = draftSnapshot
+        }
+        onStatusChanged(L10n.t("editor.status.emboss_cancelled"))
+        dismiss()
+    }
+
+    private func applyEmboss(shape: LayerMaskShape, mode: EmbossMode, to layer: inout Layer) {
+        layer.style[LayerStyleKey.embossMode] = .string(mode.rawValue)
+        layer.style[LayerStyleKey.embossShape] = .string(shape.rawValue)
+        switch mode {
+        case .fill:
+            layer.style[LayerStyleKey.maskShape] = .string(shape.rawValue)
+            layer.style.removeValue(forKey: LayerStyleKey.excludeShape)
+            layer.shadow = true
+            if layer.type == .cut {
+                layer.style["color"] = layer.style["color"] ?? .string("#efe7d8")
+            }
+        case .mask:
+            layer.style[LayerStyleKey.maskShape] = .string(shape.rawValue)
+            layer.style.removeValue(forKey: LayerStyleKey.excludeShape)
+        case .exclude:
+            layer.style[LayerStyleKey.excludeShape] = .string(shape.rawValue)
+            layer.style.removeValue(forKey: LayerStyleKey.maskShape)
+        }
     }
 
     private var selectedLayer: Layer? {
         guard let layerId else { return nil }
         return draft.layers.first { $0.id == layerId }
+    }
+}
+
+private struct EmbossPreviewCard: View {
+    let shape: LayerMaskShape
+    let mode: EmbossMode
+    let hasLayerTarget: Bool
+
+    var body: some View {
+        HStack(spacing: JournalSpacing.md) {
+            ZStack {
+                RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous)
+                    .fill(JournalColors.paper)
+                LayerMaskView(shape: shape, cornerRadius: 10)
+                    .foregroundStyle(mode == .exclude ? JournalColors.stampRed.opacity(0.18) : JournalColors.paperBeige)
+                    .shadow(color: .black.opacity(0.10), radius: 5, x: 0, y: 3)
+                    .frame(width: 58, height: 58)
+            }
+            .frame(width: 76, height: 76)
+
+            VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+                Text(mode.label)
+                    .font(JournalTypography.bodyStrong)
+                    .foregroundStyle(JournalColors.ink)
+                Text(L10n.t(hasLayerTarget ? "editor.emboss.preview.layer" : "editor.emboss.preview.shape"))
+                    .font(JournalTypography.caption)
+                    .foregroundStyle(JournalColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(JournalSpacing.sm)
+        .background(JournalColors.weak)
+        .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
     }
 }
 
