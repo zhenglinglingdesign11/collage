@@ -64,7 +64,8 @@
     <cover-view wx:if="{{ratioPanelVisible}}" class="ratio-popover" style="top: {{ratioPopoverTop}}px;">
       <cover-view wx:for="{{ratios}}" wx:key="*this" class="ratio-option {{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</cover-view>
     </cover-view>
-    <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
+    <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
+    <cover-view wx:if="{{imageEffectDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="effect-dev-entry" bindtap="beginImageEffectEditing">效果DEV</cover-view>
 
     <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
       <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
@@ -123,6 +124,62 @@
       <cover-view class="brush-panel-actions">
         <cover-view class="brush-panel-action {{brushStrokeCount ? '' : 'disabled'}}" bindtap="undoBrushStroke">撤销上一笔</cover-view>
         <cover-view class="brush-panel-action danger {{brushStrokeCount ? '' : 'disabled'}}" bindtap="clearBrushDrawing">清空</cover-view>
+      </cover-view>
+    </cover-view>
+
+    <cover-view wx:if="{{imageEffectEditing}}" class="brush-dev-panel image-effect-panel">
+      <cover-view class="brush-panel-head">
+        <cover-view class="brush-panel-cancel" bindtap="cancelImageEffectEditing">取消</cover-view>
+        <cover-view class="brush-panel-title">图像效果DEV</cover-view>
+        <cover-view class="brush-panel-done {{imageEffectBusy ? 'disabled' : ''}}" bindtap="applyImageEffect">{{imageEffectBusy ? '生成中' : '完成'}}</cover-view>
+      </cover-view>
+      <cover-view class="brush-section">
+        <cover-view class="brush-section-title">效果</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{imageEffectTypes}}" wx:key="value" class="brush-type {{imageEffectType === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setImageEffectType">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'cross-stitch'}}" class="brush-section">
+        <cover-view class="brush-section-title">网格</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{crossStitchGrids}}" wx:key="value" class="brush-type {{crossStitchGrid === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchGrid">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'cross-stitch'}}" class="brush-section">
+        <cover-view class="brush-section-title">色数</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{crossStitchColorOptions}}" wx:key="value" class="brush-type {{crossStitchColors === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchColors">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'cross-stitch'}}" class="brush-section">
+        <cover-view class="brush-section-title">样式</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{crossStitchStyles}}" wx:key="value" class="brush-type {{crossStitchStyle === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchStyle">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'matisse'}}" class="brush-section">
+        <cover-view class="brush-section-title">复杂度</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{matisseDetails}}" wx:key="value" class="brush-type {{matisseDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatisseDetail">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'matisse'}}" class="brush-section">
+        <cover-view class="brush-section-title">色板</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{matissePalettes}}" wx:key="value" class="brush-type {{matissePalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatissePalette">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'botanical'}}" class="brush-section">
+        <cover-view class="brush-section-title">色调</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{botanicalTones}}" wx:key="value" class="brush-type {{botanicalTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalTone">{{item.label}}</cover-view>
+        </cover-view>
+      </cover-view>
+      <cover-view wx:if="{{imageEffectType === 'botanical'}}" class="brush-section">
+        <cover-view class="brush-section-title">线稿</cover-view>
+        <cover-view class="brush-type-grid">
+          <cover-view wx:for="{{botanicalDetails}}" wx:key="value" class="brush-type {{botanicalDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalDetail">{{item.label}}</cover-view>
+        </cover-view>
       </cover-view>
     </cover-view>
 
@@ -456,7 +513,7 @@
         </view>
       </block>
 
-      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && !brushEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline'))}}" class="main-toolbar">
+      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && !brushEditing && !imageEffectEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline'))}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>
           <cover-view class="tool-label">图片</cover-view>

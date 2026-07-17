@@ -55,6 +55,8 @@ const WAVE_CUT_POINT_STEP = 10;
 const EXPORT_HIGH_PIXEL_RATIO = 3;
 const EXPORT_FALLBACK_PIXEL_RATIO = 2;
 const BOW_BRUSH_SOURCE = "/assets/brushes/bow-brush.png";
+const CROSS_STITCH_OUTPUT_CELL = 14;
+const CROSS_STITCH_MAX_OUTPUT_SIZE = 1800;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
@@ -172,6 +174,57 @@ Page({
       { value: 5, label: "细" },
       { value: 10, label: "中" },
       { value: 18, label: "粗" }
+    ],
+    imageEffectDebugEnabled: true,
+    imageEffectEditing: false,
+    imageEffectBusy: false,
+    imageEffectType: "cross-stitch",
+    imageEffectTypes: [
+      { value: "cross-stitch", label: "十字绣" },
+      { value: "matisse", label: "马蒂斯" },
+      { value: "botanical", label: "图鉴" }
+    ],
+    crossStitchGrid: 72,
+    crossStitchColors: 8,
+    crossStitchStyle: "stitch",
+    crossStitchGrids: [
+      { value: 48, label: "粗" },
+      { value: 72, label: "中" },
+      { value: 104, label: "细" }
+    ],
+    crossStitchColorOptions: [
+      { value: 4, label: "4色" },
+      { value: 8, label: "8色" },
+      { value: 12, label: "12色" }
+    ],
+    crossStitchStyles: [
+      { value: "stitch", label: "X针" },
+      { value: "pixel", label: "像素" },
+      { value: "mixed", label: "混合" }
+    ],
+    matisseDetail: 64,
+    matissePalette: "vivid",
+    matisseDetails: [
+      { value: 44, label: "简" },
+      { value: 64, label: "中" },
+      { value: 86, label: "细" }
+    ],
+    matissePalettes: [
+      { value: "vivid", label: "明亮" },
+      { value: "earth", label: "复古" },
+      { value: "soft", label: "柔和" }
+    ],
+    botanicalTone: "blueprint",
+    botanicalDetail: "medium",
+    botanicalTones: [
+      { value: "blueprint", label: "蓝晒" },
+      { value: "sage", label: "墨绿" },
+      { value: "sepia", label: "褐黑" }
+    ],
+    botanicalDetails: [
+      { value: "soft", label: "柔" },
+      { value: "medium", label: "中" },
+      { value: "etched", label: "蚀刻" }
     ],
     canUndo: false,
     canRedo: false,
@@ -2684,6 +2737,7 @@ Page({
 
   dismissFloatingPanels() {
     if (this.data.brushEditing) return;
+    if (this.data.imageEffectEditing) return;
     if (this.data.straightCutEditing) return;
     if (this.data.textInputVisible) {
       this.dismissTextEditorFromCanvas();
@@ -2727,6 +2781,7 @@ Page({
       this.onBrushTouchStart(event);
       return;
     }
+    if (this.data.imageEffectEditing) return;
     if (this.data.straightCutEditing) {
       this.onStraightCutTouchStart(event);
       return;
@@ -2871,6 +2926,7 @@ Page({
       this.onBrushTouchMove(event);
       return;
     }
+    if (this.data.imageEffectEditing) return;
     if (this.data.straightCutEditing) {
       this.onStraightCutTouchMove(event);
       return;
@@ -2932,6 +2988,7 @@ Page({
       this.onBrushTouchEnd();
       return;
     }
+    if (this.data.imageEffectEditing) return;
     if (this.data.straightCutEditing) {
       this.onStraightCutTouchEnd();
       return;
@@ -3902,6 +3959,296 @@ Page({
     };
   },
 
+  beginImageEffectEditing() {
+    this.enterEditMode();
+    const layer = this.getImageEffectTargetLayer();
+    if (!layer) {
+      showToast("请先添加或选择一张图片", { icon: "none" });
+      return;
+    }
+    this.setData({
+      imageEffectEditing: true,
+      imageEffectBusy: false,
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      textInputVisible: false,
+      ratioPanelVisible: false
+    });
+    this.render();
+  },
+
+  cancelImageEffectEditing() {
+    if (this.data.imageEffectBusy) return;
+    this.setData({ imageEffectEditing: false });
+    this.render();
+  },
+
+  setCrossStitchGrid(event) {
+    const value = Number(event.currentTarget.dataset.value || 72);
+    this.setData({ crossStitchGrid: Math.max(24, Math.min(140, value)) });
+  },
+
+  setCrossStitchColors(event) {
+    const value = Number(event.currentTarget.dataset.value || 8);
+    this.setData({ crossStitchColors: Math.max(2, Math.min(16, value)) });
+  },
+
+  setCrossStitchStyle(event) {
+    const value = event.currentTarget.dataset.value || "stitch";
+    this.setData({ crossStitchStyle: value });
+  },
+
+  setImageEffectType(event) {
+    const value = event.currentTarget.dataset.value || "cross-stitch";
+    this.setData({ imageEffectType: value });
+  },
+
+  setMatisseDetail(event) {
+    const value = Number(event.currentTarget.dataset.value || 64);
+    this.setData({ matisseDetail: Math.max(32, Math.min(100, value)) });
+  },
+
+  setMatissePalette(event) {
+    const value = event.currentTarget.dataset.value || "vivid";
+    this.setData({ matissePalette: value });
+  },
+
+  setBotanicalTone(event) {
+    const value = event.currentTarget.dataset.value || "blueprint";
+    this.setData({ botanicalTone: value });
+  },
+
+  setBotanicalDetail(event) {
+    const value = event.currentTarget.dataset.value || "medium";
+    this.setData({ botanicalDetail: value });
+  },
+
+  getImageEffectTargetLayer() {
+    const selected = this.getSelectedLayer();
+    if (selected && selected.type === "image" && selected.source) return selected;
+    const layers = (this.draft && this.draft.layers ? this.draft.layers : []).slice().reverse();
+    return layers.find((layer) => layer && layer.type === "image" && layer.source) || null;
+  },
+
+  applyImageEffect() {
+    if (this.data.imageEffectType === "botanical") {
+      this.applyBotanicalPlateEffect();
+      return;
+    }
+    if (this.data.imageEffectType === "matisse") {
+      this.applyMatisseCutoutEffect();
+      return;
+    }
+    this.applyCrossStitchEffect();
+  },
+
+  async applyGeneratedImageEffect(config) {
+    if (this.data.imageEffectBusy) return;
+    const layer = this.getImageEffectTargetLayer();
+    if (!layer || !layer.source) {
+      showToast("请先选择图片图层", { icon: "none" });
+      return;
+    }
+    this.setData({ imageEffectBusy: true, saveStatus: config.busyText || "效果生成中..." });
+    try {
+      const previousSource = layer.source;
+      const result = await config.create(layer);
+      layer.source = result.path;
+      layer.sourceWidth = result.width;
+      layer.sourceHeight = result.height;
+      layer.crop = null;
+      layer.effect = config.effect;
+      delete this.canvasImageCache[previousSource];
+      this.setData({
+        imageEffectEditing: false,
+        imageEffectBusy: false,
+        selectedLayerId: layer.id,
+        selectedLayerType: layer.type
+      });
+      this.markDirty();
+      this.render();
+      showSuccess(config.successText || "效果已生成");
+    } catch (error) {
+      console.warn("[image-effect] failed", config.effect && config.effect.type, error);
+      this.setData({ imageEffectBusy: false, saveStatus: config.failStatus || "效果生成失败" });
+      this.render();
+      showError(config.errorText || "效果生成失败");
+    }
+  },
+
+  async applyCrossStitchEffect() {
+    return this.applyGeneratedImageEffect({
+      busyText: "十字绣生成中...",
+      successText: "十字绣已生成",
+      failStatus: "十字绣生成失败",
+      errorText: "十字绣生成失败",
+      effect: {
+        type: "pixel-cross-stitch",
+        grid: this.data.crossStitchGrid,
+        colors: this.data.crossStitchColors,
+        style: this.data.crossStitchStyle,
+        createdAt: Date.now()
+      },
+      create: (layer) => this.createCrossStitchImage(layer, {
+        grid: this.data.crossStitchGrid,
+        colors: this.data.crossStitchColors,
+        style: this.data.crossStitchStyle
+      })
+    });
+  },
+
+  async applyMatisseCutoutEffect() {
+    return this.applyGeneratedImageEffect({
+      busyText: "剪贴生成中...",
+      successText: "剪贴已生成",
+      failStatus: "剪贴生成失败",
+      errorText: "剪贴生成失败",
+      effect: {
+        type: "matisse-cutout",
+        detail: this.data.matisseDetail,
+        palette: this.data.matissePalette,
+        createdAt: Date.now()
+      },
+      create: (layer) => this.createMatisseCutoutImage(layer, {
+        detail: this.data.matisseDetail,
+        palette: this.data.matissePalette
+      })
+    });
+  },
+
+  async applyBotanicalPlateEffect() {
+    return this.applyGeneratedImageEffect({
+      busyText: "图鉴生成中...",
+      successText: "图鉴已生成",
+      failStatus: "图鉴生成失败",
+      errorText: "图鉴生成失败",
+      effect: {
+        type: "vintage-botanical",
+        tone: this.data.botanicalTone,
+        detail: this.data.botanicalDetail,
+        createdAt: Date.now()
+      },
+      create: (layer) => this.createBotanicalPlateImage(layer, {
+        tone: this.data.botanicalTone,
+        detail: this.data.botanicalDetail
+      })
+    });
+  },
+
+  async createCrossStitchImage(layer, options) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
+    const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const aspect = crop.width / Math.max(1, crop.height);
+    const longGrid = Math.max(24, Math.min(140, Number(options.grid) || 72));
+    const cols = aspect >= 1 ? longGrid : Math.max(1, Math.round(longGrid * aspect));
+    const rows = aspect >= 1 ? Math.max(1, Math.round(longGrid / aspect)) : longGrid;
+
+    this.configureCanvasBitmapSize(cols, rows);
+    this.ctx.clearRect(0, 0, cols, rows);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, cols, rows);
+    const imageData = this.ctx.getImageData(0, 0, cols, rows);
+    const cells = readCrossStitchCells(imageData.data);
+    const palette = createQuantizedPalette(cells, Number(options.colors) || 8);
+    const mappedCells = mapCellsToPalette(cells, palette);
+    const cellSize = Math.max(8, Math.min(CROSS_STITCH_OUTPUT_CELL, Math.floor(CROSS_STITCH_MAX_OUTPUT_SIZE / Math.max(cols, rows))));
+    const outputWidth = cols * cellSize;
+    const outputHeight = rows * cellSize;
+
+    this.configureCanvasBitmapSize(outputWidth, outputHeight);
+    drawCrossStitchOutput(this.ctx, mappedCells, cols, rows, cellSize, options.style || "stitch");
+
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight }),
+        fail: reject
+      }, this);
+    });
+  },
+
+  async createMatisseCutoutImage(layer, options) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
+    const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const maxOutputSize = Number(options.detail) >= 86 ? 1500 : Number(options.detail) <= 44 ? 980 : 1240;
+    const scale = maxOutputSize / Math.max(crop.width, crop.height);
+    const outputWidth = Math.max(1, Math.round(crop.width * scale));
+    const outputHeight = Math.max(1, Math.round(crop.height * scale));
+
+    this.configureCanvasBitmapSize(outputWidth, outputHeight);
+    this.ctx.clearRect(0, 0, outputWidth, outputHeight);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+    const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
+    const result = createContinuousMatisseImageData(imageData, getMatissePalette(options.palette), options.palette || "vivid");
+    this.ctx.putImageData(result.imageData, 0, 0);
+    drawCutoutPaperTexture(this.ctx, outputWidth, outputHeight, 0.08);
+
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight }),
+        fail: reject
+      }, this);
+    });
+  },
+
+  async createBotanicalPlateImage(layer, options) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
+    const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const maxOutputSize = options.detail === "etched" ? 1500 : options.detail === "soft" ? 1050 : 1240;
+    const scale = maxOutputSize / Math.max(crop.width, crop.height);
+    const outputWidth = Math.max(1, Math.round(crop.width * scale));
+    const outputHeight = Math.max(1, Math.round(crop.height * scale));
+
+    this.configureCanvasBitmapSize(outputWidth, outputHeight);
+    this.ctx.clearRect(0, 0, outputWidth, outputHeight);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+    const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
+    const result = createBotanicalImageData(imageData, options.tone || "blueprint", options.detail || "medium");
+    this.ctx.putImageData(result, 0, 0);
+    drawBotanicalPlateOverlay(this.ctx, outputWidth, outputHeight, options.tone || "blueprint");
+
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight }),
+        fail: reject
+      }, this);
+    });
+  },
+
   async removeSelectedImageBackground() {
     if (this.data.backgroundRemoving) return;
     const layer = this.getSelectedLayer();
@@ -4820,6 +5167,605 @@ function getNearestRightAngle(rotation) {
     }
     return nearest;
   }, null);
+}
+
+function normalizeSourceCrop(crop, sourceWidth, sourceHeight) {
+  if (!crop || crop.width <= 0 || crop.height <= 0) {
+    return { x: 0, y: 0, width: sourceWidth, height: sourceHeight };
+  }
+  const x = Math.max(0, Math.min(sourceWidth - 1, crop.x || 0));
+  const y = Math.max(0, Math.min(sourceHeight - 1, crop.y || 0));
+  return {
+    x,
+    y,
+    width: Math.max(1, Math.min(sourceWidth - x, crop.width)),
+    height: Math.max(1, Math.min(sourceHeight - y, crop.height))
+  };
+}
+
+function readCrossStitchCells(data) {
+  const cells = [];
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3] / 255;
+    const background = 250;
+    cells.push({
+      r: Math.round(data[i] * alpha + background * (1 - alpha)),
+      g: Math.round(data[i + 1] * alpha + background * (1 - alpha)),
+      b: Math.round(data[i + 2] * alpha + background * (1 - alpha))
+    });
+  }
+  return cells;
+}
+
+function createQuantizedPalette(cells, maxColors) {
+  const buckets = {};
+  cells.forEach((cell) => {
+    const key = `${cell.r >> 4},${cell.g >> 4},${cell.b >> 4}`;
+    if (!buckets[key]) {
+      buckets[key] = { count: 0, r: 0, g: 0, b: 0 };
+    }
+    buckets[key].count += 1;
+    buckets[key].r += cell.r;
+    buckets[key].g += cell.g;
+    buckets[key].b += cell.b;
+  });
+  const palette = Object.keys(buckets)
+    .map((key) => {
+      const bucket = buckets[key];
+      return {
+        count: bucket.count,
+        r: Math.round(bucket.r / bucket.count),
+        g: Math.round(bucket.g / bucket.count),
+        b: Math.round(bucket.b / bucket.count)
+      };
+    })
+    .sort((a, b) => b.count - a.count)
+    .slice(0, Math.max(2, Math.min(16, maxColors)));
+  return palette.length ? palette : [{ r: 250, g: 248, b: 244 }];
+}
+
+function mapCellsToPalette(cells, palette) {
+  return cells.map((cell) => {
+    let nearest = palette[0];
+    let nearestDistance = Infinity;
+    palette.forEach((color) => {
+      const dr = cell.r - color.r;
+      const dg = cell.g - color.g;
+      const db = cell.b - color.b;
+      const distance = dr * dr + dg * dg + db * db;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = color;
+      }
+    });
+    return nearest;
+  });
+}
+
+function mapCellsToPaletteEntries(cells, palette) {
+  return cells.map((cell) => {
+    let nearest = palette[0];
+    let nearestIndex = 0;
+    let nearestDistance = Infinity;
+    palette.forEach((color, index) => {
+      const dr = cell.r - color.r;
+      const dg = cell.g - color.g;
+      const db = cell.b - color.b;
+      const distance = dr * dr + dg * dg + db * db;
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = color;
+        nearestIndex = index;
+      }
+    });
+    return {
+      ...nearest,
+      paletteIndex: nearestIndex
+    };
+  });
+}
+
+function drawCrossStitchOutput(ctx, cells, cols, rows, cellSize, style) {
+  ctx.save();
+  ctx.clearRect(0, 0, cols * cellSize, rows * cellSize);
+  ctx.fillStyle = "#f8f2e7";
+  ctx.fillRect(0, 0, cols * cellSize, rows * cellSize);
+  drawCrossStitchFabric(ctx, cols, rows, cellSize);
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const color = cells[row * cols + col];
+      const x = col * cellSize;
+      const y = row * cellSize;
+      if (style === "pixel" || style === "mixed") {
+        drawCrossStitchPixel(ctx, x, y, cellSize, color);
+      }
+      if (style !== "pixel") {
+        drawCrossStitchNeedle(ctx, x, y, cellSize, color);
+      }
+    }
+  }
+  drawCrossStitchGrid(ctx, cols, rows, cellSize);
+  ctx.restore();
+}
+
+function drawCrossStitchFabric(ctx, cols, rows, cellSize) {
+  const width = cols * cellSize;
+  const height = rows * cellSize;
+  ctx.save();
+  ctx.globalAlpha = 0.28;
+  ctx.strokeStyle = "rgba(120, 102, 82, 0.16)";
+  ctx.lineWidth = 1;
+  const gap = Math.max(4, Math.round(cellSize / 2));
+  for (let x = 0; x <= width; x += gap) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= height; y += gap) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(width, y + 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCrossStitchPixel(ctx, x, y, size, color) {
+  ctx.save();
+  ctx.fillStyle = toRgb(color);
+  ctx.globalAlpha = 0.82;
+  ctx.fillRect(x + 1, y + 1, Math.max(1, size - 2), Math.max(1, size - 2));
+  ctx.restore();
+}
+
+function drawCrossStitchNeedle(ctx, x, y, size, color) {
+  const inset = Math.max(2, size * 0.22);
+  ctx.save();
+  ctx.strokeStyle = toRgb(color);
+  ctx.lineWidth = Math.max(2, size * 0.22);
+  ctx.lineCap = "round";
+  ctx.globalAlpha = 0.94;
+  ctx.beginPath();
+  ctx.moveTo(x + inset, y + inset);
+  ctx.lineTo(x + size - inset, y + size - inset);
+  ctx.stroke();
+  ctx.globalAlpha = 0.76;
+  ctx.beginPath();
+  ctx.moveTo(x + size - inset, y + inset);
+  ctx.lineTo(x + inset, y + size - inset);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCrossStitchGrid(ctx, cols, rows, cellSize) {
+  const width = cols * cellSize;
+  const height = rows * cellSize;
+  ctx.save();
+  ctx.strokeStyle = "rgba(35, 31, 28, 0.16)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= width; x += cellSize) {
+    ctx.beginPath();
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, height);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= height; y += cellSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(width, y + 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function toRgb(color) {
+  return `rgb(${color.r}, ${color.g}, ${color.b})`;
+}
+
+function getMatissePalette(name) {
+  const palettes = {
+    vivid: [
+      { r: 245, g: 205, b: 24 },
+      { r: 235, g: 92, b: 94 },
+      { r: 31, g: 111, b: 154 },
+      { r: 32, g: 121, b: 78 },
+      { r: 244, g: 139, b: 77 },
+      { r: 246, g: 229, b: 168 },
+      { r: 38, g: 43, b: 36 },
+      { r: 245, g: 239, b: 224 }
+    ],
+    earth: [
+      { r: 183, g: 96, b: 55 },
+      { r: 124, g: 81, b: 51 },
+      { r: 85, g: 116, b: 76 },
+      { r: 36, g: 60, b: 54 },
+      { r: 215, g: 167, b: 101 },
+      { r: 232, g: 214, b: 177 },
+      { r: 86, g: 45, b: 44 },
+      { r: 247, g: 241, b: 226 }
+    ],
+    soft: [
+      { r: 222, g: 153, b: 174 },
+      { r: 235, g: 185, b: 130 },
+      { r: 145, g: 174, b: 151 },
+      { r: 129, g: 164, b: 189 },
+      { r: 244, g: 221, b: 142 },
+      { r: 174, g: 139, b: 104 },
+      { r: 60, g: 72, b: 61 },
+      { r: 250, g: 244, b: 231 }
+    ]
+  };
+  return palettes[name] || palettes.vivid;
+}
+
+function drawMatisseCutoutOutput(ctx, cells, cols, rows, cellSize, paletteName) {
+  const width = cols * cellSize;
+  const height = rows * cellSize;
+  ctx.save();
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = paletteName === "vivid" ? "#f7d6dc" : "#f7f0df";
+  ctx.fillRect(0, 0, width, height);
+  drawCutoutPaperTexture(ctx, width, height);
+  drawMatisseColorSheets(ctx, cells, cols, rows, cellSize);
+  drawMatisseStructureLines(ctx, cells, cols, rows, cellSize, paletteName);
+  drawCutoutPaperTexture(ctx, width, height, 0.08);
+  ctx.restore();
+}
+
+function createContinuousMatisseImageData(imageData, palette, paletteName) {
+  const { width, height, data } = imageData;
+  const output = new Uint8ClampedArray(data.length);
+  const indexes = new Uint8Array(width * height);
+  const background = getMatisseBackgroundColor(paletteName);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const alpha = data[offset + 3] / 255;
+      const color = {
+        r: Math.round(data[offset] * alpha + background.r * (1 - alpha)),
+        g: Math.round(data[offset + 1] * alpha + background.g * (1 - alpha)),
+        b: Math.round(data[offset + 2] * alpha + background.b * (1 - alpha))
+      };
+      const match = findNearestPaletteEntry(color, palette);
+      indexes[y * width + x] = match.index;
+      output[offset] = match.color.r;
+      output[offset + 1] = match.color.g;
+      output[offset + 2] = match.color.b;
+      output[offset + 3] = 255;
+    }
+  }
+  softenQuantizedImage(output, width, height);
+  drawMatisseEdgesToPixels(output, indexes, width, height, paletteName);
+  imageData.data.set(output);
+  return {
+    imageData,
+    indexes
+  };
+}
+
+function findNearestPaletteEntry(color, palette) {
+  let nearest = palette[0];
+  let nearestIndex = 0;
+  let nearestDistance = Infinity;
+  palette.forEach((candidate, index) => {
+    const dr = color.r - candidate.r;
+    const dg = color.g - candidate.g;
+    const db = color.b - candidate.b;
+    const distance = dr * dr + dg * dg + db * db;
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = candidate;
+      nearestIndex = index;
+    }
+  });
+  return {
+    color: nearest,
+    index: nearestIndex
+  };
+}
+
+function softenQuantizedImage(data, width, height) {
+  const source = new Uint8ClampedArray(data);
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const offset = (y * width + x) * 4;
+      for (let channel = 0; channel < 3; channel += 1) {
+        const value = source[offset + channel] * 0.62
+          + source[offset - 4 + channel] * 0.08
+          + source[offset + 4 + channel] * 0.08
+          + source[offset - width * 4 + channel] * 0.11
+          + source[offset + width * 4 + channel] * 0.11;
+        data[offset + channel] = Math.round(value);
+      }
+    }
+  }
+}
+
+function drawMatisseEdgesToPixels(data, indexes, width, height, paletteName) {
+  const edge = paletteName === "vivid"
+    ? { r: 33, g: 37, b: 31 }
+    : { r: 76, g: 58, b: 44 };
+  const stride = Math.max(2, Math.floor(Math.max(width, height) / 420));
+  for (let y = 1; y < height - 1; y += stride) {
+    for (let x = 1; x < width - 1; x += stride) {
+      const index = indexes[y * width + x];
+      const changed = indexes[y * width + x + 1] !== index || indexes[(y + 1) * width + x] !== index;
+      if (!changed) continue;
+      const wobble = Math.abs(seededNoise(y * 131 + x * 17, 5));
+      if (wobble < 0.18) continue;
+      paintEdgeDot(data, width, height, x, y, edge, stride);
+    }
+  }
+}
+
+function paintEdgeDot(data, width, height, x, y, color, radius) {
+  const size = Math.max(1, Math.min(3, radius));
+  for (let dy = -size; dy <= size; dy += 1) {
+    for (let dx = -size; dx <= size; dx += 1) {
+      const px = x + dx;
+      const py = y + dy;
+      if (px < 0 || py < 0 || px >= width || py >= height) continue;
+      if (dx * dx + dy * dy > size * size) continue;
+      const offset = (py * width + px) * 4;
+      data[offset] = Math.round(data[offset] * 0.42 + color.r * 0.58);
+      data[offset + 1] = Math.round(data[offset + 1] * 0.42 + color.g * 0.58);
+      data[offset + 2] = Math.round(data[offset + 2] * 0.42 + color.b * 0.58);
+      data[offset + 3] = 255;
+    }
+  }
+}
+
+function getMatisseBackgroundColor(paletteName) {
+  if (paletteName === "vivid") return { r: 247, g: 214, b: 220 };
+  return { r: 247, g: 240, b: 223 };
+}
+
+function drawMatisseColorSheets(ctx, cells, cols, rows, cellSize) {
+  const paletteIndexes = [];
+  cells.forEach((cell) => {
+    if (paletteIndexes.indexOf(cell.paletteIndex) < 0) paletteIndexes.push(cell.paletteIndex);
+  });
+  paletteIndexes.forEach((paletteIndex) => {
+    const first = cells.find((cell) => cell.paletteIndex === paletteIndex);
+    if (!first) return;
+    ctx.save();
+    ctx.fillStyle = toRgb(first);
+    ctx.globalAlpha = 0.96;
+    ctx.beginPath();
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const cell = cells[row * cols + col];
+        if (!cell || cell.paletteIndex !== paletteIndex) continue;
+        const x = col * cellSize;
+        const y = row * cellSize;
+        ctx.rect(x - 0.35, y - 0.35, cellSize + 0.7, cellSize + 0.7);
+      }
+    }
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function drawMatisseStructureLines(ctx, cells, cols, rows, cellSize, paletteName) {
+  ctx.save();
+  ctx.strokeStyle = paletteName === "vivid" ? "rgba(33, 37, 31, 0.58)" : "rgba(72, 54, 42, 0.48)";
+  ctx.lineWidth = Math.max(1.5, cellSize * 0.11);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const cell = cells[row * cols + col];
+      if (!cell) continue;
+      const right = col < cols - 1 ? cells[row * cols + col + 1] : null;
+      const bottom = row < rows - 1 ? cells[(row + 1) * cols + col] : null;
+      const x = col * cellSize;
+      const y = row * cellSize;
+      if (right && right.paletteIndex !== cell.paletteIndex) {
+        drawWobblyLine(ctx, x + cellSize, y, x + cellSize, y + cellSize, row * 19 + col * 31);
+      }
+      if (bottom && bottom.paletteIndex !== cell.paletteIndex) {
+        drawWobblyLine(ctx, x, y + cellSize, x + cellSize, y + cellSize, row * 31 + col * 19);
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function drawWobblyLine(ctx, x1, y1, x2, y2, seed) {
+  const segments = 3;
+  ctx.beginPath();
+  for (let i = 0; i <= segments; i += 1) {
+    const t = i / segments;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    const offset = seededNoise(seed, i + 1) * 1.4;
+    const point = Math.abs(x2 - x1) > Math.abs(y2 - y1)
+      ? { x, y: y + offset }
+      : { x: x + offset, y };
+    if (i === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  }
+  ctx.stroke();
+}
+
+function drawCutoutPatch(ctx, col, row, size, color) {
+  const x = col * size;
+  const y = row * size;
+  const seed = (col + 1) * 73856093 ^ (row + 1) * 19349663;
+  const jitter = Math.max(1, size * 0.16);
+  const points = [
+    { x: x + seededNoise(seed, 1) * jitter, y: y + seededNoise(seed, 2) * jitter },
+    { x: x + size + seededNoise(seed, 3) * jitter, y: y + seededNoise(seed, 4) * jitter },
+    { x: x + size + seededNoise(seed, 5) * jitter, y: y + size + seededNoise(seed, 6) * jitter },
+    { x: x + seededNoise(seed, 7) * jitter, y: y + size + seededNoise(seed, 8) * jitter }
+  ];
+  ctx.save();
+  ctx.fillStyle = toRgb(color);
+  ctx.globalAlpha = 0.96;
+  ctx.shadowColor = "rgba(38, 30, 24, 0.08)";
+  ctx.shadowBlur = Math.max(0.5, size * 0.08);
+  ctx.shadowOffsetX = size * 0.03;
+  ctx.shadowOffsetY = size * 0.04;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  ctx.lineTo(points[1].x, points[1].y);
+  ctx.lineTo(points[2].x, points[2].y);
+  ctx.lineTo(points[3].x, points[3].y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCutoutPaperTexture(ctx, width, height, alpha = 0.12) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = "rgba(60, 48, 35, 0.18)";
+  ctx.lineWidth = 1;
+  const gap = 18;
+  for (let y = 6; y < height; y += gap) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + seededNoise(y, 2) * 2);
+    for (let x = 0; x <= width; x += 48) {
+      ctx.lineTo(x, y + seededNoise(y, x + 3) * 2);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function createBotanicalImageData(imageData, toneName, detail) {
+  const { width, height, data } = imageData;
+  const source = new Uint8ClampedArray(data);
+  const output = new Uint8ClampedArray(data.length);
+  const tone = getBotanicalTone(toneName);
+  const threshold = detail === "etched" ? 14 : detail === "soft" ? 28 : 20;
+  const lineBoost = detail === "etched" ? 1.55 : detail === "soft" ? 1.05 : 1.3;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const gray = getSourceGray(source, width, height, x, y);
+      const rightGray = getSourceGray(source, width, height, Math.min(width - 1, x + 1), y);
+      const bottomGray = getSourceGray(source, width, height, x, Math.min(height - 1, y + 1));
+      const edge = Math.abs(gray - rightGray) + Math.abs(gray - bottomGray);
+      const tonalInk = Math.max(0, (178 - gray) / 255) * 0.16;
+      const edgeInk = edge > threshold ? Math.min(1, (edge - threshold) / 68 * lineBoost) : 0;
+      const hatchInk = createBotanicalHatchInk(x, y, gray, detail);
+      const ink = Math.max(edgeInk, tonalInk, hatchInk);
+      const grain = seededNoise(y * 4099 + x * 17, 11) * 3.5;
+      const paper = {
+        r: clampColor(tone.paper.r + grain),
+        g: clampColor(tone.paper.g + grain),
+        b: clampColor(tone.paper.b + grain)
+      };
+      output[offset] = mixChannel(paper.r, tone.ink.r, ink);
+      output[offset + 1] = mixChannel(paper.g, tone.ink.g, ink);
+      output[offset + 2] = mixChannel(paper.b, tone.ink.b, ink);
+      output[offset + 3] = 255;
+    }
+  }
+  imageData.data.set(output);
+  return imageData;
+}
+
+function getSourceGray(source, width, height, x, y) {
+  const px = Math.max(0, Math.min(width - 1, x));
+  const py = Math.max(0, Math.min(height - 1, y));
+  const offset = (py * width + px) * 4;
+  return source[offset] * 0.299 + source[offset + 1] * 0.587 + source[offset + 2] * 0.114;
+}
+
+function createBotanicalHatchInk(x, y, gray, detail) {
+  if (gray > 178) return 0;
+  const spacing = detail === "etched" ? 10 : detail === "soft" ? 20 : 15;
+  const diagonal = (x + y) % spacing;
+  const cross = detail === "etched" ? Math.abs((x - y) % (spacing + 5)) : spacing;
+  const shade = Math.max(0, (178 - gray) / 255);
+  const primary = diagonal < 1 ? shade * 0.16 : 0;
+  const secondary = cross < 0.8 ? shade * 0.1 : 0;
+  return Math.max(primary, secondary);
+}
+
+function drawBotanicalPlateOverlay(ctx, width, height, toneName) {
+  const tone = getBotanicalTone(toneName);
+  ctx.save();
+  drawBotanicalPaperMarks(ctx, width, height, tone);
+  const pad = Math.max(22, Math.round(Math.min(width, height) * 0.045));
+  ctx.strokeStyle = rgba(tone.ink, 0.34);
+  ctx.lineWidth = Math.max(1, Math.round(Math.min(width, height) * 0.002));
+  ctx.strokeRect(pad, pad, width - pad * 2, height - pad * 2);
+  ctx.beginPath();
+  ctx.ellipse(width / 2, height / 2, width * 0.39, height * 0.43, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = rgba(tone.ink, 0.22);
+  ctx.stroke();
+  drawBotanicalLabels(ctx, width, height, tone);
+  ctx.restore();
+}
+
+function drawBotanicalPaperMarks(ctx, width, height, tone) {
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = rgba(tone.ink, 0.1);
+  for (let i = 0; i < 80; i += 1) {
+    const x = (seededNoise(i, 1) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 2) * 0.5 + 0.5) * height;
+    const size = 0.6 + Math.abs(seededNoise(i, 3)) * 1.8;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawBotanicalLabels(ctx, width, height, tone) {
+  ctx.save();
+  ctx.fillStyle = rgba(tone.ink, 0.46);
+  ctx.font = `${Math.max(14, Math.round(width * 0.026))}px serif`;
+  ctx.fillText("BOTANICAL STUDY", width * 0.08, height * 0.09);
+  ctx.font = `${Math.max(12, Math.round(width * 0.021))}px serif`;
+  ctx.fillText("plate no. 03 / local specimen", width * 0.08, height * 0.125);
+  ctx.textAlign = "right";
+  ctx.fillText("archive notes", width * 0.92, height * 0.9);
+  ctx.fillText("tonal line illustration", width * 0.92, height * 0.928);
+  ctx.restore();
+}
+
+function getBotanicalTone(name) {
+  const tones = {
+    blueprint: {
+      paper: { r: 248, g: 246, b: 235 },
+      ink: { r: 21, g: 98, b: 168 }
+    },
+    sage: {
+      paper: { r: 249, g: 245, b: 231 },
+      ink: { r: 55, g: 105, b: 82 }
+    },
+    sepia: {
+      paper: { r: 247, g: 240, b: 222 },
+      ink: { r: 75, g: 56, b: 40 }
+    }
+  };
+  return tones[name] || tones.blueprint;
+}
+
+function rgba(color, alpha) {
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
+}
+
+function mixChannel(base, ink, amount) {
+  return clampColor(base * (1 - amount) + ink * amount);
+}
+
+function clampColor(value) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function seededNoise(seed, salt) {
+  const value = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
+  return (value - Math.floor(value)) * 2 - 1;
 }
 
 function serializeDraft(draft) {

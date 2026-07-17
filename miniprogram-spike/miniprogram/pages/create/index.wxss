@@ -559,6 +559,22 @@ button::after {
   z-index: 940;
 }
 
+.effect-dev-entry {
+  position: fixed;
+  right: 28rpx;
+  top: 260rpx;
+  width: 132rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  background: rgba(217, 74, 56, 0.82);
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 52rpx;
+  text-align: center;
+  font-weight: 700;
+  z-index: 940;
+}
+
 .brush-dev-panel {
   position: fixed;
   left: 0;
@@ -572,6 +588,10 @@ button::after {
   background: #ffffff;
   box-shadow: 0 -16rpx 44rpx rgba(17, 17, 17, 0.06);
   z-index: 960;
+}
+
+.image-effect-panel {
+  min-height: 500rpx;
 }
 
 .brush-panel-head {
