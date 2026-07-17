@@ -130,13 +130,13 @@ function validateStageThreeEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct BackgroundPickerSheet: View/, "background picker sheet");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /private struct TextStyleSheet: View/, "text style sheet");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.backgroundPattern = option\.pattern/, "background pattern update");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["fontId"\]/, "text font style update");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["color"\]/, "text color style update");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["fontSize"\]/, "text size style update");
-  assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.style\["background"\]/, "text background style update");
-  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /private func textFont\(for layer: Layer\) -> Font/, "text font renderer");
-  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /private func textBackground\(for layer: Layer\) -> Color\?/, "text background renderer");
-  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /private func textBackground\(for layer: Layer\) -> Color\?/, "export text background renderer");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LayerStyleKey\.textFontId/, "text font style update");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LayerStyleKey\.textColor/, "text color style update");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LayerStyleKey\.textFontSize/, "text size style update");
+  assertContains("JournalCollage/Features/Editor/EditorView.swift", /LayerStyleKey\.textBackground/, "text background style update");
+  assertContains("JournalCollage/Rendering/LayerTextRenderer.swift", /struct LayerTextView: View/, "shared text renderer");
+  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /LayerTextView\(layer: layer\)/, "draft text renderer");
+  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /LayerTextView\(layer: layer, renderScale: scale\)/, "export text renderer");
 }
 
 function validateStageFourExportEntrypoints() {
@@ -161,9 +161,11 @@ function validateStageFiveLayerEffectsEntrypoints() {
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.shadow = shadow/, "layer shadow update");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /draft\.layers\[index\]\.tear = tear/, "layer tear update");
   assertContains("JournalCollage/Features/Editor/EditorView.swift", /case \.image, \.sticker, \.paper, \.cut:/, "radius-supported layer types");
-  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /tearPlaceholder\(for: layer/, "draft renderer tear placeholder");
+  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /\.tearMask\(layer\)/, "draft renderer real tear mask");
+  assertContains("JournalCollage/Rendering/DraftRenderer.swift", /LayerTearEdgeOverlay\(layer: layer\)/, "draft renderer real tear edge");
   assertContains("JournalCollage/Rendering/DraftRenderer.swift", /layer\.shadow == true/, "draft renderer shadow effect");
-  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /tearPlaceholder\(for: layer/, "export renderer tear placeholder");
+  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /\.tearMask\(layer\)/, "export renderer real tear mask");
+  assertContains("JournalCollage/Rendering/ExportRenderer.swift", /LayerTearEdgeOverlay\(layer: layer/, "export renderer real tear edge");
   assertContains("JournalCollage/Rendering/ExportRenderer.swift", /layer\.shadow == true/, "export renderer shadow effect");
 }
 

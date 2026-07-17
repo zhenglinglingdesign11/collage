@@ -37,6 +37,7 @@
 "editor.status.select_cut_layer" = "Select Image or Asset";
 "editor.status.straight_cut_ready" = "Straight Cut Saved";
 "editor.status.wave_cut_ready" = "Wave Cut Saved";
+"editor.status.line_cut_failed" = "Line Missed Layer";
 "editor.status.emboss_done" = "Emboss Applied";
 "editor.status.emboss_cancelled" = "Emboss Cancelled";
 "editor.status.live_photo_imported" = "Live Photo Added";
@@ -45,6 +46,12 @@
 "editor.status.live_photo_export_success" = "Live Photo Saved";
 "editor.status.video_export_success" = "Video Saved";
 "editor.status.live_photo_static_fallback" = "Still Photo Saved";
+"editor.status.decorative_brush_done" = "Decorative Brush Added";
+"editor.status.decorative_brush_empty" = "Draw a Stroke First";
+"editor.status.image_effect_select_image" = "Select an Image";
+"editor.status.image_effect_generating" = "Generating Image Effect";
+"editor.status.image_effect_done" = "Image Effect Saved";
+"editor.status.image_effect_failed" = "Image Effect Failed";
 "editor.save.button" = "Save";
 "editor.export.button" = "Export";
 "editor.leave.title" = "Save draft before leaving?";
@@ -61,6 +68,8 @@
 "editor.toolbar.text" = "Text";
 "editor.toolbar.scissors" = "Cut";
 "editor.toolbar.emboss" = "Emboss";
+"editor.toolbar.brush" = "Brush";
+"editor.toolbar.image_effect" = "FX";
 "editor.toolbar.ratio" = "Ratio";
 
 "layer.action.up" = "Up";
@@ -79,11 +88,17 @@
 "editor.sheet.text.title" = "Text";
 "editor.sheet.text.placeholder" = "Type text";
 "editor.sheet.text.font" = "Font";
+"editor.sheet.text.color" = "Color";
 "editor.sheet.text.background" = "Fill";
 "editor.sheet.text.size" = "Size";
+"editor.sheet.text.opacity" = "Opacity";
 "editor.text.font.system" = "System";
 "editor.text.font.rounded" = "Rounded";
 "editor.text.font.serif" = "Serif";
+"editor.text.size.small" = "Small";
+"editor.text.size.medium" = "Medium";
+"editor.text.size.large" = "Large";
+"editor.text.size.xlarge" = "XL";
 "editor.text.background.none" = "None";
 "editor.text.background.paper" = "Paper";
 "editor.text.background.white" = "White";
@@ -108,6 +123,13 @@
 "editor.effect.shadow" = "Shadow";
 "editor.effect.tear" = "Torn Edge";
 "editor.effect.tear_note" = "Torn edge is a placeholder.";
+"editor.effect.outline" = "Outline";
+"editor.outline.none" = "None";
+"editor.outline.white" = "White";
+"editor.outline.cream" = "Cream";
+"editor.outline.dark" = "Dark";
+"editor.outline.red" = "Red";
+"editor.outline.double" = "Double";
 
 "editor.sheet.mask.title" = "Mask";
 "editor.mask.none" = "None";
@@ -119,6 +141,9 @@
 "editor.mask.note" = "Mask material comes later.";
 
 "editor.sheet.scissors.title" = "Scissors";
+"editor.sheet.line_cut.cancel" = "Cancel";
+"editor.sheet.line_cut.done" = "Done";
+"editor.sheet.line_cut.help" = "Drag the end handles to adjust the cut line. Done creates two layers that can be cut again.";
 "editor.scissors.straight" = "Straight Cut";
 "editor.scissors.straight.detail" = "Stores the default cut line before drag editing lands.";
 "editor.scissors.wave" = "Wave Cut";
@@ -145,6 +170,49 @@
 "editor.sheet.brush.redraw" = "Redraw";
 "editor.sheet.brush.save" = "Save Brush";
 "editor.sheet.brush.help" = "Brush the area to keep.";
+
+"editor.sheet.decorative_brush.title" = "Decorative Brush";
+"editor.sheet.decorative_brush.undo" = "Undo";
+"editor.sheet.decorative_brush.done" = "Done";
+"editor.brush.type.line" = "Line";
+"editor.brush.type.stitch" = "Stitch";
+"editor.brush.type.knit" = "Knit";
+"editor.brush.type.bead" = "Bead";
+"editor.brush.type.lace" = "Lace";
+"editor.brush.type.bow" = "Bow";
+"editor.brush.size.thin" = "Thin";
+"editor.brush.size.medium" = "Medium";
+"editor.brush.size.thick" = "Thick";
+
+"editor.sheet.image_effect.title" = "Image Effects";
+"editor.sheet.image_effect.apply" = "Apply";
+"editor.sheet.image_effect.note" = "Apply creates a new PNG and replaces the current image layer.";
+"editor.image_effect.cross_stitch" = "Cross Stitch";
+"editor.image_effect.matisse" = "Matisse";
+"editor.image_effect.botanical" = "Botanical";
+"editor.image_effect.grid" = "Grid";
+"editor.image_effect.colors" = "Colors";
+"editor.image_effect.style" = "Style";
+"editor.image_effect.detail" = "Detail";
+"editor.image_effect.palette" = "Palette";
+"editor.image_effect.tone" = "Tone";
+"editor.image_effect.coarse" = "Coarse";
+"editor.image_effect.medium" = "Medium";
+"editor.image_effect.fine" = "Fine";
+"editor.image_effect.four_colors" = "4 Colors";
+"editor.image_effect.eight_colors" = "8 Colors";
+"editor.image_effect.twelve_colors" = "12 Colors";
+"editor.image_effect.stitch" = "X Stitch";
+"editor.image_effect.pixel" = "Pixel";
+"editor.image_effect.mixed" = "Mixed";
+"editor.image_effect.simple" = "Simple";
+"editor.image_effect.vivid" = "Vivid";
+"editor.image_effect.earth" = "Earth";
+"editor.image_effect.soft" = "Soft";
+"editor.image_effect.blueprint" = "Blueprint";
+"editor.image_effect.sage" = "Sage";
+"editor.image_effect.sepia" = "Sepia";
+"editor.image_effect.etched" = "Etched";
 
 "editor.sheet.assets.title" = "Assets";
 "editor.sheet.background.title" = "Bg";

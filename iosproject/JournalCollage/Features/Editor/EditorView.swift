@@ -12,6 +12,7 @@ struct EditorView: View {
     @State private var imageStore: ImageStore?
     @State private var assetCatalog = AssetPackCatalog(schemaVersion: 1, generatedFrom: "", packs: [])
     @State private var activeSheet: EditorSheet?
+    @State private var lineCutStyle: CutStyle = .straight
     @State private var undoStack: [Draft] = []
     @State private var redoStack: [Draft] = []
     @State private var lastCommittedDraft: Draft
@@ -71,6 +72,8 @@ struct EditorView: View {
                 onAddText: openTextPanel,
                 onScissors: openScissorsPanel,
                 onEmboss: openEmbossPanel,
+                onDecorativeBrush: { activeSheet = .decorativeBrush },
+                onImageEffect: { activeSheet = .imageEffect },
                 onChangeRatio: cycleRatio
             )
             .padding(.horizontal, JournalSpacing.md)
@@ -128,7 +131,7 @@ struct EditorView: View {
                     layerId: selectedLayerId,
                     onDraftChanged: commitDraftChange
                 )
-                .presentationDetents([.medium])
+                .presentationDetents([.large])
             case .effects:
                 LayerEffectsSheet(
                     draft: $draft,
@@ -157,12 +160,10 @@ struct EditorView: View {
                 ScissorsSheet(
                     selectedLayer: selectedLayer,
                     onStraightCut: {
-                        prepareStraightCut()
-                        activeSheet = nil
+                        openLineCutEditor(style: .straight)
                     },
                     onWaveCut: {
-                        prepareWaveCut()
-                        activeSheet = nil
+                        openLineCutEditor(style: .wave)
                     },
                     onBrushCut: { activeSheet = .brushCut },
                     onSubjectCut: {
@@ -171,6 +172,17 @@ struct EditorView: View {
                     }
                 )
                 .presentationDetents([.height(330)])
+            case .lineCut:
+                LineCutEditorSheet(
+                    layer: selectedLayer,
+                    style: lineCutStyle,
+                    onCancel: { activeSheet = nil },
+                    onConfirm: { line in
+                        confirmLineCut(line: line, style: lineCutStyle)
+                        activeSheet = nil
+                    }
+                )
+                .presentationDetents([.large])
             case .brushCut:
                 BrushCutSheet(
                     draft: $draft,
@@ -180,6 +192,23 @@ struct EditorView: View {
                     onStatusChanged: { saveStatus = $0 }
                 )
                 .presentationDetents([.large])
+            case .decorativeBrush:
+                DecorativeBrushSheet(
+                    draft: $draft,
+                    onDraftChanged: commitDraftChange,
+                    onSelectLayer: { selectedLayerId = $0 },
+                    onStatusChanged: { saveStatus = $0 }
+                )
+                .presentationDetents([.large])
+            case .imageEffect:
+                ImageEffectSheet(
+                    draft: $draft,
+                    layerId: selectedLayerId,
+                    imageStore: imageStore,
+                    onDraftChanged: commitDraftChange,
+                    onStatusChanged: { saveStatus = $0 }
+                )
+                .presentationDetents([.height(430), .medium])
             case .exportPreview:
                 ExportPreviewView(draft: draft, imageStore: imageStore)
             }
@@ -402,6 +431,15 @@ struct EditorView: View {
         activeSheet = .mask
     }
 
+    private func openLineCutEditor(style: CutStyle) {
+        guard supportsScissors(selectedLayer) else {
+            saveStatus = L10n.t("editor.status.select_cut_layer")
+            return
+        }
+        lineCutStyle = style
+        activeSheet = .lineCut
+    }
+
     private func prepareStraightCut() {
         applyCutStyle(.straight) { layer in
             layer.style[LayerStyleKey.cutLine] = .object([
@@ -437,6 +475,60 @@ struct EditorView: View {
         draft.layers[index].style[LayerStyleKey.cutStyle] = .string(cutStyle.rawValue)
         configure(&draft.layers[index])
         commitDraftChange()
+    }
+
+    private func confirmLineCut(line: LayerCutLine, style: CutStyle) {
+        guard let selectedLayerId,
+              let index = draft.layers.firstIndex(where: { $0.id == selectedLayerId }) else {
+            saveStatus = L10n.t("editor.status.select_cut_layer")
+            return
+        }
+        let baseLayer = draft.layers[index]
+        guard let pieces = LayerClipPolygon.splitVisiblePolygon(layer: baseLayer, line: line, style: style) else {
+            saveStatus = L10n.t("editor.status.line_cut_failed")
+            return
+        }
+
+        let normal = lineNormal(for: line)
+        let radians = CGFloat(baseLayer.rotation) * .pi / 180
+        let nudge = CGPoint(
+            x: (-normal.dx * cos(radians) + normal.dy * sin(radians)) * 8,
+            y: (-normal.dx * sin(radians) - normal.dy * cos(radians)) * 8
+        )
+
+        var first = baseLayer
+        first.id = "\(baseLayer.type.rawValue)-cut-\(UUID().uuidString)-a"
+        first.clipPolygon = pieces[0]
+        first.clipPolygons = nil
+        first.x += Double(nudge.x)
+        first.y += Double(nudge.y)
+        first.style[LayerStyleKey.cutStyle] = .string(style.rawValue)
+        first.style[LayerStyleKey.cutLine] = line.jsonValue
+        if style == .wave {
+            first.style[LayerStyleKey.waveAmplitude] = .number(22)
+            first.style[LayerStyleKey.waveFrequency] = .number(6)
+        }
+
+        var second = baseLayer
+        second.id = "\(baseLayer.type.rawValue)-cut-\(UUID().uuidString)-b"
+        second.clipPolygon = pieces[1]
+        second.clipPolygons = nil
+        second.x -= Double(nudge.x)
+        second.y -= Double(nudge.y)
+        second.style[LayerStyleKey.cutStyle] = .string(style.rawValue)
+        second.style[LayerStyleKey.cutLine] = line.jsonValue
+        if style == .wave {
+            second.style[LayerStyleKey.waveAmplitude] = .number(22)
+            second.style[LayerStyleKey.waveFrequency] = .number(6)
+        }
+
+        draft.layers.replaceSubrange(index...index, with: [first, second])
+        normalizeLayerOrder()
+        self.selectedLayerId = second.id
+        commitDraftChange()
+        saveStatus = style == .wave
+            ? L10n.t("editor.status.wave_cut_ready")
+            : L10n.t("editor.status.straight_cut_ready")
     }
 
     private func applyBackground(_ option: BackgroundOption) {
@@ -680,7 +772,7 @@ struct EditorView: View {
         switch layer.type {
         case .image, .sticker, .paper, .cut:
             return true
-        case .text, .tape:
+        case .text, .tape, .brush:
             return false
         }
     }
@@ -690,7 +782,7 @@ struct EditorView: View {
         switch layer.type {
         case .image, .sticker, .paper:
             return true
-        case .text, .tape, .cut:
+        case .text, .tape, .cut, .brush:
             return false
         }
     }
@@ -717,7 +809,10 @@ private enum EditorSheet: String, Identifiable {
     case crop
     case mask
     case scissors
+    case lineCut
     case brushCut
+    case decorativeBrush
+    case imageEffect
     case exportPreview
 
     var id: String { rawValue }
@@ -731,6 +826,8 @@ private struct EditorToolbar: View {
     let onAddText: () -> Void
     let onScissors: () -> Void
     let onEmboss: () -> Void
+    let onDecorativeBrush: () -> Void
+    let onImageEffect: () -> Void
     let onChangeRatio: () -> Void
 
     var body: some View {
@@ -771,12 +868,22 @@ private struct EditorToolbar: View {
             }
             .buttonStyle(.plain)
 
+            Button(action: onDecorativeBrush) {
+                ToolItem(systemName: "paintbrush.pointed", label: L10n.t("editor.toolbar.brush"))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onImageEffect) {
+                ToolItem(systemName: "camera.filters", label: L10n.t("editor.toolbar.image_effect"))
+            }
+            .buttonStyle(.plain)
+
             Button(action: onChangeRatio) {
                 ToolItem(systemName: "rectangle.3.group", label: L10n.t("editor.toolbar.ratio"))
             }
             .buttonStyle(.plain)
             }
-            .frame(minWidth: 520)
+            .frame(minWidth: 660)
         }
         .frame(height: 72)
         .background(JournalColors.panel)
@@ -963,6 +1070,226 @@ private struct ScissorsOptionButton: View {
         .buttonStyle(.plain)
         .disabled(!isEnabled)
     }
+}
+
+private struct LineCutEditorSheet: View {
+    let layer: Layer?
+    let style: CutStyle
+    let onCancel: () -> Void
+    let onConfirm: (LayerCutLine) -> Void
+
+    @State private var line: LayerCutLine?
+    @State private var activeHandle: LineCutHandle?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: JournalSpacing.md) {
+            Capsule()
+                .fill(JournalColors.border)
+                .frame(width: 38, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, JournalSpacing.sm)
+
+            HStack {
+                Button(L10n.t("editor.sheet.line_cut.cancel")) {
+                    onCancel()
+                }
+                .font(JournalTypography.bodyStrong)
+                .foregroundStyle(JournalColors.ink)
+
+                Spacer()
+
+                Text(style == .wave ? L10n.t("editor.scissors.wave") : L10n.t("editor.scissors.straight"))
+                    .font(JournalTypography.sectionTitle)
+                    .foregroundStyle(JournalColors.ink)
+
+                Spacer()
+
+                Button(L10n.t("editor.sheet.line_cut.done")) {
+                    if let line {
+                        onConfirm(line)
+                    }
+                }
+                .font(JournalTypography.bodyStrong)
+                .foregroundStyle(line == nil ? JournalColors.textTertiary : JournalColors.ink)
+                .disabled(line == nil)
+            }
+
+            GeometryReader { proxy in
+                let preview = previewSize(container: proxy.size)
+                ZStack {
+                    RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous)
+                        .fill(JournalColors.weak)
+                        .overlay(
+                            LayerClipPolygonShape(layer: previewLayer)
+                                .fill(JournalColors.paperBeige)
+                        )
+                        .overlay(lineOverlay(size: preview))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous)
+                                .stroke(JournalColors.border)
+                        )
+                        .frame(width: preview.width, height: preview.height)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    updateLine(location: value.location, preview: preview)
+                                }
+                                .onEnded { _ in
+                                    activeHandle = nil
+                                }
+                        )
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(height: 360)
+
+            Text(L10n.t("editor.sheet.line_cut.help"))
+                .font(JournalTypography.caption)
+                .foregroundStyle(JournalColors.textSecondary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, JournalSpacing.lg)
+        .background(JournalColors.panel)
+        .onAppear {
+            if line == nil, let layer {
+                line = defaultLine(for: layer)
+            }
+        }
+    }
+
+    private var previewLayer: Layer {
+        guard let layer else {
+            return Layer(type: .image, x: 0, y: 0, width: 1, height: 1)
+        }
+        return layer
+    }
+
+    private func lineOverlay(size: CGSize) -> some View {
+        Canvas { context, canvasSize in
+            guard let layer, let line else { return }
+            let start = map(line.startPoint, layer: layer, size: canvasSize)
+            let end = map(line.endPoint, layer: layer, size: canvasSize)
+            var path = Path()
+            if style == .wave {
+                let points = wavePreviewPoints(start: start, end: end, size: canvasSize)
+                if let first = points.first {
+                    path.move(to: first)
+                    points.dropFirst().forEach { path.addLine(to: $0) }
+                }
+            } else {
+                path.move(to: start)
+                path.addLine(to: end)
+            }
+            context.stroke(path, with: .color(JournalColors.stampRed), style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+            drawHandle(at: start, context: &context)
+            drawHandle(at: end, context: &context)
+        }
+        .frame(width: size.width, height: size.height)
+    }
+
+    private func drawHandle(at point: CGPoint, context: inout GraphicsContext) {
+        let rect = CGRect(x: point.x - 11, y: point.y - 11, width: 22, height: 22)
+        context.fill(Path(ellipseIn: rect), with: .color(Color.white))
+        context.stroke(Path(ellipseIn: rect), with: .color(JournalColors.ink), lineWidth: 2)
+    }
+
+    private func updateLine(location: CGPoint, preview: CGSize) {
+        guard let layer else { return }
+        var next = line ?? defaultLine(for: layer)
+        let local = unmap(location, layer: layer, size: preview)
+        let handle = activeHandle ?? nearestHandle(to: local, line: next)
+        activeHandle = handle
+        switch handle {
+        case .start:
+            next.startX = clamp(local.x, min: 0, max: layer.width)
+            next.startY = clamp(local.y, min: 0, max: layer.height)
+        case .end:
+            next.endX = clamp(local.x, min: 0, max: layer.width)
+            next.endY = clamp(local.y, min: 0, max: layer.height)
+        }
+        line = next
+    }
+
+    private func nearestHandle(to point: BrushPoint, line: LayerCutLine) -> LineCutHandle {
+        let startDistance = hypot(point.x - line.startX, point.y - line.startY)
+        let endDistance = hypot(point.x - line.endX, point.y - line.endY)
+        return startDistance <= endDistance ? .start : .end
+    }
+
+    private func previewSize(container: CGSize) -> CGSize {
+        guard let layer else { return CGSize(width: 1, height: 1) }
+        let scale = min(container.width / max(1, CGFloat(layer.width)), container.height / max(1, CGFloat(layer.height)))
+        return CGSize(width: CGFloat(layer.width) * scale, height: CGFloat(layer.height) * scale)
+    }
+
+    private func map(_ point: BrushPoint, layer: Layer, size: CGSize) -> CGPoint {
+        CGPoint(
+            x: CGFloat(point.x / max(1, layer.width)) * size.width,
+            y: CGFloat(point.y / max(1, layer.height)) * size.height
+        )
+    }
+
+    private func unmap(_ point: CGPoint, layer: Layer, size: CGSize) -> BrushPoint {
+        BrushPoint(
+            x: Double(point.x / max(1, size.width)) * layer.width,
+            y: Double(point.y / max(1, size.height)) * layer.height
+        )
+    }
+
+    private func defaultLine(for layer: Layer) -> LayerCutLine {
+        let bounds = visibleBounds(for: layer)
+        return LayerCutLine(
+            startX: bounds.minX + bounds.width * 0.16,
+            startY: bounds.midY,
+            endX: bounds.minX + bounds.width * 0.84,
+            endY: bounds.midY
+        )
+    }
+
+    private func visibleBounds(for layer: Layer) -> CGRect {
+        guard let polygon = LayerClipPolygon.visiblePolygon(for: layer) else {
+            return CGRect(x: 0, y: 0, width: CGFloat(layer.width), height: CGFloat(layer.height))
+        }
+        let xs = polygon.map(\.x)
+        let ys = polygon.map(\.y)
+        let minX = xs.min() ?? 0
+        let maxX = xs.max() ?? layer.width
+        let minY = ys.min() ?? 0
+        let maxY = ys.max() ?? layer.height
+        return CGRect(
+            x: CGFloat(minX),
+            y: CGFloat(minY),
+            width: CGFloat(max(1, maxX - minX)),
+            height: CGFloat(max(1, maxY - minY))
+        )
+    }
+
+    private func wavePreviewPoints(start: CGPoint, end: CGPoint, size: CGSize) -> [CGPoint] {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = max(1, hypot(dx, dy))
+        let unit = CGVector(dx: dx / length, dy: dy / length)
+        let normal = CGVector(dx: -unit.dy, dy: unit.dx)
+        let amplitude = min(22, max(10, min(size.width, size.height) * 0.08))
+        let wavelength = max(36, min(76, max(36, length * 0.55)))
+        let samples = max(18, Int(length / 8))
+        return (0...samples).map { index in
+            let t = CGFloat(index) / CGFloat(samples)
+            let base = CGPoint(x: start.x + dx * t, y: start.y + dy * t)
+            let wave = sin(t * length / wavelength * .pi * 2) * amplitude
+            return CGPoint(x: base.x + normal.dx * wave, y: base.y + normal.dy * wave)
+        }
+    }
+
+    private func clamp(_ value: Double, min: Double, max: Double) -> Double {
+        Swift.max(min, Swift.min(max, value))
+    }
+}
+
+private enum LineCutHandle {
+    case start
+    case end
 }
 
 private struct BrushCutSheet: View {
@@ -1750,6 +2077,490 @@ private struct CropBoxOverlay: View {
     }
 }
 
+private struct DecorativeBrushSheet: View {
+    @Binding var draft: Draft
+    let onDraftChanged: () -> Void
+    let onSelectLayer: (String) -> Void
+    let onStatusChanged: (String) -> Void
+
+    @State private var brushType: BrushType = .line
+    @State private var brushColor = "#111111"
+    @State private var brushSize = 10.0
+    @State private var strokes: [BrushStroke] = []
+    @State private var currentPoints: [BrushPoint] = []
+
+    private let brushTypes: [(BrushType, String, String)] = [
+        (.line, "editor.brush.type.line", "pencil.line"),
+        (.stitch, "editor.brush.type.stitch", "scribble.variable"),
+        (.knit, "editor.brush.type.knit", "point.3.connected.trianglepath.dotted"),
+        (.bead, "editor.brush.type.bead", "circle.grid.cross"),
+        (.lace, "editor.brush.type.lace", "sparkles"),
+        (.bow, "editor.brush.type.bow", "gift")
+    ]
+    private let colors = ["#111111", "#ffffff", "#d94a38", "#f4d77a", "#9ec7df", "#8c9a8d"]
+    private let sizes = [5.0, 10.0, 18.0]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: JournalSpacing.md) {
+            Capsule()
+                .fill(JournalColors.border)
+                .frame(width: 38, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, JournalSpacing.sm)
+
+            HStack {
+                Text(L10n.t("editor.sheet.decorative_brush.title"))
+                    .font(JournalTypography.sectionTitle)
+                    .foregroundStyle(JournalColors.ink)
+                Spacer()
+                Button(L10n.t("editor.sheet.decorative_brush.undo")) {
+                    if !strokes.isEmpty {
+                        strokes.removeLast()
+                    }
+                }
+                .font(JournalTypography.caption)
+                .foregroundStyle(JournalColors.ink)
+                Button(L10n.t("editor.sheet.decorative_brush.done")) {
+                    confirm()
+                }
+                .font(JournalTypography.bodyStrong)
+                .foregroundStyle(strokes.isEmpty ? JournalColors.textTertiary : JournalColors.ink)
+                .disabled(strokes.isEmpty)
+            }
+
+            GeometryReader { proxy in
+                let preview = previewRect(container: proxy.size)
+                ZStack(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous)
+                        .fill(color(from: draft.background) ?? JournalColors.paper)
+                        .frame(width: preview.width, height: preview.height)
+                        .overlay(
+                            LayerBrushView(layer: previewLayer)
+                                .frame(width: preview.width, height: preview.height)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: JournalRadius.medium, style: .continuous)
+                                .stroke(JournalColors.border)
+                        )
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    appendPoint(value.location, previewSize: preview)
+                                }
+                                .onEnded { _ in
+                                    finishStroke()
+                                }
+                        )
+                        .position(x: proxy.size.width / 2, y: preview.height / 2)
+                }
+            }
+            .frame(height: 270)
+
+            brushTypePicker
+            brushColorPicker
+            brushSizePicker
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, JournalSpacing.lg)
+        .background(JournalColors.panel)
+    }
+
+    private var brushTypePicker: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 82), spacing: JournalSpacing.xs)], spacing: JournalSpacing.xs) {
+            ForEach(brushTypes, id: \.0) { item in
+                Button {
+                    brushType = item.0
+                } label: {
+                    HStack(spacing: JournalSpacing.xs) {
+                        Image(systemName: item.2)
+                        Text(L10n.t(item.1))
+                    }
+                    .font(JournalTypography.tiny)
+                    .foregroundStyle(brushType == item.0 ? Color.white : JournalColors.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 34)
+                    .background(brushType == item.0 ? JournalColors.ink : JournalColors.weak)
+                    .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var brushColorPicker: some View {
+        HStack(spacing: JournalSpacing.sm) {
+            ForEach(colors, id: \.self) { hex in
+                Button {
+                    brushColor = hex
+                } label: {
+                    Circle()
+                        .fill(Color(hexString: hex) ?? JournalColors.ink)
+                        .frame(width: 30, height: 30)
+                        .overlay(Circle().stroke(brushColor == hex ? JournalColors.ink : JournalColors.border, lineWidth: brushColor == hex ? 2 : 1))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var brushSizePicker: some View {
+        HStack(spacing: JournalSpacing.sm) {
+            ForEach(sizes, id: \.self) { size in
+                Button {
+                    brushSize = size
+                } label: {
+                    Text(sizeLabel(size))
+                        .font(JournalTypography.caption)
+                        .foregroundStyle(brushSize == size ? Color.white : JournalColors.ink)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 34)
+                        .background(brushSize == size ? JournalColors.ink : JournalColors.weak)
+                        .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var previewLayer: Layer {
+        Layer(
+            type: .brush,
+            x: 0,
+            y: 0,
+            width: draft.width,
+            height: draft.height,
+            brushWidth: draft.width,
+            brushHeight: draft.height,
+            strokes: strokes + currentStrokePreview
+        )
+    }
+
+    private var currentStrokePreview: [BrushStroke] {
+        guard !currentPoints.isEmpty else { return [] }
+        return [BrushStroke(type: brushType, stampSource: stampSource, color: brushColor, size: brushSize, points: currentPoints)]
+    }
+
+    private var stampSource: String? {
+        brushType == .bow ? "/assets/brushes/bow-brush.png" : nil
+    }
+
+    private func appendPoint(_ location: CGPoint, previewSize: CGSize) {
+        let clampedX = min(max(0, location.x), previewSize.width)
+        let clampedY = min(max(0, location.y), previewSize.height)
+        let point = BrushPoint(
+            x: Double(clampedX / previewSize.width) * draft.width,
+            y: Double(clampedY / previewSize.height) * draft.height
+        )
+        if let last = currentPoints.last {
+            let dx = point.x - last.x
+            let dy = point.y - last.y
+            guard hypot(dx, dy) >= 1.6 else { return }
+        }
+        currentPoints.append(point)
+    }
+
+    private func finishStroke() {
+        guard let first = currentPoints.first else { return }
+        if currentPoints.count == 1 {
+            currentPoints.append(BrushPoint(x: first.x + 0.5, y: first.y + 0.5))
+        }
+        strokes.append(BrushStroke(type: brushType, stampSource: stampSource, color: brushColor, size: brushSize, points: currentPoints))
+        currentPoints = []
+    }
+
+    private func confirm() {
+        guard !strokes.isEmpty else {
+            onStatusChanged(L10n.t("editor.status.decorative_brush_empty"))
+            return
+        }
+        let layer = DraftFactory.makeBrushLayer(strokes: strokes, draft: draft)
+        draft.layers.append(layer)
+        onSelectLayer(layer.id)
+        onDraftChanged()
+        onStatusChanged(L10n.t("editor.status.decorative_brush_done"))
+    }
+
+    private func previewRect(container: CGSize) -> CGSize {
+        let maxWidth = container.width
+        let maxHeight = container.height
+        let scale = min(maxWidth / CGFloat(draft.width), maxHeight / CGFloat(draft.height))
+        return CGSize(width: CGFloat(draft.width) * scale, height: CGFloat(draft.height) * scale)
+    }
+
+    private func color(from hex: String) -> Color? {
+        Color(hexString: hex)
+    }
+
+    private func sizeLabel(_ size: Double) -> String {
+        switch size {
+        case 5:
+            return L10n.t("editor.brush.size.thin")
+        case 18:
+            return L10n.t("editor.brush.size.thick")
+        default:
+            return L10n.t("editor.brush.size.medium")
+        }
+    }
+}
+
+private struct ImageEffectSheet: View {
+    @Binding var draft: Draft
+    let layerId: String?
+    let imageStore: ImageStore?
+    let onDraftChanged: () -> Void
+    let onStatusChanged: (String) -> Void
+
+    @State private var effectType: ImageEffectType = .crossStitch
+    @State private var crossStitchGrid = 72.0
+    @State private var crossStitchColors = 8.0
+    @State private var crossStitchStyle = "stitch"
+    @State private var matisseDetail = 64.0
+    @State private var matissePalette = "vivid"
+    @State private var botanicalTone = "blueprint"
+    @State private var botanicalDetail = "medium"
+    @State private var isGenerating = false
+
+    private let effectTypes: [(ImageEffectType, String, String)] = [
+        (.crossStitch, "editor.image_effect.cross_stitch", "grid"),
+        (.matisse, "editor.image_effect.matisse", "scissors"),
+        (.botanical, "editor.image_effect.botanical", "leaf")
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: JournalSpacing.md) {
+            Capsule()
+                .fill(JournalColors.border)
+                .frame(width: 38, height: 4)
+                .frame(maxWidth: .infinity)
+                .padding(.top, JournalSpacing.sm)
+
+            HStack {
+                Text(L10n.t("editor.sheet.image_effect.title"))
+                    .font(JournalTypography.sectionTitle)
+                    .foregroundStyle(JournalColors.ink)
+                Spacer()
+                Button(L10n.t("editor.sheet.image_effect.apply")) {
+                    applyEffect()
+                }
+                .font(JournalTypography.bodyStrong)
+                .foregroundStyle(canApply && !isGenerating ? JournalColors.ink : JournalColors.textTertiary)
+                .disabled(!canApply || isGenerating)
+            }
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: JournalSpacing.xs)], spacing: JournalSpacing.xs) {
+                ForEach(effectTypes, id: \.0) { item in
+                    Button {
+                        effectType = item.0
+                    } label: {
+                        HStack(spacing: JournalSpacing.xs) {
+                            Image(systemName: item.2)
+                            Text(L10n.t(item.1))
+                        }
+                        .font(JournalTypography.caption)
+                        .foregroundStyle(effectType == item.0 ? Color.white : JournalColors.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .background(effectType == item.0 ? JournalColors.ink : JournalColors.weak)
+                        .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            switch effectType {
+            case .crossStitch:
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.grid"),
+                    selection: $crossStitchGrid,
+                    options: [(48, "editor.image_effect.coarse"), (72, "editor.image_effect.medium"), (104, "editor.image_effect.fine")]
+                )
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.colors"),
+                    selection: $crossStitchColors,
+                    options: [(4, "editor.image_effect.four_colors"), (8, "editor.image_effect.eight_colors"), (12, "editor.image_effect.twelve_colors")]
+                )
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.style"),
+                    selection: $crossStitchStyle,
+                    options: [("stitch", "editor.image_effect.stitch"), ("pixel", "editor.image_effect.pixel"), ("mixed", "editor.image_effect.mixed")]
+                )
+            case .matisse:
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.detail"),
+                    selection: $matisseDetail,
+                    options: [(44, "editor.image_effect.simple"), (64, "editor.image_effect.medium"), (86, "editor.image_effect.fine")]
+                )
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.palette"),
+                    selection: $matissePalette,
+                    options: [("vivid", "editor.image_effect.vivid"), ("earth", "editor.image_effect.earth"), ("soft", "editor.image_effect.soft")]
+                )
+            case .botanical:
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.tone"),
+                    selection: $botanicalTone,
+                    options: [("blueprint", "editor.image_effect.blueprint"), ("sage", "editor.image_effect.sage"), ("sepia", "editor.image_effect.sepia")]
+                )
+                segmentedOptions(
+                    title: L10n.t("editor.image_effect.detail"),
+                    selection: $botanicalDetail,
+                    options: [("soft", "editor.image_effect.soft"), ("medium", "editor.image_effect.medium"), ("etched", "editor.image_effect.etched")]
+                )
+            }
+
+            Text(L10n.t("editor.sheet.image_effect.note"))
+                .font(JournalTypography.caption)
+                .foregroundStyle(JournalColors.textSecondary)
+
+            if isGenerating {
+                ProgressView(L10n.t("editor.status.image_effect_generating"))
+                    .font(JournalTypography.caption)
+                    .tint(JournalColors.ink)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, JournalSpacing.lg)
+        .background(JournalColors.panel)
+        .onAppear(perform: loadSelectedEffect)
+    }
+
+    private var canApply: Bool {
+        guard let layerId,
+              let layer = draft.layers.first(where: { $0.id == layerId }) else { return false }
+        return layer.type == .image
+    }
+
+    private func segmentedOptions<Value: Hashable>(
+        title: String,
+        selection: Binding<Value>,
+        options: [(Value, String)]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+            Text(title)
+                .font(JournalTypography.bodyStrong)
+                .foregroundStyle(JournalColors.ink)
+            HStack(spacing: JournalSpacing.xs) {
+                ForEach(options, id: \.0) { option in
+                    Button {
+                        selection.wrappedValue = option.0
+                    } label: {
+                        Text(L10n.t(option.1))
+                            .font(JournalTypography.caption)
+                            .foregroundStyle(selection.wrappedValue == option.0 ? Color.white : JournalColors.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 34)
+                            .background(selection.wrappedValue == option.0 ? JournalColors.ink : JournalColors.weak)
+                            .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func loadSelectedEffect() {
+        guard let layerId,
+              let layer = draft.layers.first(where: { $0.id == layerId }),
+              let effect = layer.effect else { return }
+        effectType = effect.type
+        if case .number(let value)? = effect.options["grid"] {
+            crossStitchGrid = value
+        }
+        if case .number(let value)? = effect.options["colors"] {
+            crossStitchColors = value
+        }
+        if case .number(let value)? = effect.options["detail"] {
+            matisseDetail = value
+        }
+        if case .string(let value)? = effect.options["style"] {
+            crossStitchStyle = value
+        }
+        if case .string(let value)? = effect.options["palette"] {
+            matissePalette = value
+        }
+        if case .string(let value)? = effect.options["tone"] {
+            botanicalTone = value
+        }
+        if case .string(let value)? = effect.options["detail"] {
+            botanicalDetail = value
+        }
+    }
+
+    private func applyEffect() {
+        guard let layerId,
+              let index = draft.layers.firstIndex(where: { $0.id == layerId }),
+              draft.layers[index].type == .image else {
+            onStatusChanged(L10n.t("editor.status.image_effect_select_image"))
+            return
+        }
+        guard let imageStore else {
+            onStatusChanged(L10n.t("editor.status.photo_store_unready"))
+            return
+        }
+
+        var effectLayer = draft.layers[index]
+        let effect = LayerImageEffect(type: effectType, options: options, createdAt: String(Int(Date().timeIntervalSince1970 * 1000)))
+        effectLayer.effect = effect
+        isGenerating = true
+        onStatusChanged(L10n.t("editor.status.image_effect_generating"))
+
+        Task { @MainActor in
+            do {
+                let result = try ImageEffectGenerator.render(layer: effectLayer, imageStore: imageStore)
+                guard let data = result.image.pngData() else {
+                    throw ImageEffectGeneratorError.renderFailed
+                }
+                let stored = try imageStore.savePNGImageData(data)
+                guard let currentIndex = draft.layers.firstIndex(where: { $0.id == layerId }) else {
+                    onStatusChanged(L10n.t("editor.status.image_effect_select_image"))
+                    isGenerating = false
+                    return
+                }
+                draft.layers[currentIndex].source = stored.source
+                draft.layers[currentIndex].sourceWidth = result.size.width
+                draft.layers[currentIndex].sourceHeight = result.size.height
+                draft.layers[currentIndex].crop = nil
+                draft.layers[currentIndex].effect = effect
+                draft.layers[currentIndex].style[LayerStyleKey.imageEffectType] = .string(effectType.rawValue)
+                onDraftChanged()
+                onStatusChanged(L10n.t("editor.status.image_effect_done"))
+            } catch {
+                onStatusChanged((error as? LocalizedError)?.errorDescription ?? L10n.t("editor.status.image_effect_failed"))
+            }
+            isGenerating = false
+        }
+    }
+
+    private var options: [String: JSONValue] {
+        switch effectType {
+        case .crossStitch:
+            return [
+                "grid": .number(crossStitchGrid),
+                "colors": .number(crossStitchColors),
+                "style": .string(crossStitchStyle)
+            ]
+        case .matisse:
+            return [
+                "detail": .number(matisseDetail),
+                "palette": .string(matissePalette)
+            ]
+        case .botanical:
+            return [
+                "detail": .string(botanicalDetail),
+                "tone": .string(botanicalTone)
+            ]
+        }
+    }
+}
+
 private struct LayerEffectsSheet: View {
     @Binding var draft: Draft
     let layerId: String?
@@ -1759,6 +2570,16 @@ private struct LayerEffectsSheet: View {
     @State private var radius = 0.0
     @State private var shadow = false
     @State private var tear = false
+    @State private var outlineStyle: LayerOutlineStyle = .none
+
+    private let outlineOptions: [(LayerOutlineStyle, String)] = [
+        (.none, "editor.outline.none"),
+        (.white, "editor.outline.white"),
+        (.cream, "editor.outline.cream"),
+        (.dark, "editor.outline.dark"),
+        (.red, "editor.outline.red"),
+        (.double, "editor.outline.double")
+    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: JournalSpacing.md) {
@@ -1808,6 +2629,32 @@ private struct LayerEffectsSheet: View {
                 .font(JournalTypography.caption)
                 .foregroundStyle(JournalColors.textSecondary)
 
+            VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+                Text(L10n.t("editor.effect.outline"))
+                    .font(JournalTypography.caption)
+                    .foregroundStyle(JournalColors.textSecondary)
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 74), spacing: JournalSpacing.xs)], spacing: JournalSpacing.xs) {
+                    ForEach(outlineOptions, id: \.0) { option in
+                        Button {
+                            outlineStyle = option.0
+                            applyChanges()
+                        } label: {
+                            Text(L10n.t(option.1))
+                                .font(JournalTypography.tiny)
+                                .foregroundStyle(outlineStyle == option.0 ? Color.white : JournalColors.ink)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 30)
+                                .background(outlineStyle == option.0 ? JournalColors.ink : JournalColors.weak)
+                                .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
             Spacer(minLength: 0)
         }
         .padding(.horizontal, JournalSpacing.lg)
@@ -1843,6 +2690,7 @@ private struct LayerEffectsSheet: View {
         radius = layer.radius ?? defaultRadius(for: layer)
         shadow = layer.shadow ?? false
         tear = layer.tear ?? false
+        outlineStyle = layer.outline?.style ?? .none
     }
 
     private func applyChanges() {
@@ -1854,6 +2702,13 @@ private struct LayerEffectsSheet: View {
         }
         draft.layers[index].shadow = shadow
         draft.layers[index].tear = tear
+        if tear {
+            draft.layers[index].tearSeed = draft.layers[index].tearSeed ?? Double(Int(Date().timeIntervalSince1970 * 1000).quotientAndRemainder(dividingBy: 1_000_000).remainder)
+        } else {
+            draft.layers[index].tearSeed = nil
+        }
+        draft.layers[index].outline = outline(for: outlineStyle)
+        draft.layers[index].style[LayerStyleKey.outlineStyle] = .string(outlineStyle.rawValue)
         onDraftChanged()
     }
 
@@ -1867,7 +2722,7 @@ private struct LayerEffectsSheet: View {
         switch selectedLayer.type {
         case .image, .sticker, .paper, .cut:
             return true
-        case .text, .tape:
+        case .text, .tape, .brush:
             return false
         }
     }
@@ -1878,8 +2733,25 @@ private struct LayerEffectsSheet: View {
             return 4
         case .image, .sticker, .cut:
             return 6
-        case .text, .tape:
+        case .text, .tape, .brush:
             return 0
+        }
+    }
+
+    private func outline(for style: LayerOutlineStyle) -> LayerOutline? {
+        switch style {
+        case .none:
+            return nil
+        case .white:
+            return LayerOutline(style: .white, color: "#ffffff", width: 12, opacity: 0.96)
+        case .cream:
+            return LayerOutline(style: .cream, color: "#efe7d8", width: 12, opacity: 0.96)
+        case .dark:
+            return LayerOutline(style: .dark, color: "#111111", width: 8, opacity: 0.80)
+        case .red:
+            return LayerOutline(style: .red, color: "#d94a38", width: 8, opacity: 0.88)
+        case .double:
+            return LayerOutline(style: .double, color: "#ffffff", width: 14, opacity: 0.96, secondaryColor: "#111111", secondaryWidth: 3)
         }
     }
 }
@@ -2068,64 +2940,80 @@ private struct TextStyleSheet: View {
     @State private var fontId = "system"
     @State private var colorHex = "#111111"
     @State private var backgroundHex = "transparent"
+    @State private var backgroundLabel = LayerTextStyle.backgrounds[0].label
     @State private var fontSize = 54.0
+    @State private var opacity = 1.0
 
-    private let fonts = [
-        ("system", "editor.text.font.system"),
-        ("rounded", "editor.text.font.rounded"),
-        ("serif", "editor.text.font.serif")
-    ]
-
-    private let colors = ["#111111", "#6f6f6f", "#d94a38", "#8c9a8d", "#e9d28a"]
-    private let backgrounds = [
-        ("transparent", "editor.text.background.none"),
-        ("#efe7d8", "editor.text.background.paper"),
-        ("#ffffff", "editor.text.background.white"),
-        ("#111111", "editor.text.background.black"),
-        ("#ead48a", "editor.text.background.tape")
-    ]
+    private let sizeOptions = [42.0, 54.0, 68.0, 88.0]
+    private let opacityOptions = [0.45, 0.70, 1.0]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: JournalSpacing.md) {
-            Capsule()
-                .fill(JournalColors.border)
-                .frame(width: 38, height: 4)
-                .frame(maxWidth: .infinity)
-                .padding(.top, JournalSpacing.sm)
+        ScrollView {
+            VStack(alignment: .leading, spacing: JournalSpacing.md) {
+                Capsule()
+                    .fill(JournalColors.border)
+                    .frame(width: 38, height: 4)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, JournalSpacing.sm)
 
-            Text(L10n.t("editor.sheet.text.title"))
-                .font(JournalTypography.sectionTitle)
-                .lineLimit(2)
-                .minimumScaleFactor(0.8)
-                .foregroundStyle(JournalColors.ink)
+                Text(L10n.t("editor.sheet.text.title"))
+                    .font(JournalTypography.sectionTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .foregroundStyle(JournalColors.ink)
 
-            TextField(L10n.t("editor.sheet.text.placeholder"), text: $text, axis: .vertical)
-                .font(JournalTypography.bodyStrong)
-                .padding(JournalSpacing.md)
-                .background(JournalColors.weak)
-                .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
-                .onChange(of: text) { _, _ in applyChanges() }
+                TextField(L10n.t("editor.sheet.text.placeholder"), text: $text, axis: .vertical)
+                    .font(JournalTypography.bodyStrong)
+                    .padding(JournalSpacing.md)
+                    .background(JournalColors.weak)
+                    .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                    .onChange(of: text) { _, _ in applyChanges() }
 
-            Picker(L10n.t("editor.sheet.text.font"), selection: $fontId) {
-                ForEach(fonts, id: \.0) { font in
-                    Text(L10n.t(font.1)).tag(font.0)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: fontId) { _, _ in applyChanges() }
+                VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+                    Text(L10n.t("editor.sheet.text.font"))
+                        .font(JournalTypography.caption)
+                        .foregroundStyle(JournalColors.textSecondary)
 
-            HStack(spacing: JournalSpacing.sm) {
-                ForEach(colors, id: \.self) { hex in
-                    Button {
-                        colorHex = hex
-                        applyChanges()
-                    } label: {
-                        Circle()
-                            .fill(Color(hexString: hex) ?? JournalColors.ink)
-                            .frame(width: 30, height: 30)
-                            .overlay(Circle().stroke(colorHex == hex ? JournalColors.ink : JournalColors.border, lineWidth: colorHex == hex ? 2 : 1))
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: JournalSpacing.xs) {
+                            ForEach(LayerTextStyle.fonts) { font in
+                                Button {
+                                    fontId = font.id
+                                    applyChanges()
+                                } label: {
+                                    Text(font.preview)
+                                        .font(textFontPreview(font.id))
+                                        .foregroundStyle(fontId == font.id ? Color.white : JournalColors.ink)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
+                                        .frame(width: 96, height: 38)
+                                        .background(fontId == font.id ? JournalColors.ink : JournalColors.weak)
+                                        .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
+                }
+
+                VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+                    Text(L10n.t("editor.sheet.text.color"))
+                        .font(JournalTypography.caption)
+                        .foregroundStyle(JournalColors.textSecondary)
+
+                HStack(spacing: JournalSpacing.sm) {
+                    ForEach(LayerTextStyle.colors, id: \.self) { hex in
+                        Button {
+                            colorHex = hex
+                            applyChanges()
+                        } label: {
+                            Circle()
+                                .fill(Color(hexString: hex) ?? JournalColors.ink)
+                                .frame(width: 30, height: 30)
+                                .overlay(Circle().stroke(colorHex == hex ? JournalColors.ink : JournalColors.border, lineWidth: colorHex == hex ? 2 : 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
 
@@ -2135,19 +3023,20 @@ private struct TextStyleSheet: View {
                     .foregroundStyle(JournalColors.textSecondary)
 
                 HStack(spacing: JournalSpacing.xs) {
-                    ForEach(backgrounds, id: \.0) { background in
+                    ForEach(LayerTextStyle.backgrounds) { background in
                         Button {
-                            backgroundHex = background.0
+                            backgroundLabel = background.label
+                            backgroundHex = background.value
                             applyChanges()
                         } label: {
-                            Text(L10n.t(background.1))
+                            Text(L10n.t(background.key))
                                 .font(JournalTypography.caption)
-                                .foregroundStyle(backgroundHex == background.0 ? Color.white : JournalColors.ink)
+                                .foregroundStyle(backgroundHex == background.value ? Color.white : JournalColors.ink)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 34)
-                                .background(backgroundHex == background.0 ? JournalColors.ink : JournalColors.weak)
+                                .background(backgroundHex == background.value ? JournalColors.ink : JournalColors.weak)
                                 .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
                         }
                         .buttonStyle(.plain)
@@ -2155,20 +3044,56 @@ private struct TextStyleSheet: View {
                 }
             }
 
-            HStack {
+            VStack(alignment: .leading, spacing: JournalSpacing.xs) {
                 Text(L10n.t("editor.sheet.text.size"))
                     .font(JournalTypography.caption)
                     .foregroundStyle(JournalColors.textSecondary)
-                Slider(value: $fontSize, in: 28...96, step: 2)
-                    .tint(JournalColors.ink)
-                    .onChange(of: fontSize) { _, _ in applyChanges() }
-                Text("\(Int(fontSize))")
+
+                HStack(spacing: JournalSpacing.xs) {
+                    ForEach(sizeOptions, id: \.self) { size in
+                        Button {
+                            fontSize = size
+                            applyChanges()
+                        } label: {
+                            Text(textSizeLabel(size))
+                                .font(JournalTypography.caption)
+                                .foregroundStyle(fontSize == size ? Color.white : JournalColors.ink)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 34)
+                                .background(fontSize == size ? JournalColors.ink : JournalColors.weak)
+                                .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: JournalSpacing.xs) {
+                Text(L10n.t("editor.sheet.text.opacity"))
                     .font(JournalTypography.caption)
                     .foregroundStyle(JournalColors.textSecondary)
-                    .frame(width: 30, alignment: .trailing)
+
+                HStack(spacing: JournalSpacing.xs) {
+                    ForEach(opacityOptions, id: \.self) { value in
+                        Button {
+                            opacity = value
+                            applyChanges()
+                        } label: {
+                            Text("\(Int(value * 100))%")
+                                .font(JournalTypography.caption)
+                                .foregroundStyle(opacity == value ? Color.white : JournalColors.ink)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 34)
+                                .background(opacity == value ? JournalColors.ink : JournalColors.weak)
+                                .clipShape(RoundedRectangle(cornerRadius: JournalRadius.small, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
 
             Spacer(minLength: 0)
+            }
         }
         .padding(.horizontal, JournalSpacing.lg)
         .background(JournalColors.panel)
@@ -2178,23 +3103,53 @@ private struct TextStyleSheet: View {
     private func loadSelectedLayer() {
         guard let layer = selectedLayer else { return }
         text = layer.text ?? ""
-        fontId = styleString(layer, key: "fontId") ?? "system"
-        colorHex = styleString(layer, key: "color") ?? "#111111"
-        backgroundHex = styleString(layer, key: "background") ?? "transparent"
-        fontSize = styleNumber(layer, key: "fontSize") ?? 54
+        fontId = styleString(layer, key: LayerStyleKey.textFontId) ?? "system"
+        colorHex = styleString(layer, key: LayerStyleKey.textColor) ?? "#111111"
+        backgroundHex = styleString(layer, key: LayerStyleKey.textBackground) ?? "transparent"
+        backgroundLabel = styleString(layer, key: LayerStyleKey.textBackgroundLabel) ?? LayerTextStyle.backgroundLabel(for: backgroundHex)
+        fontSize = styleNumber(layer, key: LayerStyleKey.textFontSize) ?? 54
+        opacity = layer.opacity
     }
 
     private func applyChanges() {
         guard let layerId,
               let index = draft.layers.firstIndex(where: { $0.id == layerId }) else { return }
+        let font = LayerTextStyle.fontOption(for: fontId)
         draft.layers[index].text = text
-        draft.layers[index].style["fontId"] = .string(fontId)
-        let fontKey = fonts.first { $0.0 == fontId }?.1 ?? "editor.text.font.system"
-        draft.layers[index].style["fontLabel"] = .string(L10n.t(fontKey))
-        draft.layers[index].style["color"] = .string(colorHex)
-        draft.layers[index].style["background"] = .string(backgroundHex)
-        draft.layers[index].style["fontSize"] = .number(fontSize)
+        draft.layers[index].opacity = opacity
+        draft.layers[index].style[LayerStyleKey.textFontId] = .string(font.id)
+        draft.layers[index].style[LayerStyleKey.textFontLabel] = .string(font.label)
+        draft.layers[index].style[LayerStyleKey.textFontFamily] = .string(font.family)
+        draft.layers[index].style[LayerStyleKey.textCanvasFontFamily] = .string(font.canvasFamily)
+        draft.layers[index].style[LayerStyleKey.textColor] = .string(colorHex)
+        draft.layers[index].style[LayerStyleKey.textBackgroundLabel] = .string(backgroundLabel)
+        draft.layers[index].style[LayerStyleKey.textBackground] = .string(backgroundHex)
+        draft.layers[index].style[LayerStyleKey.textFontSize] = .number(fontSize)
         onDraftChanged()
+    }
+
+    private func textFontPreview(_ fontId: String) -> Font {
+        switch fontId {
+        case "little_kids", "kelsi", "rounded":
+            return .system(size: 14, weight: .semibold, design: .rounded)
+        case "gemini", "serif":
+            return .system(size: 14, weight: .semibold, design: .serif)
+        default:
+            return .system(size: 14, weight: .semibold)
+        }
+    }
+
+    private func textSizeLabel(_ size: Double) -> String {
+        switch size {
+        case 42:
+            return L10n.t("editor.text.size.small")
+        case 68:
+            return L10n.t("editor.text.size.large")
+        case 88:
+            return L10n.t("editor.text.size.xlarge")
+        default:
+            return L10n.t("editor.text.size.medium")
+        }
     }
 
     private var selectedLayer: Layer? {
@@ -2215,6 +3170,32 @@ private struct TextStyleSheet: View {
         }
         return nil
     }
+}
+
+private extension LayerCutLine {
+    var jsonValue: JSONValue {
+        .object([
+            "startX": .number(startX),
+            "startY": .number(startY),
+            "endX": .number(endX),
+            "endY": .number(endY)
+        ])
+    }
+
+    var startPoint: BrushPoint {
+        BrushPoint(x: startX, y: startY)
+    }
+
+    var endPoint: BrushPoint {
+        BrushPoint(x: endX, y: endY)
+    }
+}
+
+private func lineNormal(for line: LayerCutLine) -> CGVector {
+    let dx = CGFloat(line.endX - line.startX)
+    let dy = CGFloat(line.endY - line.startY)
+    let length = max(0.001, hypot(dx, dy))
+    return CGVector(dx: -dy / length, dy: dx / length)
 }
 
 #Preview {

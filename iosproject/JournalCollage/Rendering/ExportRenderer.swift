@@ -102,15 +102,18 @@ private struct ExportCanvasView: View {
             .frame(width: renderedWidth, height: renderedHeight)
             .layerMask(maskShape(for: layer), cornerRadius: CGFloat(layer.radius ?? 6) * scale)
             .excludeMask(excludeShape(for: layer), cornerRadius: CGFloat(layer.radius ?? 6) * scale)
+            .clipPolygonMask(layer)
+            .tearMask(layer)
             .cutMask(LayerCutShape(layer))
             .alphaMask(alphaMaskImage(for: layer))
+            .overlay(LayerOutlineOverlay(layer: layer))
             .shadow(
                 color: layer.shadow == true ? .black.opacity(0.18) : .clear,
                 radius: layer.shadow == true ? 10 * scale : 0,
                 x: 0,
                 y: layer.shadow == true ? 6 * scale : 0
             )
-            .overlay(tearPlaceholder(for: layer, width: renderedWidth, height: renderedHeight))
+            .overlay(LayerTearEdgeOverlay(layer: layer, scale: scale))
             .opacity(layer.opacity)
             .rotationEffect(.degrees(layer.rotation))
             .position(center)
@@ -120,36 +123,32 @@ private struct ExportCanvasView: View {
     private func layerContent(_ layer: Layer) -> some View {
         switch layer.type {
         case .text:
-            ZStack {
-                if let background = textBackground(for: layer) {
-                    RoundedRectangle(cornerRadius: 10 * scale, style: .continuous)
-                        .fill(background)
-                }
-
-                Text(layer.text ?? "")
-                    .font(textFont(for: layer))
-                    .foregroundStyle(color(from: styleString(layer, key: "color") ?? "#111111") ?? JournalColors.ink)
-                    .minimumScaleFactor(0.4)
-                    .multilineTextAlignment(.center)
-                    .padding(6 * scale)
-            }
+            LayerTextView(layer: layer, renderScale: scale)
         case .tape:
             Rectangle()
                 .fill(color(from: styleString(layer, key: "color") ?? "#ead48a") ?? JournalColors.tapeYellow)
                 .overlay(tapeStripes())
         case .paper:
-            RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 4) * scale, style: .continuous)
-                .fill(color(from: styleString(layer, key: "color") ?? "#efe7d8") ?? JournalColors.paperBeige)
+            if usesExternalShape(layer) {
+                Rectangle()
+                    .fill(color(from: styleString(layer, key: "color") ?? "#efe7d8") ?? JournalColors.paperBeige)
+            } else {
+                RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 4) * scale, style: .continuous)
+                    .fill(color(from: styleString(layer, key: "color") ?? "#efe7d8") ?? JournalColors.paperBeige)
+            }
+        case .brush:
+            LayerBrushView(layer: layer)
         case .image, .sticker, .cut:
             if let url = ImageSourceResolver.url(for: layer.source, imageStore: imageStore),
                let image = UIImage(contentsOfFile: url.path) {
                 Image(uiImage: ImageCropper.crop(image, cropBox: layer.crop))
                     .resizable()
                     .scaledToFill()
-                    .clipShape(RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6) * scale, style: .continuous))
+                    .modifier(ExportLayerContentBorderModifier(layer: layer, scale: scale))
             } else {
                 RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6) * scale, style: .continuous)
                     .fill(color(from: styleString(layer, key: "color") ?? "#f7f7f5") ?? JournalColors.weak)
+                    .modifier(ExportLayerContentBorderModifier(layer: layer, scale: scale))
             }
         }
     }
@@ -207,26 +206,6 @@ private struct ExportCanvasView: View {
         return nil
     }
 
-    private func textFont(for layer: Layer) -> Font {
-        let size = max(10, CGFloat(styleNumber(layer, key: "fontSize") ?? 54) / 2.2) * scale
-        switch styleString(layer, key: "fontId") {
-        case "serif":
-            return .system(size: size, weight: .semibold, design: .serif)
-        case "rounded":
-            return .system(size: size, weight: .semibold, design: .rounded)
-        default:
-            return .system(size: size, weight: .semibold)
-        }
-    }
-
-    private func textBackground(for layer: Layer) -> Color? {
-        guard let value = styleString(layer, key: "background"),
-              value != "transparent" else {
-            return nil
-        }
-        return color(from: value)
-    }
-
     private func maskShape(for layer: Layer) -> LayerMaskShape? {
         guard case .string(let value)? = layer.style[LayerStyleKey.maskShape] else { return nil }
         return LayerMaskShape(rawValue: value)
@@ -245,15 +224,22 @@ private struct ExportCanvasView: View {
         return UIImage(contentsOfFile: url.path)
     }
 
+    private func usesExternalShape(_ layer: Layer) -> Bool {
+        layer.tear == true || LayerClipPolygon.visiblePolygon(for: layer) != nil
+    }
+}
+
+private struct ExportLayerContentBorderModifier: ViewModifier {
+    let layer: Layer
+    let scale: CGFloat
+
     @ViewBuilder
-    private func tearPlaceholder(for layer: Layer, width: CGFloat, height: CGFloat) -> some View {
-        if layer.tear == true {
-            RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 4) * scale, style: .continuous)
-                .stroke(
-                    JournalColors.ink.opacity(0.22),
-                    style: StrokeStyle(lineWidth: max(1, scale), dash: [5 * scale, 4 * scale])
-                )
-                .frame(width: width, height: height)
+    func body(content: Content) -> some View {
+        if layer.tear == true || LayerClipPolygon.visiblePolygon(for: layer) != nil {
+            content
+        } else {
+            content
+                .clipShape(RoundedRectangle(cornerRadius: CGFloat(layer.radius ?? 6) * scale, style: .continuous))
         }
     }
 }

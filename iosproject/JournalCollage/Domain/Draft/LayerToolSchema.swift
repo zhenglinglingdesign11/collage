@@ -12,6 +12,21 @@ enum LayerStyleKey {
     static let embossMode = "embossMode"
     static let embossShape = "embossShape"
     static let excludeShape = "excludeShape"
+    static let brushType = "brushType"
+    static let brushColor = "brushColor"
+    static let brushSize = "brushSize"
+    static let outlineStyle = "outlineStyle"
+    static let imageEffectType = "imageEffectType"
+    static let clipPolygon = "clipPolygon"
+    static let clipPolygons = "clipPolygons"
+    static let textFontId = "fontId"
+    static let textFontLabel = "fontLabel"
+    static let textFontFamily = "fontFamily"
+    static let textCanvasFontFamily = "canvasFontFamily"
+    static let textFontSize = "fontSize"
+    static let textColor = "color"
+    static let textBackground = "background"
+    static let textBackgroundLabel = "backgroundLabel"
 }
 
 enum CutStyle: String, CaseIterable, Hashable, Identifiable, Sendable {
@@ -51,5 +66,9 @@ extension Layer {
     var embossMode: EmbossMode? {
         guard case .string(let value)? = style[LayerStyleKey.embossMode] else { return nil }
         return EmbossMode(rawValue: value)
+    }
+
+    var imageEffectType: ImageEffectType? {
+        effect?.type
     }
 }

@@ -43,4 +43,20 @@ final class HitTestingTests: XCTestCase {
         XCTAssertTrue(HitTesting.contains(point: CGPoint(x: 200, y: 140), layer: layer))
         XCTAssertFalse(HitTesting.contains(point: CGPoint(x: 100, y: 100), layer: layer))
     }
+
+    func testHitTestRespectsTornEdgeMask() {
+        let layer = Layer(
+            id: "torn",
+            type: .paper,
+            x: 0,
+            y: 0,
+            width: 200,
+            height: 120,
+            tear: true,
+            tearSeed: 42
+        )
+
+        XCTAssertTrue(HitTesting.contains(point: CGPoint(x: 100, y: 60), layer: layer))
+        XCTAssertFalse(HitTesting.contains(point: CGPoint(x: 1, y: 1), layer: layer))
+    }
 }

@@ -16,7 +16,11 @@ enum HitTesting {
         let localPoint = localPoint(for: point, in: layer)
         let halfWidth = CGFloat(layer.width * max(layer.scale, 0.0001)) / 2
         let halfHeight = CGFloat(layer.height * max(layer.scale, 0.0001)) / 2
-        return abs(localPoint.x) <= halfWidth && abs(localPoint.y) <= halfHeight
+        guard abs(localPoint.x) <= halfWidth && abs(localPoint.y) <= halfHeight else {
+            return false
+        }
+        return LayerClipPolygon.contains(localPoint: localPoint, in: layer)
+            && LayerTearPath.contains(localPoint: localPoint, in: layer)
     }
 
     static func localPoint(for point: CGPoint, in layer: Layer) -> CGPoint {

@@ -34,7 +34,8 @@ struct LayerCutShape: Shape {
     let waveFrequency: Double
 
     init?(_ layer: Layer) {
-        guard let style = layer.cutStyle,
+        guard LayerClipPolygon.visiblePolygon(for: layer) == nil,
+              let style = layer.cutStyle,
               style == .straight || style == .wave,
               let line = LayerCutLine(jsonValue: layer.style[LayerStyleKey.cutLine]) else {
             return nil

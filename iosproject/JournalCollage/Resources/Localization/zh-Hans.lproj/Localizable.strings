@@ -37,6 +37,7 @@
 "editor.status.select_cut_layer" = "请先选择图片或素材";
 "editor.status.straight_cut_ready" = "已记录直线剪参数";
 "editor.status.wave_cut_ready" = "已记录波浪剪参数";
+"editor.status.line_cut_failed" = "剪切线需要穿过图层";
 "editor.status.emboss_done" = "压花已应用";
 "editor.status.emboss_cancelled" = "已取消压花";
 "editor.status.live_photo_imported" = "已导入 Live 图";
@@ -45,6 +46,12 @@
 "editor.status.live_photo_export_success" = "Live 图已保存";
 "editor.status.video_export_success" = "视频已保存";
 "editor.status.live_photo_static_fallback" = "已保存静态图";
+"editor.status.decorative_brush_done" = "装饰笔刷已添加";
+"editor.status.decorative_brush_empty" = "请先画一笔";
+"editor.status.image_effect_select_image" = "请先选择图片";
+"editor.status.image_effect_generating" = "图像效果生成中";
+"editor.status.image_effect_done" = "图像效果已记录";
+"editor.status.image_effect_failed" = "图像效果生成失败";
 "editor.save.button" = "保存";
 "editor.export.button" = "导出";
 "editor.leave.title" = "离开前保存草稿？";
@@ -61,6 +68,8 @@
 "editor.toolbar.text" = "文字";
 "editor.toolbar.scissors" = "剪刀";
 "editor.toolbar.emboss" = "压花";
+"editor.toolbar.brush" = "画笔";
+"editor.toolbar.image_effect" = "效果";
 "editor.toolbar.ratio" = "比例";
 
 "layer.action.up" = "上移";
@@ -79,11 +88,17 @@
 "editor.sheet.text.title" = "文字";
 "editor.sheet.text.placeholder" = "输入文字";
 "editor.sheet.text.font" = "字体";
+"editor.sheet.text.color" = "颜色";
 "editor.sheet.text.background" = "底色";
 "editor.sheet.text.size" = "字号";
+"editor.sheet.text.opacity" = "透明度";
 "editor.text.font.system" = "系统";
 "editor.text.font.rounded" = "圆体";
 "editor.text.font.serif" = "衬线";
+"editor.text.size.small" = "小";
+"editor.text.size.medium" = "中";
+"editor.text.size.large" = "大";
+"editor.text.size.xlarge" = "超大";
 "editor.text.background.none" = "无";
 "editor.text.background.paper" = "纸底";
 "editor.text.background.white" = "白底";
@@ -108,6 +123,13 @@
 "editor.effect.shadow" = "阴影";
 "editor.effect.tear" = "撕边";
 "editor.effect.tear_note" = "撕边当前为渲染占位，后续会替换为真实不规则边缘。";
+"editor.effect.outline" = "描边";
+"editor.outline.none" = "无描边";
+"editor.outline.white" = "白边";
+"editor.outline.cream" = "奶油边";
+"editor.outline.dark" = "深色边";
+"editor.outline.red" = "印章红";
+"editor.outline.double" = "双层";
 
 "editor.sheet.mask.title" = "形状蒙版";
 "editor.mask.none" = "无";
@@ -119,6 +141,9 @@
 "editor.mask.note" = "当前为形状蒙版初版，压花材质会在后续阶段叠加。";
 
 "editor.sheet.scissors.title" = "剪刀";
+"editor.sheet.line_cut.cancel" = "取消";
+"editor.sheet.line_cut.done" = "完成";
+"editor.sheet.line_cut.help" = "拖动两端圆点调整剪切线，完成后会生成两个可继续裁切的图层。";
 "editor.scissors.straight" = "直线剪";
 "editor.scissors.straight.detail" = "先记录默认裁切线，后续接入拖拽编辑。";
 "editor.scissors.wave" = "波浪剪";
@@ -145,6 +170,49 @@
 "editor.sheet.brush.redraw" = "重画";
 "editor.sheet.brush.save" = "保存涂抹剪";
 "editor.sheet.brush.help" = "涂抹保留想要的区域，保存后会生成 alpha mask 并随草稿恢复。";
+
+"editor.sheet.decorative_brush.title" = "装饰笔刷";
+"editor.sheet.decorative_brush.undo" = "撤销";
+"editor.sheet.decorative_brush.done" = "完成";
+"editor.brush.type.line" = "普通";
+"editor.brush.type.stitch" = "缝线";
+"editor.brush.type.knit" = "针织";
+"editor.brush.type.bead" = "珠链";
+"editor.brush.type.lace" = "蕾丝";
+"editor.brush.type.bow" = "蝴蝶结";
+"editor.brush.size.thin" = "细";
+"editor.brush.size.medium" = "中";
+"editor.brush.size.thick" = "粗";
+
+"editor.sheet.image_effect.title" = "图像效果";
+"editor.sheet.image_effect.apply" = "应用";
+"editor.sheet.image_effect.note" = "应用后会生成新的 PNG 并替换当前图片图层。";
+"editor.image_effect.cross_stitch" = "十字绣";
+"editor.image_effect.matisse" = "马蒂斯";
+"editor.image_effect.botanical" = "图鉴";
+"editor.image_effect.grid" = "网格";
+"editor.image_effect.colors" = "色数";
+"editor.image_effect.style" = "样式";
+"editor.image_effect.detail" = "细节";
+"editor.image_effect.palette" = "色盘";
+"editor.image_effect.tone" = "色调";
+"editor.image_effect.coarse" = "粗";
+"editor.image_effect.medium" = "中";
+"editor.image_effect.fine" = "细";
+"editor.image_effect.four_colors" = "4色";
+"editor.image_effect.eight_colors" = "8色";
+"editor.image_effect.twelve_colors" = "12色";
+"editor.image_effect.stitch" = "X针";
+"editor.image_effect.pixel" = "像素";
+"editor.image_effect.mixed" = "混合";
+"editor.image_effect.simple" = "简";
+"editor.image_effect.vivid" = "明亮";
+"editor.image_effect.earth" = "复古";
+"editor.image_effect.soft" = "柔";
+"editor.image_effect.blueprint" = "蓝晒";
+"editor.image_effect.sage" = "墨绿";
+"editor.image_effect.sepia" = "褐黑";
+"editor.image_effect.etched" = "蚀刻";
 
 "editor.sheet.assets.title" = "素材";
 "editor.sheet.background.title" = "背景";

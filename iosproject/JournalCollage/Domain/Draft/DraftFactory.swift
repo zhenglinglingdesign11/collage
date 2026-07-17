@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 enum DraftFactory {
     static func makeImageLayer(source: String, imageSize: CanvasSize, draft: Draft) -> Layer {
@@ -53,10 +54,14 @@ enum DraftFactory {
             zIndex: nextLayerOrder(in: draft),
             text: text,
             style: [
-                "fontId": .string("system"),
-                "fontLabel": .string("System"),
-                "fontSize": .number(54),
-                "color": .string("#111111")
+                LayerStyleKey.textFontId: .string("system"),
+                LayerStyleKey.textFontLabel: .string("System"),
+                LayerStyleKey.textFontFamily: .string("PingFang SC, sans-serif"),
+                LayerStyleKey.textCanvasFontFamily: .string("PingFang SC, sans-serif"),
+                LayerStyleKey.textFontSize: .number(54),
+                LayerStyleKey.textColor: .string("#111111"),
+                LayerStyleKey.textBackgroundLabel: .string("\u{65E0}"),
+                LayerStyleKey.textBackground: .string("transparent")
             ]
         )
     }
@@ -82,7 +87,61 @@ enum DraftFactory {
         )
     }
 
+    static func makeBrushLayer(strokes: [BrushStroke], draft: Draft) -> Layer {
+        let bounds = brushBounds(strokes: strokes, draft: draft)
+        return Layer(
+            type: .brush,
+            x: bounds.minX,
+            y: bounds.minY,
+            width: bounds.width,
+            height: bounds.height,
+            opacity: 1,
+            zIndex: nextLayerOrder(in: draft),
+            brushWidth: bounds.width,
+            brushHeight: bounds.height,
+            strokes: normalizeBrushStrokes(strokes, origin: bounds.origin),
+            style: [
+                LayerStyleKey.brushType: .string("decorative")
+            ]
+        )
+    }
+
     private static func nextLayerOrder(in draft: Draft) -> Int {
         (draft.layers.map(\.zIndex).max() ?? 0) + 1
+    }
+
+    private static func brushBounds(strokes: [BrushStroke], draft: Draft) -> CGRect {
+        let sizes = strokes.map { max(1, $0.size) }
+        let padding = (sizes.max() ?? 18) * 1.5
+        let points = strokes.flatMap(\.points)
+        guard let first = points.first else {
+            let size = min(draft.width, draft.height) * 0.24
+            return CGRect(
+                x: (draft.width - size) / 2,
+                y: (draft.height - size) / 2,
+                width: size,
+                height: size
+            )
+        }
+        let minX = max(0, points.reduce(first.x) { min($0, $1.x) } - padding)
+        let minY = max(0, points.reduce(first.y) { min($0, $1.y) } - padding)
+        let maxX = min(draft.width, points.reduce(first.x) { max($0, $1.x) } + padding)
+        let maxY = min(draft.height, points.reduce(first.y) { max($0, $1.y) } + padding)
+        return CGRect(
+            x: minX,
+            y: minY,
+            width: max(24, maxX - minX),
+            height: max(24, maxY - minY)
+        )
+    }
+
+    private static func normalizeBrushStrokes(strokes: [BrushStroke], origin: CGPoint) -> [BrushStroke] {
+        strokes.map { stroke in
+            var next = stroke
+            next.points = stroke.points.map { point in
+                BrushPoint(x: point.x - origin.x, y: point.y - origin.y)
+            }
+            return next
+        }
     }
 }
