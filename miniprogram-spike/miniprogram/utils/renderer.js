@@ -98,7 +98,8 @@ function drawLayer(ctx, layer, options = {}) {
   }
   const clipShape = getLayerClipShape(layer);
   const excludeShape = getLayerExcludeShape(layer);
-  const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+  const clipPolygons = getLayerClipPolygons(layer);
+  const clipPolygon = clipPolygons[clipPolygons.length - 1] || null;
   const hasTear = !!(layer.tear && layer.type !== "text");
   if (excludeShape && layer.type !== "text") {
     drawInverseShapeClip(ctx, excludeShape, layer);
@@ -106,9 +107,11 @@ function drawLayer(ctx, layer, options = {}) {
   if (hasTear) {
     drawTearPath(ctx, layer, { clipShape, clipPolygon });
     ctx.clip();
-  } else if (clipPolygon && clipPolygon.length >= 3 && layer.type !== "text") {
-    drawLayerClipPolygon(ctx, clipPolygon, layer);
-    ctx.clip();
+  } else if (clipPolygons.length && layer.type !== "text") {
+    clipPolygons.forEach((polygon) => {
+      drawLayerClipPolygon(ctx, polygon, layer);
+      ctx.clip();
+    });
   } else if (clipShape && layer.type !== "text") {
     drawShapePath(ctx, clipShape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
     ctx.clip();
@@ -920,7 +923,8 @@ function drawSelection(ctx, layer) {
   setShadow(ctx, 0, 0, 0, "transparent");
   setStrokeStyle(ctx, "#111111");
   setLineWidth(ctx, 3);
-  const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+  const clipPolygons = getLayerClipPolygons(layer);
+  const clipPolygon = clipPolygons[clipPolygons.length - 1] || null;
   if (clipPolygon && clipPolygon.length >= 3) {
     drawLayerClipPolygon(ctx, clipPolygon, layer);
     ctx.stroke();
@@ -959,6 +963,20 @@ function getClipPolygonBounds(points) {
     maxX: -Infinity,
     maxY: -Infinity
   });
+}
+
+function getLayerClipPolygons(layer) {
+  const polygons = [];
+  if (Array.isArray(layer.clipPolygons)) {
+    layer.clipPolygons.forEach((polygon) => {
+      if (Array.isArray(polygon) && polygon.length >= 3) polygons.push(polygon);
+    });
+  }
+  if (Array.isArray(layer.clipPolygon) && layer.clipPolygon.length >= 3) {
+    const alreadyIncluded = polygons.some((polygon) => polygon === layer.clipPolygon);
+    if (!alreadyIncluded) polygons.push(layer.clipPolygon);
+  }
+  return polygons;
 }
 
 function drawAlignmentGuides(ctx, guides, draft) {
@@ -1080,12 +1098,13 @@ function hitTest(x, y, layers) {
     const dy = y - cy;
     const localX = dx * Math.cos(angle) - dy * Math.sin(angle);
     const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
-    const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
-    if (clipPolygon && clipPolygon.length >= 3) {
-      return pointInPolygon({
+    const clipPolygons = getLayerClipPolygons(layer);
+    if (clipPolygons.length) {
+      const point = {
         x: localX + layer.width / 2,
         y: localY + layer.height / 2
-      }, clipPolygon);
+      };
+      return clipPolygons.every((polygon) => pointInPolygon(point, polygon));
     }
     return Math.abs(localX) <= layer.width / 2 && Math.abs(localY) <= layer.height / 2;
   });

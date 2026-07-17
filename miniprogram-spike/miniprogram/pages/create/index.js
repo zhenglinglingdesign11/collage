@@ -1219,13 +1219,31 @@ Page({
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
     const hasPolygon = Array.isArray(layer.clipPolygon) && layer.clipPolygon.length >= 3;
+    const hasPolygons = Array.isArray(layer.clipPolygons) && layer.clipPolygons.some((polygon) => Array.isArray(polygon) && polygon.length >= 3);
     const hasExcludeFrame = !!(excludeShape && (layer.excludeFrame || style.excludeFrame));
-    return !!(clipShape || hasPolygon || hasExcludeFrame || layer.tear || layer.radius);
+    return !!(clipShape || hasPolygon || hasPolygons || hasExcludeFrame || layer.tear || layer.radius);
+  },
+
+  layerNeedsNonPolygonVisualBake(layer) {
+    if (!layer || layer.type !== "image") return false;
+    const style = layer.style || {};
+    const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
+    const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
+    const hasExcludeFrame = !!(excludeShape && (layer.excludeFrame || style.excludeFrame));
+    return !!(clipShape || hasExcludeFrame || layer.tear || layer.radius);
   },
 
   async prepareLayerForVisualSourceEdit(layer) {
     if (!this.layerNeedsVisualSourceBake(layer)) return layer;
     const baked = await this.createVisibleLayerSourceImage(layer);
+    this.applyBakedVisibleSourceToLayer(layer, baked, { clearClipPolygon: true });
+    this.canvasImageCache = {};
+    this.scissorLoadedImageSrc = "";
+    this.scissorLoadedImage = null;
+    return layer;
+  },
+
+  applyBakedVisibleSourceToLayer(layer, baked, options = {}) {
     const localBounds = baked.localBounds || { x: 0, y: 0, width: layer.width, height: layer.height };
     if (localBounds.x || localBounds.y || localBounds.width !== layer.width || localBounds.height !== layer.height) {
       const center = layerLocalPointToDraft({
@@ -1236,6 +1254,37 @@ Page({
       layer.y = center.y - localBounds.height / 2;
       layer.width = localBounds.width;
       layer.height = localBounds.height;
+      if (Array.isArray(layer.clipPolygon) && layer.clipPolygon.length >= 3) {
+        layer.clipPolygon = layer.clipPolygon.map((point) => ({
+          x: point.x - localBounds.x,
+          y: point.y - localBounds.y
+        }));
+      }
+      if (Array.isArray(layer.clipPolygons)) {
+        layer.clipPolygons = layer.clipPolygons.map((polygon) => Array.isArray(polygon)
+          ? polygon.map((point) => ({
+            x: point.x - localBounds.x,
+            y: point.y - localBounds.y
+          }))
+          : polygon);
+      }
+      if (layer.excludeFrame) {
+        layer.excludeFrame = {
+          ...layer.excludeFrame,
+          x: layer.excludeFrame.x - localBounds.x,
+          y: layer.excludeFrame.y - localBounds.y
+        };
+      }
+      if (layer.style && layer.style.excludeFrame) {
+        layer.style = {
+          ...layer.style,
+          excludeFrame: {
+            ...layer.style.excludeFrame,
+            x: layer.style.excludeFrame.x - localBounds.x,
+            y: layer.style.excludeFrame.y - localBounds.y
+          }
+        };
+      }
     }
     layer.source = baked.path;
     layer.sourceWidth = baked.width;
@@ -1245,7 +1294,10 @@ Page({
     layer.maskShape = "";
     layer.excludeShape = "";
     layer.excludeFrame = null;
-    layer.clipPolygon = null;
+    if (options.clearClipPolygon) {
+      layer.clipPolygon = null;
+      layer.clipPolygons = null;
+    }
     layer.tear = false;
     layer.radius = 0;
     layer.style = {
@@ -1257,9 +1309,6 @@ Page({
       excludeFrame: null,
       shape: ""
     };
-    this.canvasImageCache = {};
-    this.scissorLoadedImageSrc = "";
-    this.scissorLoadedImage = null;
     return layer;
   },
 
@@ -2091,58 +2140,37 @@ Page({
     }
     const cutStyle = style === "wave" ? "wave" : "straight";
     const originalLayer = JSON.parse(JSON.stringify(layer));
-    const startCut = () => {
-      const start = layerLocalPointToDraft({ x: layer.width * 0.16, y: layer.height * 0.5 }, layer);
-      const end = layerLocalPointToDraft({ x: layer.width * 0.84, y: layer.height * 0.5 }, layer);
-      this.straightCutSession = {
-        layerId: layer.id,
-        style: cutStyle,
-        originalLayer,
-        start,
-        end
-      };
-      this.straightCutGesture = null;
-      this.setData({
-        straightCutEditing: true,
-        selectedLayerId: layer.id,
-        selectedLayerType: layer.type,
-        activeTool: "cut",
-        activePalette: "",
-        activeDrawer: "",
-        textInputVisible: false,
-        ratioPanelVisible: false,
-        layerActionsPage: 0,
-        layerActionsOffset: 0
-      });
-      setTimeout(() => this.drawStraightCutOverlay(), 0);
-      this.render();
+    const visibleBounds = getLayerVisibleLocalBounds(layer);
+    const start = layerLocalPointToDraft({
+      x: visibleBounds.x + visibleBounds.width * 0.16,
+      y: visibleBounds.y + visibleBounds.height * 0.5
+    }, layer);
+    const end = layerLocalPointToDraft({
+      x: visibleBounds.x + visibleBounds.width * 0.84,
+      y: visibleBounds.y + visibleBounds.height * 0.5
+    }, layer);
+    this.straightCutSession = {
+      layerId: layer.id,
+      style: cutStyle,
+      originalLayer,
+      start,
+      end
     };
-    const prepareAndStart = () => {
-      this.setData({ saveStatus: "准备剪切..." });
-      this.prepareLayerForVisualSourceEdit(layer)
-        .then(startCut)
-        .catch((error) => {
-          console.warn("[straight-cut] prepare source failed", error);
-          showError("图片准备失败，请重试");
-        });
-    };
-    if (layer.sourceWidth && layer.sourceHeight) {
-      prepareAndStart();
-      return;
-    }
-    wx.getImageInfo({
-      src: layer.source,
-      success: (info) => {
-        layer.sourceWidth = info.width;
-        layer.sourceHeight = info.height;
-        prepareAndStart();
-      },
-      fail: () => {
-        layer.sourceWidth = layer.width;
-        layer.sourceHeight = layer.height;
-        prepareAndStart();
-      }
+    this.straightCutGesture = null;
+    this.setData({
+      straightCutEditing: true,
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      activeTool: "cut",
+      activePalette: "",
+      activeDrawer: "",
+      textInputVisible: false,
+      ratioPanelVisible: false,
+      layerActionsPage: 0,
+      layerActionsOffset: 0
     });
+    setTimeout(() => this.drawStraightCutOverlay(), 0);
+    this.render();
   },
 
   cancelStraightCut() {
@@ -2156,7 +2184,8 @@ Page({
     this.render();
   },
 
-  confirmStraightCut() {
+  async confirmStraightCut() {
+    if (this.straightCutBusy) return;
     const session = this.straightCutSession;
     if (!session || !this.draft) return;
     this.cancelStraightCutOverlayFrame();
@@ -2166,49 +2195,70 @@ Page({
       this.clearStraightCutEditing();
       return;
     }
-    const start = draftPointToLayerLocal(session.start, layer);
-    const end = draftPointToLayerLocal(session.end, layer);
-    const polygons = session.style === "wave"
-      ? splitRectByWave(layer.width, layer.height, start, end)
-      : splitRectByLine(layer.width, layer.height, start, end);
-    if (!polygons) {
-      showToast("剪切线需要穿过图片", { icon: "none" });
-      return;
+    this.straightCutBusy = true;
+    this.setData({ saveStatus: "剪切处理中..." });
+    try {
+      const baseLayer = await this.createStraightCutWorkingLayer(layer);
+      const start = draftPointToLayerLocal(session.start, baseLayer);
+      const end = draftPointToLayerLocal(session.end, baseLayer);
+      const polygons = session.style === "wave"
+        ? splitRectByWave(baseLayer.width, baseLayer.height, start, end)
+        : splitRectByLine(baseLayer.width, baseLayer.height, start, end);
+      if (!polygons) {
+        showToast("剪切线需要穿过图片", { icon: "none" });
+        return;
+      }
+      const normal = lineNormal(start, end);
+      const angle = ((baseLayer.rotation || 0) * Math.PI) / 180;
+      const nudge = {
+        x: (-normal.x * Math.cos(angle) + normal.y * Math.sin(angle)) * 8,
+        y: (-normal.x * Math.sin(angle) - normal.y * Math.cos(angle)) * 8
+      };
+      const first = {
+        ...JSON.parse(JSON.stringify(baseLayer)),
+        id: `${baseLayer.type}-cut-${Date.now()}-a`,
+        clipPolygons: getLayerClipPolygonsForNextCut(baseLayer),
+        clipPolygon: polygons[0],
+        cutPiece: true,
+        cutStyle: session.style === "wave" ? "wave" : "straight",
+        x: baseLayer.x + nudge.x,
+        y: baseLayer.y + nudge.y
+      };
+      const second = {
+        ...JSON.parse(JSON.stringify(baseLayer)),
+        id: `${baseLayer.type}-cut-${Date.now()}-b`,
+        clipPolygons: getLayerClipPolygonsForNextCut(baseLayer),
+        clipPolygon: polygons[1],
+        cutPiece: true,
+        cutStyle: session.style === "wave" ? "wave" : "straight",
+        x: baseLayer.x - nudge.x,
+        y: baseLayer.y - nudge.y
+      };
+      this.draft.layers.splice(index, 1, first, second);
+      this.draft.layers = normalizeLayerOrder(this.draft.layers);
+      this.clearStraightCutEditing({
+        selectedLayerId: polygonArea(polygons[0]) <= polygonArea(polygons[1]) ? first.id : second.id,
+        selectedLayerType: layer.type,
+        saveStatus: "已剪成两片"
+      });
+      this.markDirty();
+      this.render();
+      showSuccess("已剪成两片");
+    } catch (error) {
+      console.warn("[straight-cut] normalize pieces failed", error);
+      this.setData({ saveStatus: "剪切失败" });
+      showError("剪切失败，请重试");
+    } finally {
+      this.straightCutBusy = false;
     }
-    const normal = lineNormal(start, end);
-    const angle = ((layer.rotation || 0) * Math.PI) / 180;
-    const nudge = {
-      x: (-normal.x * Math.cos(angle) + normal.y * Math.sin(angle)) * 8,
-      y: (-normal.x * Math.sin(angle) - normal.y * Math.cos(angle)) * 8
-    };
-    const first = {
-      ...JSON.parse(JSON.stringify(layer)),
-      id: `${layer.type}-cut-${Date.now()}-a`,
-      clipPolygon: polygons[0],
-      cutPiece: true,
-      cutStyle: session.style === "wave" ? "wave" : "straight",
-      x: layer.x + nudge.x,
-      y: layer.y + nudge.y
-    };
-    const second = {
-      ...JSON.parse(JSON.stringify(layer)),
-      id: `${layer.type}-cut-${Date.now()}-b`,
-      clipPolygon: polygons[1],
-      cutPiece: true,
-      cutStyle: session.style === "wave" ? "wave" : "straight",
-      x: layer.x - nudge.x,
-      y: layer.y - nudge.y
-    };
-    this.draft.layers.splice(index, 1, first, second);
-    this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.clearStraightCutEditing({
-      selectedLayerId: polygonArea(polygons[0]) <= polygonArea(polygons[1]) ? first.id : second.id,
-      selectedLayerType: layer.type,
-      saveStatus: "已剪成两片"
-    });
-    this.markDirty();
-    this.render();
-    showSuccess("已剪成两片");
+  },
+
+  async createStraightCutWorkingLayer(layer) {
+    const workingLayer = JSON.parse(JSON.stringify(layer));
+    if (!this.layerNeedsNonPolygonVisualBake(workingLayer)) return workingLayer;
+    const baked = await this.createVisibleLayerSourceImage(workingLayer);
+    this.applyBakedVisibleSourceToLayer(workingLayer, baked, { clearClipPolygon: true });
+    return workingLayer;
   },
 
   clearStraightCutEditing(extraData = {}) {
@@ -2232,6 +2282,7 @@ Page({
     this.straightCutGesture = null;
     this.straightCutPickPending = false;
     this.pendingStraightCutStyle = "";
+    this.straightCutBusy = false;
     this.straightCutCanvasNode = null;
     this.straightCutCtx = null;
     this.straightCutCanvasReadyPromise = null;
@@ -3928,20 +3979,22 @@ function getLayerSourceCrop(layer) {
 
 function getLayerVisibleLocalBounds(layer) {
   const fullBounds = { x: 0, y: 0, width: layer.width, height: layer.height };
-  const polygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
-  if (!polygon || polygon.length < 3) return fullBounds;
-  const bounds = polygon.reduce((result, point) => ({
-    minX: Math.min(result.minX, point.x),
-    minY: Math.min(result.minY, point.y),
-    maxX: Math.max(result.maxX, point.x),
-    maxY: Math.max(result.maxY, point.y)
+  const polygons = getLayerClipPolygonsForNextCut(layer);
+  if (!polygons.length) return fullBounds;
+  const bounds = polygons.map(getPolygonBounds).reduce((result, item) => ({
+    minX: Math.max(result.minX, item.minX),
+    minY: Math.max(result.minY, item.minY),
+    maxX: Math.min(result.maxX, item.maxX),
+    maxY: Math.min(result.maxY, item.maxY)
   }), {
-    minX: Infinity,
-    minY: Infinity,
-    maxX: -Infinity,
-    maxY: -Infinity
+    minX: 0,
+    minY: 0,
+    maxX: layer.width,
+    maxY: layer.height
   });
-  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY)) return fullBounds;
+  if (!Number.isFinite(bounds.minX) || !Number.isFinite(bounds.minY) || bounds.maxX <= bounds.minX || bounds.maxY <= bounds.minY) {
+    return fullBounds;
+  }
   const x = clamp(Math.floor(bounds.minX), 0, layer.width);
   const y = clamp(Math.floor(bounds.minY), 0, layer.height);
   const maxX = clamp(Math.ceil(bounds.maxX), x + 1, layer.width);
@@ -3952,6 +4005,33 @@ function getLayerVisibleLocalBounds(layer) {
     width: Math.max(1, maxX - x),
     height: Math.max(1, maxY - y)
   };
+}
+
+function getLayerClipPolygonsForNextCut(layer) {
+  const polygons = [];
+  if (Array.isArray(layer.clipPolygons)) {
+    layer.clipPolygons.forEach((polygon) => {
+      if (Array.isArray(polygon) && polygon.length >= 3) polygons.push(cloneClipPolygon(polygon));
+    });
+  }
+  if (Array.isArray(layer.clipPolygon) && layer.clipPolygon.length >= 3) {
+    polygons.push(cloneClipPolygon(layer.clipPolygon));
+  }
+  return polygons;
+}
+
+function getPolygonBounds(polygon) {
+  return polygon.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x),
+    minY: Math.min(result.minY, point.y),
+    maxX: Math.max(result.maxX, point.x),
+    maxY: Math.max(result.maxY, point.y)
+  }), {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  });
 }
 
 function draftPointToLayerLocal(point, layer) {
