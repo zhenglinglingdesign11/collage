@@ -1,0 +1,906 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "miniprogram-spike/miniprogram/config/assets/packs",
+  "packs": [
+    {
+      "id": "papers",
+      "name": "复古纸张",
+      "category": "纸张",
+      "tone": "#f3f1ec",
+      "cover": "packs/papers/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "papers-1",
+          "type": "paper",
+          "name": "复古纸张 1",
+          "source": "packs/papers/items/1.png",
+          "width": 342,
+          "height": 352
+        },
+        {
+          "id": "papers-2",
+          "type": "paper",
+          "name": "复古纸张 2",
+          "source": "packs/papers/items/2.png",
+          "width": 291,
+          "height": 299
+        },
+        {
+          "id": "papers-3",
+          "type": "paper",
+          "name": "复古纸张 3",
+          "source": "packs/papers/items/3.png",
+          "width": 285,
+          "height": 326
+        },
+        {
+          "id": "papers-4",
+          "type": "paper",
+          "name": "复古纸张 4",
+          "source": "packs/papers/items/4.png",
+          "width": 289,
+          "height": 264
+        },
+        {
+          "id": "papers-5",
+          "type": "paper",
+          "name": "复古纸张 5",
+          "source": "packs/papers/items/5.png",
+          "width": 256,
+          "height": 348
+        },
+        {
+          "id": "papers-6",
+          "type": "paper",
+          "name": "复古纸张 6",
+          "source": "packs/papers/items/6.png",
+          "width": 356,
+          "height": 322
+        },
+        {
+          "id": "papers-7",
+          "type": "paper",
+          "name": "复古纸张 7",
+          "source": "packs/papers/items/7.png",
+          "width": 291,
+          "height": 275
+        },
+        {
+          "id": "papers-8",
+          "type": "paper",
+          "name": "复古纸张 8",
+          "source": "packs/papers/items/8.png",
+          "width": 255,
+          "height": 235
+        },
+        {
+          "id": "papers-9",
+          "type": "paper",
+          "name": "复古纸张 9",
+          "source": "packs/papers/items/9.png",
+          "width": 322,
+          "height": 231
+        },
+        {
+          "id": "papers-10",
+          "type": "paper",
+          "name": "复古纸张 10",
+          "source": "packs/papers/items/10.png",
+          "width": 303,
+          "height": 233
+        }
+      ]
+    },
+    {
+      "id": "stickers",
+      "name": "Stickers",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/stickers/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "stickers-1",
+          "type": "sticker",
+          "name": "Stickers 1",
+          "source": "packs/stickers/items/1.png",
+          "width": 178,
+          "height": 260
+        },
+        {
+          "id": "stickers-2",
+          "type": "sticker",
+          "name": "Stickers 2",
+          "source": "packs/stickers/items/2.png",
+          "width": 279,
+          "height": 197
+        },
+        {
+          "id": "stickers-3",
+          "type": "sticker",
+          "name": "Stickers 3",
+          "source": "packs/stickers/items/3.png",
+          "width": 213,
+          "height": 234
+        },
+        {
+          "id": "stickers-4",
+          "type": "sticker",
+          "name": "Stickers 4",
+          "source": "packs/stickers/items/4.png",
+          "width": 219,
+          "height": 247
+        },
+        {
+          "id": "stickers-5",
+          "type": "sticker",
+          "name": "Stickers 5",
+          "source": "packs/stickers/items/5.png",
+          "width": 196,
+          "height": 261
+        },
+        {
+          "id": "stickers-6",
+          "type": "sticker",
+          "name": "Stickers 6",
+          "source": "packs/stickers/items/6.png",
+          "width": 203,
+          "height": 303
+        },
+        {
+          "id": "stickers-7",
+          "type": "sticker",
+          "name": "Stickers 7",
+          "source": "packs/stickers/items/7.png",
+          "width": 294,
+          "height": 293
+        },
+        {
+          "id": "stickers-8",
+          "type": "sticker",
+          "name": "Stickers 8",
+          "source": "packs/stickers/items/8.png",
+          "width": 299,
+          "height": 287
+        },
+        {
+          "id": "stickers-9",
+          "type": "sticker",
+          "name": "Stickers 9",
+          "source": "packs/stickers/items/9.png",
+          "width": 238,
+          "height": 266
+        },
+        {
+          "id": "stickers-10",
+          "type": "sticker",
+          "name": "Stickers 10",
+          "source": "packs/stickers/items/10.png",
+          "width": 231,
+          "height": 267
+        }
+      ]
+    },
+    {
+      "id": "jiaodai",
+      "name": "胶带",
+      "category": "胶带",
+      "tone": "#f5f3ee",
+      "cover": "packs/jiaodai/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "jiaodai-book-1",
+          "type": "tape",
+          "name": "胶带 book-1",
+          "source": "packs/jiaodai/items/book-1.png",
+          "width": 287,
+          "height": 107
+        },
+        {
+          "id": "jiaodai-book-2",
+          "type": "tape",
+          "name": "胶带 book-2",
+          "source": "packs/jiaodai/items/book-2.png",
+          "width": 261,
+          "height": 111
+        },
+        {
+          "id": "jiaodai-book-3",
+          "type": "tape",
+          "name": "胶带 book-3",
+          "source": "packs/jiaodai/items/book-3.png",
+          "width": 255,
+          "height": 103
+        },
+        {
+          "id": "jiaodai-chat-1",
+          "type": "tape",
+          "name": "胶带 chat-1",
+          "source": "packs/jiaodai/items/chat-1.png",
+          "width": 302,
+          "height": 112
+        },
+        {
+          "id": "jiaodai-chat-2",
+          "type": "tape",
+          "name": "胶带 chat-2",
+          "source": "packs/jiaodai/items/chat-2.png",
+          "width": 323,
+          "height": 104
+        },
+        {
+          "id": "jiaodai-chat-3",
+          "type": "tape",
+          "name": "胶带 chat-3",
+          "source": "packs/jiaodai/items/chat-3.png",
+          "width": 291,
+          "height": 133
+        },
+        {
+          "id": "jiaodai-profile-1",
+          "type": "tape",
+          "name": "胶带 profile-1",
+          "source": "packs/jiaodai/items/profile-1.png",
+          "width": 282,
+          "height": 106
+        },
+        {
+          "id": "jiaodai-profile-2",
+          "type": "tape",
+          "name": "胶带 profile-2",
+          "source": "packs/jiaodai/items/profile-2.png",
+          "width": 82,
+          "height": 79
+        },
+        {
+          "id": "jiaodai-profile-3",
+          "type": "tape",
+          "name": "胶带 profile-3",
+          "source": "packs/jiaodai/items/profile-3.png",
+          "width": 191,
+          "height": 162
+        },
+        {
+          "id": "jiaodai-profile-4",
+          "type": "tape",
+          "name": "胶带 profile-4",
+          "source": "packs/jiaodai/items/profile-4.png",
+          "width": 254,
+          "height": 119
+        }
+      ]
+    },
+    {
+      "id": "hudiejie",
+      "name": "Hudiejie",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/hudiejie/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "hudiejie-1",
+          "type": "sticker",
+          "name": "Hudiejie 1",
+          "source": "packs/hudiejie/items/1.png",
+          "width": 276,
+          "height": 250
+        },
+        {
+          "id": "hudiejie-2",
+          "type": "sticker",
+          "name": "Hudiejie 2",
+          "source": "packs/hudiejie/items/2.png",
+          "width": 269,
+          "height": 249
+        },
+        {
+          "id": "hudiejie-3",
+          "type": "sticker",
+          "name": "Hudiejie 3",
+          "source": "packs/hudiejie/items/3.png",
+          "width": 263,
+          "height": 250
+        },
+        {
+          "id": "hudiejie-4",
+          "type": "sticker",
+          "name": "Hudiejie 4",
+          "source": "packs/hudiejie/items/4.png",
+          "width": 259,
+          "height": 180
+        },
+        {
+          "id": "hudiejie-5",
+          "type": "sticker",
+          "name": "Hudiejie 5",
+          "source": "packs/hudiejie/items/5.png",
+          "width": 258,
+          "height": 179
+        },
+        {
+          "id": "hudiejie-6",
+          "type": "sticker",
+          "name": "Hudiejie 6",
+          "source": "packs/hudiejie/items/6.png",
+          "width": 261,
+          "height": 184
+        },
+        {
+          "id": "hudiejie-7",
+          "type": "sticker",
+          "name": "Hudiejie 7",
+          "source": "packs/hudiejie/items/7.png",
+          "width": 294,
+          "height": 154
+        },
+        {
+          "id": "hudiejie-8",
+          "type": "sticker",
+          "name": "Hudiejie 8",
+          "source": "packs/hudiejie/items/8.png",
+          "width": 281,
+          "height": 151
+        },
+        {
+          "id": "hudiejie-9",
+          "type": "sticker",
+          "name": "Hudiejie 9",
+          "source": "packs/hudiejie/items/9.png",
+          "width": 290,
+          "height": 147
+        },
+        {
+          "id": "hudiejie-10",
+          "type": "sticker",
+          "name": "Hudiejie 10",
+          "source": "packs/hudiejie/items/10.png",
+          "width": 273,
+          "height": 184
+        }
+      ]
+    },
+    {
+      "id": "jiazi",
+      "name": "Jiazi",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/jiazi/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "jiazi-1",
+          "type": "sticker",
+          "name": "Jiazi 1",
+          "source": "packs/jiazi/items/1.png",
+          "width": 160,
+          "height": 215
+        },
+        {
+          "id": "jiazi-2",
+          "type": "sticker",
+          "name": "Jiazi 2",
+          "source": "packs/jiazi/items/2.png",
+          "width": 107,
+          "height": 199
+        },
+        {
+          "id": "jiazi-3",
+          "type": "sticker",
+          "name": "Jiazi 3",
+          "source": "packs/jiazi/items/3.png",
+          "width": 97,
+          "height": 196
+        },
+        {
+          "id": "jiazi-4",
+          "type": "sticker",
+          "name": "Jiazi 4",
+          "source": "packs/jiazi/items/4.png",
+          "width": 192,
+          "height": 201
+        },
+        {
+          "id": "jiazi-5",
+          "type": "sticker",
+          "name": "Jiazi 5",
+          "source": "packs/jiazi/items/5.png",
+          "width": 96,
+          "height": 160
+        },
+        {
+          "id": "jiazi-6",
+          "type": "sticker",
+          "name": "Jiazi 6",
+          "source": "packs/jiazi/items/6.png",
+          "width": 110,
+          "height": 181
+        },
+        {
+          "id": "jiazi-7",
+          "type": "sticker",
+          "name": "Jiazi 7",
+          "source": "packs/jiazi/items/7.png",
+          "width": 149,
+          "height": 213
+        },
+        {
+          "id": "jiazi-8",
+          "type": "sticker",
+          "name": "Jiazi 8",
+          "source": "packs/jiazi/items/8.png",
+          "width": 169,
+          "height": 219
+        },
+        {
+          "id": "jiazi-9",
+          "type": "sticker",
+          "name": "Jiazi 9",
+          "source": "packs/jiazi/items/9.png",
+          "width": 111,
+          "height": 214
+        },
+        {
+          "id": "jiazi-10",
+          "type": "sticker",
+          "name": "Jiazi 10",
+          "source": "packs/jiazi/items/10.png",
+          "width": 229,
+          "height": 251
+        }
+      ]
+    },
+    {
+      "id": "leisi",
+      "name": "Leisi",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/leisi/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "leisi-1",
+          "type": "sticker",
+          "name": "Leisi 1",
+          "source": "packs/leisi/items/1.png",
+          "width": 100,
+          "height": 749
+        },
+        {
+          "id": "leisi-2",
+          "type": "sticker",
+          "name": "Leisi 2",
+          "source": "packs/leisi/items/2.png",
+          "width": 72,
+          "height": 752
+        },
+        {
+          "id": "leisi-3",
+          "type": "sticker",
+          "name": "Leisi 3",
+          "source": "packs/leisi/items/3.png",
+          "width": 73,
+          "height": 755
+        },
+        {
+          "id": "leisi-4",
+          "type": "sticker",
+          "name": "Leisi 4",
+          "source": "packs/leisi/items/4.png",
+          "width": 106,
+          "height": 750
+        },
+        {
+          "id": "leisi-5",
+          "type": "sticker",
+          "name": "Leisi 5",
+          "source": "packs/leisi/items/5.png",
+          "width": 73,
+          "height": 749
+        },
+        {
+          "id": "leisi-6",
+          "type": "sticker",
+          "name": "Leisi 6",
+          "source": "packs/leisi/items/6.png",
+          "width": 114,
+          "height": 752
+        },
+        {
+          "id": "leisi-7",
+          "type": "sticker",
+          "name": "Leisi 7",
+          "source": "packs/leisi/items/7.png",
+          "width": 92,
+          "height": 755
+        },
+        {
+          "id": "leisi-8",
+          "type": "sticker",
+          "name": "Leisi 8",
+          "source": "packs/leisi/items/8.png",
+          "width": 96,
+          "height": 753
+        },
+        {
+          "id": "leisi-9",
+          "type": "sticker",
+          "name": "Leisi 9",
+          "source": "packs/leisi/items/9.png",
+          "width": 83,
+          "height": 751
+        },
+        {
+          "id": "leisi-10",
+          "type": "sticker",
+          "name": "Leisi 10",
+          "source": "packs/leisi/items/10.png",
+          "width": 66,
+          "height": 751
+        }
+      ]
+    },
+    {
+      "id": "sanguangtiezhi",
+      "name": "Sanguangtiezhi",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/sanguangtiezhi/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "sanguangtiezhi-1",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 1",
+          "source": "packs/sanguangtiezhi/items/1.png",
+          "width": 305,
+          "height": 323
+        },
+        {
+          "id": "sanguangtiezhi-2",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 2",
+          "source": "packs/sanguangtiezhi/items/2.png",
+          "width": 68,
+          "height": 68
+        },
+        {
+          "id": "sanguangtiezhi-3",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 3",
+          "source": "packs/sanguangtiezhi/items/3.png",
+          "width": 80,
+          "height": 100
+        },
+        {
+          "id": "sanguangtiezhi-4",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 4",
+          "source": "packs/sanguangtiezhi/items/4.png",
+          "width": 188,
+          "height": 195
+        },
+        {
+          "id": "sanguangtiezhi-5",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 5",
+          "source": "packs/sanguangtiezhi/items/5.png",
+          "width": 265,
+          "height": 269
+        },
+        {
+          "id": "sanguangtiezhi-6",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 6",
+          "source": "packs/sanguangtiezhi/items/6.png",
+          "width": 122,
+          "height": 131
+        },
+        {
+          "id": "sanguangtiezhi-7",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 7",
+          "source": "packs/sanguangtiezhi/items/7.png",
+          "width": 85,
+          "height": 117
+        },
+        {
+          "id": "sanguangtiezhi-8",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 8",
+          "source": "packs/sanguangtiezhi/items/8.png",
+          "width": 50,
+          "height": 49
+        },
+        {
+          "id": "sanguangtiezhi-9",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 9",
+          "source": "packs/sanguangtiezhi/items/9.png",
+          "width": 219,
+          "height": 222
+        },
+        {
+          "id": "sanguangtiezhi-10",
+          "type": "sticker",
+          "name": "Sanguangtiezhi 10",
+          "source": "packs/sanguangtiezhi/items/10.png",
+          "width": 237,
+          "height": 174
+        }
+      ]
+    },
+    {
+      "id": "sanjiao",
+      "name": "Sanjiao",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/sanjiao/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "sanjiao-1",
+          "type": "sticker",
+          "name": "Sanjiao 1",
+          "source": "packs/sanjiao/items/1.png",
+          "width": 268,
+          "height": 278
+        },
+        {
+          "id": "sanjiao-2",
+          "type": "sticker",
+          "name": "Sanjiao 2",
+          "source": "packs/sanjiao/items/2.png",
+          "width": 276,
+          "height": 275
+        },
+        {
+          "id": "sanjiao-3",
+          "type": "sticker",
+          "name": "Sanjiao 3",
+          "source": "packs/sanjiao/items/3.png",
+          "width": 284,
+          "height": 276
+        },
+        {
+          "id": "sanjiao-4",
+          "type": "sticker",
+          "name": "Sanjiao 4",
+          "source": "packs/sanjiao/items/4.png",
+          "width": 282,
+          "height": 263
+        },
+        {
+          "id": "sanjiao-5",
+          "type": "sticker",
+          "name": "Sanjiao 5",
+          "source": "packs/sanjiao/items/5.png",
+          "width": 290,
+          "height": 264
+        },
+        {
+          "id": "sanjiao-6",
+          "type": "sticker",
+          "name": "Sanjiao 6",
+          "source": "packs/sanjiao/items/6.png",
+          "width": 301,
+          "height": 262
+        },
+        {
+          "id": "sanjiao-7",
+          "type": "sticker",
+          "name": "Sanjiao 7",
+          "source": "packs/sanjiao/items/7.png",
+          "width": 286,
+          "height": 258
+        },
+        {
+          "id": "sanjiao-8",
+          "type": "sticker",
+          "name": "Sanjiao 8",
+          "source": "packs/sanjiao/items/8.png",
+          "width": 283,
+          "height": 248
+        },
+        {
+          "id": "sanjiao-9",
+          "type": "sticker",
+          "name": "Sanjiao 9",
+          "source": "packs/sanjiao/items/9.png",
+          "width": 285,
+          "height": 243
+        },
+        {
+          "id": "sanjiao-10",
+          "type": "sticker",
+          "name": "Sanjiao 10",
+          "source": "packs/sanjiao/items/10.png",
+          "width": 283,
+          "height": 426
+        }
+      ]
+    },
+    {
+      "id": "troy",
+      "name": "Troy",
+      "category": "贴纸",
+      "tone": "#f5f4f1",
+      "cover": "packs/troy/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "troy-1",
+          "type": "sticker",
+          "name": "Troy 1",
+          "source": "packs/troy/items/1.png",
+          "width": 195,
+          "height": 156
+        },
+        {
+          "id": "troy-2",
+          "type": "sticker",
+          "name": "Troy 2",
+          "source": "packs/troy/items/2.png",
+          "width": 177,
+          "height": 191
+        },
+        {
+          "id": "troy-3",
+          "type": "sticker",
+          "name": "Troy 3",
+          "source": "packs/troy/items/3.png",
+          "width": 219,
+          "height": 166
+        },
+        {
+          "id": "troy-4",
+          "type": "sticker",
+          "name": "Troy 4",
+          "source": "packs/troy/items/4.png",
+          "width": 110,
+          "height": 184
+        },
+        {
+          "id": "troy-5",
+          "type": "sticker",
+          "name": "Troy 5",
+          "source": "packs/troy/items/5.png",
+          "width": 153,
+          "height": 130
+        },
+        {
+          "id": "troy-6",
+          "type": "sticker",
+          "name": "Troy 6",
+          "source": "packs/troy/items/6.png",
+          "width": 177,
+          "height": 172
+        },
+        {
+          "id": "troy-7",
+          "type": "sticker",
+          "name": "Troy 7",
+          "source": "packs/troy/items/7.png",
+          "width": 145,
+          "height": 160
+        },
+        {
+          "id": "troy-8",
+          "type": "sticker",
+          "name": "Troy 8",
+          "source": "packs/troy/items/8.png",
+          "width": 114,
+          "height": 174
+        },
+        {
+          "id": "troy-9",
+          "type": "sticker",
+          "name": "Troy 9",
+          "source": "packs/troy/items/9.png",
+          "width": 201,
+          "height": 172
+        },
+        {
+          "id": "troy-10",
+          "type": "sticker",
+          "name": "Troy 10",
+          "source": "packs/troy/items/10.png",
+          "width": 212,
+          "height": 195
+        }
+      ]
+    },
+    {
+      "id": "xiangkuang",
+      "name": "相框",
+      "category": "边框",
+      "tone": "#f4f0ec",
+      "cover": "packs/xiangkuang/pack-sheet.jpg",
+      "version": 1,
+      "items": [
+        {
+          "id": "xiangkuang-1",
+          "type": "sticker",
+          "name": "相框 1",
+          "source": "packs/xiangkuang/items/1.png",
+          "width": 284,
+          "height": 663
+        },
+        {
+          "id": "xiangkuang-2",
+          "type": "sticker",
+          "name": "相框 2",
+          "source": "packs/xiangkuang/items/2.png",
+          "width": 392,
+          "height": 274
+        },
+        {
+          "id": "xiangkuang-3",
+          "type": "sticker",
+          "name": "相框 3",
+          "source": "packs/xiangkuang/items/3.png",
+          "width": 254,
+          "height": 332
+        },
+        {
+          "id": "xiangkuang-4",
+          "type": "sticker",
+          "name": "相框 4",
+          "source": "packs/xiangkuang/items/4.png",
+          "width": 364,
+          "height": 171
+        },
+        {
+          "id": "xiangkuang-5",
+          "type": "sticker",
+          "name": "相框 5",
+          "source": "packs/xiangkuang/items/5.png",
+          "width": 273,
+          "height": 256
+        },
+        {
+          "id": "xiangkuang-6",
+          "type": "sticker",
+          "name": "相框 6",
+          "source": "packs/xiangkuang/items/6.png",
+          "width": 308,
+          "height": 229
+        },
+        {
+          "id": "xiangkuang-7",
+          "type": "sticker",
+          "name": "相框 7",
+          "source": "packs/xiangkuang/items/7.png",
+          "width": 337,
+          "height": 276
+        },
+        {
+          "id": "xiangkuang-8",
+          "type": "sticker",
+          "name": "相框 8",
+          "source": "packs/xiangkuang/items/8.png",
+          "width": 252,
+          "height": 167
+        },
+        {
+          "id": "xiangkuang-9",
+          "type": "sticker",
+          "name": "相框 9",
+          "source": "packs/xiangkuang/items/9.png",
+          "width": 353,
+          "height": 197
+        },
+        {
+          "id": "xiangkuang-10",
+          "type": "sticker",
+          "name": "相框 10",
+          "source": "packs/xiangkuang/items/10.png",
+          "width": 269,
+          "height": 273
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+import Foundation
+
+enum InspirationRepository {
+    static func loadBundledInspirations() -> [Inspiration] {
+        guard let url = bundledInspirationsURL(),
+              let data = try? Data(contentsOf: url),
+              let inspirations = try? JSONDecoder().decode([Inspiration].self, from: data) else {
+            return fallbackInspirations
+        }
+        return inspirations
+    }
+
+    static func bundledInspirationsURL() -> URL? {
+        let bundles = [Bundle.main] + Bundle.allBundles + Bundle.allFrameworks
+        for bundle in bundles {
+            if let url = bundle.url(forResource: "inspirations", withExtension: "json") {
+                return url
+            }
+            if let url = bundle.url(forResource: "inspirations", withExtension: "json", subdirectory: "Inspirations") {
+                return url
+            }
+        }
+        return nil
+    }
+
+    private static let fallbackInspirations: [Inspiration] = [
+        Inspiration(id: "single-material-1", imageSource: "packs/papers/items/8.png", alt: "Inspiration asset 1", ratio: 0.98, tags: []),
+        Inspiration(id: "single-material-2", imageSource: "packs/jiaodai/items/profile-2.png", alt: "Inspiration asset 2", ratio: 1, tags: []),
+        Inspiration(id: "single-material-3", imageSource: "packs/xiangkuang/items/8.png", alt: "Inspiration asset 3", ratio: 1.25, tags: []),
+        Inspiration(id: "single-material-4", imageSource: "packs/jiaodai/items/profile-2.png", alt: "Inspiration asset 4", ratio: 0.963, tags: []),
+        Inspiration(id: "single-material-5", imageSource: "packs/papers/items/3.png", alt: "Inspiration asset 5", ratio: 1.376, tags: []),
+        Inspiration(id: "single-material-6", imageSource: "packs/jiaodai/items/book-1.png", alt: "Inspiration asset 6", ratio: 1.667, tags: []),
+        Inspiration(id: "single-material-7", imageSource: "packs/xiangkuang/items/4.png", alt: "Inspiration asset 7", ratio: 0.537, tags: [])
+    ]
+}
