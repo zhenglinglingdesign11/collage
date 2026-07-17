@@ -49,6 +49,8 @@ const EMBOSS_MIN_SIZE = 48;
 const SCISSOR_BRUSH_SIZE = 56;
 const SCISSOR_MIN_CUT_SIZE = 8;
 const SCISSOR_MAX_OUTPUT_SIZE = 1600;
+const EXPORT_HIGH_PIXEL_RATIO = 3;
+const EXPORT_FALLBACK_PIXEL_RATIO = 2;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
@@ -755,6 +757,36 @@ Page({
         });
         return true;
       });
+  },
+
+  exportCanvasFile(pixelRatio) {
+    const exportSize = getExportPixelSize(this.draft, pixelRatio);
+    return this.drawCanvasAtPixelSize(exportSize.width, exportSize.height)
+      .then((ready) => {
+        if (!ready || !this.canvasNode) throw new Error("export_render_failed");
+        return new Promise((resolve, reject) => {
+          wx.canvasToTempFilePath({
+            canvas: this.canvasNode,
+            width: exportSize.width,
+            height: exportSize.height,
+            destWidth: exportSize.width,
+            destHeight: exportSize.height,
+            fileType: "png",
+            success: (res) => resolve(res.tempFilePath),
+            fail: reject
+          }, this);
+        });
+      });
+  },
+
+  saveExportedImage(filePath) {
+    return new Promise((resolve, reject) => {
+      wx.saveImageToPhotosAlbum({
+        filePath,
+        success: resolve,
+        fail: reject
+      });
+    });
   },
 
   ensureScissorCanvasContext() {
@@ -1468,6 +1500,11 @@ Page({
     this.straightCutPickPending = false;
     this.embossPickPending = false;
     this.enterEditMode();
+    if (tool === "cut" && this.data.activeTool === "cut" && this.data.activePalette === "cut") {
+      this.closeToolPanel();
+      setTimeout(() => this.render(), 0);
+      return;
+    }
     if (tool === "image") {
       this.openImageSourceSheet();
       return;
@@ -1532,6 +1569,26 @@ Page({
       keyboardHeight: 0,
       textPanelBottom: 0
     });
+  },
+
+  collapsePanelsToMainToolbar() {
+    this.scissorPickPending = false;
+    this.straightCutPickPending = false;
+    this.embossPickPending = false;
+    this.setData({
+      selectedLayerId: "",
+      selectedLayerType: "",
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      textInputVisible: false,
+      ratioPanelVisible: false,
+      keyboardHeight: 0,
+      textPanelBottom: 0,
+      layerActionsPage: 0,
+      layerActionsOffset: 0
+    });
+    this.render();
   },
 
   updateKeyboardHeight(res) {
@@ -2429,6 +2486,10 @@ Page({
       this.dismissTextEditorFromCanvas();
       return;
     }
+    if (this.data.selectedLayerId && this.data.activePalette) {
+      this.collapsePanelsToMainToolbar();
+      return;
+    }
     const patch = {};
     let shouldRender = false;
     if (this.data.ratioPanelVisible) {
@@ -2485,6 +2546,12 @@ Page({
 
     if (touches.length === 1) {
       const target = hitTest(points[0].x, points[0].y, this.draft.layers);
+      if (!target && this.data.selectedLayerId && this.data.activePalette) {
+        this.pendingLayerTap = null;
+        this.gesture = null;
+        this.collapsePanelsToMainToolbar();
+        return;
+      }
       if (this.straightCutPickPending) {
         if (target && target.type === "image" && target.source) {
           this.straightCutPickPending = false;
@@ -3656,38 +3723,24 @@ Page({
   exportImage() {
     if (this.data.exporting) return;
     this.setData({ exporting: true, selectedLayerId: "" });
-    this.drawCanvasAtPixelSize(this.draft.width, this.draft.height)
-      .then((ready) => {
-        if (!ready || !this.canvasNode) {
-          this.setData({ exporting: false });
-          showError("导出失败");
-          return;
-        }
-        wx.canvasToTempFilePath({
-          canvas: this.canvasNode,
-          width: this.draft.width,
-          height: this.draft.height,
-          destWidth: this.draft.width,
-          destHeight: this.draft.height,
-          fileType: "png",
-          success: (res) => {
-            wx.saveImageToPhotosAlbum({
-              filePath: res.tempFilePath,
-              success: () => showSuccess("已保存到相册"),
-              fail: () => showModal("保存失败", "请确认已允许保存到相册后重试。", { showCancel: false })
-            });
-          },
-          fail: () => showError("导出失败"),
-          complete: () => {
-            this.setData({ exporting: false });
-            this.render();
-          }
-        }, this);
+    const restoreEditorCanvas = () => {
+      this.setData({ exporting: false });
+      this.render();
+    };
+    this.exportCanvasFile(EXPORT_HIGH_PIXEL_RATIO)
+      .catch((error) => {
+        console.warn("[export] high resolution export failed, retry fallback", error);
+        return this.exportCanvasFile(EXPORT_FALLBACK_PIXEL_RATIO);
       })
-      .catch(() => {
-        this.setData({ exporting: false });
-        this.render();
-        showError("导出失败");
+      .then((filePath) => this.saveExportedImage(filePath))
+      .then(() => {
+        showSuccess("已保存到相册");
+        restoreEditorCanvas();
+      })
+      .catch((error) => {
+        console.warn("[export] failed", error);
+        showModal("保存失败", "高清导出或保存失败，请确认已允许保存到相册后重试。", { showCancel: false });
+        restoreEditorCanvas();
       });
   }
 });
@@ -3698,6 +3751,15 @@ function distance(a, b) {
 
 function angle(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+function getExportPixelSize(draft, pixelRatio) {
+  const ratio = Math.max(1, Number(pixelRatio) || 1);
+  return {
+    width: Math.max(1, Math.round((draft && draft.width ? draft.width : 1) * ratio)),
+    height: Math.max(1, Math.round((draft && draft.height ? draft.height : 1) * ratio)),
+    pixelRatio: ratio
+  };
 }
 
 function getClientPoint(touch) {
