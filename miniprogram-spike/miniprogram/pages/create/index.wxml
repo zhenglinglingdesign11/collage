@@ -65,19 +65,37 @@
       <cover-view wx:for="{{ratios}}" wx:key="*this" class="ratio-option {{ratio === item ? 'active' : ''}}" data-ratio="{{item}}" bindtap="changeRatio">{{item}}</cover-view>
     </cover-view>
 
-    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
-      <canvas
-        type="2d"
-        id="spikeCanvas"
-        class="canvas"
-        style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;"
-        bindtouchstart="onTouchStart"
-        bindtouchmove="onTouchMove"
-        bindtouchend="onTouchEnd"
-        bindtouchcancel="onTouchEnd"
-        catchtap="noopCanvasTap"
-      ></canvas>
+    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
+      <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
+        <canvas
+          type="2d"
+          id="spikeCanvas"
+          class="canvas"
+          style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;"
+          bindtouchstart="onTouchStart"
+          bindtouchmove="onTouchMove"
+          bindtouchend="onTouchEnd"
+          bindtouchcancel="onTouchEnd"
+          catchtap="noopCanvasTap"
+        ></canvas>
+        <canvas
+          wx:if="{{straightCutEditing}}"
+          type="2d"
+          id="straightCutCanvas"
+          class="straight-cut-canvas"
+          style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;"
+          catchtouchstart="onStraightCutTouchStart"
+          catchtouchmove="onStraightCutTouchMove"
+          catchtouchend="onStraightCutTouchEnd"
+          catchtouchcancel="onStraightCutTouchEnd"
+        ></canvas>
+      </view>
     </view>
+
+    <cover-view wx:if="{{straightCutEditing}}" class="straight-cut-actions">
+      <cover-view class="straight-cut-button secondary" bindtap="cancelStraightCut">取消</cover-view>
+      <cover-view class="straight-cut-button" bindtap="confirmStraightCut">完成</cover-view>
+    </cover-view>
 
     <view wx:if="{{cropEditing}}" class="crop-fullscreen">
       <view class="crop-topbar" style="top: {{chromeTop}}px;">
@@ -105,22 +123,23 @@
       </view>
     </view>
 
+    <canvas
+      type="2d"
+      id="scissorCanvas"
+      class="scissor-edit-canvas"
+      style="{{scissorEditing ? scissorImageStyle : 'left:-9999px;top:-9999px;width:1px;height:1px;'}}"
+      catchtouchstart="onScissorTouchStart"
+      catchtouchmove="onScissorTouchMove"
+      catchtouchend="onScissorTouchEnd"
+      catchtouchcancel="onScissorTouchEnd"
+    ></canvas>
+
     <view wx:if="{{scissorEditing}}" class="scissor-fullscreen">
       <view class="crop-topbar" style="top: {{chromeTop}}px;">
         <view class="crop-cancel" bindtap="cancelScissorCut">取消</view>
         <view class="crop-title">涂抹剪</view>
         <view class="crop-done {{scissorHasMask && !scissorBusy ? '' : 'disabled'}}" style="right: {{cropDoneRight}}px;" bindtap="confirmScissorCut">{{scissorBusy ? '处理中' : '完成'}}</view>
       </view>
-      <canvas
-        type="2d"
-        id="scissorCanvas"
-        class="scissor-edit-canvas"
-        style="{{scissorImageStyle}}"
-        catchtouchstart="onScissorTouchStart"
-        catchtouchmove="onScissorTouchMove"
-        catchtouchend="onScissorTouchEnd"
-        catchtouchcancel="onScissorTouchEnd"
-      ></canvas>
       <view class="crop-hit-area scissor-hit-area" catchtouchstart="onScissorTouchStart" catchtouchmove="onScissorTouchMove" catchtouchend="onScissorTouchEnd" catchtouchcancel="onScissorTouchEnd"></view>
       <view class="scissor-bottom">
         <view class="scissor-actions">
@@ -155,29 +174,29 @@
       </view>
     </view>
 
-    <cover-view wx:if="{{selectedLayerId && !textInputVisible && !cropEditing && !scissorEditing && !embossEditing}}" class="layer-toolbar">
-      <cover-view class="layer-head">
-        <cover-view class="layer-title">已选中图层</cover-view>
-        <cover-view wx:if="{{selectedLayerType === 'text'}}" class="panel-link" bindtap="editSelectedText">编辑文字</cover-view>
-      </cover-view>
-      <cover-view class="layer-actions" bindtouchstart="onLayerActionsTouchStart" catchtouchmove="onLayerActionsTouchMove" bindtouchend="onLayerActionsTouchEnd" bindtouchcancel="onLayerActionsTouchEnd">
-        <cover-view class="layer-actions-track {{layerActionsDragging ? 'dragging' : ''}}" style="transform: translateX({{layerActionsOffset}}rpx);">
-          <cover-view class="layer-action" data-action="up" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-up.png"></cover-image><cover-view>上移</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="down" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-down.png"></cover-image><cover-view>下移</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="copy" bindtap="applyLayerAction"><cover-view class="la-icon la-copy-icon"><cover-view class="copy-back"></cover-view><cover-view class="copy-front"></cover-view></cover-view><cover-view>复制</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="delete" bindtap="applyLayerAction"><cover-image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png"></cover-image><cover-view>删除</cover-view></cover-view>
-          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="crop" bindtap="applyLayerAction"><cover-view class="la-icon la-crop-icon"><cover-view class="crop-corner crop-corner-a"></cover-view><cover-view class="crop-corner crop-corner-b"></cover-view></cover-view><cover-view>裁切</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><cover-view class="la-icon la-shadow-icon"><cover-view class="shadow-back"></cover-view><cover-view class="shadow-front"></cover-view></cover-view><cover-view>阴影</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><cover-view class="la-icon la-opacity-icon"><cover-view class="opacity-fill"></cover-view></cover-view><cover-view>透明度</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="corner" bindtap="applyLayerAction"><cover-view class="la-icon la-corner-icon"></cover-view><cover-view>圆角</cover-view></cover-view>
-          <cover-view class="layer-action" data-action="tear" bindtap="applyLayerAction"><cover-view class="la-icon la-tear-icon"><cover-view class="tear-line tear-line-a"></cover-view><cover-view class="tear-line tear-line-b"></cover-view></cover-view><cover-view>撕边</cover-view></cover-view>
-          <cover-view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><cover-view class="la-icon la-scissors-line-icon"><cover-view class="scissors-ring scissors-ring-a"></cover-view><cover-view class="scissors-ring scissors-ring-b"></cover-view><cover-view class="scissors-blade scissors-blade-a"></cover-view><cover-view class="scissors-blade scissors-blade-b"></cover-view><cover-view class="scissors-joint"></cover-view></cover-view><cover-view>剪刀</cover-view></cover-view>
-          <cover-view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><cover-view class="la-icon la-emboss-icon"><cover-view class="emboss-mark emboss-mark-a"></cover-view><cover-view class="emboss-mark emboss-mark-b"></cover-view></cover-view><cover-view>压花</cover-view></cover-view>
-        </cover-view>
-      </cover-view>
-    </cover-view>
+    <view wx:if="{{selectedLayerId && !textInputVisible && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="layer-toolbar">
+      <view class="layer-head">
+        <view class="layer-title">已选中图层</view>
+        <view wx:if="{{selectedLayerType === 'text'}}" class="panel-link" bindtap="editSelectedText">编辑文字</view>
+      </view>
+      <scroll-view scroll-x class="layer-actions-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+        <view class="layer-actions-track">
+          <view class="layer-action" data-action="up" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-up.png" mode="aspectFit"></image><view>上移</view></view>
+          <view class="layer-action" data-action="down" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-down.png" mode="aspectFit"></image><view>下移</view></view>
+          <view class="layer-action" data-action="copy" bindtap="applyLayerAction"><view class="la-icon la-copy-icon"><view class="copy-back"></view><view class="copy-front"></view></view><view>复制</view></view>
+          <view class="layer-action" data-action="delete" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png" mode="aspectFit"></image><view>删除</view></view>
+          <view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="crop" bindtap="applyLayerAction"><view class="la-icon la-crop-icon"><view class="crop-corner crop-corner-a"></view><view class="crop-corner crop-corner-b"></view></view><view>裁切</view></view>
+          <view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><view class="la-icon la-shadow-icon"><view class="shadow-back"></view><view class="shadow-front"></view></view><view>阴影</view></view>
+          <view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><view class="la-icon la-opacity-icon"><view class="opacity-fill"></view></view><view>透明度</view></view>
+          <view class="layer-action" data-action="corner" bindtap="applyLayerAction"><view class="la-icon la-corner-icon"></view><view>圆角</view></view>
+          <view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><view class="la-icon la-scissors-line-icon"><view class="scissors-ring scissors-ring-a"></view><view class="scissors-ring scissors-ring-b"></view><view class="scissors-blade scissors-blade-a"></view><view class="scissors-blade scissors-blade-b"></view><view class="scissors-joint"></view></view><view>剪刀</view></view>
+          <view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><view class="la-icon la-emboss-icon"><view class="emboss-mark emboss-mark-a"></view><view class="emboss-mark emboss-mark-b"></view></view><view>压花</view></view>
+          <view class="layer-action" data-action="tear" bindtap="applyLayerAction"><view class="la-icon la-tear-icon"><view class="tear-line tear-line-a"></view><view class="tear-line tear-line-b"></view></view><view>撕边</view></view>
+        </view>
+      </scroll-view>
+    </view>
 
-    <block wx:if="{{((!selectedLayerId || textInputVisible) || activePalette === 'cut' || activePalette === 'shape') && !cropEditing && !scissorEditing && !embossEditing}}">
+    <block wx:if="{{((!selectedLayerId || textInputVisible) || activePalette === 'cut' || activePalette === 'shape') && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}">
       <cover-view wx:if="{{activePalette === 'cut'}}" class="tool-palette cut-palette {{selectedLayerId ? 'layer-cut-palette' : ''}}">
         <cover-view class="palette-tool palette-tool-0" data-style="straight" bindtap="selectCutStyle">
           <cover-image class="cut-icon cut-icon-straight" src="/assets/icons/scissors/bolang.png"></cover-image>
@@ -380,7 +399,7 @@
         </view>
       </block>
 
-      <cover-view wx:if="{{!textInputVisible && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape'))}}" class="main-toolbar">
+      <cover-view wx:if="{{!textInputVisible && !straightCutEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape'))}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>
           <cover-view class="tool-label">图片</cover-view>

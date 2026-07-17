@@ -97,8 +97,19 @@ function drawLayer(ctx, layer, options = {}) {
     setShadow(ctx, 0, 8, 18, "rgba(17, 17, 17, 0.08)");
   }
   const clipShape = getLayerClipShape(layer);
-  if (clipShape && layer.type !== "text") {
+  const excludeShape = getLayerExcludeShape(layer);
+  const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+  if (excludeShape && layer.type !== "text") {
+    drawInverseShapeClip(ctx, excludeShape, layer);
+  }
+  if (clipPolygon && clipPolygon.length >= 3 && layer.type !== "text") {
+    drawLayerClipPolygon(ctx, clipPolygon, layer);
+    ctx.clip();
+  } else if (clipShape && layer.type !== "text") {
     drawShapePath(ctx, clipShape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    ctx.clip();
+  } else if (layer.tear && layer.type !== "text") {
+    drawTearPath(ctx, layer);
     ctx.clip();
   }
 
@@ -114,11 +125,17 @@ function drawLayer(ctx, layer, options = {}) {
   if (clipShape && layer.type !== "text") {
     drawEmbossEdge(ctx, clipShape, layer.width, layer.height);
   }
+  if (layer.tear && !clipShape && !clipPolygon && layer.type !== "text") {
+    drawTearEdge(ctx, layer);
+  }
+  if (excludeShape && layer.type !== "text") {
+    drawExcludeEdge(ctx, excludeShape, layer);
+  }
   ctx.restore();
 }
 
 function drawSourceLayer(ctx, layer, options = {}) {
-  if (layer.radius) {
+  if (layer.radius && !layer.tear) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.clip();
   }
@@ -151,6 +168,8 @@ function drawPaper(ctx, layer) {
   if (shape) {
     drawShapePath(ctx, shape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
     ctx.fill();
+  } else if (layer.tear) {
+    ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   } else if (layer.radius) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.fill();
@@ -163,7 +182,8 @@ function drawPaper(ctx, layer) {
     drawShapePath(ctx, shape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
     ctx.stroke();
   } else if (layer.tear) {
-    drawTearStroke(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    drawTearPath(ctx, layer);
+    ctx.stroke();
   } else if (layer.radius) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.stroke();
@@ -180,36 +200,105 @@ function getLayerClipShape(layer) {
   return ["circle", "heart", "star", "tag", "stamp"].includes(shape) ? shape : "";
 }
 
-function drawShapePath(ctx, shape, x, y, width, height) {
+function getLayerExcludeShape(layer) {
+  const style = layer.style || {};
+  const shape = layer.excludeShape || style.excludeShape || "";
+  return ["circle", "heart", "star", "tag", "stamp"].includes(shape) ? shape : "";
+}
+
+function getLayerExcludeFrame(layer) {
+  const style = layer.style || {};
+  const frame = layer.excludeFrame || style.excludeFrame || null;
+  if (!frame || frame.width <= 0 || frame.height <= 0) return null;
+  return {
+    x: frame.x - layer.width / 2,
+    y: frame.y - layer.height / 2,
+    width: frame.width,
+    height: frame.height
+  };
+}
+
+function drawInverseShapeClip(ctx, shape, layer) {
+  const frame = getLayerExcludeFrame(layer);
+  if (!frame) return;
+  ctx.beginPath();
+  ctx.rect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  drawReverseShapePath(ctx, shape, frame.x, frame.y, frame.width, frame.height);
+  ctx.clip();
+}
+
+function drawShapePath(ctx, shape, x, y, width, height, append = false) {
   if (shape === "circle") {
     const radius = Math.min(width, height) / 2;
-    ctx.beginPath();
+    if (!append) ctx.beginPath();
     ctx.arc(x + width / 2, y + height / 2, radius, 0, Math.PI * 2);
     ctx.closePath();
     return;
   }
   if (shape === "heart") {
-    drawHeartPath(ctx, x, y, width, height);
+    drawHeartPath(ctx, x, y, width, height, append);
     return;
   }
   if (shape === "star") {
-    drawStarPath(ctx, x, y, width, height);
+    drawStarPath(ctx, x, y, width, height, append);
     return;
   }
   if (shape === "tag") {
-    drawTagPath(ctx, x, y, width, height);
+    drawTagPath(ctx, x, y, width, height, append);
     return;
   }
   if (shape === "stamp") {
-    drawStampPath(ctx, x, y, width, height);
+    drawStampPath(ctx, x, y, width, height, append);
     return;
   }
-  ctx.beginPath();
+  if (!append) ctx.beginPath();
   ctx.rect(x, y, width, height);
 }
 
-function drawHeartPath(ctx, x, y, width, height) {
+function drawLayerClipPolygon(ctx, points, layer) {
   ctx.beginPath();
+  points.forEach((point, index) => {
+    const x = point.x - layer.width / 2;
+    const y = point.y - layer.height / 2;
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+}
+
+function drawReverseShapePath(ctx, shape, x, y, width, height) {
+  if (shape === "circle") {
+    const radius = Math.min(width, height) / 2;
+    ctx.moveTo(x + width / 2 + radius, y + height / 2);
+    ctx.arc(x + width / 2, y + height / 2, radius, 0, Math.PI * 2, true);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "heart") {
+    drawReverseHeartPath(ctx, x, y, width, height);
+    return;
+  }
+  if (shape === "star") {
+    drawStarPath(ctx, x, y, width, height, true, true);
+    return;
+  }
+  if (shape === "tag") {
+    drawReverseTagPath(ctx, x, y, width, height);
+    return;
+  }
+  if (shape === "stamp") {
+    drawStampPath(ctx, x, y, width, height, true, true);
+    return;
+  }
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y + height);
+  ctx.lineTo(x + width, y + height);
+  ctx.lineTo(x + width, y);
+  ctx.closePath();
+}
+
+function drawHeartPath(ctx, x, y, width, height, append = false) {
+  if (!append) ctx.beginPath();
   ctx.moveTo(x + width * 0.5, y + height * 0.88);
   ctx.bezierCurveTo(x + width * 0.08, y + height * 0.62, x + width * 0.02, y + height * 0.28, x + width * 0.28, y + height * 0.18);
   ctx.bezierCurveTo(x + width * 0.4, y + height * 0.13, x + width * 0.49, y + height * 0.2, x + width * 0.5, y + height * 0.33);
@@ -218,27 +307,38 @@ function drawHeartPath(ctx, x, y, width, height) {
   ctx.closePath();
 }
 
-function drawStarPath(ctx, x, y, width, height) {
+function drawReverseHeartPath(ctx, x, y, width, height) {
+  const p0 = { x: x + width * 0.5, y: y + height * 0.88 };
+  ctx.moveTo(p0.x, p0.y);
+  ctx.bezierCurveTo(x + width * 0.92, y + height * 0.62, x + width * 0.98, y + height * 0.28, x + width * 0.72, y + height * 0.18);
+  ctx.bezierCurveTo(x + width * 0.6, y + height * 0.13, x + width * 0.51, y + height * 0.2, x + width * 0.5, y + height * 0.33);
+  ctx.bezierCurveTo(x + width * 0.49, y + height * 0.2, x + width * 0.4, y + height * 0.13, x + width * 0.28, y + height * 0.18);
+  ctx.bezierCurveTo(x + width * 0.02, y + height * 0.28, x + width * 0.08, y + height * 0.62, p0.x, p0.y);
+  ctx.closePath();
+}
+
+function drawStarPath(ctx, x, y, width, height, append = false, reverse = false) {
   const cx = x + width / 2;
   const cy = y + height / 2;
   const outer = Math.min(width, height) * 0.48;
   const inner = outer * 0.46;
-  ctx.beginPath();
-  for (let i = 0; i < 10; i += 1) {
+  if (!append) ctx.beginPath();
+  const indexes = reverse ? [0, 9, 8, 7, 6, 5, 4, 3, 2, 1] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  indexes.forEach((i, index) => {
     const radius = i % 2 === 0 ? outer : inner;
     const angle = -Math.PI / 2 + i * Math.PI / 5;
     const px = cx + Math.cos(angle) * radius;
     const py = cy + Math.sin(angle) * radius;
-    if (i === 0) ctx.moveTo(px, py);
+    if (index === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
-  }
+  });
   ctx.closePath();
 }
 
-function drawTagPath(ctx, x, y, width, height) {
+function drawTagPath(ctx, x, y, width, height, append = false) {
   const cut = Math.min(width, height) * 0.18;
   const radius = Math.min(width, height) * 0.08;
-  ctx.beginPath();
+  if (!append) ctx.beginPath();
   ctx.moveTo(x + radius, y);
   ctx.lineTo(x + width - cut, y);
   ctx.lineTo(x + width, y + cut);
@@ -251,10 +351,46 @@ function drawTagPath(ctx, x, y, width, height) {
   ctx.closePath();
 }
 
-function drawStampPath(ctx, x, y, width, height) {
+function drawReverseTagPath(ctx, x, y, width, height) {
+  const cut = Math.min(width, height) * 0.18;
+  const radius = Math.min(width, height) * 0.08;
+  ctx.moveTo(x + radius, y);
+  ctx.quadraticCurveTo(x, y, x, y + radius);
+  ctx.lineTo(x, y + height - radius);
+  ctx.quadraticCurveTo(x, y + height, x + radius, y + height);
+  ctx.lineTo(x + width - radius, y + height);
+  ctx.quadraticCurveTo(x + width, y + height, x + width, y + height - radius);
+  ctx.lineTo(x + width, y + cut);
+  ctx.lineTo(x + width - cut, y);
+  ctx.lineTo(x + radius, y);
+  ctx.closePath();
+}
+
+function drawStampPath(ctx, x, y, width, height, append = false, reverse = false) {
   const notch = Math.max(5, Math.min(width, height) * 0.045);
   const step = notch * 2.2;
-  ctx.beginPath();
+  if (!append) ctx.beginPath();
+  if (reverse) {
+    ctx.moveTo(x + notch, y);
+    ctx.lineTo(x, y + notch);
+    for (let py = y + notch; py < y + height - notch; py += step) {
+      ctx.quadraticCurveTo(x + notch, py + step / 2, x, Math.min(py + step, y + height - notch));
+    }
+    ctx.lineTo(x + notch, y + height);
+    for (let px = x + notch; px < x + width - notch; px += step) {
+      ctx.quadraticCurveTo(px + step / 2, y + height - notch, Math.min(px + step, x + width - notch), y + height);
+    }
+    ctx.lineTo(x + width, y + height - notch);
+    for (let py = y + height - notch; py > y + notch; py -= step) {
+      ctx.quadraticCurveTo(x + width - notch, py - step / 2, x + width, Math.max(py - step, y + notch));
+    }
+    ctx.lineTo(x + width - notch, y);
+    for (let px = x + width - notch; px > x + notch; px -= step) {
+      ctx.quadraticCurveTo(px - step / 2, y + notch, Math.max(px - step, x + notch), y);
+    }
+    ctx.closePath();
+    return;
+  }
   ctx.moveTo(x + notch, y);
   for (let px = x + notch; px < x + width - notch; px += step) {
     ctx.quadraticCurveTo(px + step / 2, y + notch, Math.min(px + step, x + width - notch), y);
@@ -295,6 +431,16 @@ function drawEmbossEdge(ctx, shape, width, height) {
   ctx.stroke();
 }
 
+function drawExcludeEdge(ctx, shape, layer) {
+  const frame = getLayerExcludeFrame(layer);
+  if (!frame) return;
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineWidth(ctx, 1.5);
+  setStrokeStyle(ctx, "rgba(17,17,17,0.12)");
+  drawShapePath(ctx, shape, frame.x, frame.y, frame.width, frame.height);
+  ctx.stroke();
+}
+
 function roundedRect(ctx, x, y, width, height, radius) {
   const r = Math.min(radius || 0, width / 2, height / 2);
   ctx.beginPath();
@@ -310,17 +456,94 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function drawTearStroke(ctx, x, y, width, height) {
+function drawTearPath(ctx, layer) {
+  const points = getTearPathPoints(layer);
+  if (!points.length) return;
   ctx.beginPath();
-  const step = width / 12;
-  ctx.moveTo(x, y);
-  for (let i = 1; i <= 12; i += 1) {
-    ctx.lineTo(x + step * i, y + (i % 2 ? 8 : -2));
-  }
-  ctx.lineTo(x + width, y + height);
-  ctx.lineTo(x, y + height);
+  points.forEach((point, index) => {
+    if (index === 0) {
+      ctx.moveTo(point.x, point.y);
+    } else {
+      ctx.lineTo(point.x, point.y);
+    }
+  });
   ctx.closePath();
+}
+
+function drawTearEdge(ctx, layer) {
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineJoin(ctx, "round");
+  setLineCap(ctx, "round");
+  setLineWidth(ctx, 8);
+  setStrokeStyle(ctx, "rgba(255,255,255,0.72)");
+  drawTearPath(ctx, layer);
   ctx.stroke();
+  setLineWidth(ctx, 3);
+  setStrokeStyle(ctx, "rgba(17,17,17,0.12)");
+  drawTearPath(ctx, layer);
+  ctx.stroke();
+  setLineWidth(ctx, 1);
+  setStrokeStyle(ctx, "rgba(17,17,17,0.2)");
+  drawTearPath(ctx, layer);
+  ctx.stroke();
+}
+
+function getTearPathPoints(layer) {
+  const width = Math.max(1, layer.width || 1);
+  const height = Math.max(1, layer.height || 1);
+  const left = -width / 2;
+  const top = -height / 2;
+  const right = width / 2;
+  const bottom = height / 2;
+  const seed = getTearSeed(layer);
+  const amplitude = Math.max(7, Math.min(24, Math.min(width, height) * 0.035));
+  const step = Math.max(24, Math.min(48, Math.min(width, height) / 7));
+  const points = [];
+  addTearEdgePoints(points, "top", left, top, right, top, step, amplitude, seed + 11);
+  addTearEdgePoints(points, "right", right, top, right, bottom, step, amplitude, seed + 29);
+  addTearEdgePoints(points, "bottom", right, bottom, left, bottom, step, amplitude, seed + 47);
+  addTearEdgePoints(points, "left", left, bottom, left, top, step, amplitude, seed + 71);
+  return points;
+}
+
+function addTearEdgePoints(points, edge, x1, y1, x2, y2, step, amplitude, seed) {
+  const length = Math.max(1, Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2));
+  const count = Math.max(2, Math.ceil(length / step));
+  for (let index = 0; index <= count; index += 1) {
+    if (points.length && index === 0) continue;
+    const t = index / count;
+    const x = x1 + (x2 - x1) * t;
+    const y = y1 + (y2 - y1) * t;
+    const jitter = getTearJitter(seed, index, amplitude);
+    if (edge === "top") points.push({ x, y: y + jitter });
+    if (edge === "right") points.push({ x: x - jitter, y });
+    if (edge === "bottom") points.push({ x, y: y - jitter });
+    if (edge === "left") points.push({ x: x + jitter, y });
+  }
+}
+
+function getTearJitter(seed, index, amplitude) {
+  const raw = seededUnit(seed + index * 97);
+  const wave = Math.sin((seed % 31 + index) * 1.37) * 0.28 + 0.72;
+  return Math.max(1, raw * amplitude * wave);
+}
+
+function getTearSeed(layer) {
+  if (layer.tearSeed != null) return Number(layer.tearSeed) || 1;
+  const id = String(layer.id || "tear");
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i += 1) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash);
+}
+
+function seededUnit(seed) {
+  let value = Math.imul(seed ^ 0x6d2b79f5, 0x45d9f3b);
+  value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
+  value ^= value >>> 16;
+  return ((value >>> 0) % 10000) / 10000;
 }
 
 function drawTape(ctx, layer) {
@@ -427,6 +650,21 @@ function drawSelection(ctx, layer) {
   setShadow(ctx, 0, 0, 0, "transparent");
   setStrokeStyle(ctx, "#111111");
   setLineWidth(ctx, 3);
+  const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+  if (clipPolygon && clipPolygon.length >= 3) {
+    drawLayerClipPolygon(ctx, clipPolygon, layer);
+    ctx.stroke();
+    setFillStyle(ctx, "#111111");
+    const bounds = getClipPolygonBounds(clipPolygon);
+    [
+      [bounds.minX, bounds.minY],
+      [bounds.maxX, bounds.minY],
+      [bounds.maxX, bounds.maxY],
+      [bounds.minX, bounds.maxY]
+    ].forEach(([x, y]) => ctx.fillRect(x - layer.width / 2 - 7, y - layer.height / 2 - 7, 14, 14));
+    ctx.restore();
+    return;
+  }
   ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   setFillStyle(ctx, "#111111");
   const points = [
@@ -437,6 +675,20 @@ function drawSelection(ctx, layer) {
   ];
   points.forEach(([x, y]) => ctx.fillRect(x - 7, y - 7, 14, 14));
   ctx.restore();
+}
+
+function getClipPolygonBounds(points) {
+  return points.reduce((bounds, point) => ({
+    minX: Math.min(bounds.minX, point.x),
+    minY: Math.min(bounds.minY, point.y),
+    maxX: Math.max(bounds.maxX, point.x),
+    maxY: Math.max(bounds.maxY, point.y)
+  }), {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  });
 }
 
 function drawAlignmentGuides(ctx, guides, draft) {
@@ -558,8 +810,27 @@ function hitTest(x, y, layers) {
     const dy = y - cy;
     const localX = dx * Math.cos(angle) - dy * Math.sin(angle);
     const localY = dx * Math.sin(angle) + dy * Math.cos(angle);
+    const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+    if (clipPolygon && clipPolygon.length >= 3) {
+      return pointInPolygon({
+        x: localX + layer.width / 2,
+        y: localY + layer.height / 2
+      }, clipPolygon);
+    }
     return Math.abs(localX) <= layer.width / 2 && Math.abs(localY) <= layer.height / 2;
   });
+}
+
+function pointInPolygon(point, polygon) {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previous];
+    const intersects = ((currentPoint.y > point.y) !== (previousPoint.y > point.y))
+      && (point.x < (previousPoint.x - currentPoint.x) * (point.y - currentPoint.y) / ((previousPoint.y - currentPoint.y) || 1) + currentPoint.x);
+    if (intersects) inside = !inside;
+  }
+  return inside;
 }
 
 module.exports = {
