@@ -99,17 +99,18 @@ function drawLayer(ctx, layer, options = {}) {
   const clipShape = getLayerClipShape(layer);
   const excludeShape = getLayerExcludeShape(layer);
   const clipPolygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+  const hasTear = !!(layer.tear && layer.type !== "text");
   if (excludeShape && layer.type !== "text") {
     drawInverseShapeClip(ctx, excludeShape, layer);
   }
-  if (clipPolygon && clipPolygon.length >= 3 && layer.type !== "text") {
+  if (hasTear) {
+    drawTearPath(ctx, layer, { clipShape, clipPolygon });
+    ctx.clip();
+  } else if (clipPolygon && clipPolygon.length >= 3 && layer.type !== "text") {
     drawLayerClipPolygon(ctx, clipPolygon, layer);
     ctx.clip();
   } else if (clipShape && layer.type !== "text") {
     drawShapePath(ctx, clipShape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
-    ctx.clip();
-  } else if (layer.tear && layer.type !== "text") {
-    drawTearPath(ctx, layer);
     ctx.clip();
   }
 
@@ -122,11 +123,11 @@ function drawLayer(ctx, layer, options = {}) {
   } else {
     drawPaper(ctx, layer);
   }
-  if (clipShape && layer.type !== "text") {
+  if (clipShape && layer.type !== "text" && !hasTear) {
     drawEmbossEdge(ctx, clipShape, layer.width, layer.height);
   }
-  if (layer.tear && !clipShape && !clipPolygon && layer.type !== "text") {
-    drawTearEdge(ctx, layer);
+  if (hasTear) {
+    drawTearEdge(ctx, layer, { clipShape, clipPolygon });
   }
   if (excludeShape && layer.type !== "text") {
     drawExcludeEdge(ctx, excludeShape, layer);
@@ -165,11 +166,11 @@ function drawPaper(ctx, layer) {
   const style = layer.style || {};
   setFillStyle(ctx, style.color || "#ffffff");
   const shape = getLayerClipShape(layer);
-  if (shape) {
+  if (layer.tear) {
+    ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  } else if (shape) {
     drawShapePath(ctx, shape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
     ctx.fill();
-  } else if (layer.tear) {
-    ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   } else if (layer.radius) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.fill();
@@ -456,8 +457,8 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
-function drawTearPath(ctx, layer) {
-  const points = getTearPathPoints(layer);
+function drawTearPath(ctx, layer, outline = {}) {
+  const points = getTearPathPoints(layer, outline);
   if (!points.length) return;
   ctx.beginPath();
   points.forEach((point, index) => {
@@ -470,25 +471,31 @@ function drawTearPath(ctx, layer) {
   ctx.closePath();
 }
 
-function drawTearEdge(ctx, layer) {
+function drawTearEdge(ctx, layer, outline = {}) {
   setShadow(ctx, 0, 0, 0, "transparent");
   setLineJoin(ctx, "round");
   setLineCap(ctx, "round");
   setLineWidth(ctx, 8);
   setStrokeStyle(ctx, "rgba(255,255,255,0.72)");
-  drawTearPath(ctx, layer);
+  drawTearPath(ctx, layer, outline);
   ctx.stroke();
   setLineWidth(ctx, 3);
   setStrokeStyle(ctx, "rgba(17,17,17,0.12)");
-  drawTearPath(ctx, layer);
+  drawTearPath(ctx, layer, outline);
   ctx.stroke();
   setLineWidth(ctx, 1);
   setStrokeStyle(ctx, "rgba(17,17,17,0.2)");
-  drawTearPath(ctx, layer);
+  drawTearPath(ctx, layer, outline);
   ctx.stroke();
 }
 
-function getTearPathPoints(layer) {
+function getTearPathPoints(layer, outline = {}) {
+  if (outline.clipPolygon && outline.clipPolygon.length >= 3) {
+    return getTornPolygonPoints(layer, outline.clipPolygon);
+  }
+  if (outline.clipShape) {
+    return getTornShapePoints(layer, outline.clipShape);
+  }
   const width = Math.max(1, layer.width || 1);
   const height = Math.max(1, layer.height || 1);
   const left = -width / 2;
@@ -504,6 +511,161 @@ function getTearPathPoints(layer) {
   addTearEdgePoints(points, "bottom", right, bottom, left, bottom, step, amplitude, seed + 47);
   addTearEdgePoints(points, "left", left, bottom, left, top, step, amplitude, seed + 71);
   return points;
+}
+
+function getTornPolygonPoints(layer, polygon) {
+  const width = Math.max(1, layer.width || 1);
+  const height = Math.max(1, layer.height || 1);
+  const seed = getTearSeed(layer);
+  const amplitude = Math.max(7, Math.min(24, Math.min(width, height) * 0.035));
+  const step = Math.max(24, Math.min(48, Math.min(width, height) / 7));
+  const points = [];
+  polygon.forEach((point, index) => {
+    const next = polygon[(index + 1) % polygon.length];
+    addTornSegmentPoints(
+      points,
+      point.x - width / 2,
+      point.y - height / 2,
+      next.x - width / 2,
+      next.y - height / 2,
+      step,
+      amplitude,
+      seed + index * 53
+    );
+  });
+  return points;
+}
+
+function getTornShapePoints(layer, shape) {
+  const width = Math.max(1, layer.width || 1);
+  const height = Math.max(1, layer.height || 1);
+  const samples = sampleShapeOutline(shape, -width / 2, -height / 2, width, height);
+  if (!samples.length) return getTearPathPoints(layer);
+  const seed = getTearSeed(layer);
+  const amplitude = Math.max(5, Math.min(18, Math.min(width, height) * 0.028));
+  return samples.map((point, index) => {
+    const normal = getOutwardNormal(point, width, height);
+    const jitter = getTearJitter(seed + index * 41, index, amplitude);
+    return {
+      x: point.x + normal.x * jitter,
+      y: point.y + normal.y * jitter
+    };
+  });
+}
+
+function addTornSegmentPoints(points, x1, y1, x2, y2, step, amplitude, seed) {
+  const length = Math.max(1, Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2));
+  const count = Math.max(2, Math.ceil(length / step));
+  const normal = getSegmentNormal(x1, y1, x2, y2);
+  for (let index = 0; index <= count; index += 1) {
+    if (points.length && index === 0) continue;
+    const t = index / count;
+    const jitter = getTearJitter(seed, index, amplitude);
+    points.push({
+      x: x1 + (x2 - x1) * t + normal.x * jitter,
+      y: y1 + (y2 - y1) * t + normal.y * jitter
+    });
+  }
+}
+
+function sampleShapeOutline(shape, x, y, width, height) {
+  if (shape === "circle") return sampleEllipse(x, y, width, height, 48);
+  if (shape === "heart") return sampleHeart(x, y, width, height, 64);
+  if (shape === "star") return sampleStar(x, y, width, height);
+  if (shape === "tag") return sampleTag(x, y, width, height);
+  if (shape === "stamp") return sampleStamp(x, y, width, height);
+  return [];
+}
+
+function sampleEllipse(x, y, width, height, count) {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  return Array.from({ length: count }, (_, index) => {
+    const angle = -Math.PI / 2 + index / count * Math.PI * 2;
+    return {
+      x: cx + Math.cos(angle) * width / 2,
+      y: cy + Math.sin(angle) * height / 2
+    };
+  });
+}
+
+function sampleHeart(x, y, width, height, count) {
+  const result = [];
+  for (let index = 0; index < count; index += 1) {
+    const t = index / count * Math.PI * 2;
+    const hx = 16 * Math.sin(t) ** 3;
+    const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+    result.push({
+      x: x + width / 2 + hx / 34 * width,
+      y: y + height * 0.52 - hy / 34 * height
+    });
+  }
+  return result;
+}
+
+function sampleStar(x, y, width, height) {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const outer = Math.min(width, height) * 0.48;
+  const inner = outer * 0.46;
+  const points = [];
+  for (let i = 0; i < 10; i += 1) {
+    const radius = i % 2 === 0 ? outer : inner;
+    const angle = -Math.PI / 2 + i * Math.PI / 5;
+    points.push({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius });
+  }
+  return densifyClosedPoints(points, Math.max(18, Math.min(width, height) / 8));
+}
+
+function sampleTag(x, y, width, height) {
+  const cut = Math.min(width, height) * 0.18;
+  return densifyClosedPoints([
+    { x, y },
+    { x: x + width - cut, y },
+    { x: x + width, y: y + cut },
+    { x: x + width, y: y + height },
+    { x, y: y + height }
+  ], Math.max(18, Math.min(width, height) / 8));
+}
+
+function sampleStamp(x, y, width, height) {
+  const points = [];
+  const notch = Math.max(5, Math.min(width, height) * 0.045);
+  const step = notch * 2.2;
+  for (let px = x + notch; px < x + width - notch; px += step) points.push({ x: px, y: y + (points.length % 2 ? notch : 0) });
+  for (let py = y + notch; py < y + height - notch; py += step) points.push({ x: x + width - (points.length % 2 ? notch : 0), y: py });
+  for (let px = x + width - notch; px > x + notch; px -= step) points.push({ x: px, y: y + height - (points.length % 2 ? notch : 0) });
+  for (let py = y + height - notch; py > y + notch; py -= step) points.push({ x: x + (points.length % 2 ? notch : 0), y: py });
+  return points;
+}
+
+function densifyClosedPoints(points, step) {
+  const result = [];
+  points.forEach((point, index) => {
+    const next = points[(index + 1) % points.length];
+    const length = Math.max(1, Math.sqrt((next.x - point.x) ** 2 + (next.y - point.y) ** 2));
+    const count = Math.max(1, Math.ceil(length / step));
+    for (let i = 0; i < count; i += 1) {
+      const t = i / count;
+      result.push({
+        x: point.x + (next.x - point.x) * t,
+        y: point.y + (next.y - point.y) * t
+      });
+    }
+  });
+  return result;
+}
+
+function getOutwardNormal(point, width, height) {
+  const length = Math.sqrt(point.x ** 2 + point.y ** 2) || 1;
+  return { x: point.x / length, y: point.y / length };
+}
+
+function getSegmentNormal(x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.sqrt(dx ** 2 + dy ** 2) || 1;
+  return { x: dy / length, y: -dx / length };
 }
 
 function addTearEdgePoints(points, edge, x1, y1, x2, y2, step, amplitude, seed) {

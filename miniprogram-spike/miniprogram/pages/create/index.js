@@ -1211,6 +1211,8 @@ Page({
       shape: ""
     };
     this.canvasImageCache = {};
+    this.scissorLoadedImageSrc = "";
+    this.scissorLoadedImage = null;
     return layer;
   },
 
@@ -1257,10 +1259,9 @@ Page({
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
     const polygon = Array.isArray(layer.clipPolygon) ? layer.clipPolygon : null;
+    ctx.fillStyle = "#000000";
     if (polygon && polygon.length >= 3) {
-      ctx.globalCompositeOperation = "destination-in";
-      drawClipPolygonMaskPath(ctx, polygon, outputScale);
-      ctx.fill();
+      applyPolygonAlphaMask(ctx, outputWidth, outputHeight, polygon, outputScale);
     } else if (clipShape) {
       ctx.globalCompositeOperation = "destination-in";
       drawEmbossMaskPath(ctx, clipShape, 0, 0, outputWidth, outputHeight);
@@ -2577,7 +2578,12 @@ Page({
         layerId: layer.id,
         distance: distance(points[0], points[1]),
         angle: angle(points[0], points[1]),
-        origin: { width: layer.width, height: layer.height, rotation: layer.rotation }
+        origin: {
+          width: layer.width,
+          height: layer.height,
+          rotation: layer.rotation,
+          clipPolygon: cloneClipPolygon(layer.clipPolygon)
+        }
       };
     }
   },
@@ -2626,6 +2632,9 @@ Page({
       const scale = Math.max(0.25, Math.min(3, nextDistance / this.gesture.distance));
       layer.width = this.gesture.origin.width * scale;
       layer.height = this.gesture.origin.height * scale;
+      if (this.gesture.origin.clipPolygon) {
+        layer.clipPolygon = scaleClipPolygon(this.gesture.origin.clipPolygon, scale, scale);
+      }
       layer.rotation = this.gesture.origin.rotation + nextAngle - this.gesture.angle;
       this.alignmentGuides = this.getStableRotationGuides(this.getRotationAlignmentGuides(layer));
     }
@@ -2780,6 +2789,7 @@ Page({
       showToast("请先选择图片图层", { icon: "none" });
       return;
     }
+    const originalLayer = JSON.parse(JSON.stringify(layer));
     const startEmboss = () => {
       const currentShape = normalizeEmbossShape((layer.style || {}).clipShape || layer.clipShape || "circle") || "circle";
       const sourceSize = {
@@ -2794,7 +2804,7 @@ Page({
       const size = Math.max(EMBOSS_MIN_SIZE, Math.min(layer.width, layer.height) * 0.72);
       this.embossSession = {
         layerId: layer.id,
-        originalLayer: JSON.parse(JSON.stringify(layer)),
+        originalLayer,
         sourceSize,
         preview,
         mask: {
@@ -2820,8 +2830,17 @@ Page({
         layerActionsOffset: 0
       });
     };
+    const prepareAndStart = () => {
+      this.setData({ saveStatus: "准备压花..." });
+      this.prepareLayerForVisualSourceEdit(layer)
+        .then(startEmboss)
+        .catch((error) => {
+          console.warn("[emboss] prepare source failed", error);
+          showError("图片准备失败，请重试");
+        });
+    };
     if (layer.sourceWidth && layer.sourceHeight) {
-      startEmboss();
+      prepareAndStart();
       return;
     }
     wx.getImageInfo({
@@ -2829,12 +2848,12 @@ Page({
       success: (info) => {
         layer.sourceWidth = info.width;
         layer.sourceHeight = info.height;
-        startEmboss();
+        prepareAndStart();
       },
       fail: () => {
         layer.sourceWidth = layer.width;
         layer.sourceHeight = layer.height;
-        startEmboss();
+        prepareAndStart();
       }
     });
   },
@@ -3798,6 +3817,19 @@ function polygonArea(points) {
   return Math.abs(area / 2);
 }
 
+function cloneClipPolygon(points) {
+  return Array.isArray(points) && points.length >= 3
+    ? points.map((point) => ({ x: point.x, y: point.y }))
+    : null;
+}
+
+function scaleClipPolygon(points, scaleX, scaleY) {
+  return points.map((point) => ({
+    x: point.x * scaleX,
+    y: point.y * scaleY
+  }));
+}
+
 function distanceToSegment(point, start, end) {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
@@ -3859,6 +3891,56 @@ function applyScissorAlphaMask(ctx, width, height, strokes, bounds, outputScale)
     data[alphaIndex] = Math.min(data[alphaIndex], mask[i]);
   }
   ctx.putImageData(imageData, 0, 0);
+}
+
+function applyPolygonAlphaMask(ctx, width, height, polygon, outputScale) {
+  if (!ctx || !ctx.getImageData || !ctx.putImageData) {
+    ctx.globalCompositeOperation = "destination-in";
+    drawClipPolygonMaskPath(ctx, polygon, outputScale);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+    return;
+  }
+  const scaledPolygon = polygon.map((point) => ({
+    x: point.x * outputScale,
+    y: point.y * outputScale
+  }));
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const softEdge = Math.max(1, Math.min(2.5, outputScale));
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const point = { x: x + 0.5, y: y + 0.5 };
+      const inside = isPointInPolygon(point, scaledPolygon);
+      if (inside) continue;
+      const alphaIndex = (y * width + x) * 4 + 3;
+      const edgeDistance = distanceToPolygon(point, scaledPolygon);
+      const edgeAlpha = edgeDistance < softEdge
+        ? Math.max(0, Math.round((1 - edgeDistance / softEdge) * data[alphaIndex]))
+        : 0;
+      data[alphaIndex] = Math.min(data[alphaIndex], edgeAlpha);
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function isPointInPolygon(point, polygon) {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previous];
+    const intersects = ((currentPoint.y > point.y) !== (previousPoint.y > point.y))
+      && (point.x < (previousPoint.x - currentPoint.x) * (point.y - currentPoint.y) / ((previousPoint.y - currentPoint.y) || 1) + currentPoint.x);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function distanceToPolygon(point, polygon) {
+  return polygon.reduce((minDistance, current, index) => {
+    const next = polygon[(index + 1) % polygon.length];
+    return Math.min(minDistance, distanceToSegment(point, current, next));
+  }, Infinity);
 }
 
 function rasterizeStroke(mask, width, height, points, radius) {
