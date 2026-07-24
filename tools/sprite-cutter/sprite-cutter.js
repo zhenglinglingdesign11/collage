@@ -1,6 +1,11 @@
 const els = {
   fileInput: document.querySelector("#fileInput"),
   detectButton: document.querySelector("#detectButton"),
+  rembgButton: document.querySelector("#rembgButton"),
+  rembgAllButton: document.querySelector("#rembgAllButton"),
+  fastSamButton: document.querySelector("#fastSamButton"),
+  fastSamAllButton: document.querySelector("#fastSamAllButton"),
+  previewMaskButton: document.querySelector("#previewMaskButton"),
   saveButton: document.querySelector("#saveButton"),
   selectAllButton: document.querySelector("#selectAllButton"),
   clearButton: document.querySelector("#clearButton"),
@@ -17,12 +22,19 @@ const els = {
   toleranceInput: document.querySelector("#toleranceInput"),
   minAreaInput: document.querySelector("#minAreaInput"),
   mergeGapInput: document.querySelector("#mergeGapInput"),
+  fastSamEdgeGrowInput: document.querySelector("#fastSamEdgeGrowInput"),
+  localRefineInput: document.querySelector("#localRefineInput"),
+  localRefineToleranceInput: document.querySelector("#localRefineToleranceInput"),
+  whiteTrimInput: document.querySelector("#whiteTrimInput"),
   paddingInput: document.querySelector("#paddingInput"),
   coverQualityInput: document.querySelector("#coverQualityInput"),
   alphaValue: document.querySelector("#alphaValue"),
   toleranceValue: document.querySelector("#toleranceValue"),
   minAreaValue: document.querySelector("#minAreaValue"),
   mergeGapValue: document.querySelector("#mergeGapValue"),
+  fastSamEdgeGrowValue: document.querySelector("#fastSamEdgeGrowValue"),
+  localRefineToleranceValue: document.querySelector("#localRefineToleranceValue"),
+  whiteTrimValue: document.querySelector("#whiteTrimValue"),
   paddingValue: document.querySelector("#paddingValue"),
   coverQualityValue: document.querySelector("#coverQualityValue")
 };
@@ -50,6 +62,17 @@ function bindEvents() {
     if (job) detectJob(job);
   });
   els.saveButton.addEventListener("click", saveSelectedSprites);
+  els.rembgButton.addEventListener("click", () => {
+    const job = getActiveJob();
+    if (job) preprocessJobWithRembg(job);
+  });
+  els.rembgAllButton.addEventListener("click", preprocessAllJobsWithRembg);
+  els.fastSamButton.addEventListener("click", () => {
+    const job = getActiveJob();
+    if (job) segmentJobWithFastSam(job);
+  });
+  els.fastSamAllButton.addEventListener("click", segmentAllJobsWithFastSam);
+  els.previewMaskButton.addEventListener("click", toggleMaskPreview);
   els.selectAllButton.addEventListener("click", () => setAllSelected(true));
   els.clearButton.addEventListener("click", () => setAllSelected(false));
   els.stageCanvas.addEventListener("click", toggleSpriteAtPoint);
@@ -61,10 +84,33 @@ function bindEvents() {
     });
   });
 
+  els.fastSamEdgeGrowInput.addEventListener("input", () => {
+    syncControlLabels();
+    const job = getActiveJob();
+    if (job && job.fastSamProcessed) {
+      els.fastSamButton.textContent = "重新 FastSAM 分割";
+    }
+  });
+
+  els.fastSamEdgeGrowInput.addEventListener("change", () => {
+    const job = getActiveJob();
+    if (job && job.fastSamProcessed) {
+      segmentJobWithFastSam(job);
+    }
+  });
+
   els.paddingInput.addEventListener("input", () => {
     syncControlLabels();
     state.jobs.forEach((job) => job.renderedCanvases.clear());
     renderActiveJob();
+  });
+
+  [els.localRefineInput, els.localRefineToleranceInput, els.whiteTrimInput].forEach((input) => {
+    input.addEventListener("input", () => {
+      syncControlLabels();
+      state.jobs.forEach((job) => job.renderedCanvases.clear());
+      renderActiveJob();
+    });
   });
 
   els.coverQualityInput.addEventListener("input", () => {
@@ -123,8 +169,16 @@ function createJob(file, image) {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     fileName: file.name,
     imageName: sanitizeName(file.name.replace(/\.[^.]+$/, "") || "sprite-sheet"),
+    sourceBlob: file,
+    processedBlob: null,
+    rembgProcessed: false,
+    fastSamProcessed: false,
+    maskImage: null,
+    showMaskPreview: false,
     image,
     imageData: context.getImageData(0, 0, canvas.width, canvas.height),
+    maskImageData: null,
+    instanceMaskImageData: null,
     labelMap: null,
     sprites: [],
     renderedCanvases: new Map()
@@ -143,14 +197,31 @@ function syncControlLabels() {
   els.toleranceValue.value = els.toleranceInput.value;
   els.minAreaValue.value = els.minAreaInput.value;
   els.mergeGapValue.value = els.mergeGapInput.value;
+  els.fastSamEdgeGrowValue.value = els.fastSamEdgeGrowInput.value;
+  els.localRefineToleranceValue.value = els.localRefineToleranceInput.value;
+  els.whiteTrimValue.value = els.whiteTrimInput.value;
   els.paddingValue.value = els.paddingInput.value;
   els.coverQualityValue.value = els.coverQualityInput.value;
 }
 
 function detectJob(job) {
   const options = getOptions();
-  const mask = createForegroundMask(job.imageData, options);
-  const labels = labelComponents(mask, job.imageData.width, job.imageData.height, options.minArea);
+  if (job.instanceMaskImageData) {
+    const labels = labelInstancesFromImageData(job.instanceMaskImageData, options.minArea);
+    job.labelMap = labels.labels;
+    job.sprites = labels.components.map((sprite, index) => ({
+      ...sprite,
+      id: `${job.id}-sprite-${index + 1}`,
+      selected: true
+    }));
+    job.renderedCanvases.clear();
+    renderActiveJob();
+    return;
+  }
+
+  const detectionImageData = job.maskImageData || job.imageData;
+  const mask = createForegroundMask(detectionImageData, options);
+  const labels = labelComponents(mask, detectionImageData.width, detectionImageData.height, options.minArea);
   job.labelMap = labels.labels;
   job.sprites = mergeComponents(labels.components, options.mergeGap).map((sprite, index) => ({
     ...sprite,
@@ -168,6 +239,10 @@ function getOptions() {
     tolerance: Number(els.toleranceInput.value),
     minArea: Number(els.minAreaInput.value),
     mergeGap: Number(els.mergeGapInput.value),
+    localRefine: els.localRefineInput.checked,
+    localRefineTolerance: Number(els.localRefineToleranceInput.value),
+    localRefineRadius: Number(els.fastSamEdgeGrowInput.value),
+    whiteTrim: Number(els.whiteTrimInput.value),
     padding: Number(els.paddingInput.value),
     coverQuality: Number(els.coverQualityInput.value) / 100
   };
@@ -203,8 +278,12 @@ function renderJobList() {
     const item = document.createElement("button");
     item.type = "button";
     item.className = `job-item${job.id === state.activeJobId ? " active" : ""}`;
+    const badges = [
+      job.rembgProcessed ? "AI" : "",
+      job.fastSamProcessed ? "SAM" : ""
+    ].filter(Boolean).join(" · ");
     item.innerHTML = `
-      <span>${index + 1}. ${escapeHtml(job.fileName)}</span>
+      <span>${index + 1}. ${escapeHtml(job.fileName)}${badges ? ` · ${badges}` : ""}</span>
       <strong>${job.sprites.filter((sprite) => sprite.selected).length}/${job.sprites.length}</strong>
     `;
     item.addEventListener("click", () => {
@@ -219,7 +298,7 @@ function redrawStage(job) {
   els.stageCanvas.width = job.image.naturalWidth;
   els.stageCanvas.height = job.image.naturalHeight;
   stageContext.clearRect(0, 0, els.stageCanvas.width, els.stageCanvas.height);
-  stageContext.drawImage(job.image, 0, 0);
+  stageContext.drawImage(job.showMaskPreview && job.maskImage ? job.maskImage : job.image, 0, 0);
   stageContext.lineWidth = Math.max(2, Math.round(Math.min(els.stageCanvas.width, els.stageCanvas.height) / 500));
   stageContext.font = `${Math.max(12, stageContext.lineWidth * 6)}px Inter, Arial, sans-serif`;
 
@@ -313,6 +392,23 @@ function renderSpriteCanvas(job, sprite) {
   canvas.height = height;
   const context = canvas.getContext("2d");
   const output = context.createImageData(width, height);
+  let alphaMask = new Uint8Array(width * height);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const sx = x0 + x;
+      const sy = y0 + y;
+      const sourceIndex = sy * source.width + sx;
+      alphaMask[y * width + x] = labelSet.has(job.labelMap[sourceIndex]) ? 1 : 0;
+    }
+  }
+
+  if (options.localRefine && job.fastSamProcessed) {
+    alphaMask = refineLocalSpriteMask(source, alphaMask, x0, y0, width, height, options);
+  }
+  if (options.whiteTrim > 0 && job.fastSamProcessed) {
+    alphaMask = trimWhiteSpriteEdge(source, alphaMask, x0, y0, width, height, options);
+  }
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -321,10 +417,11 @@ function renderSpriteCanvas(job, sprite) {
       const sourceIndex = sy * source.width + sx;
       const sourceOffset = sourceIndex * 4;
       const targetOffset = (y * width + x) * 4;
+      const targetIndex = y * width + x;
       output.data[targetOffset] = source.data[sourceOffset];
       output.data[targetOffset + 1] = source.data[sourceOffset + 1];
       output.data[targetOffset + 2] = source.data[sourceOffset + 2];
-      output.data[targetOffset + 3] = labelSet.has(job.labelMap[sourceIndex]) ? source.data[sourceOffset + 3] : 0;
+      output.data[targetOffset + 3] = alphaMask[targetIndex] ? source.data[sourceOffset + 3] : 0;
     }
   }
 
@@ -340,6 +437,12 @@ function updateUI() {
   els.countText.textContent = activeJob ? String(activeJob.sprites.length) : "0";
   els.selectedText.textContent = `${activeJob ? activeJob.sprites.filter((sprite) => sprite.selected).length : 0} / ${selectedTotal}`;
   els.detectButton.disabled = !activeJob;
+  els.rembgButton.disabled = !activeJob;
+  els.rembgAllButton.disabled = state.jobs.length === 0;
+  els.fastSamButton.disabled = !activeJob;
+  els.fastSamAllButton.disabled = state.jobs.length === 0;
+  els.previewMaskButton.disabled = !activeJob || !activeJob.maskImage;
+  els.previewMaskButton.textContent = activeJob && activeJob.showMaskPreview ? "显示原图" : "显示 AI 预览";
   els.saveButton.disabled = selectedTotal === 0;
   els.selectAllButton.disabled = !activeJob || activeJob.sprites.length === 0;
   els.clearButton.disabled = !activeJob || activeJob.sprites.length === 0;
@@ -361,6 +464,208 @@ function setAllSelected(selected) {
   job.sprites.forEach((sprite) => {
     sprite.selected = selected;
   });
+  renderActiveJob();
+}
+
+async function preprocessJobWithRembg(job) {
+  setBusy(true, "AI 去背景中...");
+  try {
+    const blob = await removeBackground(job.processedBlob || job.sourceBlob);
+    await replaceJobImage(job, blob, true);
+    els.modeInput.value = "alpha";
+    els.alphaInput.value = Math.max(Number(els.alphaInput.value), 96);
+    syncControlLabels();
+    detectJob(job);
+  } catch (error) {
+    alert(`AI 去背景失败：${error.message || error}`);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function preprocessAllJobsWithRembg() {
+  if (!state.jobs.length) return;
+  setBusy(true, "批量 AI 去背景中...");
+  try {
+    for (const job of state.jobs) {
+      const blob = await removeBackground(job.processedBlob || job.sourceBlob);
+      await replaceJobImage(job, blob, true);
+      detectJob(job);
+    }
+    els.modeInput.value = "alpha";
+    els.alphaInput.value = Math.max(Number(els.alphaInput.value), 96);
+    syncControlLabels();
+    renderActiveJob();
+  } catch (error) {
+    alert(`批量 AI 去背景失败：${error.message || error}`);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function segmentJobWithFastSam(job) {
+  setBusy(true, "FastSAM 分割中...");
+  try {
+    const payload = await segmentWithFastSam(job.sourceBlob);
+    await setJobInstanceMask(job, payload.labelPng);
+    detectJob(job);
+  } catch (error) {
+    alert(`FastSAM 分割失败：${error.message || error}`);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function segmentAllJobsWithFastSam() {
+  if (!state.jobs.length) return;
+  setBusy(true, "批量 FastSAM 中...");
+  try {
+    for (const job of state.jobs) {
+      const payload = await segmentWithFastSam(job.sourceBlob);
+      await setJobInstanceMask(job, payload.labelPng);
+      detectJob(job);
+    }
+    renderActiveJob();
+  } catch (error) {
+    alert(`批量 FastSAM 失败：${error.message || error}`);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function segmentWithFastSam(blob) {
+  const formData = new FormData();
+  formData.append("image", blob, "source.png");
+  formData.append("edgeGrow", els.fastSamEdgeGrowInput.value);
+
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 120000);
+  try {
+    const response = await fetch("http://127.0.0.1:5181/segment", {
+      method: "POST",
+      body: formData,
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      let message = `${response.status} ${response.statusText}`;
+      try {
+        const payload = await response.json();
+        message = payload.error || message;
+      } catch {
+        // Keep HTTP status message.
+      }
+      throw new Error(message);
+    }
+    return response.json();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("FastSAM 本地服务 120 秒内没有返回，可能已卡住。请重启 fastsam-server.py 后重试。");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function removeBackground(blob) {
+  const formData = new FormData();
+  formData.append("image", blob, "source.png");
+  const response = await fetch("http://127.0.0.1:5180/remove-bg", {
+    method: "POST",
+    body: formData
+  });
+  if (!response.ok) {
+    let message = `${response.status} ${response.statusText}`;
+    try {
+      const payload = await response.json();
+      message = payload.error || message;
+    } catch {
+      // Keep HTTP status message.
+    }
+    throw new Error(message);
+  }
+  return response.blob();
+}
+
+function replaceJobImage(job, blob, rembgProcessed) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(image, 0, 0);
+      URL.revokeObjectURL(image.src);
+
+      job.maskImageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      job.processedBlob = blob;
+      job.rembgProcessed = rembgProcessed;
+      job.fastSamProcessed = false;
+      job.maskImage = image;
+      job.showMaskPreview = rembgProcessed;
+      job.instanceMaskImageData = null;
+      job.labelMap = null;
+      job.sprites = [];
+      job.renderedCanvases.clear();
+      resolve();
+    };
+    image.onerror = () => reject(new Error("无法读取 AI 去背景结果"));
+    image.src = URL.createObjectURL(blob);
+  });
+}
+
+function setJobInstanceMask(job, dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = job.image.naturalWidth;
+      canvas.height = job.image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      job.instanceMaskImageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      job.maskImageData = job.instanceMaskImageData;
+      job.maskImage = image;
+      job.showMaskPreview = true;
+      job.fastSamProcessed = true;
+      job.rembgProcessed = false;
+      job.processedBlob = null;
+      job.labelMap = null;
+      job.sprites = [];
+      job.renderedCanvases.clear();
+      resolve();
+    };
+    image.onerror = () => reject(new Error("无法读取 FastSAM 分割结果"));
+    image.src = dataUrl;
+  });
+}
+
+function setBusy(busy, label = "") {
+  els.rembgButton.disabled = busy || !getActiveJob();
+  els.rembgAllButton.disabled = busy || state.jobs.length === 0;
+  els.fastSamButton.disabled = busy || !getActiveJob();
+  els.fastSamAllButton.disabled = busy || state.jobs.length === 0;
+  els.previewMaskButton.disabled = busy || !getActiveJob() || !getActiveJob().maskImage;
+  els.detectButton.disabled = busy || !getActiveJob();
+  els.saveButton.disabled = busy || state.jobs.every((job) => !job.sprites.some((sprite) => sprite.selected));
+  if (busy && label && !label.includes("FastSAM")) {
+    els.rembgButton.textContent = label;
+  } else {
+    els.rembgButton.textContent = "AI 去背景";
+  }
+  if (busy && label && label.includes("FastSAM")) {
+    els.fastSamButton.textContent = label;
+  } else {
+    els.fastSamButton.textContent = "FastSAM 分割";
+  }
+}
+
+function toggleMaskPreview() {
+  const job = getActiveJob();
+  if (!job || !job.maskImage) return;
+  job.showMaskPreview = !job.showMaskPreview;
   renderActiveJob();
 }
 
@@ -425,11 +730,167 @@ async function writeBlobToDirectory(directoryHandle, fileName, blob) {
   await writable.close();
 }
 
+function refineLocalSpriteMask(source, baseMask, x0, y0, width, height, options) {
+  const radius = Math.max(1, Math.min(8, options.localRefineRadius || 3));
+  const tolerance = Math.max(4, options.localRefineTolerance);
+  const expanded = expandBinaryMask(baseMask, width, height, radius + 1);
+  const background = estimateLocalCropBackground(source, baseMask, x0, y0, width, height);
+  const refined = new Uint8Array(baseMask);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (baseMask[index] || !expanded[index]) continue;
+
+      const sx = x0 + x;
+      const sy = y0 + y;
+      const sourceOffset = (sy * source.width + sx) * 4;
+      const r = source.data[sourceOffset];
+      const g = source.data[sourceOffset + 1];
+      const b = source.data[sourceOffset + 2];
+      const delta = colorDistance(r, g, b, background.r, background.g, background.b);
+      const gradient = localGradient(source.data, source.width, source.height, sx, sy);
+      const hsl = rgbToHsl(r, g, b);
+
+      if (delta > tolerance || gradient > 16 || (delta > tolerance * 0.6 && hsl.s > 0.12)) {
+        refined[index] = 1;
+      }
+    }
+  }
+
+  return refined;
+}
+
+function estimateLocalCropBackground(source, mask, x0, y0, width, height) {
+  const samples = [];
+  const inset = Math.max(1, Math.min(6, Math.floor(Math.min(width, height) * 0.08)));
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const nearEdge = x < inset || y < inset || x >= width - inset || y >= height - inset;
+      if (!nearEdge || mask[y * width + x]) continue;
+      collect(x, y);
+    }
+  }
+
+  if (samples.length < 16) {
+    for (let y = 0; y < height; y += 2) {
+      for (let x = 0; x < width; x += 2) {
+        if (!mask[y * width + x]) collect(x, y);
+      }
+    }
+  }
+
+  if (!samples.length) return { r: 255, g: 255, b: 255 };
+  samples.sort((a, b) => a.l - b.l);
+  const mid = samples.slice(Math.floor(samples.length * 0.2), Math.ceil(samples.length * 0.8));
+  return averageColor(mid.length ? mid : samples);
+
+  function collect(x, y) {
+    const sx = x0 + x;
+    const sy = y0 + y;
+    const offset = (sy * source.width + sx) * 4;
+    if (source.data[offset + 3] <= 8) return;
+    const r = source.data[offset];
+    const g = source.data[offset + 1];
+    const b = source.data[offset + 2];
+    const hsl = rgbToHsl(r, g, b);
+    const brightness = (r + g + b) / 3;
+    if (brightness > 115 && hsl.s < 0.36) {
+      samples.push({ r, g, b, l: brightness });
+    }
+  }
+}
+
+function expandBinaryMask(mask, width, height, radius) {
+  const expanded = new Uint8Array(mask);
+  const active = [];
+  for (let index = 0; index < mask.length; index += 1) {
+    if (mask[index]) active.push(index);
+  }
+
+  active.forEach((index) => {
+    const cx = index % width;
+    const cy = Math.floor(index / width);
+    const yStart = Math.max(0, cy - radius);
+    const yEnd = Math.min(height - 1, cy + radius);
+    const xStart = Math.max(0, cx - radius);
+    const xEnd = Math.min(width - 1, cx + radius);
+    for (let y = yStart; y <= yEnd; y += 1) {
+      for (let x = xStart; x <= xEnd; x += 1) {
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy <= radius * radius) {
+          expanded[y * width + x] = 1;
+        }
+      }
+    }
+  });
+
+  return expanded;
+}
+
+function trimWhiteSpriteEdge(source, mask, x0, y0, width, height, options) {
+  const strength = Math.max(0, Math.min(5, options.whiteTrim));
+  if (!strength) return mask;
+
+  const background = estimateLocalCropBackground(source, mask, x0, y0, width, height);
+  const backgroundBrightness = (background.r + background.g + background.b) / 3;
+  const boundary = createMaskBoundary(mask, width, height, Math.max(1, strength + 1));
+  const trimmed = new Uint8Array(mask);
+  const colorTolerance = 12 + strength * 7;
+  const saturationLimit = 0.16 + strength * 0.035;
+  const brightnessSlack = 18 + strength * 7;
+  const gradientLimit = 18 + strength * 5;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (!boundary[index]) continue;
+
+      const sx = x0 + x;
+      const sy = y0 + y;
+      const sourceOffset = (sy * source.width + sx) * 4;
+      const r = source.data[sourceOffset];
+      const g = source.data[sourceOffset + 1];
+      const b = source.data[sourceOffset + 2];
+      const hsl = rgbToHsl(r, g, b);
+      const brightness = (r + g + b) / 3;
+      const delta = colorDistance(r, g, b, background.r, background.g, background.b);
+      const gradient = localGradient(source.data, source.width, source.height, sx, sy);
+      const backgroundLike = delta <= colorTolerance && hsl.s <= saturationLimit;
+      const paleWhite = brightness >= backgroundBrightness - brightnessSlack && hsl.s <= saturationLimit * 0.9;
+
+      if ((backgroundLike || paleWhite) && gradient <= gradientLimit) {
+        trimmed[index] = 0;
+      }
+    }
+  }
+
+  return trimmed;
+}
+
+function createMaskBoundary(mask, width, height, radius) {
+  let inner = new Uint8Array(mask);
+  for (let i = 0; i < radius; i += 1) {
+    inner = erodeMask(inner, width, height);
+  }
+
+  const boundary = new Uint8Array(mask.length);
+  for (let index = 0; index < mask.length; index += 1) {
+    boundary[index] = mask[index] && !inner[index] ? 1 : 0;
+  }
+  return boundary;
+}
+
 function createForegroundMask(imageData, options) {
   const { data, width, height } = imageData;
   const mask = new Uint8Array(width * height);
   const hasTransparency = detectTransparency(data);
   const mode = options.mode === "auto" ? (hasTransparency ? "alpha" : "corner") : options.mode;
+  if (mode === "white-paper") {
+    return createWhitePaperMask(imageData, options);
+  }
   const background = estimateBackgroundColor(data, width, height);
 
   for (let index = 0; index < width * height; index += 1) {
@@ -451,6 +912,189 @@ function createForegroundMask(imageData, options) {
   }
 
   return closeMask(mask, width, height);
+}
+
+function labelInstancesFromImageData(imageData, minArea) {
+  const { data, width, height } = imageData;
+  const labels = new Int32Array(width * height);
+  const componentsByColor = new Map();
+
+  for (let index = 0; index < width * height; index += 1) {
+    const offset = index * 4;
+    if (data[offset + 3] <= 0) continue;
+    const key = data[offset] + (data[offset + 1] << 8) + (data[offset + 2] << 16);
+    if (!key) continue;
+    let component = componentsByColor.get(key);
+    if (!component) {
+      component = {
+        labels: [key],
+        area: 0,
+        minX: width,
+        minY: height,
+        maxX: 0,
+        maxY: 0
+      };
+      componentsByColor.set(key, component);
+    }
+    const x = index % width;
+    const y = Math.floor(index / width);
+    labels[index] = key;
+    component.area += 1;
+    component.minX = Math.min(component.minX, x);
+    component.minY = Math.min(component.minY, y);
+    component.maxX = Math.max(component.maxX, x);
+    component.maxY = Math.max(component.maxY, y);
+  }
+
+  const components = Array.from(componentsByColor.values())
+    .filter((component) => component.area >= minArea)
+    .sort((a, b) => (a.minY - b.minY) || (a.minX - b.minX));
+
+  return { labels, components };
+}
+
+function createWhitePaperMask(imageData, options) {
+  const { data, width, height } = imageData;
+  const mask = new Uint8Array(width * height);
+  const background = estimateWhitePaperBackground(data, width, height);
+  const tolerance = Math.max(10, options.tolerance);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      const offset = index * 4;
+      const alpha = data[offset + 3];
+      if (alpha <= options.alphaThreshold) continue;
+
+      const r = data[offset];
+      const g = data[offset + 1];
+      const b = data[offset + 2];
+      const hsl = rgbToHsl(r, g, b);
+      const brightness = (r + g + b) / 3;
+      const bgBrightness = (background.r + background.g + background.b) / 3;
+      const colorDelta = colorDistance(r, g, b, background.r, background.g, background.b);
+      const brightnessDelta = bgBrightness - brightness;
+      const gradient = localGradient(data, width, height, x, y);
+
+      const coloredMaterial = colorDelta > tolerance || hsl.s > 0.14;
+      const paperEdge = brightnessDelta > 12 && gradient > 8;
+      const shadowOrRelief = brightnessDelta > 24 && colorDelta > 10;
+
+      if (coloredMaterial || paperEdge || shadowOrRelief) {
+        mask[index] = 1;
+      }
+    }
+  }
+
+  const expanded = dilateMask(mask, width, height);
+  const closed = closeMask(expanded, width, height);
+  const filled = fillMaskHoles(closed, width, height);
+  return erodeMask(filled, width, height);
+}
+
+function estimateWhitePaperBackground(data, width, height) {
+  const samples = [];
+  const inset = Math.max(2, Math.floor(Math.min(width, height) * 0.02));
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 160));
+
+  for (let y = inset; y < height - inset; y += step) {
+    collect(y * width + inset);
+    collect(y * width + (width - inset - 1));
+  }
+  for (let x = inset; x < width - inset; x += step) {
+    collect(inset * width + x);
+    collect((height - inset - 1) * width + x);
+  }
+
+  if (!samples.length) return estimateBackgroundColor(data, width, height);
+  samples.sort((a, b) => b.brightness - a.brightness);
+  const brightSamples = samples.slice(0, Math.max(8, Math.floor(samples.length * 0.35)));
+  return averageColor(brightSamples);
+
+  function collect(index) {
+    const offset = index * 4;
+    const alpha = data[offset + 3];
+    if (alpha <= 8) return;
+    const r = data[offset];
+    const g = data[offset + 1];
+    const b = data[offset + 2];
+    const hsl = rgbToHsl(r, g, b);
+    const brightness = (r + g + b) / 3;
+    if (brightness > 170 && hsl.s < 0.22) {
+      samples.push({ r, g, b, brightness });
+    }
+  }
+}
+
+function averageColor(samples) {
+  const total = samples.reduce((sum, sample) => ({
+    r: sum.r + sample.r,
+    g: sum.g + sample.g,
+    b: sum.b + sample.b
+  }), { r: 0, g: 0, b: 0 });
+  return {
+    r: Math.round(total.r / samples.length),
+    g: Math.round(total.g / samples.length),
+    b: Math.round(total.b / samples.length)
+  };
+}
+
+function localGradient(data, width, height, x, y) {
+  const left = pixelBrightness(data, Math.max(0, x - 1), y, width);
+  const right = pixelBrightness(data, Math.min(width - 1, x + 1), y, width);
+  const top = pixelBrightness(data, x, Math.max(0, y - 1), width);
+  const bottom = pixelBrightness(data, x, Math.min(height - 1, y + 1), width);
+  return Math.abs(left - right) + Math.abs(top - bottom);
+}
+
+function pixelBrightness(data, x, y, width) {
+  const offset = (y * width + x) * 4;
+  return (data[offset] + data[offset + 1] + data[offset + 2]) / 3;
+}
+
+function fillMaskHoles(mask, width, height) {
+  const outside = new Uint8Array(mask.length);
+  const queue = new Int32Array(mask.length);
+  let head = 0;
+  let tail = 0;
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x);
+    enqueue((height - 1) * width + x);
+  }
+  for (let y = 0; y < height; y += 1) {
+    enqueue(y * width);
+    enqueue(y * width + width - 1);
+  }
+
+  while (head < tail) {
+    const index = queue[head];
+    head += 1;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    visit(index - 1, x > 0);
+    visit(index + 1, x < width - 1);
+    visit(index - width, y > 0);
+    visit(index + width, y < height - 1);
+  }
+
+  const filled = new Uint8Array(mask);
+  for (let index = 0; index < filled.length; index += 1) {
+    if (!filled[index] && !outside[index]) filled[index] = 1;
+  }
+  return filled;
+
+  function enqueue(index) {
+    if (mask[index] || outside[index]) return;
+    outside[index] = 1;
+    queue[tail] = index;
+    tail += 1;
+  }
+
+  function visit(index, valid) {
+    if (!valid) return;
+    enqueue(index);
+  }
 }
 
 function detectTransparency(data) {
@@ -496,6 +1140,27 @@ function colorDistance(r1, g1, b1, r2, g2, b2) {
   const dg = g1 - g2;
   const db = b1 - b2;
   return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+function rgbToHsl(r, g, b) {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const lightness = (max + min) / 2;
+  if (max === min) {
+    return { h: 0, s: 0, l: lightness };
+  }
+  const delta = max - min;
+  const saturation = lightness > 0.5
+    ? delta / (2 - max - min)
+    : delta / (max + min);
+  let hue = 0;
+  if (max === rn) hue = (gn - bn) / delta + (gn < bn ? 6 : 0);
+  if (max === gn) hue = (bn - rn) / delta + 2;
+  if (max === bn) hue = (rn - gn) / delta + 4;
+  return { h: hue / 6, s: saturation, l: lightness };
 }
 
 function closeMask(mask, width, height) {

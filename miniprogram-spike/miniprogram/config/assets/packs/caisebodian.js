@@ -1,0 +1,32 @@
+module.exports = {
+  id: "caisebodian",
+  name: "Caisebodian",
+  category: "贴纸",
+  tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/caisebodian",
+  cover: "pack-sheet.jpg",
+  items: [
+    ["1.png", 465, 113],
+    ["2.png", 475, 112],
+    ["3.png", 465, 109],
+    ["4.png", 466, 105],
+    ["5.png", 458, 105],
+    ["6.png", 473, 107],
+    ["7.png", 469, 108],
+    ["8.png", 461, 106],
+    ["9.png", 463, 108],
+    ["10.png", 469, 105],
+    ["11.png", 467, 102],
+    ["12.png", 469, 102],
+    ["13.png", 472, 96],
+    ["14.png", 465, 97],
+    ["15.png", 467, 97],
+    ["16.png", 476, 89],
+    ["17.png", 461, 87],
+    ["18.png", 470, 86],
+    ["19.png", 463, 76],
+    ["20.png", 475, 75],
+    ["21.png", 461, 80],
+    ["22.png", 466, 78]
+  ]
+};

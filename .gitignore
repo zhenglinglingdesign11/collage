@@ -1,3 +1,6 @@
 source-assets/
 node_modules/
 tools/sprite-cutter/node_modules/
+__pycache__/
+*.pyc
+FastSAM*.pt

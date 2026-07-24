@@ -231,6 +231,16 @@ p {
   width: 100%;
 }
 
+.panel .check-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.panel .check-row input {
+  width: 18px;
+  height: 18px;
+}
+
 .panel-note {
   margin-top: 10px;
   font-size: 13px;

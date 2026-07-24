@@ -20,6 +20,11 @@
               选择图片
             </label>
             <button id="detectButton" type="button" disabled>重新识别</button>
+            <button id="rembgButton" type="button" disabled>AI 去背景</button>
+            <button id="rembgAllButton" type="button" disabled>批量 AI 去背景</button>
+            <button id="fastSamButton" type="button" disabled>FastSAM 分割</button>
+            <button id="fastSamAllButton" type="button" disabled>批量 FastSAM</button>
+            <button id="previewMaskButton" type="button" disabled>显示 AI 预览</button>
             <button id="saveButton" type="button" disabled>导出到 packs</button>
           </div>
         </header>
@@ -52,6 +57,7 @@
               <option value="auto">自动</option>
               <option value="alpha">透明通道</option>
               <option value="corner">四角背景色</option>
+              <option value="white-paper">白底素材纸</option>
             </select>
           </label>
           <label>
@@ -71,6 +77,10 @@
             <input id="mergeGapInput" type="range" min="0" max="80" value="8">
           </label>
           <label>
+            <span>FastSAM 补边 <output id="fastSamEdgeGrowValue">3</output> px</span>
+            <input id="fastSamEdgeGrowInput" type="range" min="0" max="8" value="3">
+          </label>
+          <label>
             <span>导出留白 <output id="paddingValue">8</output> px</span>
             <input id="paddingInput" type="range" min="0" max="80" value="8">
           </label>
@@ -78,6 +88,18 @@
 
         <section class="panel">
           <h2>导出设置</h2>
+          <label class="check-row">
+            <span>局部精修边缘</span>
+            <input id="localRefineInput" type="checkbox" checked>
+          </label>
+          <label>
+            <span>精修容差 <output id="localRefineToleranceValue">18</output></span>
+            <input id="localRefineToleranceInput" type="range" min="6" max="42" value="18">
+          </label>
+          <label>
+            <span>去白边强度 <output id="whiteTrimValue">1</output></span>
+            <input id="whiteTrimInput" type="range" min="0" max="5" value="1">
+          </label>
           <label>
             <span>封面质量 <output id="coverQualityValue">86</output>%</span>
             <input id="coverQualityInput" type="range" min="50" max="95" value="86">

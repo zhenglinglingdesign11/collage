@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
@@ -228,34 +227,60 @@ function replaceIfSmaller(file, tempFile) {
   const before = fs.statSync(file).size;
   const after = fs.statSync(tempFile).size;
   if (!config.keepLarger || after < before) {
-    try {
-      fs.writeFileSync(file, fs.readFileSync(tempFile));
-    } catch (error) {
+    const replaceResult = replaceFile(file, tempFile);
+    if (!replaceResult.replaced) {
       const fallbackFile = optimizedPath(file);
       try {
         fs.writeFileSync(fallbackFile, fs.readFileSync(tempFile));
         removeIfExists(tempFile);
-        console.warn(`[warn] Could not replace ${path.relative(repoRoot, file)}: ${error.message}`);
+        console.warn(`[warn] Could not replace ${path.relative(repoRoot, file)}: ${replaceResult.error}`);
         console.warn(`[warn] Wrote optimized copy: ${path.relative(repoRoot, fallbackFile)}`);
         return { changed: false };
       } catch {
         // Fall through to the original warning when even the fallback cannot be written.
       }
       removeIfExists(tempFile);
-      console.warn(`[warn] Could not replace ${path.relative(repoRoot, file)}: ${error.message}`);
+      console.warn(`[warn] Could not replace ${path.relative(repoRoot, file)}: ${replaceResult.error}`);
       return { changed: false };
     }
-    removeIfExists(tempFile);
     return { changed: after < before || !config.keepLarger };
   }
   removeIfExists(tempFile);
   return { changed: false };
 }
 
+function replaceFile(file, tempFile) {
+  try {
+    fs.writeFileSync(file, fs.readFileSync(tempFile));
+    removeIfExists(tempFile);
+    return { replaced: true };
+  } catch (writeError) {
+    try {
+      const backupFile = `${file}.replace-backup-${process.pid}`;
+      fs.renameSync(file, backupFile);
+      try {
+        fs.renameSync(tempFile, file);
+        removeIfExists(backupFile);
+        return { replaced: true };
+      } catch (replaceError) {
+        if (!fs.existsSync(file) && fs.existsSync(backupFile)) {
+          fs.renameSync(backupFile, file);
+        }
+        throw replaceError;
+      }
+    } catch (renameError) {
+      return {
+        replaced: false,
+        error: renameError && renameError.message ? renameError.message : writeError.message
+      };
+    }
+  }
+}
+
 function tempPath(file) {
   const ext = path.extname(file);
   const baseName = path.basename(file, ext);
-  return path.join(os.tmpdir(), `${baseName}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`);
+  return path.join(path.dirname(file), `.${baseName}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`);
 }
 
 function optimizedPath(file) {
