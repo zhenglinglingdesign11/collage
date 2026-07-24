@@ -56,6 +56,7 @@
             <select id="modeInput">
               <option value="auto">自动</option>
               <option value="alpha">透明通道</option>
+              <option value="alpha-filled">透明填洞</option>
               <option value="corner">四角背景色</option>
               <option value="white-paper">白底素材纸</option>
             </select>
@@ -98,7 +99,7 @@
           </label>
           <label>
             <span>去白边强度 <output id="whiteTrimValue">1</output></span>
-            <input id="whiteTrimInput" type="range" min="0" max="5" value="1">
+            <input id="whiteTrimInput" type="range" min="0" max="10" value="1">
           </label>
           <label>
             <span>封面质量 <output id="coverQualityValue">86</output>%</span>
@@ -135,6 +136,24 @@
         </section>
       </aside>
     </main>
+
+    <div id="spriteModal" class="sprite-modal hidden" role="dialog" aria-modal="true" aria-labelledby="spriteModalTitle">
+      <div class="sprite-modal-backdrop" data-close-sprite-modal></div>
+      <section class="sprite-modal-panel">
+        <header class="sprite-modal-header">
+          <div>
+            <h2 id="spriteModalTitle">切片预览</h2>
+            <p id="spriteModalMeta">-</p>
+          </div>
+          <div class="sprite-modal-tools">
+            <button id="spriteModalCheckerButton" type="button" aria-pressed="true">棋盘格</button>
+            <button id="spriteModalBlackButton" type="button" aria-pressed="false">黑底</button>
+            <button id="spriteModalCloseButton" type="button" aria-label="关闭预览">关闭</button>
+          </div>
+        </header>
+        <div id="spriteModalCanvasWrap" class="sprite-modal-canvas"></div>
+      </section>
+    </div>
 
     <script src="./sprite-cutter.js"></script>
   </body>

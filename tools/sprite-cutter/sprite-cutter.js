@@ -14,6 +14,13 @@ const els = {
   stageCanvas: document.querySelector("#stageCanvas"),
   jobList: document.querySelector("#jobList"),
   spriteGrid: document.querySelector("#spriteGrid"),
+  spriteModal: document.querySelector("#spriteModal"),
+  spriteModalCloseButton: document.querySelector("#spriteModalCloseButton"),
+  spriteModalCheckerButton: document.querySelector("#spriteModalCheckerButton"),
+  spriteModalBlackButton: document.querySelector("#spriteModalBlackButton"),
+  spriteModalCanvasWrap: document.querySelector("#spriteModalCanvasWrap"),
+  spriteModalTitle: document.querySelector("#spriteModalTitle"),
+  spriteModalMeta: document.querySelector("#spriteModalMeta"),
   jobCountText: document.querySelector("#jobCountText"),
   countText: document.querySelector("#countText"),
   selectedText: document.querySelector("#selectedText"),
@@ -59,7 +66,10 @@ function bindEvents() {
 
   els.detectButton.addEventListener("click", () => {
     const job = getActiveJob();
-    if (job) detectJob(job);
+    if (job) {
+      clearFastSamMask(job);
+      detectJob(job, { ignoreFastSam: true });
+    }
   });
   els.saveButton.addEventListener("click", saveSelectedSprites);
   els.rembgButton.addEventListener("click", () => {
@@ -73,6 +83,17 @@ function bindEvents() {
   });
   els.fastSamAllButton.addEventListener("click", segmentAllJobsWithFastSam);
   els.previewMaskButton.addEventListener("click", toggleMaskPreview);
+  els.spriteModalCloseButton.addEventListener("click", closeSpriteModal);
+  els.spriteModalCheckerButton.addEventListener("click", () => setSpriteModalBackground("checker"));
+  els.spriteModalBlackButton.addEventListener("click", () => setSpriteModalBackground("black"));
+  els.spriteModal.addEventListener("click", (event) => {
+    if (event.target.hasAttribute("data-close-sprite-modal")) closeSpriteModal();
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.spriteModal.classList.contains("hidden")) {
+      closeSpriteModal();
+    }
+  });
   els.selectAllButton.addEventListener("click", () => setAllSelected(true));
   els.clearButton.addEventListener("click", () => setAllSelected(false));
   els.stageCanvas.addEventListener("click", toggleSpriteAtPoint);
@@ -80,6 +101,7 @@ function bindEvents() {
   [els.modeInput, els.alphaInput, els.toleranceInput, els.minAreaInput, els.mergeGapInput].forEach((input) => {
     input.addEventListener("input", () => {
       syncControlLabels();
+      state.jobs.forEach(clearFastSamMask);
       debounceDetectAll();
     });
   });
@@ -179,6 +201,7 @@ function createJob(file, image) {
     imageData: context.getImageData(0, 0, canvas.width, canvas.height),
     maskImageData: null,
     instanceMaskImageData: null,
+    detectionMode: null,
     labelMap: null,
     sprites: [],
     renderedCanvases: new Map()
@@ -204,9 +227,10 @@ function syncControlLabels() {
   els.coverQualityValue.value = els.coverQualityInput.value;
 }
 
-function detectJob(job) {
+function detectJob(job, optionsOverride = {}) {
   const options = getOptions();
-  if (job.instanceMaskImageData) {
+  if (!optionsOverride.ignoreFastSam && job.instanceMaskImageData) {
+    job.detectionMode = "fastsam";
     const labels = labelInstancesFromImageData(job.instanceMaskImageData, options.minArea);
     job.labelMap = labels.labels;
     job.sprites = labels.components.map((sprite, index) => ({
@@ -220,6 +244,7 @@ function detectJob(job) {
   }
 
   const detectionImageData = job.maskImageData || job.imageData;
+  job.detectionMode = resolveDetectionMode(detectionImageData, options);
   const mask = createForegroundMask(detectionImageData, options);
   const labels = labelComponents(mask, detectionImageData.width, detectionImageData.height, options.minArea);
   job.labelMap = labels.labels;
@@ -230,6 +255,22 @@ function detectJob(job) {
   }));
   job.renderedCanvases.clear();
   renderActiveJob();
+}
+
+function clearFastSamMask(job) {
+  if (!job || !job.instanceMaskImageData) return;
+  const fastSamMask = job.instanceMaskImageData;
+  job.instanceMaskImageData = null;
+  job.fastSamProcessed = false;
+  if (job.maskImageData === fastSamMask) {
+    job.maskImageData = null;
+  }
+  job.maskImage = job.rembgProcessed ? job.maskImage : null;
+  job.showMaskPreview = job.rembgProcessed && job.showMaskPreview;
+  job.detectionMode = null;
+  job.labelMap = null;
+  job.sprites = [];
+  job.renderedCanvases.clear();
 }
 
 function getOptions() {
@@ -346,11 +387,47 @@ function renderSpriteGrid(job) {
       sprite.selected = !sprite.selected;
       renderActiveJob();
     });
+    const inspect = document.createElement("button");
+    inspect.type = "button";
+    inspect.textContent = "预览";
+    inspect.addEventListener("click", () => {
+      openSpriteModal(job, sprite, index);
+    });
 
-    meta.append(size, toggle);
+    const actions = document.createElement("div");
+    actions.className = "sprite-meta-actions";
+    actions.append(inspect, toggle);
+    meta.append(size, actions);
     card.append(preview, meta);
     els.spriteGrid.append(card);
   });
+}
+
+function openSpriteModal(job, sprite, index) {
+  const canvas = renderSpriteCanvas(job, sprite);
+  const copy = document.createElement("canvas");
+  copy.width = canvas.width;
+  copy.height = canvas.height;
+  copy.getContext("2d").drawImage(canvas, 0, 0);
+
+  els.spriteModalTitle.textContent = `切片 ${String(index + 1).padStart(2, "0")}`;
+  els.spriteModalMeta.textContent = `${job.fileName} · ${copy.width}×${copy.height}px`;
+  els.spriteModalCanvasWrap.innerHTML = "";
+  els.spriteModalCanvasWrap.append(copy);
+  setSpriteModalBackground("checker");
+  els.spriteModal.classList.remove("hidden");
+}
+
+function closeSpriteModal() {
+  els.spriteModal.classList.add("hidden");
+  els.spriteModalCanvasWrap.innerHTML = "";
+}
+
+function setSpriteModalBackground(mode) {
+  const black = mode === "black";
+  els.spriteModalCanvasWrap.classList.toggle("black-bg", black);
+  els.spriteModalCheckerButton.setAttribute("aria-pressed", String(!black));
+  els.spriteModalBlackButton.setAttribute("aria-pressed", String(black));
 }
 
 function toggleSpriteAtPoint(event) {
@@ -399,16 +476,24 @@ function renderSpriteCanvas(job, sprite) {
       const sx = x0 + x;
       const sy = y0 + y;
       const sourceIndex = sy * source.width + sx;
-      alphaMask[y * width + x] = labelSet.has(job.labelMap[sourceIndex]) ? 1 : 0;
+      const sourceOffset = sourceIndex * 4;
+      const inLabel = labelSet.has(job.labelMap[sourceIndex]);
+      const keepOriginalAlpha = job.detectionMode === "alpha-filled";
+      alphaMask[y * width + x] = inLabel && (!keepOriginalAlpha || source.data[sourceOffset + 3] > options.alphaThreshold) ? 1 : 0;
     }
   }
 
   if (options.localRefine && job.fastSamProcessed) {
     alphaMask = refineLocalSpriteMask(source, alphaMask, x0, y0, width, height, options);
   }
-  if (options.whiteTrim > 0 && job.fastSamProcessed) {
+  if (options.whiteTrim > 0) {
     alphaMask = trimWhiteSpriteEdge(source, alphaMask, x0, y0, width, height, options);
   }
+
+  const softAlpha = job.fastSamProcessed
+    ? createSoftSpriteAlpha(source, alphaMask, x0, y0, width, height, options)
+    : createOpaqueSpriteAlpha(alphaMask);
+  const softBackground = softAlpha.background;
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -418,10 +503,20 @@ function renderSpriteCanvas(job, sprite) {
       const sourceOffset = sourceIndex * 4;
       const targetOffset = (y * width + x) * 4;
       const targetIndex = y * width + x;
-      output.data[targetOffset] = source.data[sourceOffset];
-      output.data[targetOffset + 1] = source.data[sourceOffset + 1];
-      output.data[targetOffset + 2] = source.data[sourceOffset + 2];
-      output.data[targetOffset + 3] = alphaMask[targetIndex] ? source.data[sourceOffset + 3] : 0;
+      const alpha = softAlpha.values[targetIndex];
+      const color = alpha > 0 && alpha < 255
+        ? removeBackgroundMatte(
+          source.data[sourceOffset],
+          source.data[sourceOffset + 1],
+          source.data[sourceOffset + 2],
+          softBackground,
+          alpha / 255
+        )
+        : null;
+      output.data[targetOffset] = color ? color.r : source.data[sourceOffset];
+      output.data[targetOffset + 1] = color ? color.g : source.data[sourceOffset + 1];
+      output.data[targetOffset + 2] = color ? color.b : source.data[sourceOffset + 2];
+      output.data[targetOffset + 3] = Math.round(source.data[sourceOffset + 3] * (alpha / 255));
     }
   }
 
@@ -605,6 +700,7 @@ function replaceJobImage(job, blob, rembgProcessed) {
       job.maskImage = image;
       job.showMaskPreview = rembgProcessed;
       job.instanceMaskImageData = null;
+      job.detectionMode = null;
       job.labelMap = null;
       job.sprites = [];
       job.renderedCanvases.clear();
@@ -632,6 +728,7 @@ function setJobInstanceMask(job, dataUrl) {
       job.fastSamProcessed = true;
       job.rembgProcessed = false;
       job.processedBlob = null;
+      job.detectionMode = "fastsam";
       job.labelMap = null;
       job.sprites = [];
       job.renderedCanvases.clear();
@@ -761,6 +858,103 @@ function refineLocalSpriteMask(source, baseMask, x0, y0, width, height, options)
   return refined;
 }
 
+function createOpaqueSpriteAlpha(mask) {
+  const values = new Uint8ClampedArray(mask.length);
+  for (let index = 0; index < mask.length; index += 1) {
+    values[index] = mask[index] ? 255 : 0;
+  }
+  return {
+    values,
+    background: { r: 255, g: 255, b: 255 }
+  };
+}
+
+function createSoftSpriteAlpha(source, mask, x0, y0, width, height, options) {
+  const background = estimateLocalCropBackground(source, mask, x0, y0, width, height);
+  const values = createOpaqueSpriteAlpha(mask).values;
+  const inner = erodeMask(mask, width, height);
+  const deepInner = erodeMask(inner, width, height);
+  const expanded = expandBinaryMask(mask, width, height, 1);
+  const strength = Math.max(1, Math.min(10, options.whiteTrim || 1));
+  const colorTolerance = 14 + strength * 7;
+  const backgroundBrightness = (background.r + background.g + background.b) / 3;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      if (deepInner[index]) continue;
+
+      const sx = x0 + x;
+      const sy = y0 + y;
+      const sourceOffset = (sy * source.width + sx) * 4;
+      const r = source.data[sourceOffset];
+      const g = source.data[sourceOffset + 1];
+      const b = source.data[sourceOffset + 2];
+      const hsl = rgbToHsl(r, g, b);
+      const brightness = (r + g + b) / 3;
+      const delta = colorDistance(r, g, b, background.r, background.g, background.b);
+      const gradient = localGradient(source.data, source.width, source.height, sx, sy);
+      const neighborCoverage = getMaskNeighborCoverage(mask, width, height, x, y);
+      const backgroundLike = delta <= colorTolerance && hsl.s <= 0.28;
+      const channelSpread = Math.max(r, g, b) - Math.min(r, g, b);
+      const brightnessDrop = backgroundBrightness - brightness;
+      const paleShadow = brightnessDrop >= 2
+        && brightnessDrop <= 92
+        && hsl.s <= 0.24
+        && channelSpread <= 34
+        && gradient <= 32
+        && delta <= colorTolerance * 2.15;
+
+      if (mask[index]) {
+        const edgeAlpha = inner[index] ? 224 : 168;
+        const coverageAlpha = 96 + Math.round(neighborCoverage * 159);
+        let alpha = Math.min(255, Math.max(edgeAlpha, coverageAlpha));
+        const strongForegroundEdge = delta > colorTolerance * 2 || hsl.s > 0.34 || gradient > 44;
+
+        if (strongForegroundEdge) {
+          alpha = Math.max(alpha, 238);
+        }
+
+        if (backgroundLike || paleShadow) {
+          const contrast = clamp(delta / Math.max(1, colorTolerance), 0, 1);
+          const texture = clamp(gradient / 34, 0, 1);
+          alpha = Math.round(alpha * (0.28 + Math.max(contrast, texture) * 0.58));
+        }
+
+        values[index] = clamp(alpha, 0, 255);
+      } else if (expanded[index] && (delta > colorTolerance * 1.2 || gradient > 24) && !backgroundLike && !paleShadow) {
+        values[index] = Math.round(Math.min(92, neighborCoverage * 128));
+      }
+    }
+  }
+
+  return { values, background };
+}
+
+function getMaskNeighborCoverage(mask, width, height, x, y) {
+  let total = 0;
+  let active = 0;
+  for (let oy = -1; oy <= 1; oy += 1) {
+    for (let ox = -1; ox <= 1; ox += 1) {
+      const nx = x + ox;
+      const ny = y + oy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      total += 1;
+      active += mask[ny * width + nx] ? 1 : 0;
+    }
+  }
+  return total ? active / total : 0;
+}
+
+function removeBackgroundMatte(r, g, b, background, alpha) {
+  const safeAlpha = clamp(alpha, 0.08, 1);
+  return {
+    r: clamp(Math.round((r - background.r * (1 - safeAlpha)) / safeAlpha), 0, 255),
+    g: clamp(Math.round((g - background.g * (1 - safeAlpha)) / safeAlpha), 0, 255),
+    b: clamp(Math.round((b - background.b * (1 - safeAlpha)) / safeAlpha), 0, 255)
+  };
+}
+
 function estimateLocalCropBackground(source, mask, x0, y0, width, height) {
   const samples = [];
   const inset = Math.max(1, Math.min(6, Math.floor(Math.min(width, height) * 0.08)));
@@ -831,43 +1025,86 @@ function expandBinaryMask(mask, width, height, radius) {
 }
 
 function trimWhiteSpriteEdge(source, mask, x0, y0, width, height, options) {
-  const strength = Math.max(0, Math.min(5, options.whiteTrim));
+  const strength = Math.max(0, Math.min(10, options.whiteTrim));
   if (!strength) return mask;
 
   const background = estimateLocalCropBackground(source, mask, x0, y0, width, height);
   const backgroundBrightness = (background.r + background.g + background.b) / 3;
-  const boundary = createMaskBoundary(mask, width, height, Math.max(1, strength + 1));
+  const boundaryRadius = Math.max(1, Math.round(strength * 1.4) + 1);
   const trimmed = new Uint8Array(mask);
-  const colorTolerance = 12 + strength * 7;
-  const saturationLimit = 0.16 + strength * 0.035;
-  const brightnessSlack = 18 + strength * 7;
-  const gradientLimit = 18 + strength * 5;
+  const trimProfile = createWhiteEdgeTrimProfile(strength, backgroundBrightness);
+  const passes = Math.max(2, Math.min(14, Math.round(strength * 1.3) + 2));
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const index = y * width + x;
-      if (!boundary[index]) continue;
+  for (let pass = 0; pass < passes; pass += 1) {
+    const boundary = createMaskBoundary(trimmed, width, height, pass === 0 ? boundaryRadius : 1);
+    let changed = false;
 
-      const sx = x0 + x;
-      const sy = y0 + y;
-      const sourceOffset = (sy * source.width + sx) * 4;
-      const r = source.data[sourceOffset];
-      const g = source.data[sourceOffset + 1];
-      const b = source.data[sourceOffset + 2];
-      const hsl = rgbToHsl(r, g, b);
-      const brightness = (r + g + b) / 3;
-      const delta = colorDistance(r, g, b, background.r, background.g, background.b);
-      const gradient = localGradient(source.data, source.width, source.height, sx, sy);
-      const backgroundLike = delta <= colorTolerance && hsl.s <= saturationLimit;
-      const paleWhite = brightness >= backgroundBrightness - brightnessSlack && hsl.s <= saturationLimit * 0.9;
-
-      if ((backgroundLike || paleWhite) && gradient <= gradientLimit) {
-        trimmed[index] = 0;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = y * width + x;
+        if (!boundary[index]) continue;
+        if (shouldTrimWhiteShadowPixel(source, x0, y0, width, height, x, y, background, trimProfile)) {
+          trimmed[index] = 0;
+          changed = true;
+        }
       }
     }
+
+    if (!changed) break;
   }
 
   return trimmed;
+}
+
+function createWhiteEdgeTrimProfile(strength, backgroundBrightness) {
+  const colorTolerance = 12 + strength * 6;
+  const saturationLimit = Math.min(0.42, 0.16 + strength * 0.026);
+  const brightnessSlack = 18 + strength * 6;
+  const gradientLimit = 18 + strength * 4;
+  return {
+    backgroundBrightness,
+    colorTolerance,
+    saturationLimit,
+    brightnessSlack,
+    gradientLimit,
+    whiteBrightnessFloor: Math.max(168, backgroundBrightness - brightnessSlack * 1.4),
+    shadowDistanceLimit: 34 + strength * 12,
+    shadowGradientLimit: Math.max(12, gradientLimit * 0.78),
+    shadowSaturationLimit: Math.min(0.32, saturationLimit * 0.92),
+    channelSpreadLimit: 30 + strength * 2.5
+  };
+}
+
+function shouldTrimWhiteShadowPixel(source, x0, y0, width, height, x, y, background, profile) {
+  const sx = x0 + x;
+  const sy = y0 + y;
+  const sourceOffset = (sy * source.width + sx) * 4;
+  const r = source.data[sourceOffset];
+  const g = source.data[sourceOffset + 1];
+  const b = source.data[sourceOffset + 2];
+  const hsl = rgbToHsl(r, g, b);
+  const brightness = (r + g + b) / 3;
+  const delta = colorDistance(r, g, b, background.r, background.g, background.b);
+  const gradient = localGradient(source.data, source.width, source.height, sx, sy);
+  const channelSpread = Math.max(r, g, b) - Math.min(r, g, b);
+  const brightnessDrop = profile.backgroundBrightness - brightness;
+  const backgroundLike = delta <= profile.colorTolerance && hsl.s <= profile.saturationLimit;
+  const paleWhite = brightness >= profile.backgroundBrightness - profile.brightnessSlack
+    && hsl.s <= profile.saturationLimit * 0.9;
+  const whiteEdge = brightness >= profile.whiteBrightnessFloor
+    && hsl.s <= profile.saturationLimit * 0.75;
+  const lowSaturationShadow = brightnessDrop >= 2
+    && brightnessDrop <= 96
+    && delta <= profile.shadowDistanceLimit
+    && hsl.s <= profile.shadowSaturationLimit
+    && channelSpread <= profile.channelSpreadLimit
+    && gradient <= profile.shadowGradientLimit;
+  const protectedForeground = hsl.s > profile.saturationLimit * 1.45
+    || gradient > profile.gradientLimit * 1.25
+    || delta > profile.shadowDistanceLimit * 1.35;
+
+  return (((backgroundLike || paleWhite || whiteEdge) && gradient <= profile.gradientLimit)
+    || (lowSaturationShadow && !protectedForeground));
 }
 
 function createMaskBoundary(mask, width, height, radius) {
@@ -886,10 +1123,12 @@ function createMaskBoundary(mask, width, height, radius) {
 function createForegroundMask(imageData, options) {
   const { data, width, height } = imageData;
   const mask = new Uint8Array(width * height);
-  const hasTransparency = detectTransparency(data);
-  const mode = options.mode === "auto" ? (hasTransparency ? "alpha" : "corner") : options.mode;
+  const mode = resolveDetectionMode(imageData, options);
   if (mode === "white-paper") {
     return createWhitePaperMask(imageData, options);
+  }
+  if (mode === "alpha-filled") {
+    return createFilledAlphaMask(imageData, options);
   }
   const background = estimateBackgroundColor(data, width, height);
 
@@ -912,6 +1151,123 @@ function createForegroundMask(imageData, options) {
   }
 
   return closeMask(mask, width, height);
+}
+
+function createFilledAlphaMask(imageData, options) {
+  const { data, width, height } = imageData;
+  const thresholds = [
+    Math.max(options.alphaThreshold, 48),
+    128,
+    220
+  ];
+  let mask = null;
+
+  for (const threshold of thresholds) {
+    const candidate = createAlphaThresholdMask(data, width, height, threshold);
+    const coverage = maskCoverage(candidate);
+    mask = candidate;
+    if (coverage > 0.002 && coverage < 0.72) break;
+  }
+
+  if (maskCoverage(mask) >= 0.86) {
+    return createCornerColorMask(imageData, {
+      ...options,
+      tolerance: Math.max(options.tolerance, 18),
+      alphaThreshold: 1
+    });
+  }
+
+  const opened = openMask(mask, width, height);
+  const source = maskCoverage(opened) > 0.002 ? opened : mask;
+  return fillComponentHoles(source, width, height, Math.max(8, Math.floor(options.minArea * 0.12)));
+}
+
+function resolveDetectionMode(imageData, options) {
+  if (options.mode !== "auto") return options.mode;
+  return detectTransparency(imageData.data) ? "alpha-filled" : "corner";
+}
+
+function createAlphaThresholdMask(data, width, height, threshold) {
+  const mask = new Uint8Array(width * height);
+  for (let index = 0; index < width * height; index += 1) {
+    const alpha = data[index * 4 + 3];
+    mask[index] = alpha > threshold ? 1 : 0;
+  }
+  return mask;
+}
+
+function maskCoverage(mask) {
+  let total = 0;
+  for (let index = 0; index < mask.length; index += 1) {
+    total += mask[index];
+  }
+  return total / mask.length;
+}
+
+function openMask(mask, width, height) {
+  return dilateMask(erodeMask(mask, width, height), width, height);
+}
+
+function createCornerColorMask(imageData, options) {
+  const { data, width, height } = imageData;
+  const mask = new Uint8Array(width * height);
+  const background = estimateBackgroundColor(data, width, height);
+
+  for (let index = 0; index < width * height; index += 1) {
+    const offset = index * 4;
+    const alpha = data[offset + 3];
+    const distance = colorDistance(
+      data[offset],
+      data[offset + 1],
+      data[offset + 2],
+      background.r,
+      background.g,
+      background.b
+    );
+    mask[index] = alpha > options.alphaThreshold && distance > options.tolerance ? 1 : 0;
+  }
+
+  return closeMask(mask, width, height);
+}
+
+function fillComponentHoles(mask, width, height, minComponentArea) {
+  const labels = labelComponents(mask, width, height, minComponentArea);
+  const result = new Uint8Array(mask.length);
+
+  labels.components.forEach((component) => {
+    const boxPadding = 2;
+    const x0 = Math.max(0, component.minX - boxPadding);
+    const y0 = Math.max(0, component.minY - boxPadding);
+    const x1 = Math.min(width - 1, component.maxX + boxPadding);
+    const y1 = Math.min(height - 1, component.maxY + boxPadding);
+    const boxWidth = x1 - x0 + 1;
+    const boxHeight = y1 - y0 + 1;
+    const componentMask = new Uint8Array(boxWidth * boxHeight);
+
+    for (let y = 0; y < boxHeight; y += 1) {
+      for (let x = 0; x < boxWidth; x += 1) {
+        const sx = x0 + x;
+        const sy = y0 + y;
+        const sourceIndex = sy * width + sx;
+        if (labels.labels[sourceIndex] === component.labels[0]) {
+          componentMask[y * boxWidth + x] = 1;
+        }
+      }
+    }
+
+    const closed = closeMask(componentMask, boxWidth, boxHeight);
+    const filled = fillMaskHoles(closed, boxWidth, boxHeight);
+    for (let y = 0; y < boxHeight; y += 1) {
+      for (let x = 0; x < boxWidth; x += 1) {
+        if (!filled[y * boxWidth + x]) continue;
+        const sx = x0 + x;
+        const sy = y0 + y;
+        result[sy * width + sx] = 1;
+      }
+    }
+  });
+
+  return result;
 }
 
 function labelInstancesFromImageData(imageData, minArea) {
@@ -1140,6 +1496,10 @@ function colorDistance(r1, g1, b1, r2, g2, b2) {
   const dg = g1 - g2;
   const db = b1 - b2;
   return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function rgbToHsl(r, g, b) {
