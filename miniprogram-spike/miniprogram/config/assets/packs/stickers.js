@@ -3,6 +3,7 @@ module.exports = {
   name: "Stickers",
   category: "贴纸",
   tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/stickers",
   cover: "pack-sheet.jpg",
   items: [
     ["1.png", 178, 260],

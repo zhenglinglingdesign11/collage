@@ -6,19 +6,7 @@ const { imagePackDefinitions } = require("./assets/packs/index");
 
 const remoteUrlCache = {};
 
-const temporarilyIgnoredPackIds = [
-  "stickers",
-  "hudiejie",
-  "jiazi",
-  "sanguangtiezhi",
-  "sanjiao",
-  "troy",
-  "leisi"
-];
-
-const assetPacks = imagePackDefinitions
-  .filter((definition) => !temporarilyIgnoredPackIds.includes(definition.id))
-  .map(createImagePack);
+const assetPacks = imagePackDefinitions.map(createImagePack);
 
 function createImagePack(definition) {
   const basePath = `/assets/packs/${definition.id}`;

@@ -3,7 +3,7 @@ module.exports = {
   name: "Hudiejie",
   category: "贴纸",
   tone: "#f5f4f1",
-  baseUrl: "https://packs-1327435159.cos.ap-guangzhou.myqcloud.com/packs/hudiejie",
+  baseUrl: "https://assets.zllarchi.site/packs/hudiejie",
   cover: "pack-sheet.jpg",
   items: [
     ["1.png", 276, 250],

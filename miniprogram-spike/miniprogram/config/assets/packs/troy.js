@@ -3,6 +3,7 @@ module.exports = {
   name: "Troy",
   category: "贴纸",
   tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/troy",
   cover: "pack-sheet.jpg",
   items: [
     ["1.png", 195, 156],

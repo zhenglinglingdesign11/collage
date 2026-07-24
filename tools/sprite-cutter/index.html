@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sprite Cutter</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Sprite Cutter</h1>
+            <p>本地切割素材纸里的独立元素，导出时选择 source-assets/packs。</p>
+          </div>
+          <div class="actions">
+            <label class="file-button">
+              <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+              选择图片
+            </label>
+            <button id="detectButton" type="button" disabled>重新识别</button>
+            <button id="saveButton" type="button" disabled>导出到 packs</button>
+          </div>
+        </header>
+
+        <div id="dropZone" class="drop-zone">
+          <div>
+            <strong>拖入素材图</strong>
+            <span>支持批量 PNG、JPG、WebP。每张图会自动识别，并可按原图名分文件夹导出。</span>
+          </div>
+        </div>
+
+        <section id="stagePanel" class="stage-panel hidden" aria-label="图片预览和检测框">
+          <canvas id="stageCanvas"></canvas>
+        </section>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>图片队列</h2>
+          <div id="jobList" class="job-list empty">
+            <span>还没有图片。</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>识别参数</h2>
+          <label>
+            <span>背景模式</span>
+            <select id="modeInput">
+              <option value="auto">自动</option>
+              <option value="alpha">透明通道</option>
+              <option value="corner">四角背景色</option>
+            </select>
+          </label>
+          <label>
+            <span>Alpha 阈值 <output id="alphaValue">12</output></span>
+            <input id="alphaInput" type="range" min="1" max="254" value="12">
+          </label>
+          <label>
+            <span>背景容差 <output id="toleranceValue">34</output></span>
+            <input id="toleranceInput" type="range" min="4" max="120" value="34">
+          </label>
+          <label>
+            <span>最小面积 <output id="minAreaValue">80</output> px</span>
+            <input id="minAreaInput" type="range" min="8" max="2000" value="80">
+          </label>
+          <label>
+            <span>合并距离 <output id="mergeGapValue">8</output> px</span>
+            <input id="mergeGapInput" type="range" min="0" max="80" value="8">
+          </label>
+          <label>
+            <span>导出留白 <output id="paddingValue">8</output> px</span>
+            <input id="paddingInput" type="range" min="0" max="80" value="8">
+          </label>
+        </section>
+
+        <section class="panel">
+          <h2>导出设置</h2>
+          <label>
+            <span>封面质量 <output id="coverQualityValue">86</output>%</span>
+            <input id="coverQualityInput" type="range" min="50" max="95" value="86">
+          </label>
+          <p class="panel-note">切片按原尺寸导出透明 PNG，不改变像素尺寸。</p>
+        </section>
+
+        <section class="panel stats-panel">
+          <h2>结果</h2>
+          <div class="stats">
+            <span>图片数</span>
+            <strong id="jobCountText">0</strong>
+          </div>
+          <div class="stats">
+            <span>已识别</span>
+            <strong id="countText">0</strong>
+          </div>
+          <div class="stats">
+            <span>已选中</span>
+            <strong id="selectedText">0</strong>
+          </div>
+          <div class="batch-actions">
+            <button id="selectAllButton" type="button" disabled>全选</button>
+            <button id="clearButton" type="button" disabled>清空</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>切片预览</h2>
+          <div id="spriteGrid" class="sprite-grid empty">
+            <span>识别后会显示切片。</span>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="./sprite-cutter.js"></script>
+  </body>
+</html>

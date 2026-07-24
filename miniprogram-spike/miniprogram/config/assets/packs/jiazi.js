@@ -3,6 +3,7 @@ module.exports = {
   name: "Jiazi",
   category: "贴纸",
   tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/jiazi",
   cover: "pack-sheet.jpg",
   items: [
     ["1.png", 160, 215],

@@ -3,6 +3,7 @@ module.exports = {
   name: "Sanguangtiezhi",
   category: "贴纸",
   tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/sanguangtiezhi",
   cover: "pack-sheet.jpg",
   items: [
     ["1.png", 305, 323],
