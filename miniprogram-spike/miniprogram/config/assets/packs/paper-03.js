@@ -1,7 +1,7 @@
 module.exports = {
   id: "paper-03",
   name: "Paper 03",
-  category: "贴纸",
+  category: "内芯纸",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/paper-03",
   cover: "pack-sheet.jpg",

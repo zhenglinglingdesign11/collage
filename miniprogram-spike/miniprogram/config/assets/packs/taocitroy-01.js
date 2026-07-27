@@ -1,0 +1,30 @@
+module.exports = {
+  id: "taocitroy-01",
+  name: "Taocitroy 01",
+  category: "贴纸",
+  tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/taocitroy-01",
+  cover: "pack-sheet.jpg",
+  items: [
+    ["1.png", 180, 196],
+    ["2.png", 182, 182],
+    ["3.png", 198, 147],
+    ["4.png", 165, 148],
+    ["5.png", 185, 156],
+    ["6.png", 202, 211],
+    ["7.png", 159, 193],
+    ["8.png", 217, 185],
+    ["9.png", 192, 203],
+    ["10.png", 141, 202],
+    ["14.png", 208, 162],
+    ["15.png", 169, 158],
+    ["16.png", 195, 133],
+    ["17.png", 181, 145],
+    ["18.png", 206, 145],
+    ["19.png", 160, 214],
+    ["20.png", 137, 202],
+    ["21.png", 200, 186],
+    ["22.png", 189, 169],
+    ["23.png", 176, 149]
+  ]
+};

@@ -1,7 +1,7 @@
 module.exports = {
   id: "blue-02",
   name: "Blue 02",
-  category: "贴纸",
+  category: "主题混装",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/blue-02",
   cover: "pack-sheet.jpg",

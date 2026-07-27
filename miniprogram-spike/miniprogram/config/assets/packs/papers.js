@@ -1,7 +1,7 @@
 module.exports = {
   id: "papers",
   name: "复古纸张",
-  category: "纸张",
+  category: "便签",
   tone: "#f3f1ec",
   cover: "pack-sheet.jpg",
   items: [

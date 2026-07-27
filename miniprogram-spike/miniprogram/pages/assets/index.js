@@ -9,7 +9,7 @@ const {
   getResolvedAssetPack
 } = require("../../config/assets");
 
-const assetPageCategories = ["推荐", "收藏", "纸张", "贴纸", "胶带", "边框", "票据", "标记", "纹理", "文字"];
+const assetPageCategories = ["推荐", "收藏", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
 
 const detailSlots = [
   { left: 10, top: 8, rotate: -7 },

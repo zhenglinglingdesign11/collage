@@ -9,21 +9,21 @@ Page({
       },
       {
         id: "single-material-2",
-        src: "/assets/packs/jiaodai/items/profile-2.png",
+        src: "https://assets.zllarchi.site/packs/jiaodai/items/11.png",
         alt: "灵感单素材 2",
-        ratio: 1
+        ratio: 0.97
       },
       {
         id: "single-material-3",
-        src: "/assets/packs/xiangkuang/items/8.png",
+        src: "https://assets.zllarchi.site/packs/xiangkuang/items/8.png",
         alt: "灵感单素材 3",
         ratio: 1.25
       },
       {
         id: "single-material-4",
-        src: "/assets/packs/jiaodai/items/profile-2.png",
+        src: "https://assets.zllarchi.site/packs/jiaodai/items/11.png",
         alt: "灵感单素材 4",
-        ratio: 0.963
+        ratio: 0.97
       },
       {
         id: "single-material-5",
@@ -33,13 +33,13 @@ Page({
       },
       {
         id: "single-material-6",
-        src: "/assets/packs/jiaodai/items/book-1.png",
+        src: "https://assets.zllarchi.site/packs/jiaodai/items/7.png",
         alt: "灵感单素材 6",
-        ratio: 1.667
+        ratio: 2.828
       },
       {
         id: "single-material-7",
-        src: "/assets/packs/xiangkuang/items/4.png",
+        src: "https://assets.zllarchi.site/packs/xiangkuang/items/4.png",
         alt: "灵感单素材 7",
         ratio: 0.537
       }
@@ -51,11 +51,7 @@ Page({
   },
 
   onLoad() {
-    const inspirationColumns = splitInspirationColumns(this.data.inspirations);
-    this.setData({
-      leftInspirations: inspirationColumns[0],
-      rightInspirations: inspirationColumns[1]
-    });
+    this.refreshInspirations();
   },
 
   onShow() {
@@ -82,8 +78,66 @@ Page({
   },
 
   noop() {
+  },
+
+  refreshInspirations() {
+    resolveInspirationImages(this.data.inspirations).then((inspirations) => {
+      const inspirationColumns = splitInspirationColumns(inspirations);
+      this.setData({
+        inspirations,
+        leftInspirations: inspirationColumns[0],
+        rightInspirations: inspirationColumns[1]
+      });
+    });
   }
 });
+
+const remoteInspirationImageCache = {};
+
+function resolveInspirationImages(items) {
+  return Promise.all((items || []).map((item) => resolveInspirationImage(item)));
+}
+
+function resolveInspirationImage(item) {
+  if (!item || !isRemoteImageSource(item.src)) return Promise.resolve(item);
+  const cached = remoteInspirationImageCache[item.src];
+  if (cached) {
+    return cached.then((src) => ({
+      ...item,
+      src: src || item.src
+    }));
+  }
+  const promise = downloadRemoteImage(item.src);
+  remoteInspirationImageCache[item.src] = promise;
+  return promise.then((src) => ({
+    ...item,
+    src: src || item.src
+  }));
+}
+
+function isRemoteImageSource(src) {
+  return /^https?:\/\//i.test(src || "");
+}
+
+function downloadRemoteImage(src) {
+  return new Promise((resolve) => {
+    wx.downloadFile({
+      url: src,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
+          resolve(res.tempFilePath);
+          return;
+        }
+        console.warn("[inspiration] remote image download failed", src, res.statusCode);
+        resolve("");
+      },
+      fail: (error) => {
+        console.warn("[inspiration] remote image download failed", src, error);
+        resolve("");
+      }
+    });
+  });
+}
 
 function splitInspirationColumns(items) {
   const columns = [[], []];

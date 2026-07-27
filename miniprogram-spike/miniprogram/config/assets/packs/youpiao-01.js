@@ -1,7 +1,7 @@
 module.exports = {
   id: "youpiao-01",
   name: "Youpiao 01",
-  category: "贴纸",
+  category: "主题混装",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/youpiao-01",
   cover: "pack-sheet.jpg",

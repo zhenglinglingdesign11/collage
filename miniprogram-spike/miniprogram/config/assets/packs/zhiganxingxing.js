@@ -1,0 +1,30 @@
+module.exports = {
+  id: "zhiganxingxing",
+  name: "Zhiganxingxing",
+  category: "贴纸",
+  tone: "#f5f4f1",
+  baseUrl: "https://assets.zllarchi.site/packs/zhiganxingxing",
+  cover: "pack-sheet.jpg",
+  items: [
+    ["1.png", 254, 264],
+    ["2.png", 250, 271],
+    ["3.png", 256, 263],
+    ["4.png", 239, 264],
+    ["5.png", 252, 261],
+    ["6.png", 247, 255],
+    ["7.png", 238, 250],
+    ["8.png", 235, 245],
+    ["9.png", 248, 266],
+    ["10.png", 244, 250],
+    ["11.png", 243, 256],
+    ["12.png", 246, 255],
+    ["13.png", 248, 255],
+    ["14.png", 243, 254],
+    ["15.png", 246, 249],
+    ["16.png", 247, 258],
+    ["17.png", 235, 248],
+    ["18.png", 242, 257],
+    ["19.png", 241, 254],
+    ["20.png", 248, 254]
+  ]
+};

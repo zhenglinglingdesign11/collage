@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { spawnSync } = require("child_process");
 
@@ -280,7 +281,8 @@ function replaceFile(file, tempFile) {
 function tempPath(file) {
   const ext = path.extname(file);
   const baseName = path.basename(file, ext);
-  return path.join(path.dirname(file), `.${baseName}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`);
+  const tempName = `sprite-cutter-${baseName}-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
+  return path.join(os.tmpdir(), tempName);
 }
 
 function optimizedPath(file) {

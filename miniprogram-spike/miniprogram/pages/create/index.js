@@ -473,20 +473,28 @@ Page({
     const cached = this.canvasImageCache[src];
     if (cached && cached.image) return Promise.resolve(cached.image);
     if (cached && cached.promise) return cached.promise;
-    const image = this.canvasNode.createImage();
-    const promise = new Promise((resolve) => {
+    const promise = resolveCanvasImageSource(src).then((imageSrc) => new Promise((resolve) => {
+      if (!imageSrc) {
+        resolve(null);
+        return;
+      }
+      const image = this.canvasNode.createImage();
       image.onload = () => {
         this.canvasImageCache[src] = { image };
         resolve(image);
       };
       image.onerror = () => {
         delete this.canvasImageCache[src];
-        console.warn("[canvas] image load failed", src);
+        console.warn("[canvas] image load failed", src, imageSrc);
         resolve(null);
       };
+      image.src = imageSrc;
+    })).catch((error) => {
+      delete this.canvasImageCache[src];
+      console.warn("[canvas] image resolve failed", src, error);
+      return null;
     });
     this.canvasImageCache[src] = { promise };
-    image.src = src;
     return promise;
   },
 
@@ -6244,6 +6252,41 @@ function normalizeLegacyAssetSource(source) {
   if (!source || typeof source !== "string") return source || "";
   const migration = LEGACY_ASSET_SOURCE_MIGRATIONS.find((item) => source.startsWith(item.from));
   return migration ? `${migration.to}${source.slice(migration.from.length)}` : source;
+}
+
+const remoteCanvasImageSourceCache = {};
+
+function resolveCanvasImageSource(src) {
+  if (!isRemoteImageSource(src)) return Promise.resolve(src);
+  const cached = remoteCanvasImageSourceCache[src];
+  if (cached) return cached;
+  const promise = downloadRemoteImage(src).then((tempFilePath) => tempFilePath || src);
+  remoteCanvasImageSourceCache[src] = promise;
+  return promise;
+}
+
+function isRemoteImageSource(src) {
+  return /^https?:\/\//i.test(src || "");
+}
+
+function downloadRemoteImage(src) {
+  return new Promise((resolve) => {
+    wx.downloadFile({
+      url: src,
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
+          resolve(res.tempFilePath);
+          return;
+        }
+        console.warn("[canvas] remote image download failed", src, res.statusCode);
+        resolve("");
+      },
+      fail: (error) => {
+        console.warn("[canvas] remote image download failed", src, error);
+        resolve("");
+      }
+    });
+  });
 }
 
 function getResolvedCanvasImageCache(cache = {}) {
