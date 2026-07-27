@@ -1,31 +1,111 @@
-// Update font URLs here when signed CloudBase links change.
 // Keep id stable because drafts store fontId.
+const FONT_BASE_URL = "https://assets.zllarchi.site/fonts";
+
 const fontTable = [
   {
-    id: "little_kids",
-    label: "Little Kids",
-    previewText: "Little Kids",
-    family: "JournalLittleKids",
-    url: "https://636c-cloudbase-d6g4f30s2b2a1c042-1453943164.tcb.qcloud.la/LittleKidsHandwriting-Regular.otf?sign=1d2c2cab88faa475fee24f2b412dfe38&t=1784103265",
-    fallback: "Kaiti SC, STKaiti, cursive"
+    id: "codystar_regular",
+    groupId: "codystar",
+    label: "Codystar",
+    variantLabel: "常规",
+    previewText: "Star",
+    family: "JournalCodystarRegular",
+    fileName: "Codystar-Regular.ttf",
+    fallback: "sans-serif"
   },
   {
-    id: "gemini",
+    id: "codystar_light",
+    groupId: "codystar",
+    label: "Codystar",
+    variantLabel: "细体",
+    previewText: "Star",
+    family: "JournalCodystarLight",
+    fileName: "Codystar-Light.ttf",
+    fallback: "sans-serif"
+  },
+  {
+    id: "gemini_regular",
+    groupId: "gemini",
     label: "Gemini",
+    variantLabel: "常规",
     previewText: "Gemini",
     family: "JournalGemini",
-    url: "https://636c-cloudbase-d6g4f30s2b2a1c042-1453943164.tcb.qcloud.la/Gemini-Regular.otf?sign=e11ffcd12eb0b640e63978f301a96b63&t=1784103237",
+    fileName: "Gemini-Regular.otf",
     fallback: "serif"
   },
   {
-    id: "kelsi",
+    id: "kelsi_regular",
+    groupId: "kelsi",
     label: "Kelsi",
+    variantLabel: "常规",
     previewText: "Kelsi",
-    family: "JournalKelsi",
-    url: "https://636c-cloudbase-d6g4f30s2b2a1c042-1453943164.tcb.qcloud.la/Kelsi-Regular.otf?sign=056d5e07f290930692d0932540ef704f&t=1784103254",
+    family: "JournalKelsiRegular",
+    fileName: "Kelsi-Regular.otf",
     fallback: "sans-serif"
+  },
+  {
+    id: "kelsi_fill",
+    groupId: "kelsi",
+    label: "Kelsi",
+    variantLabel: "填充",
+    previewText: "Kelsi",
+    family: "JournalKelsiFill",
+    fileName: "Kelsi-fill.otf",
+    fallback: "sans-serif"
+  },
+  {
+    id: "little_kids",
+    groupId: "little_kids",
+    label: "Little Kids",
+    variantLabel: "常规",
+    previewText: "Little Kids",
+    family: "JournalLittleKids",
+    fileName: "LittleKidsHandwriting-Regular.otf",
+    fallback: "Kaiti SC, STKaiti, cursive"
+  },
+  {
+    id: "melted_ideas",
+    groupId: "melted_ideas",
+    label: "Melted Ideas",
+    variantLabel: "常规",
+    previewText: "Melted Ideas",
+    family: "JournalMeltedIdeas",
+    fileName: "Melted Ideas.otf",
+    fallback: "sans-serif"
+  },
+  {
+    id: "mountains_christmas_regular",
+    groupId: "mountains_christmas",
+    label: "Mountains",
+    variantLabel: "常规",
+    previewText: "Mountains",
+    family: "JournalMountainsChristmasRegular",
+    fileName: "MountainsofChristmas-Regular.ttf",
+    fallback: "serif"
+  },
+  {
+    id: "mountains_christmas_bold",
+    groupId: "mountains_christmas",
+    label: "Mountains",
+    variantLabel: "加粗",
+    previewText: "Mountains",
+    family: "JournalMountainsChristmasBold",
+    fileName: "MountainsofChristmas-Bold.ttf",
+    fallback: "serif"
+  },
+  {
+    id: "sweet_dreams",
+    groupId: "sweet_dreams",
+    label: "Sweet Dreams",
+    variantLabel: "常规",
+    previewText: "Sweet Dreams",
+    family: "JournalSweetDreams",
+    fileName: "Sweet Dreams.ttf",
+    fallback: "cursive"
   }
-];
+].map((font) => ({
+  ...font,
+  url: `${FONT_BASE_URL}/${encodeURIComponent(font.fileName)}`
+}));
 
 module.exports = {
   fontTable

@@ -47,9 +47,15 @@
       </view>
     </view>
 
-    <view class="detail-paper-shell" style="height: calc(100vh - {{statusTop}}px - {{toolbarGap}}px - 112rpx);">
-      <view class="detail-paper">
-        <button
+    <scroll-view
+      scroll-y
+      class="detail-paper-shell"
+      style="height: calc(100vh - {{statusTop}}px - {{toolbarGap}}px - 112rpx);"
+      enhanced="{{true}}"
+      show-scrollbar="{{false}}"
+    >
+      <view class="detail-paper" style="height: {{detailPack.detailPaperHeight || detailPaperMinHeight}}rpx;">
+        <view
           wx:for="{{detailPack.items}}"
           wx:key="id"
           class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}}"
@@ -59,26 +65,28 @@
           aria-label="选择{{item.name}}"
         >
           <image class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
-        </button>
-
-        <scroll-view wx:if="{{selectedAssets.length}}" scroll-x class="selected-asset-tray" show-scrollbar="{{false}}">
-          <view
-            wx:for="{{selectedAssets}}"
-            wx:key="id"
-            class="selected-asset-chip"
-          >
-            <view class="selected-asset-preview">
-              <image src="{{item.thumb}}" mode="aspectFit"></image>
-            </view>
-            <button data-asset-id="{{item.id}}" bindtap="removeDetailAsset" aria-label="移除{{item.name}}">×</button>
-          </view>
-        </scroll-view>
-        <button
-          class="add-to-canvas {{selectedAssetIds.length ? '' : 'disabled'}}"
-          disabled="{{!selectedAssetIds.length}}"
-          bindtap="addSelectedAsset"
-        >添加到画布</button>
+        </view>
       </view>
+    </scroll-view>
+
+    <view class="detail-action-bar">
+      <scroll-view wx:if="{{selectedAssets.length}}" scroll-x class="selected-asset-tray" show-scrollbar="{{false}}">
+        <view
+          wx:for="{{selectedAssets}}"
+          wx:key="id"
+          class="selected-asset-chip"
+        >
+          <view class="selected-asset-preview">
+            <image src="{{item.thumb}}" mode="aspectFit"></image>
+          </view>
+          <button data-asset-id="{{item.id}}" catchtap="removeDetailAsset" aria-label="移除{{item.name}}">×</button>
+        </view>
+      </scroll-view>
+      <button
+        class="add-to-canvas {{selectedAssetIds.length ? '' : 'disabled'}}"
+        disabled="{{!selectedAssetIds.length}}"
+        bindtap="addSelectedAsset"
+      >添加到画布</button>
     </view>
   </block>
 </view>

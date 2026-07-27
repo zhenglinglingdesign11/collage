@@ -2357,7 +2357,7 @@ button::after {
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 268rpx;
+  height: 268rpx;
   box-sizing: border-box;
   padding: 12rpx 36rpx 12rpx;
   border-top: 1rpx solid #eceae5;
@@ -2457,8 +2457,14 @@ button::after {
   caret-color: transparent;
 }
 
+.text-option-slot {
+  height: 74rpx;
+  overflow: hidden;
+}
+
 .text-option-row {
-  min-height: 66rpx;
+  height: 74rpx;
+  box-sizing: border-box;
   overflow-x: auto;
   padding: 10rpx 0 6rpx;
   white-space: nowrap;
@@ -2466,6 +2472,8 @@ button::after {
 
 .font-strip cover-view,
 .font-strip view,
+.font-variant-strip cover-view,
+.font-variant-strip view,
 .background-strip cover-view,
 .background-strip view {
   display: inline-block;
@@ -2474,7 +2482,8 @@ button::after {
   padding: 0 20rpx;
   margin-right: 20rpx;
   border-radius: 999rpx;
-  color: #9a9a9a;
+  background: #f7f7f5;
+  color: #343434;
   font-size: 26rpx;
   line-height: 56rpx;
   text-align: center;
@@ -2482,10 +2491,26 @@ button::after {
 
 .font-strip cover-view.active,
 .font-strip view.active,
+.font-variant-strip cover-view.active,
+.font-variant-strip view.active,
 .background-strip cover-view.active,
 .background-strip view.active {
   background: #111111;
   color: #ffffff;
+}
+
+.font-variant-strip {
+  height: 74rpx;
+  padding-top: 10rpx;
+}
+
+.font-variant-strip cover-view,
+.font-variant-strip view {
+  min-width: 88rpx;
+  height: 44rpx;
+  padding: 0 18rpx;
+  font-size: 22rpx;
+  line-height: 44rpx;
 }
 
 .swatch-row {
@@ -2552,7 +2577,7 @@ button::after {
 .text-style {
   position: absolute;
   top: 0;
-  width: 20%;
+  width: 16.6667%;
   height: 84rpx;
   color: #9a9a9a;
   font-size: 20rpx;
@@ -2561,10 +2586,11 @@ button::after {
 }
 
 .text-style-0 { left: 0; }
-.text-style-1 { left: 20%; }
-.text-style-2 { left: 40%; }
-.text-style-3 { left: 60%; }
-.text-style-4 { left: 80%; }
+.text-style-1 { left: 16.6667%; }
+.text-style-2 { left: 33.3334%; }
+.text-style-3 { left: 50%; }
+.text-style-4 { left: 66.6667%; }
+.text-style-5 { left: 83.3334%; }
 
 .text-style-icon {
   position: absolute;

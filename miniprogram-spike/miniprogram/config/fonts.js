@@ -3,7 +3,9 @@ const { fontTable } = require("./font-table");
 
 const systemFont = {
   id: SYSTEM_FONT_ID,
+  groupId: SYSTEM_FONT_ID,
   label: "系统",
+  variantLabel: "常规",
   previewText: "System",
   family: "PingFang SC",
   source: "",
@@ -25,7 +27,9 @@ const legacyFontLabelMap = {
   "手写": "little_kids",
   "打字机": "system",
   "衬线": "system",
-  "圆体": "system"
+  "圆体": "system",
+  gemini: "gemini_regular",
+  kelsi: "kelsi_regular"
 };
 
 function getTextFonts() {
@@ -33,13 +37,33 @@ function getTextFonts() {
 }
 
 function getTextFontOptions() {
-  return textFonts
+  const groups = [];
+  textFonts
     .filter((font) => font.id === SYSTEM_FONT_ID || !!font.remoteSource || !!font.cloudFileId)
-    .map((font) => ({
+    .forEach((font) => {
+      const groupId = font.groupId || font.id;
+      if (groups.some((item) => item.groupId === groupId)) return;
+      groups.push({
       id: font.id,
+      groupId,
       label: font.label,
       previewText: font.previewText || font.label,
       family: font.family
+      });
+    });
+  return groups;
+}
+
+function getTextFontVariantOptions(groupId) {
+  const font = resolveTextFont(groupId);
+  const resolvedGroupId = font.groupId || font.id;
+  return textFonts
+    .filter((item) => (item.groupId || item.id) === resolvedGroupId)
+    .filter((item) => item.id === SYSTEM_FONT_ID || !!item.remoteSource || !!item.cloudFileId)
+    .map((item) => ({
+      id: item.id,
+      label: item.variantLabel || item.label,
+      family: item.family
     }));
 }
 
@@ -48,7 +72,7 @@ function getDefaultTextFont() {
 }
 
 function getTextFontById(id) {
-  return textFonts.find((font) => font.id === id) || null;
+  return textFonts.find((font) => font.id === id) || textFonts.find((font) => font.groupId === id) || null;
 }
 
 function getTextFontByLabel(label) {
@@ -86,6 +110,8 @@ function createTextFontStyle(value) {
   const font = resolveTextFont(value);
   return {
     fontId: font.id,
+    fontGroupId: font.groupId || font.id,
+    fontVariantLabel: font.variantLabel || "常规",
     fontLabel: font.label,
     fontFamily: getFontFamily(font),
     canvasFontFamily: getCanvasFontFamily(font)
@@ -96,6 +122,7 @@ module.exports = {
   SYSTEM_FONT_ID,
   getTextFonts,
   getTextFontOptions,
+  getTextFontVariantOptions,
   getDefaultTextFont,
   getTextFontById,
   getTextFontByLabel,

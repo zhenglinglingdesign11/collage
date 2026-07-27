@@ -18,7 +18,8 @@ const {
   resolveTextFont,
   getFontSource,
   getFontCloudFileId,
-  createTextFontStyle
+  createTextFontStyle,
+  getTextFontVariantOptions
 } = require("../../config/fonts");
 const {
   ratioSizeMap,
@@ -33,6 +34,11 @@ const {
   drawDraft,
   hitTest
 } = require("../../utils/renderer");
+const paper01Pack = require("../../config/assets/packs/paper-01");
+const paper02Pack = require("../../config/assets/packs/paper-02");
+const paper03Pack = require("../../config/assets/packs/paper-03");
+const paper04Pack = require("../../config/assets/packs/paper-04");
+const paper05Pack = require("../../config/assets/packs/paper-05");
 
 const LAYER_ACTIONS_PAGE_OFFSET = 560;
 const LAYER_ACTIONS_TOUCH_SLOP = 6;
@@ -60,8 +66,18 @@ const CROSS_STITCH_MAX_OUTPUT_SIZE = 1800;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
+const DEFAULT_TEXT_FONT_STYLE = createTextFontStyle("system");
+const PAPER_BACKGROUND_PACKS = [
+  { pack: paper01Pack, category: "图案" },
+  { pack: paper02Pack, category: "格纹" },
+  { pack: paper03Pack, category: "图案" },
+  { pack: paper04Pack, category: "格纹" },
+  { pack: paper05Pack, category: "纸感" }
+];
+const BACKGROUND_CATEGORY_ORDER = ["纯色", "格纹", "纸感", "图案"];
 const BACKGROUND_OPTIONS = createBackgroundOptions();
 const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
+const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
   {
     from: "cloud://cloudbase-d6g4f30s2b2a1c042.636c-cloudbase-d6g4f30s2b2a1c042-1453943164/hudiejie/",
@@ -88,6 +104,7 @@ Page({
     textDraft: "",
     textToolMode: "font",
     textFonts: TEXT_FONT_OPTIONS,
+    textFontVariants: getTextFontVariantOptions("system"),
     textColors: [
       { value: "#111111", label: "墨黑" },
       { value: "#4a4a4a", label: "深灰" },
@@ -98,7 +115,9 @@ Page({
       { value: "#8c9a8d", label: "鼠尾草" }
     ],
     textBackgrounds: ["无", "纸底", "白底", "黑底", "胶带"],
-    textFont: "system",
+    textFont: DEFAULT_TEXT_FONT_STYLE.fontId,
+    textFontGroup: DEFAULT_TEXT_FONT_STYLE.fontGroupId,
+    textFontVariant: DEFAULT_TEXT_FONT_STYLE.fontId,
     textColor: "#111111",
     textSize: 54,
     textBackground: "无",
@@ -2138,6 +2157,7 @@ Page({
       layer = this.getLayerById(layer.id) || layer;
     }
     this.beginTextLayerEditing(layer, { isNew: isNewLayer });
+    const textFontStyle = createTextFontStyle(layer.style.fontId || layer.style.fontLabel || "system");
     this.setData({
       selectedLayerId: layer.id,
       selectedLayerType: layer.type,
@@ -2147,7 +2167,10 @@ Page({
       activePalette: "",
       textDraft: layer.text || "",
       textToolMode: "font",
-      textFont: normalizeTextFontId(layer.style),
+      textFont: textFontStyle.fontId,
+      textFontGroup: textFontStyle.fontGroupId,
+      textFontVariant: textFontStyle.fontId,
+      textFontVariants: getTextFontVariantOptions(textFontStyle.fontGroupId),
       textColor: layer.style.color || "#111111",
       textSize: layer.style.fontSize || 54,
       textBackground: layer.style.backgroundLabel || "无",
@@ -3694,6 +3717,7 @@ Page({
     if (!layer || layer.type !== "text") return;
     this.preloadPackagedFonts({ force: true });
     this.beginTextLayerEditing(layer, { isNew: false });
+    const textFontStyle = createTextFontStyle(layer.style.fontId || layer.style.fontLabel || "system");
     this.setData({
       activeTool: "text",
       activeDrawer: "",
@@ -3701,7 +3725,10 @@ Page({
       textInputVisible: true,
       textDraft: layer.text || "",
       textToolMode: "font",
-      textFont: normalizeTextFontId(layer.style),
+      textFont: textFontStyle.fontId,
+      textFontGroup: textFontStyle.fontGroupId,
+      textFontVariant: textFontStyle.fontId,
+      textFontVariants: getTextFontVariantOptions(textFontStyle.fontGroupId),
       textColor: layer.style.color || "#111111",
       textSize: layer.style.fontSize || 54,
       textBackground: layer.style.backgroundLabel || "无",
@@ -3712,7 +3739,7 @@ Page({
 
   setTextToolMode(event) {
     const mode = event.currentTarget.dataset.mode || "font";
-    if (mode === "font") {
+    if (mode === "font" || mode === "fontVariant") {
       this.preloadPackagedFonts({ force: true });
     }
     this.setData({ textToolMode: mode });
@@ -3720,11 +3747,34 @@ Page({
 
   setTextFont(event) {
     const index = Number(event.currentTarget.dataset.index || 0);
-    const fontId = event.currentTarget.dataset.fontId || (this.data.textFonts[index] && this.data.textFonts[index].id) || "system";
+    const option = this.data.textFonts[index] || {};
+    const groupId = event.currentTarget.dataset.groupId || option.groupId || event.currentTarget.dataset.fontId || option.id || "system";
+    const currentStyle = createTextFontStyle(this.data.textFontVariant || this.data.textFont || "system");
+    const variants = getTextFontVariantOptions(groupId);
+    const nextVariant = variants.find((item) => item.id === currentStyle.fontId) || variants[0] || { id: groupId };
+    const fontStyle = createTextFontStyle(nextVariant.id);
+    this.ensureTextFontLoaded(fontStyle.fontId);
+    this.updateEditingTextStyle(fontStyle);
+    this.setData({
+      textFont: fontStyle.fontId,
+      textFontGroup: fontStyle.fontGroupId,
+      textFontVariant: fontStyle.fontId,
+      textFontVariants: variants
+    });
+  },
+
+  setTextFontVariant(event) {
+    const index = Number(event.currentTarget.dataset.index || 0);
+    const fontId = event.currentTarget.dataset.fontId || (this.data.textFontVariants[index] && this.data.textFontVariants[index].id) || this.data.textFont || "system";
     const fontStyle = createTextFontStyle(fontId);
     this.ensureTextFontLoaded(fontStyle.fontId);
     this.updateEditingTextStyle(fontStyle);
-    this.setData({ textFont: fontStyle.fontId });
+    this.setData({
+      textFont: fontStyle.fontId,
+      textFontGroup: fontStyle.fontGroupId,
+      textFontVariant: fontStyle.fontId,
+      textFontVariants: getTextFontVariantOptions(fontStyle.fontGroupId)
+    });
   },
 
   setTextColor(event) {
@@ -5957,7 +6007,8 @@ function createAssetPanelCategories() {
     }
     return items;
   }, []);
-  return ["推荐"].concat(categories);
+  const ordered = ASSET_PANEL_CATEGORY_ORDER.filter((category) => category === "推荐" || categories.includes(category));
+  return ordered.concat(categories.filter((category) => !ordered.includes(category)));
 }
 
 function decorateAssetPanelPacks(packs) {
@@ -6012,16 +6063,45 @@ function normalizeTextFontId(style = {}) {
 }
 
 function createBackgroundCategories(options) {
-  return options.reduce((categories, option) => {
-    if (option.category && !categories.includes(option.category)) {
-      categories.push(option.category);
+  const categories = options.reduce((items, option) => {
+    if (option.category && !items.includes(option.category)) {
+      items.push(option.category);
     }
-    return categories;
+    return items;
   }, []);
+  return BACKGROUND_CATEGORY_ORDER.filter((category) => categories.includes(category))
+    .concat(categories.filter((category) => !BACKGROUND_CATEGORY_ORDER.includes(category)));
 }
 
 function filterBackgroundOptions(options, category) {
   return options.filter((option) => option.category === category);
+}
+
+function createPaperBackgroundOptions() {
+  return PAPER_BACKGROUND_PACKS.reduce((items, entry) => {
+    const pack = entry.pack || {};
+    const category = entry.category || "纸感";
+    const baseUrl = (pack.baseUrl || "").replace(/\/+$/, "");
+    if (!baseUrl || !Array.isArray(pack.items)) return items;
+    pack.items.forEach((item, index) => {
+      const fileName = Array.isArray(item) ? item[0] : item && item.fileName;
+      const width = Array.isArray(item) ? item[1] : item && item.width;
+      const height = Array.isArray(item) ? item[2] : item && item.height;
+      if (!fileName) return;
+      const source = `${baseUrl}/items/${encodeURIComponent(fileName)}`;
+      items.push({
+        id: `background-${pack.id}-${index + 1}`,
+        name: `${pack.name || pack.id} ${index + 1}`,
+        category,
+        color: pack.tone || "#fdfdfb",
+        source,
+        thumb: source,
+        width: width || 480,
+        height: height || 640
+      });
+    });
+    return items;
+  }, []);
 }
 
 function createBackgroundOptions() {
@@ -6038,23 +6118,7 @@ function createBackgroundOptions() {
     category: "纯色",
     color
   }));
-  const papers = [
-    ["paper-1", "旧书页", "1.png", 342, 352],
-    ["paper-2", "棉纸", "2.png", 291, 299],
-    ["paper-3", "做旧纸", "3.png", 285, 326],
-    ["paper-4", "牛皮纸", "4.png", 289, 264],
-    ["paper-5", "米色纸", "5.png", 256, 348],
-    ["paper-6", "粗纹纸", "6.png", 356, 322]
-  ].map(([id, name, fileName, width, height]) => ({
-    id,
-    name,
-    category: "纸感",
-    color: "#fdfdfb",
-    source: `/assets/packs/papers/items/${fileName}`,
-    thumb: `/assets/packs/papers/items/${fileName}`,
-    width,
-    height
-  }));
+  const paperBackgrounds = createPaperBackgroundOptions();
   const grids = [
     ["grid-dot", "点阵", "#fdfdfb", "dot"],
     ["grid-line", "横线", "#ffffff", "line"],
@@ -6067,22 +6131,7 @@ function createBackgroundOptions() {
     pattern,
     patternClass: `pattern-${pattern}`
   }));
-  const patterns = [
-    ["pattern-flower", "碎花", "7.png", 291, 275],
-    ["pattern-stripe", "浅纹", "8.png", 255, 235],
-    ["pattern-vintage", "复古", "9.png", 322, 231],
-    ["pattern-collage", "拼贴", "10.png", 303, 233]
-  ].map(([id, name, fileName, width, height]) => ({
-    id,
-    name,
-    category: "图案",
-    color: "#fdfdfb",
-    source: `/assets/packs/papers/items/${fileName}`,
-    thumb: `/assets/packs/papers/items/${fileName}`,
-    width,
-    height
-  }));
-  return colors.concat(papers, grids, patterns);
+  return colors.concat(paperBackgrounds, grids);
 }
 
 function normalizeEmbossShape(shape) {

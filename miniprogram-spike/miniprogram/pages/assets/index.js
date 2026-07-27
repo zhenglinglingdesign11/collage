@@ -11,19 +11,20 @@ const {
 
 const assetPageCategories = ["推荐", "收藏", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
 
-const detailSlots = [
-  { left: 10, top: 8, rotate: -7 },
-  { left: 56, top: 9, rotate: 5 },
-  { left: 30, top: 21, rotate: -3 },
-  { left: 9, top: 35, rotate: 6 },
-  { left: 58, top: 34, rotate: -6 },
-  { left: 32, top: 48, rotate: 4 },
-  { left: 11, top: 60, rotate: -5 },
-  { left: 56, top: 60, rotate: 6 },
-  { left: 30, top: 70, rotate: -4 },
-  { left: 62, top: 74, rotate: 5 },
-  { left: 8, top: 74, rotate: 4 },
-  { left: 42, top: 82, rotate: -6 }
+const detailPaperWidth = 670;
+const detailPaperMinHeight = 920;
+const detailPaperBottomReserve = 238;
+const detailPaperPaddingX = 42;
+const detailPaperPaddingTop = 52;
+const detailPaperGapY = 52;
+const detailTwoColumnGap = 36;
+const detailScatterOffsets = [
+  { x: -6, y: 0, rotate: -7 },
+  { x: 12, y: 12, rotate: 5 },
+  { x: 4, y: -4, rotate: -3 },
+  { x: -10, y: 10, rotate: 6 },
+  { x: 8, y: 4, rotate: -6 },
+  { x: -4, y: 14, rotate: 4 }
 ];
 
 Page({
@@ -38,7 +39,8 @@ Page({
     statusBarHeight: 0,
     navBarHeight: 88,
     statusTop: 0,
-    toolbarGap: 0
+    toolbarGap: 0,
+    detailPaperMinHeight
   },
 
   onLoad() {
@@ -245,6 +247,7 @@ function readFavoritePackIds() {
 
 function decoratePack(pack, favoritePackIds, selectedAssetIds) {
   if (!pack) return null;
+  const layout = layoutDetailAssets(pack.items);
   return {
     ...pack,
     isFavorite: favoritePackIds.includes(pack.id),
@@ -252,32 +255,17 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
       ...item,
       assetClass: `detail-item-${item.id}`,
       layoutClass: `detail-asset-${index}`,
-      detailStyle: getDetailAssetStyle(item, index),
+      detailStyle: layout.items[index].style,
       isCssAsset: !item.thumb,
       selected: selectedAssetIds.includes(item.id)
-    }))
+    })),
+    detailPaperHeight: layout.paperHeight
   };
 }
 
 function getSelectedAssets(pack, selectedAssetIds) {
   if (!pack || !Array.isArray(pack.items)) return [];
   return pack.items.filter((item) => selectedAssetIds.includes(item.id));
-}
-
-function getDetailAssetStyle(item, index) {
-  const slot = detailSlots[index % detailSlots.length];
-  const size = getDetailAssetSize(item);
-  const cycleOffset = Math.floor(index / detailSlots.length) * 4;
-  const left = Math.min(76, slot.left + cycleOffset);
-  const top = Math.min(84, slot.top + cycleOffset);
-  const rotate = slot.rotate + ((index % 3) - 1);
-  return [
-    `left:${left}%`,
-    `top:${top}%`,
-    `width:${size.width}rpx`,
-    `height:${size.height}rpx`,
-    `transform:rotate(${rotate}deg)`
-  ].join(";");
 }
 
 function getDetailAssetSize(item) {
@@ -306,4 +294,90 @@ function getDetailAssetSize(item) {
     width: Math.max(88, Math.round(sourceWidth * scale)),
     height: Math.max(88, Math.round(sourceHeight * scale))
   };
+}
+
+function layoutDetailAssets(items) {
+  const assets = items.map((item, index) => ({
+    item,
+    index,
+    size: getDetailAssetSize(item)
+  }));
+  const placed = [];
+  let y = detailPaperPaddingTop;
+  let index = 0;
+
+  while (index < assets.length) {
+    const current = assets[index];
+    if (shouldUseFullRow(current)) {
+      placed.push(placeFullRowAsset(current, y));
+      y += current.size.height + detailPaperGapY;
+      index += 1;
+      continue;
+    }
+
+    const next = assets[index + 1];
+    const canPair = next && !shouldUseFullRow(next);
+    const rowAssets = canPair ? [current, next] : [current];
+    const rowHeight = Math.max(...rowAssets.map((asset) => asset.size.height));
+
+    rowAssets.forEach((asset, rowIndex) => {
+      placed.push(placeColumnAsset(asset, y, rowHeight, rowIndex));
+    });
+
+    y += rowHeight + detailPaperGapY;
+    index += rowAssets.length;
+  }
+
+  const paperHeight = Math.max(detailPaperMinHeight, y + detailPaperBottomReserve);
+  placed.sort((a, b) => a.index - b.index);
+
+  return {
+    paperHeight,
+    items: placed
+  };
+}
+
+function shouldUseFullRow(asset) {
+  return asset.size.width > 250 || asset.size.height > 285;
+}
+
+function placeFullRowAsset(asset, y) {
+  const offset = detailScatterOffsets[asset.index % detailScatterOffsets.length];
+  const availableWidth = detailPaperWidth - detailPaperPaddingX * 2;
+  const centerLeft = detailPaperPaddingX + (availableWidth - asset.size.width) / 2;
+  const left = clamp(Math.round(centerLeft + offset.x * 1.6), 24, detailPaperWidth - asset.size.width - 24);
+  const top = Math.round(y + Math.max(0, offset.y));
+
+  return buildPlacedAsset(asset, left, top, offset.rotate);
+}
+
+function placeColumnAsset(asset, y, rowHeight, rowIndex) {
+  const offset = detailScatterOffsets[asset.index % detailScatterOffsets.length];
+  const columnWidth = (detailPaperWidth - detailPaperPaddingX * 2 - detailTwoColumnGap) / 2;
+  const columnLeft = detailPaperPaddingX + rowIndex * (columnWidth + detailTwoColumnGap);
+  const left = clamp(
+    Math.round(columnLeft + (columnWidth - asset.size.width) / 2 + offset.x),
+    24,
+    detailPaperWidth - asset.size.width - 24
+  );
+  const top = Math.round(y + Math.max(0, (rowHeight - asset.size.height) / 2) + offset.y);
+
+  return buildPlacedAsset(asset, left, top, offset.rotate);
+}
+
+function buildPlacedAsset(asset, left, top, rotate) {
+  return {
+    index: asset.index,
+    style: [
+      `left:${left}rpx`,
+      `top:${top}rpx`,
+      `width:${asset.size.width}rpx`,
+      `height:${asset.size.height}rpx`,
+      `transform:rotate(${rotate}deg)`
+    ].join(";")
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }

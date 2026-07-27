@@ -375,44 +375,59 @@
           <view class="local-panel-title">文字</view>
           <view class="local-panel-done" bindtap="confirmText">完成</view>
         </view>
-        <view wx:if="{{textToolMode === 'font'}}" class="text-option-row font-strip">
-          <view
-            wx:for="{{textFonts}}"
-            wx:key="id"
-            class="{{textFont === item.id ? 'active' : ''}}"
-            data-font-id="{{item.id}}"
-            data-index="{{index}}"
-            style="font-family: {{item.family}}, sans-serif;"
-            bindtap="setTextFont"
-          >{{item.previewText}}</view>
-        </view>
-        <view wx:if="{{textToolMode === 'color'}}" class="text-option-row swatch-row">
-          <view wx:for="{{textColors}}" wx:key="value" class="swatch swatch-{{index}} {{textColor === item.value ? 'active' : ''}}" data-color="{{item.value}}" data-index="{{index}}" bindtap="setTextColor"></view>
-        </view>
-        <view wx:if="{{textToolMode === 'size'}}" class="text-option-row text-control-row">
-          <view class="size-steps">
-            <view class="{{textSize === 42 ? 'active' : ''}}" data-size="42" bindtap="setTextSize">小</view>
-            <view class="{{textSize === 54 ? 'active' : ''}}" data-size="54" bindtap="setTextSize">中</view>
-            <view class="{{textSize === 68 ? 'active' : ''}}" data-size="68" bindtap="setTextSize">大</view>
-            <view class="{{textSize === 88 ? 'active' : ''}}" data-size="88" bindtap="setTextSize">超大</view>
+        <view class="text-option-slot">
+          <view wx:if="{{textToolMode === 'font'}}" class="text-option-row font-strip">
+            <view
+              wx:for="{{textFonts}}"
+              wx:key="id"
+              class="{{textFontGroup === item.groupId ? 'active' : ''}}"
+              data-font-id="{{item.id}}"
+              data-group-id="{{item.groupId}}"
+              data-index="{{index}}"
+              style="font-family: {{item.family}}, sans-serif;"
+              bindtap="setTextFont"
+            >{{item.previewText}}</view>
           </view>
-        </view>
-        <view wx:if="{{textToolMode === 'background'}}" class="text-option-row background-strip">
-          <view wx:for="{{textBackgrounds}}" wx:key="*this" class="{{textBackground === item ? 'active' : ''}}" data-background="{{item}}" bindtap="setTextBackground">{{item}}</view>
-        </view>
-        <view wx:if="{{textToolMode === 'opacity'}}" class="text-option-row text-control-row">
-          <view class="size-steps">
-            <view class="{{textOpacity === 45 ? 'active' : ''}}" data-opacity="45" bindtap="setTextOpacity">45%</view>
-            <view class="{{textOpacity === 70 ? 'active' : ''}}" data-opacity="70" bindtap="setTextOpacity">70%</view>
-            <view class="{{textOpacity === 100 ? 'active' : ''}}" data-opacity="100" bindtap="setTextOpacity">100%</view>
+          <view wx:if="{{textToolMode === 'fontVariant'}}" class="text-option-row font-variant-strip">
+            <view
+              wx:for="{{textFontVariants}}"
+              wx:key="id"
+              class="{{textFontVariant === item.id ? 'active' : ''}}"
+              data-font-id="{{item.id}}"
+              data-index="{{index}}"
+              style="font-family: {{item.family}}, sans-serif;"
+              bindtap="setTextFontVariant"
+            >{{item.label}}</view>
+          </view>
+          <view wx:if="{{textToolMode === 'color'}}" class="text-option-row swatch-row">
+            <view wx:for="{{textColors}}" wx:key="value" class="swatch swatch-{{index}} {{textColor === item.value ? 'active' : ''}}" data-color="{{item.value}}" data-index="{{index}}" bindtap="setTextColor"></view>
+          </view>
+          <view wx:if="{{textToolMode === 'size'}}" class="text-option-row text-control-row">
+            <view class="size-steps">
+              <view class="{{textSize === 42 ? 'active' : ''}}" data-size="42" bindtap="setTextSize">小</view>
+              <view class="{{textSize === 54 ? 'active' : ''}}" data-size="54" bindtap="setTextSize">中</view>
+              <view class="{{textSize === 68 ? 'active' : ''}}" data-size="68" bindtap="setTextSize">大</view>
+              <view class="{{textSize === 88 ? 'active' : ''}}" data-size="88" bindtap="setTextSize">超大</view>
+            </view>
+          </view>
+          <view wx:if="{{textToolMode === 'background'}}" class="text-option-row background-strip">
+            <view wx:for="{{textBackgrounds}}" wx:key="*this" class="{{textBackground === item ? 'active' : ''}}" data-background="{{item}}" bindtap="setTextBackground">{{item}}</view>
+          </view>
+          <view wx:if="{{textToolMode === 'opacity'}}" class="text-option-row text-control-row">
+            <view class="size-steps">
+              <view class="{{textOpacity === 45 ? 'active' : ''}}" data-opacity="45" bindtap="setTextOpacity">45%</view>
+              <view class="{{textOpacity === 70 ? 'active' : ''}}" data-opacity="70" bindtap="setTextOpacity">70%</view>
+              <view class="{{textOpacity === 100 ? 'active' : ''}}" data-opacity="100" bindtap="setTextOpacity">100%</view>
+            </view>
           </view>
         </view>
         <view class="text-style-row">
           <view class="text-style text-style-0 {{textToolMode === 'font' ? 'active' : ''}}" data-mode="font" bindtap="setTextToolMode"><view class="text-style-icon">B</view><view class="text-style-label">字体</view></view>
-          <view class="text-style text-style-1 {{textToolMode === 'color' ? 'active' : ''}}" data-mode="color" bindtap="setTextToolMode"><view class="text-style-icon">●</view><view class="text-style-label">颜色</view></view>
-          <view class="text-style text-style-2 {{textToolMode === 'size' ? 'active' : ''}}" data-mode="size" bindtap="setTextToolMode"><view class="text-style-icon">A</view><view class="text-style-label">大小</view></view>
-          <view class="text-style text-style-3 {{textToolMode === 'background' ? 'active' : ''}}" data-mode="background" bindtap="setTextToolMode"><view class="text-style-icon">□</view><view class="text-style-label">底色</view></view>
-          <view class="text-style text-style-4 {{textToolMode === 'opacity' ? 'active' : ''}}" data-mode="opacity" bindtap="setTextToolMode"><view class="text-style-icon">▦</view><view class="text-style-label">透明</view></view>
+          <view class="text-style text-style-1 {{textToolMode === 'fontVariant' ? 'active' : ''}}" data-mode="fontVariant" bindtap="setTextToolMode"><view class="text-style-icon">Aa</view><view class="text-style-label">样式</view></view>
+          <view class="text-style text-style-2 {{textToolMode === 'color' ? 'active' : ''}}" data-mode="color" bindtap="setTextToolMode"><view class="text-style-icon">●</view><view class="text-style-label">颜色</view></view>
+          <view class="text-style text-style-3 {{textToolMode === 'size' ? 'active' : ''}}" data-mode="size" bindtap="setTextToolMode"><view class="text-style-icon">A</view><view class="text-style-label">大小</view></view>
+          <view class="text-style text-style-4 {{textToolMode === 'background' ? 'active' : ''}}" data-mode="background" bindtap="setTextToolMode"><view class="text-style-icon">□</view><view class="text-style-label">底色</view></view>
+          <view class="text-style text-style-5 {{textToolMode === 'opacity' ? 'active' : ''}}" data-mode="opacity" bindtap="setTextToolMode"><view class="text-style-icon">▦</view><view class="text-style-label">透明</view></view>
         </view>
       </view>
 
@@ -505,7 +520,6 @@
                 bindtap="applyBackground"
               >
                 <image wx:if="{{item.thumb}}" class="background-thumb" src="{{item.thumb}}" mode="aspectFill"></image>
-                <view class="background-name">{{item.name}}</view>
               </view>
             </scroll-view>
           </block>
