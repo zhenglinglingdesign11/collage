@@ -167,7 +167,7 @@ Page({
     activeBackgroundCategory: "纸感",
     visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "纸感"),
     selectedOutlineStyle: "none",
-    brushDebugEnabled: true,
+    brushDebugEnabled: false,
     brushEditing: false,
     brushColor: "#111111",
     brushSize: 8,
@@ -299,6 +299,7 @@ Page({
     this.alignmentGuideState = null;
     this.rotationGuideState = null;
     this.loadedFontFamilies = {};
+    this.fontLoadPromises = {};
     this.fontTempUrlCache = {};
     this.assetPanelRequestId = 0;
     this.preloadPackagedFonts();
@@ -339,7 +340,7 @@ Page({
   },
 
   preloadPackagedFonts(options = {}) {
-    TEXT_FONTS.filter((font) => font.packaged).forEach((font) => {
+    TEXT_FONTS.filter((font) => font.packaged && font.preload !== false).forEach((font) => {
       this.ensureTextFontLoaded(font.id, options);
     });
   },
@@ -348,39 +349,50 @@ Page({
     const font = resolveTextFont(fontId);
     const scopes = options.scopes || ["webview", "native"];
     const cacheKey = `${font.family}:${scopes.join(",")}`;
-    if (!options.force && (this.loadedFontFamilies[cacheKey] === "loaded" || this.loadedFontFamilies[cacheKey] === "loading")) return;
+    if (!options.force && this.loadedFontFamilies[cacheKey] === "loaded") return Promise.resolve(true);
+    if (!options.force && this.fontLoadPromises[cacheKey]) return this.fontLoadPromises[cacheKey];
     this.loadedFontFamilies[cacheKey] = "loading";
-    this.resolveFontSource(font)
+    const promise = this.resolveFontSource(font)
       .then((source) => {
         if (!font || !font.packaged || !source || !wx.loadFontFace) {
           this.loadedFontFamilies[cacheKey] = "failed";
-          return;
+          return false;
         }
-        wx.loadFontFace({
-          family: font.family,
-          source: `url("${source}")`,
-          desc: {
-            style: "normal",
-            weight: "normal",
-            variant: "normal"
-          },
-          global: true,
-          scopes,
-          success: () => {
-            this.loadedFontFamilies[cacheKey] = "loaded";
-            console.info("[fonts] loadFontFace success", font.id, font.family, scopes.join(","), source);
-            this.render();
-          },
-          fail: () => {
-            this.loadedFontFamilies[cacheKey] = "failed";
-            console.warn("[fonts] loadFontFace failed", font.id, font.family, scopes.join(","), source);
-          }
+        return new Promise((resolve) => {
+          wx.loadFontFace({
+            family: font.family,
+            source: `url("${source}")`,
+            desc: {
+              style: "normal",
+              weight: "normal",
+              variant: "normal"
+            },
+            global: true,
+            scopes,
+            success: () => {
+              this.loadedFontFamilies[cacheKey] = "loaded";
+              console.info("[fonts] loadFontFace success", font.id, font.family, scopes.join(","), source);
+              this.render();
+              resolve(true);
+            },
+            fail: () => {
+              this.loadedFontFamilies[cacheKey] = "failed";
+              console.warn("[fonts] loadFontFace failed", font.id, font.family, scopes.join(","), source);
+              resolve(false);
+            }
+          });
         });
       })
       .catch((error) => {
         this.loadedFontFamilies[cacheKey] = "failed";
         console.warn("[fonts] resolve source failed", font.id, font.family, error);
+        return false;
       });
+    this.fontLoadPromises[cacheKey] = promise.then((loaded) => {
+      delete this.fontLoadPromises[cacheKey];
+      return loaded;
+    });
+    return this.fontLoadPromises[cacheKey];
   },
 
   resolveFontSource(font) {
@@ -1712,6 +1724,10 @@ Page({
     }
     if (tool === "text") {
       this.addText();
+      return;
+    }
+    if (tool === "brush") {
+      this.beginBrushDrawing();
       return;
     }
     if (tool === "shape" && !this.getSelectedLayer()) {
@@ -3753,8 +3769,8 @@ Page({
     const variants = getTextFontVariantOptions(groupId);
     const nextVariant = variants.find((item) => item.id === currentStyle.fontId) || variants[0] || { id: groupId };
     const fontStyle = createTextFontStyle(nextVariant.id);
-    this.ensureTextFontLoaded(fontStyle.fontId);
     this.updateEditingTextStyle(fontStyle);
+    this.ensureTextFontLoaded(fontStyle.fontId).then(() => this.render());
     this.setData({
       textFont: fontStyle.fontId,
       textFontGroup: fontStyle.fontGroupId,
@@ -3767,8 +3783,8 @@ Page({
     const index = Number(event.currentTarget.dataset.index || 0);
     const fontId = event.currentTarget.dataset.fontId || (this.data.textFontVariants[index] && this.data.textFontVariants[index].id) || this.data.textFont || "system";
     const fontStyle = createTextFontStyle(fontId);
-    this.ensureTextFontLoaded(fontStyle.fontId);
     this.updateEditingTextStyle(fontStyle);
+    this.ensureTextFontLoaded(fontStyle.fontId).then(() => this.render());
     this.setData({
       textFont: fontStyle.fontId,
       textFontGroup: fontStyle.fontGroupId,

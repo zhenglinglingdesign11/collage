@@ -101,6 +101,50 @@ const fontTable = [
     family: "JournalSweetDreams",
     fileName: "Sweet Dreams.ttf",
     fallback: "cursive"
+  },
+  {
+    id: "kose_regular",
+    groupId: "kose",
+    label: "小濑字体",
+    variantLabel: "常规",
+    previewText: "手账",
+    family: "JournalKoseRegular",
+    fileName: "小濑字体-gb2312.ttf",
+    fallback: "Kaiti SC, STKaiti, serif",
+    preload: false
+  },
+  {
+    id: "xinyugong_regular",
+    groupId: "xinyugong",
+    label: "新愚公迷茫体",
+    variantLabel: "常规",
+    previewText: "手账",
+    family: "JournalXinyugongRegular",
+    fileName: "新愚公迷茫体-gb2312.ttf",
+    fallback: "Kaiti SC, STKaiti, cursive",
+    preload: false
+  },
+  {
+    id: "kurewa_gothic_regular",
+    groupId: "kurewa_gothic",
+    label: "苦累娃圆体",
+    variantLabel: "常规",
+    previewText: "手账",
+    family: "JournalKurewaGothicRegular",
+    fileName: "苦累娃圆体-gb2312.ttf",
+    fallback: "PingFang SC, Microsoft YaHei, sans-serif",
+    preload: false
+  },
+  {
+    id: "qingsong_handwriting_regular",
+    groupId: "qingsong_handwriting",
+    label: "轻松手写体",
+    variantLabel: "常规",
+    previewText: "手账",
+    family: "JournalQingsongHandwritingRegular",
+    fileName: "轻松手写体-gb2312.ttf",
+    fallback: "Kaiti SC, STKaiti, cursive",
+    preload: false
   }
 ].map((font) => ({
   ...font,

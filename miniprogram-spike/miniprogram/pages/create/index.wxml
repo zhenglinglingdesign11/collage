@@ -552,6 +552,10 @@
           <cover-image class="tool-icon" src="/assets/icons/pattern.png"></cover-image>
           <cover-view class="tool-label">压花</cover-view>
         </cover-view>
+        <cover-view class="tool tool-6 {{activeTool === 'brush' ? 'active' : ''}}" data-tool="brush" bindtap="openToolPanel">
+          <cover-image class="tool-icon brush-tool-icon" src="/assets/icons/brush.png"></cover-image>
+          <cover-view class="tool-label">画笔</cover-view>
+        </cover-view>
       </cover-view>
     </block>
   </view>

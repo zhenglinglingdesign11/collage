@@ -882,7 +882,7 @@ button::after {
 .tool {
   position: absolute;
   top: 10rpx;
-  width: 16.6666%;
+  width: 14.2857%;
   height: 106rpx;
   color: #6f6f6f;
   font-size: 24rpx;
@@ -891,11 +891,12 @@ button::after {
 }
 
 .tool-0 { left: 0; }
-.tool-1 { left: 16.6666%; }
-.tool-2 { left: 33.3333%; }
-.tool-3 { left: 50%; }
-.tool-4 { left: 66.6666%; }
-.tool-5 { left: 83.3333%; }
+.tool-1 { left: 14.2857%; }
+.tool-2 { left: 28.5714%; }
+.tool-3 { left: 42.8571%; }
+.tool-4 { left: 57.1428%; }
+.tool-5 { left: 71.4285%; }
+.tool-6 { left: 85.7142%; }
 
 .tool-label {
   position: absolute;
@@ -915,6 +916,13 @@ button::after {
   height: 82rpx;
   margin-left: -41rpx;
   opacity: 0.72;
+}
+
+.brush-tool-icon {
+  top: 12rpx;
+  width: 56rpx;
+  height: 56rpx;
+  margin-left: -28rpx;
 }
 
 .tool.active {
