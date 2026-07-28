@@ -62,12 +62,16 @@ const SCISSOR_MAX_OUTPUT_SIZE = 1600;
 const WAVE_CUT_AMPLITUDE = 22;
 const WAVE_CUT_WAVELENGTH = 76;
 const WAVE_CUT_POINT_STEP = 10;
+const EDITOR_TOPBAR_RPX = 112;
+const BRUSH_PANEL_FALLBACK_RPX = 386;
+const BRUSH_PANEL_GAP = 0;
 const EXPORT_HIGH_PIXEL_RATIO = 3;
 const EXPORT_FALLBACK_PIXEL_RATIO = 2;
 const BOW_BRUSH_SOURCE = "/assets/brushes/bow-brush.png";
 const CROSS_STITCH_OUTPUT_CELL = 14;
 const CROSS_STITCH_MAX_OUTPUT_SIZE = 1800;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
+const FONT_FILE_CACHE_PREFIX = "journal.fontFileCache.v1.";
 const TEXT_FONTS = getTextFonts();
 const TEXT_FONT_OPTIONS = getTextFontOptions();
 const DEFAULT_TEXT_FONT_STYLE = createTextFontStyle("system");
@@ -99,6 +103,7 @@ Page({
     ratio: "3:4",
     canvasCssWidth: 300,
     canvasCssHeight: 400,
+    canvasStageStyle: "",
     selectedLayerId: "",
     selectedLayerType: "",
     saveStatus: "未保存",
@@ -305,8 +310,12 @@ Page({
     this.loadedFontFamilies = {};
     this.fontLoadPromises = {};
     this.fontTempUrlCache = {};
+    this.fontLocalSourcePromises = {};
+    this.fontSourceFallbacks = {};
+    this.fontSourceCacheKeys = {};
     this.assetPanelRequestId = 0;
-    this.preloadPackagedFonts();
+    this.brushPanelHeight = 0;
+    this.brushStageHeight = 0;
     this.keyboardHandler = (res) => {
       this.updateKeyboardHeight(res);
     };
@@ -338,7 +347,6 @@ Page({
 
   onReady() {
     this.ensureCanvasContext().then(() => {
-      this.preloadPackagedFonts({ force: true, scopes: ["native"] });
       this.render();
     });
   },
@@ -351,6 +359,7 @@ Page({
 
   ensureTextFontLoaded(fontId, options = {}) {
     const font = resolveTextFont(fontId);
+    if (!font || !font.packaged) return Promise.resolve(false);
     const scopes = options.scopes || ["webview", "native"];
     const cacheKey = `${font.family}:${scopes.join(",")}`;
     if (!options.force && this.loadedFontFamilies[cacheKey] === "loaded") return Promise.resolve(true);
@@ -362,29 +371,13 @@ Page({
           this.loadedFontFamilies[cacheKey] = "failed";
           return false;
         }
-        return new Promise((resolve) => {
-          wx.loadFontFace({
-            family: font.family,
-            source: `url("${source}")`,
-            desc: {
-              style: "normal",
-              weight: "normal",
-              variant: "normal"
-            },
-            global: true,
-            scopes,
-            success: () => {
-              this.loadedFontFamilies[cacheKey] = "loaded";
-              console.info("[fonts] loadFontFace success", font.id, font.family, scopes.join(","), source);
-              this.render();
-              resolve(true);
-            },
-            fail: () => {
-              this.loadedFontFamilies[cacheKey] = "failed";
-              console.warn("[fonts] loadFontFace failed", font.id, font.family, scopes.join(","), source);
-              resolve(false);
-            }
-          });
+        return this.loadTextFontFace(font, source, scopes, cacheKey).then((loaded) => {
+          if (loaded) return true;
+          const fallbackSource = this.fontSourceFallbacks[source];
+          if (!fallbackSource || fallbackSource === source) return false;
+          const localCacheKey = this.fontSourceCacheKeys[source];
+          if (localCacheKey) wx.removeStorageSync(localCacheKey);
+          return this.loadTextFontFace(font, fallbackSource, scopes, cacheKey);
         });
       })
       .catch((error) => {
@@ -399,12 +392,39 @@ Page({
     return this.fontLoadPromises[cacheKey];
   },
 
+  loadTextFontFace(font, source, scopes, cacheKey) {
+    return new Promise((resolve) => {
+      wx.loadFontFace({
+        family: font.family,
+        source: `url("${source}")`,
+        desc: {
+          style: "normal",
+          weight: "normal",
+          variant: "normal"
+        },
+        global: true,
+        scopes,
+        success: () => {
+          this.loadedFontFamilies[cacheKey] = "loaded";
+          console.info("[fonts] loadFontFace success", font.id, font.family, scopes.join(","), source);
+          this.render();
+          resolve(true);
+        },
+        fail: () => {
+          this.loadedFontFamilies[cacheKey] = "failed";
+          console.warn("[fonts] loadFontFace failed", font.id, font.family, scopes.join(","), source);
+          resolve(false);
+        }
+      });
+    });
+  },
+
   resolveFontSource(font) {
     const directSource = getFontSource(font);
-    if (directSource) return Promise.resolve(directSource);
+    if (directSource) return this.resolveCachedFontSource(font, directSource);
     const fileID = getFontCloudFileId(font);
     if (!fileID) return Promise.resolve("");
-    if (this.fontTempUrlCache[fileID]) return Promise.resolve(this.fontTempUrlCache[fileID]);
+    if (this.fontTempUrlCache[fileID]) return this.resolveCachedFontSource(font, this.fontTempUrlCache[fileID]);
     if (!wx.cloud || !wx.cloud.getTempFileURL) return Promise.resolve("");
     return wx.cloud.getTempFileURL({
       fileList: [fileID]
@@ -413,9 +433,85 @@ Page({
       const url = file && (file.tempFileURL || file.download_url || file.fileID);
       if (url && (!file.status || file.status === 0)) {
         this.fontTempUrlCache[fileID] = url;
-        return url;
+        return this.resolveCachedFontSource(font, url);
       }
       throw new Error(file && file.errMsg ? file.errMsg : "empty_temp_file_url");
+    });
+  },
+
+  resolveCachedFontSource(font, source) {
+    if (!font || !source || !/^https?:\/\//i.test(source) || !wx.downloadFile || !wx.getFileSystemManager) {
+      return Promise.resolve(source || "");
+    }
+    const cacheKey = getFontFileCacheKey(font, source);
+    const cached = this.getValidCachedFontSource(cacheKey);
+    if (cached) {
+      this.fontSourceFallbacks[cached] = source;
+      this.fontSourceCacheKeys[cached] = cacheKey;
+      return Promise.resolve(cached);
+    }
+    if (!this.fontLocalSourcePromises[cacheKey]) {
+      this.fontLocalSourcePromises[cacheKey] = this.downloadAndSaveFontSource(cacheKey, source)
+        .catch((error) => {
+          console.warn("[fonts] cache font failed", font.id, source, error);
+          return "";
+        })
+        .then(() => {
+          delete this.fontLocalSourcePromises[cacheKey];
+        });
+    }
+    return Promise.resolve(source);
+  },
+
+  getValidCachedFontSource(cacheKey) {
+    const cache = wx.getStorageSync(cacheKey);
+    const savedFilePath = cache && cache.savedFilePath;
+    if (!savedFilePath) return "";
+    try {
+      wx.getFileSystemManager().accessSync(savedFilePath);
+      return savedFilePath;
+    } catch (error) {
+      wx.removeStorageSync(cacheKey);
+      return "";
+    }
+  },
+
+  downloadAndSaveFontSource(cacheKey, source) {
+    return new Promise((resolve) => {
+      wx.downloadFile({
+        url: source,
+        success: (downloadRes) => {
+          const statusCode = downloadRes.statusCode || 0;
+          if (statusCode < 200 || statusCode >= 300 || !downloadRes.tempFilePath) {
+            resolve(source);
+            return;
+          }
+          const fs = wx.getFileSystemManager();
+          fs.saveFile({
+            tempFilePath: downloadRes.tempFilePath,
+            success: (saveRes) => {
+              const savedFilePath = saveRes.savedFilePath || "";
+              if (savedFilePath) {
+                wx.setStorageSync(cacheKey, {
+                  savedFilePath,
+                  savedAt: Date.now()
+                });
+                this.fontSourceFallbacks[savedFilePath] = source;
+                this.fontSourceCacheKeys[savedFilePath] = cacheKey;
+                resolve(savedFilePath);
+                return;
+              }
+              resolve(downloadRes.tempFilePath);
+            },
+            fail: () => {
+              resolve(downloadRes.tempFilePath || source);
+            }
+          });
+        },
+        fail: () => {
+          resolve(source);
+        }
+      });
     });
   },
 
@@ -824,16 +920,67 @@ Page({
   },
 
   updateCanvasSize(ratio) {
+    this.setData(this.getCanvasSizeData(ratio));
+  },
+
+  getCanvasSizeData(ratio) {
     const size = ratioSizeMap[ratio] || ratioSizeMap["3:4"];
     const maxWidth = this.screenWidth - 56;
-    const maxHeight = this.screenWidth > 380 ? 520 : 460;
+    const maxHeight = this.getCanvasMaxHeight();
     const scale = Math.min(maxWidth / size.width, maxHeight / size.height);
     this.renderScale = scale;
-    this.setData({
+    return {
       ratio,
       canvasCssWidth: Math.round(size.width * scale),
-      canvasCssHeight: Math.round(size.height * scale)
-    });
+      canvasCssHeight: Math.round(size.height * scale),
+      canvasStageStyle: ""
+    };
+  },
+
+  getCanvasMaxHeight() {
+    return this.screenWidth > 380 ? 520 : 460;
+  },
+
+  getBrushCanvasStageStyle() {
+    if (this.brushStageHeight) {
+      return `height:${this.brushStageHeight}px;`;
+    }
+    const rpxToPx = (this.screenWidth || 375) / 750;
+    const topbarHeight = EDITOR_TOPBAR_RPX * rpxToPx;
+    const brushPanelHeight = this.getBrushPanelReservedHeight();
+    const topChrome = this.data.chromeTop || 0;
+    const height = Math.max(260, Math.floor((this.screenHeight || 667) - topChrome - topbarHeight - brushPanelHeight - BRUSH_PANEL_GAP));
+    return `height:${height}px;`;
+  },
+
+  getBrushPanelReservedHeight() {
+    if (this.brushPanelHeight) return this.brushPanelHeight;
+    const rpxToPx = (this.screenWidth || 375) / 750;
+    return BRUSH_PANEL_FALLBACK_RPX * rpxToPx;
+  },
+
+  refreshBrushCanvasLayout() {
+    if (!this.data.brushEditing) return;
+    wx.createSelectorQuery()
+      .in(this)
+      .select(".canvas-stage")
+      .boundingClientRect()
+      .select(".brush-dev-panel")
+      .boundingClientRect()
+      .exec((res) => {
+        const stageRect = res && res[0];
+        const panelRect = res && res[1];
+        if (!stageRect || !panelRect || !panelRect.height || !this.data.brushEditing) return;
+        const measuredPanelHeight = Math.ceil(panelRect.height);
+        const measuredStageHeight = Math.max(260, Math.floor(panelRect.top - stageRect.top - BRUSH_PANEL_GAP));
+        const panelChanged = Math.abs(measuredPanelHeight - (this.brushPanelHeight || 0)) >= 2;
+        const stageChanged = Math.abs(measuredStageHeight - (this.brushStageHeight || 0)) >= 2;
+        if (!panelChanged && !stageChanged) return;
+        this.brushPanelHeight = measuredPanelHeight;
+        this.brushStageHeight = measuredStageHeight;
+        this.setData({ canvasStageStyle: this.getBrushCanvasStageStyle() });
+        this.render();
+      });
   },
 
   async render(retryCount = 0) {
@@ -2163,7 +2310,6 @@ Page({
 
   addText() {
     this.enterEditMode();
-    this.preloadPackagedFonts({ force: true });
     let layer = this.getSelectedLayer();
     const isNewLayer = !layer || layer.type !== "text";
     if (!layer || layer.type !== "text") {
@@ -2203,6 +2349,7 @@ Page({
       textOpacity: Math.round((layer.opacity == null ? 1 : layer.opacity) * 100),
       textPanelBottom: this.data.keyboardHeight || 0
     });
+    this.ensureTextFontLoaded(textFontStyle.fontId).then(() => this.render());
     this.render();
   },
 
@@ -3204,18 +3351,13 @@ Page({
         screenHeight: this.screenHeight,
         chromeTop: this.data.chromeTop
       });
-      const size = Math.max(EMBOSS_MIN_SIZE, Math.min(layer.width, layer.height) * 0.72);
+      const defaultMask = getDefaultEmbossMask(layer, currentShape);
       this.embossSession = {
         layerId: layer.id,
         originalLayer,
         sourceSize,
         preview,
-        mask: {
-          x: (layer.width - size) / 2,
-          y: (layer.height - size) / 2,
-          width: size,
-          height: size
-        }
+        mask: defaultMask
       };
       this.embossGesture = null;
       this.updateEmbossPreviewData(currentShape);
@@ -3295,6 +3437,7 @@ Page({
     }
     const sourceCrop = getLayerSourceCrop(layer);
     const shape = normalizeEmbossShape(this.data.embossShape || "circle");
+    const remainderShape = getLayerCurrentClipShape(this.embossSession.originalLayer || layer);
     this.setData({ saveStatus: "压花处理中..." });
     let remainder;
     try {
@@ -3323,13 +3466,22 @@ Page({
       width: mask.width,
       height: mask.height,
       crop: roundCrop(nextCrop),
+      clipShape: "",
+      maskShape: "",
+      excludeShape: "",
+      excludeFrame: null,
+      clipPolygon: null,
+      clipPolygons: null,
       radius: 0,
+      tear: false,
       style: {
         ...(layer.style || {}),
         clipShape: shape,
+        maskShape: "",
         embossEdge: true,
         excludeShape: "",
-        excludeFrame: null
+        excludeFrame: null,
+        shape: ""
       }
     };
     layer.source = remainder.path;
@@ -3342,9 +3494,9 @@ Page({
     layer.excludeFrame = null;
     layer.style = {
       ...(layer.style || {}),
-      clipShape: "",
+      clipShape: remainderShape,
       maskShape: "",
-      embossEdge: false,
+      embossEdge: !!remainderShape,
       excludeShape: "",
       excludeFrame: null,
       shape: ""
@@ -3385,6 +3537,7 @@ Page({
       this.embossGesture = {
         mode: "pinch",
         distance: distance(points[0], points[1]),
+        span: getPointSpan(points[0], points[1]),
         center: {
           x: mask.x + mask.width / 2,
           y: mask.y + mask.height / 2
@@ -3417,15 +3570,19 @@ Page({
     if (!layer) return;
     if (this.embossGesture.mode === "pinch" && touches.length >= 2) {
       const points = touches.slice(0, 2).map((item) => this.toEmbossLayerPoint(item));
-      const startDistance = Math.max(1, this.embossGesture.distance || 1);
-      const scale = Math.max(0.25, Math.min(4, distance(points[0], points[1]) / startDistance));
-      const size = this.embossGesture.origin.width * scale;
+      const origin = this.embossGesture.origin;
+      const startSpan = this.embossGesture.span || { width: 1, height: 1 };
+      const currentSpan = getPointSpan(points[0], points[1]);
+      const scaleX = Math.max(0.25, Math.min(4, currentSpan.width / Math.max(1, startSpan.width)));
+      const scaleY = Math.max(0.25, Math.min(4, currentSpan.height / Math.max(1, startSpan.height)));
+      const width = origin.width * scaleX;
+      const height = origin.height * scaleY;
       const center = this.embossGesture.center;
       this.embossSession.mask = clampEmbossMask({
-        x: center.x - size / 2,
-        y: center.y - size / 2,
-        width: size,
-        height: size
+        x: center.x - width / 2,
+        y: center.y - height / 2,
+        width,
+        height
       }, layer);
       this.updateEmbossPreviewData();
       return;
@@ -3741,7 +3898,6 @@ Page({
   editSelectedText() {
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "text") return;
-    this.preloadPackagedFonts({ force: true });
     this.beginTextLayerEditing(layer, { isNew: false });
     const textFontStyle = createTextFontStyle(layer.style.fontId || layer.style.fontLabel || "system");
     this.setData({
@@ -3761,12 +3917,13 @@ Page({
       textOpacity: Math.round((layer.opacity == null ? 1 : layer.opacity) * 100),
       textPanelBottom: this.data.keyboardHeight || 0
     });
+    this.ensureTextFontLoaded(textFontStyle.fontId).then(() => this.render());
   },
 
   setTextToolMode(event) {
     const mode = event.currentTarget.dataset.mode || "font";
     if (mode === "font" || mode === "fontVariant") {
-      this.preloadPackagedFonts({ force: true });
+      this.ensureTextFontLoaded(this.data.textFontVariant || this.data.textFont || "system");
     }
     this.setData({ textToolMode: mode });
   },
@@ -3925,6 +4082,7 @@ Page({
     };
     this.brushStroke = null;
     this.setData({
+      canvasStageStyle: this.getBrushCanvasStageStyle(),
       brushEditing: true,
       brushStrokeCount: 0,
       activeTool: "",
@@ -3935,6 +4093,7 @@ Page({
       textInputVisible: false,
       ratioPanelVisible: false
     });
+    setTimeout(() => this.refreshBrushCanvasLayout(), 0);
     this.render();
   },
 
@@ -3942,6 +4101,7 @@ Page({
     this.brushSession = null;
     this.brushStroke = null;
     this.setData({
+      ...this.getCanvasSizeData(this.draft.ratio),
       brushEditing: false,
       brushStrokeCount: 0
     });
@@ -3973,6 +4133,7 @@ Page({
     this.brushSession = null;
     this.brushStroke = null;
     this.setData({
+      ...this.getCanvasSizeData(this.draft.ratio),
       brushEditing: false,
       brushStrokeCount: 0,
       selectedLayerId: layer.id,
@@ -4639,6 +4800,28 @@ function getLayerClipPolygonsForNextCut(layer) {
   return polygons;
 }
 
+function getLayerCurrentClipShape(layer) {
+  if (!layer) return "";
+  const style = layer.style || {};
+  return normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
+}
+
+function getDefaultEmbossMask(layer, shape) {
+  let width = Math.max(EMBOSS_MIN_SIZE, layer.width * 0.72);
+  let height = Math.max(EMBOSS_MIN_SIZE, layer.height * 0.72);
+  if (shape === "circle") {
+    const size = Math.max(EMBOSS_MIN_SIZE, Math.min(layer.width, layer.height) * 0.72);
+    width = size;
+    height = size;
+  }
+  return {
+    x: (layer.width - width) / 2,
+    y: (layer.height - height) / 2,
+    width,
+    height
+  };
+}
+
 function getPolygonBounds(polygon) {
   return polygon.reduce((result, point) => ({
     minX: Math.min(result.minX, point.x),
@@ -5175,18 +5358,34 @@ function getEmbossMaskHandle(point, box, threshold) {
 }
 
 function resizeEmbossMask(origin, dx, dy, handle, layer) {
-  const next = resizeCropBoxWithRatio(origin, dx, dy, handle, layer, 1);
+  const left = handle.indexOf("l") >= 0 ? origin.x + dx : origin.x;
+  const right = handle.indexOf("r") >= 0 ? origin.x + origin.width + dx : origin.x + origin.width;
+  const top = handle.indexOf("t") >= 0 ? origin.y + dy : origin.y;
+  const bottom = handle.indexOf("b") >= 0 ? origin.y + origin.height + dy : origin.y + origin.height;
+  const next = {
+    x: Math.min(left, right - EMBOSS_MIN_SIZE),
+    y: Math.min(top, bottom - EMBOSS_MIN_SIZE),
+    width: Math.max(EMBOSS_MIN_SIZE, Math.abs(right - left)),
+    height: Math.max(EMBOSS_MIN_SIZE, Math.abs(bottom - top))
+  };
   return clampEmbossMask(next, layer);
 }
 
 function clampEmbossMask(mask, layer) {
-  const maxSize = Math.max(EMBOSS_MIN_SIZE, Math.min(layer.width, layer.height));
-  const size = Math.min(maxSize, Math.max(EMBOSS_MIN_SIZE, Math.min(mask.width, mask.height)));
+  const width = Math.min(layer.width, Math.max(EMBOSS_MIN_SIZE, mask.width));
+  const height = Math.min(layer.height, Math.max(EMBOSS_MIN_SIZE, mask.height));
   return {
-    x: Math.min(layer.width - size, Math.max(0, mask.x)),
-    y: Math.min(layer.height - size, Math.max(0, mask.y)),
-    width: size,
-    height: size
+    x: Math.min(layer.width - width, Math.max(0, mask.x)),
+    y: Math.min(layer.height - height, Math.max(0, mask.y)),
+    width,
+    height
+  };
+}
+
+function getPointSpan(first, second) {
+  return {
+    width: Math.abs((second && second.x || 0) - (first && first.x || 0)),
+    height: Math.abs((second && second.y || 0) - (first && first.y || 0))
   };
 }
 
@@ -6321,6 +6520,20 @@ function normalizeDraftTextFonts(draft) {
     };
   });
   return draft;
+}
+
+function getFontFileCacheKey(font, source) {
+  const fontId = font && font.id ? font.id : "unknown";
+  return `${FONT_FILE_CACHE_PREFIX}${fontId}.${hashString(source || "")}`;
+}
+
+function hashString(value) {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
 }
 
 function normalizeLegacyAssetSource(source) {

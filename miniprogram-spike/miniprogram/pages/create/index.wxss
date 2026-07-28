@@ -796,6 +796,12 @@ button::after {
   top: -96rpx;
 }
 
+.canvas-stage.brush-editing {
+  min-height: 0;
+  padding: 6rpx 0 8rpx;
+  align-items: flex-end;
+}
+
 .canvas {
   display: block;
   position: relative;
@@ -2487,7 +2493,7 @@ button::after {
   display: inline-block;
   min-width: 116rpx;
   height: 56rpx;
-  padding: 0 20rpx;
+  padding: 0 16rpx;
   margin-right: 20rpx;
   border-radius: 999rpx;
   background: #f7f7f5;
@@ -2495,6 +2501,7 @@ button::after {
   font-size: 26rpx;
   line-height: 56rpx;
   text-align: center;
+  vertical-align: top;
 }
 
 .font-strip cover-view.active,
@@ -2514,11 +2521,31 @@ button::after {
 
 .font-variant-strip cover-view,
 .font-variant-strip view {
-  min-width: 88rpx;
+  min-width: 116rpx;
   height: 44rpx;
-  padding: 0 18rpx;
+  padding: 0 14rpx;
   font-size: 22rpx;
   line-height: 44rpx;
+}
+
+.font-strip cover-view.active,
+.font-strip view.active,
+.font-variant-strip cover-view.active,
+.font-variant-strip view.active {
+  background: #ffffff;
+  color: #111111;
+  box-shadow: inset 0 0 0 3rpx #111111;
+}
+
+.font-preview-image {
+  display: block;
+  width: 136rpx;
+  height: 56rpx;
+}
+
+.font-variant-strip .font-preview-image {
+  width: 116rpx;
+  height: 44rpx;
 }
 
 .swatch-row {

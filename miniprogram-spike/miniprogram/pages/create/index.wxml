@@ -67,7 +67,7 @@
     <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
     <cover-view wx:if="{{imageEffectDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="effect-dev-entry" bindtap="beginImageEffectEditing">效果DEV</cover-view>
 
-    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}}" bindtap="dismissFloatingPanels">
+    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
       <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
         <canvas
           type="2d"
@@ -291,7 +291,7 @@
         </cover-view>
         <cover-view class="palette-tool palette-tool-1" data-style="wave" bindtap="selectCutStyle">
           <cover-image class="cut-icon" src="/assets/icons/scissors/zhijiao.png"></cover-image>
-          <cover-view class="palette-label">波浪剪</cover-view>
+          <cover-view class="palette-label">花边剪</cover-view>
         </cover-view>
         <cover-view class="palette-tool palette-tool-2 active" data-style="free" bindtap="selectCutStyle">
           <cover-image class="cut-icon" src="/assets/icons/scissors/tumo.png"></cover-image>
@@ -384,9 +384,11 @@
               data-font-id="{{item.id}}"
               data-group-id="{{item.groupId}}"
               data-index="{{index}}"
-              style="font-family: {{item.family}}, sans-serif;"
               bindtap="setTextFont"
-            >{{item.previewText}}</view>
+            >
+              <image wx:if="{{item.previewImage}}" class="font-preview-image" src="{{item.previewImage}}" mode="aspectFit"></image>
+              <text wx:else>{{item.previewText}}</text>
+            </view>
           </view>
           <view wx:if="{{textToolMode === 'fontVariant'}}" class="text-option-row font-variant-strip">
             <view
@@ -395,9 +397,11 @@
               class="{{textFontVariant === item.id ? 'active' : ''}}"
               data-font-id="{{item.id}}"
               data-index="{{index}}"
-              style="font-family: {{item.family}}, sans-serif;"
               bindtap="setTextFontVariant"
-            >{{item.label}}</view>
+            >
+              <image wx:if="{{item.previewImage}}" class="font-preview-image" src="{{item.previewImage}}" mode="aspectFit"></image>
+              <text wx:else>{{item.label}}</text>
+            </view>
           </view>
           <view wx:if="{{textToolMode === 'color'}}" class="text-option-row swatch-row">
             <view wx:for="{{textColors}}" wx:key="value" class="swatch swatch-{{index}} {{textColor === item.value ? 'active' : ''}}" data-color="{{item.value}}" data-index="{{index}}" bindtap="setTextColor"></view>

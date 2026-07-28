@@ -48,7 +48,8 @@ function getTextFontOptions() {
       groupId,
       label: font.label,
       previewText: font.previewText || font.label,
-      family: font.family
+      family: font.family,
+      previewImage: getFontPreviewImage(font)
       });
     });
   return groups;
@@ -63,7 +64,9 @@ function getTextFontVariantOptions(groupId) {
     .map((item) => ({
       id: item.id,
       label: item.variantLabel || item.label,
-      family: item.family
+      family: item.family,
+      previewText: item.previewText || item.label,
+      previewImage: getFontPreviewImage(item)
     }));
 }
 
@@ -104,6 +107,11 @@ function getFontSource(font) {
 function getFontCloudFileId(font) {
   if (!font || !font.packaged) return "";
   return font.cloudFileId || "";
+}
+
+function getFontPreviewImage(font) {
+  if (!font || !font.packaged) return "";
+  return font.previewImage || `/assets/font-previews/${font.id}.png`;
 }
 
 function createTextFontStyle(value) {
