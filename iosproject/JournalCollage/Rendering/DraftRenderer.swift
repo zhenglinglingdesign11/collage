@@ -5,6 +5,7 @@ struct DraftRenderer: View {
     let draft: Draft
     var selectedLayerId: String?
     var imageStore: ImageStore?
+    var isolatedLayerId: String?
 
     var body: some View {
         GeometryReader { proxy in
@@ -19,7 +20,7 @@ struct DraftRenderer: View {
                     .frame(width: viewport.renderedSize.width, height: viewport.renderedSize.height)
                     .overlay(backgroundPattern(size: viewport.renderedSize))
 
-                ForEach(draft.orderedLayers) { layer in
+                ForEach(visibleLayers) { layer in
                     layerView(layer, viewport: viewport)
                 }
             }
@@ -32,6 +33,13 @@ struct DraftRenderer: View {
             .shadow(color: .black.opacity(0.08), radius: 18, x: 0, y: 8)
             .position(x: viewport.canvasRect.midX, y: viewport.canvasRect.midY)
         }
+    }
+
+    private var visibleLayers: [Layer] {
+        guard let isolatedLayerId else {
+            return draft.orderedLayers
+        }
+        return draft.orderedLayers.filter { $0.id == isolatedLayerId }
     }
 
     @ViewBuilder

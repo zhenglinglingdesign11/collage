@@ -39,6 +39,7 @@ struct EditorView: View {
                 draft: $draft,
                 selectedLayerId: $selectedLayerId,
                 imageStore: imageStore,
+                isolatedLayerId: lineCutIsolatedLayerId,
                 onDraftChanged: commitDraftChange
             )
             .padding(.horizontal, JournalSpacing.xl)
@@ -438,6 +439,10 @@ struct EditorView: View {
         }
         lineCutStyle = style
         activeSheet = .lineCut
+    }
+
+    private var lineCutIsolatedLayerId: String? {
+        activeSheet == .lineCut ? selectedLayerId : nil
     }
 
     private func prepareStraightCut() {

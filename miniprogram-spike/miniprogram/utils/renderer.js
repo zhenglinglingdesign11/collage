@@ -10,7 +10,7 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   drawBackgroundPattern(ctx, draft);
   drawBackgroundImage(ctx, draft, options);
 
-  getOrderedLayers(draft.layers)
+  getVisibleLayers(draft.layers, options.isolatedLayerId)
     .forEach((layer) => {
       drawLayer(ctx, layer, options);
       if (layer.id === selectedLayerId) {
@@ -21,6 +21,12 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   drawScissorOverlay(ctx, options.scissor);
   drawAlignmentGuides(ctx, options.guides || [], draft);
   ctx.restore();
+}
+
+function getVisibleLayers(layers, isolatedLayerId) {
+  const orderedLayers = getOrderedLayers(layers);
+  if (!isolatedLayerId) return orderedLayers;
+  return orderedLayers.filter((layer) => layer.id === isolatedLayerId);
 }
 
 function drawBackgroundPattern(ctx, draft) {

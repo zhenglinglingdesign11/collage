@@ -1,3 +1,8 @@
+const {
+  isRemoteImageSource,
+  resolveCachedRemoteImage
+} = require("../../utils/remote-image-cache");
+
 Page({
   data: {
     inspirations: [
@@ -107,36 +112,12 @@ function resolveInspirationImage(item) {
       src: src || item.src
     }));
   }
-  const promise = downloadRemoteImage(item.src);
+  const promise = resolveCachedRemoteImage(item.src, { logPrefix: "[inspiration]" });
   remoteInspirationImageCache[item.src] = promise;
   return promise.then((src) => ({
     ...item,
     src: src || item.src
   }));
-}
-
-function isRemoteImageSource(src) {
-  return /^https?:\/\//i.test(src || "");
-}
-
-function downloadRemoteImage(src) {
-  return new Promise((resolve) => {
-    wx.downloadFile({
-      url: src,
-      success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
-          resolve(res.tempFilePath);
-          return;
-        }
-        console.warn("[inspiration] remote image download failed", src, res.statusCode);
-        resolve("");
-      },
-      fail: (error) => {
-        console.warn("[inspiration] remote image download failed", src, error);
-        resolve("");
-      }
-    });
-  });
 }
 
 function splitInspirationColumns(items) {

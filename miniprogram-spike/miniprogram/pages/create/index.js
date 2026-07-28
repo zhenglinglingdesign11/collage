@@ -34,6 +34,10 @@ const {
   drawDraft,
   hitTest
 } = require("../../utils/renderer");
+const {
+  isRemoteImageSource,
+  resolveCachedRemoteImage
+} = require("../../utils/remote-image-cache");
 const paper01Pack = require("../../config/assets/packs/paper-01");
 const paper02Pack = require("../../config/assets/packs/paper-02");
 const paper03Pack = require("../../config/assets/packs/paper-03");
@@ -194,7 +198,7 @@ Page({
       { value: 10, label: "中" },
       { value: 18, label: "粗" }
     ],
-    imageEffectDebugEnabled: true,
+    imageEffectDebugEnabled: false,
     imageEffectEditing: false,
     imageEffectBusy: false,
     imageEffectType: "cross-stitch",
@@ -850,8 +854,14 @@ Page({
       imageCache: getResolvedCanvasImageCache(this.canvasImageCache),
       guides: this.alignmentGuides || [],
       scissor: this.getScissorRenderState(),
-      brushDraft: this.getBrushRenderState()
+      brushDraft: this.getBrushRenderState(),
+      isolatedLayerId: this.getStraightCutIsolatedLayerId()
     });
+  },
+
+  getStraightCutIsolatedLayerId() {
+    if (!this.data.straightCutEditing || !this.straightCutSession) return "";
+    return this.straightCutSession.layerId || "";
   },
 
   drawCanvasSnapshot(callback) {
@@ -6325,33 +6335,9 @@ function resolveCanvasImageSource(src) {
   if (!isRemoteImageSource(src)) return Promise.resolve(src);
   const cached = remoteCanvasImageSourceCache[src];
   if (cached) return cached;
-  const promise = downloadRemoteImage(src).then((tempFilePath) => tempFilePath || src);
+  const promise = resolveCachedRemoteImage(src, { logPrefix: "[canvas]" }).then((filePath) => filePath || src);
   remoteCanvasImageSourceCache[src] = promise;
   return promise;
-}
-
-function isRemoteImageSource(src) {
-  return /^https?:\/\//i.test(src || "");
-}
-
-function downloadRemoteImage(src) {
-  return new Promise((resolve) => {
-    wx.downloadFile({
-      url: src,
-      success: (res) => {
-        if (res.statusCode >= 200 && res.statusCode < 300 && res.tempFilePath) {
-          resolve(res.tempFilePath);
-          return;
-        }
-        console.warn("[canvas] remote image download failed", src, res.statusCode);
-        resolve("");
-      },
-      fail: (error) => {
-        console.warn("[canvas] remote image download failed", src, error);
-        resolve("");
-      }
-    });
-  });
 }
 
 function getResolvedCanvasImageCache(cache = {}) {

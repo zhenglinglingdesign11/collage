@@ -4,6 +4,7 @@ struct InteractiveDraftCanvas: View {
     @Binding var draft: Draft
     @Binding var selectedLayerId: String?
     var imageStore: ImageStore?
+    var isolatedLayerId: String?
     var onDraftChanged: () -> Void
 
     @State private var dragBaseLayer: Layer?
@@ -22,7 +23,8 @@ struct InteractiveDraftCanvas: View {
                 DraftRenderer(
                     draft: draft,
                     selectedLayerId: selectedLayerId,
-                    imageStore: imageStore
+                    imageStore: imageStore,
+                    isolatedLayerId: isolatedLayerId
                 )
 
                 AlignmentGuidesOverlay(guides: alignmentGuides, viewport: viewport)
