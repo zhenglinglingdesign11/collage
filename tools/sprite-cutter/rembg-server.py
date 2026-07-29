@@ -70,6 +70,13 @@ class RembgHandler(BaseHTTPRequestHandler):
                 source,
                 session=type(self).session,
                 force_return_bytes=True,
+                # White product sheets often leave a pale halo with the raw mask.
+                # Alpha matting recomputes the transition pixels before PNG export.
+                alpha_matting=True,
+                alpha_matting_foreground_threshold=240,
+                alpha_matting_background_threshold=10,
+                alpha_matting_erode_size=8,
+                post_process_mask=True,
             )
         except Exception as error:
             self.send_json({"ok": False, "error": str(error)}, status=500)

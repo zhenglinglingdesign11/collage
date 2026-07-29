@@ -4503,7 +4503,8 @@ Page({
       saveStatus: "主体剪中..."
     });
     try {
-      const resultPath = await removeImageBackground({ filePath: layer.source });
+      const uploadPath = await this.createBackgroundRemovalUploadImage(layer);
+      const resultPath = await removeImageBackground({ filePath: uploadPath });
       const info = await getImageInfoAsync(resultPath);
       layer.source = resultPath;
       layer.sourceWidth = info.width || layer.sourceWidth || layer.width;
@@ -4520,6 +4521,37 @@ Page({
     } finally {
       this.setData({ backgroundRemoving: false });
     }
+  },
+
+  async createBackgroundRemovalUploadImage(layer) {
+    await this.ensureCanvasContext();
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const width = Math.max(1, Math.round(layer.sourceWidth || image.width || layer.width));
+    const height = Math.max(1, Math.round(layer.sourceHeight || image.height || layer.height));
+    this.configureCanvasBitmapSize(width, height);
+    this.ctx.clearRect(0, 0, width, height);
+    this.ctx.drawImage(image, 0, 0, width, height);
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width,
+        height,
+        destWidth: width,
+        destHeight: height,
+        fileType: "png",
+        success: (res) => {
+          this.configureCanvasBitmap();
+          this.render();
+          resolve(res.tempFilePath);
+        },
+        fail: (error) => {
+          this.configureCanvasBitmap();
+          this.render();
+          reject(error);
+        }
+      }, this);
+    });
   },
 
   duplicateLayer() {

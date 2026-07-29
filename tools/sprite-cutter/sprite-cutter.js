@@ -200,6 +200,7 @@ function createJob(file, image) {
     image,
     imageData: context.getImageData(0, 0, canvas.width, canvas.height),
     maskImageData: null,
+    rembgImageData: null,
     instanceMaskImageData: null,
     detectionMode: null,
     labelMap: null,
@@ -457,6 +458,9 @@ function renderSpriteCanvas(job, sprite) {
 
   const options = getOptions();
   const source = job.imageData;
+  const rembgSource = job.rembgProcessed && job.rembgImageData
+    ? job.rembgImageData
+    : null;
   const labelSet = new Set(sprite.labels);
   const x0 = Math.max(0, sprite.minX - options.padding);
   const y0 = Math.max(0, sprite.minY - options.padding);
@@ -486,7 +490,7 @@ function renderSpriteCanvas(job, sprite) {
   if (options.localRefine && job.fastSamProcessed) {
     alphaMask = refineLocalSpriteMask(source, alphaMask, x0, y0, width, height, options);
   }
-  if (options.whiteTrim > 0) {
+  if (!rembgSource && options.whiteTrim > 0) {
     alphaMask = trimWhiteSpriteEdge(source, alphaMask, x0, y0, width, height, options);
   }
 
@@ -503,7 +507,19 @@ function renderSpriteCanvas(job, sprite) {
       const sourceOffset = sourceIndex * 4;
       const targetOffset = (y * width + x) * 4;
       const targetIndex = y * width + x;
+      const rembgAlpha = rembgSource
+        ? rembgSource.data[sourceOffset + 3] / 255
+        : null;
       const alpha = softAlpha.values[targetIndex];
+      const rembgColor = rembgSource && rembgAlpha > 0 && rembgAlpha < 1
+        ? removeBackgroundMatte(
+          rembgSource.data[sourceOffset],
+          rembgSource.data[sourceOffset + 1],
+          rembgSource.data[sourceOffset + 2],
+          { r: 255, g: 255, b: 255 },
+          rembgAlpha
+        )
+        : null;
       const color = alpha > 0 && alpha < 255
         ? removeBackgroundMatte(
           source.data[sourceOffset],
@@ -513,10 +529,19 @@ function renderSpriteCanvas(job, sprite) {
           alpha / 255
         )
         : null;
-      output.data[targetOffset] = color ? color.r : source.data[sourceOffset];
-      output.data[targetOffset + 1] = color ? color.g : source.data[sourceOffset + 1];
-      output.data[targetOffset + 2] = color ? color.b : source.data[sourceOffset + 2];
-      output.data[targetOffset + 3] = Math.round(source.data[sourceOffset + 3] * (alpha / 255));
+      const outputSource = rembgSource || source;
+      output.data[targetOffset] = rembgSource
+        ? (rembgColor ? rembgColor.r : outputSource.data[sourceOffset])
+        : (color ? color.r : outputSource.data[sourceOffset]);
+      output.data[targetOffset + 1] = rembgSource
+        ? (rembgColor ? rembgColor.g : outputSource.data[sourceOffset + 1])
+        : (color ? color.g : outputSource.data[sourceOffset + 1]);
+      output.data[targetOffset + 2] = rembgSource
+        ? (rembgColor ? rembgColor.b : outputSource.data[sourceOffset + 2])
+        : (color ? color.b : outputSource.data[sourceOffset + 2]);
+      output.data[targetOffset + 3] = rembgSource
+        ? Math.round(rembgAlpha * alpha)
+        : Math.round(outputSource.data[sourceOffset + 3] * (alpha / 255));
     }
   }
 
@@ -693,7 +718,9 @@ function replaceJobImage(job, blob, rembgProcessed) {
       context.drawImage(image, 0, 0);
       URL.revokeObjectURL(image.src);
 
-      job.maskImageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      job.maskImageData = imageData;
+      job.rembgImageData = rembgProcessed ? imageData : null;
       job.processedBlob = blob;
       job.rembgProcessed = rembgProcessed;
       job.fastSamProcessed = false;
@@ -723,6 +750,7 @@ function setJobInstanceMask(job, dataUrl) {
 
       job.instanceMaskImageData = context.getImageData(0, 0, canvas.width, canvas.height);
       job.maskImageData = job.instanceMaskImageData;
+      job.rembgImageData = null;
       job.maskImage = image;
       job.showMaskPreview = true;
       job.fastSamProcessed = true;

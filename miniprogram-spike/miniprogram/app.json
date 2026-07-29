@@ -39,5 +39,10 @@
     ]
   },
   "style": "v2",
+  "networkTimeout": {
+    "uploadFile": 120000,
+    "request": 120000,
+    "downloadFile": 120000
+  },
   "sitemapLocation": "sitemap.json"
 }

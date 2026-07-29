@@ -21,6 +21,7 @@ function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers })
       reject(new Error("missing_image_file"));
       return;
     }
+    console.log("[rembg] upload", endpoint, filePath);
     wx.uploadFile({
       url: endpoint,
       filePath,
@@ -28,6 +29,7 @@ function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers })
       formData,
       header: headers,
       success: (res) => {
+        console.log("[rembg] response", res.statusCode, res.data);
         const statusCode = Number(res.statusCode || 0);
         if (statusCode < 200 || statusCode >= 300) {
           reject(new Error(`rembg_http_${statusCode || "error"}`));
@@ -37,7 +39,10 @@ function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers })
           .then(resolve)
           .catch(reject);
       },
-      fail: reject
+      fail: (error) => {
+        console.error("[rembg] upload failed", error);
+        reject(error);
+      }
     });
   });
 }

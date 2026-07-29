@@ -1,7 +1,7 @@
 const rembgConfig = {
-  // Fill this with your own Rembg HTTP API or proxy endpoint.
-  // The mini program uploads the selected image as multipart/form-data.
-  endpoint: "",
+  // Development endpoint. Production mini programs must use an HTTPS domain
+  // added to the WeChat uploadFile legal domain list.
+  endpoint: "https://api.mixmade.xyz/remove-bg",
   fileFieldName: "file",
   formData: {},
   headers: {}
