@@ -131,7 +131,7 @@
 .layerbar {
   margin-top: 14rpx;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10rpx;
   padding: 14rpx;
   border: 1rpx solid #e8e6e1;
@@ -149,4 +149,9 @@
   color: #111111;
   font-size: 23rpx;
   line-height: 72rpx;
+}
+
+.layerbar button.active-effect {
+  background: #111111;
+  color: #ffffff;
 }

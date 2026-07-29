@@ -100,6 +100,10 @@ function drawLayer(ctx, layer, options = {}) {
   setGlobalAlpha(ctx, layer.opacity == null ? 1 : layer.opacity);
   if (layer.type === "brush") {
     setShadow(ctx, 0, 0, 0, "transparent");
+  } else if (hasTapeAttachment(layer)) {
+    setShadow(ctx, 0, 10, 20, "rgba(17, 17, 17, 0.14)");
+  } else if (hasFloatingEffect(layer)) {
+    setShadow(ctx, 0, 16, 30, "rgba(17, 17, 17, 0.18)");
   } else if (layer.shadow) {
     setShadow(ctx, 0, 18, 36, "rgba(17, 17, 17, 0.18)");
   } else {
@@ -147,6 +151,82 @@ function drawLayer(ctx, layer, options = {}) {
     drawExcludeEdge(ctx, excludeShape, layer);
   }
   drawLayerOutline(ctx, layer, { clipShape, clipPolygon, hasTear });
+  drawFloatingEdge(ctx, layer);
+  drawTapeAttachment(ctx, layer);
+  ctx.restore();
+}
+
+function hasTapeAttachment(layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  return !!effect && effect.type === "taped";
+}
+
+function hasFloatingEffect(layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  return !!effect && effect.type === "floating";
+}
+
+function drawFloatingEdge(ctx, layer) {
+  if (!hasFloatingEffect(layer) || layer.tear) return;
+  ctx.save();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setGlobalAlpha(ctx, (layer.opacity == null ? 1 : layer.opacity) * 0.38);
+  setStrokeStyle(ctx, "rgba(255,255,255,0.92)");
+  setLineWidth(ctx, 1.5);
+  if (layer.radius) {
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
+  } else {
+    ctx.rect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTapeAttachment(ctx, layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  if (!effect || effect.type !== "taped") return;
+
+  const placement = effect.placement || "double-corners";
+  const stripLength = Math.max(58, Math.min(layer.width * 0.34, 150));
+  const stripWidth = Math.max(22, Math.min(layer.height * 0.14, 52));
+  const inset = Math.max(4, stripWidth * 0.12);
+  const positions = placement === "top-left"
+    ? [-1]
+    : placement === "top-right"
+      ? [1]
+      : [-1, 1];
+
+  ctx.save();
+  setShadow(ctx, 0, 2, 4, "rgba(17, 17, 17, 0.10)");
+  setGlobalAlpha(ctx, (layer.opacity == null ? 1 : layer.opacity) * (effect.tapeOpacity == null ? 0.64 : effect.tapeOpacity));
+  positions.forEach((side) => {
+    const x = side * (layer.width / 2 - stripLength * 0.34 - inset);
+    const y = -layer.height / 2 + stripWidth * 0.12;
+    drawAttachmentTapeStrip(ctx, x, y, stripLength, stripWidth, side * -8, effect.tapeColor || "#f5f1e8");
+  });
+  ctx.restore();
+}
+
+function drawAttachmentTapeStrip(ctx, x, y, width, height, rotation, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation * Math.PI / 180);
+  setFillStyle(ctx, color);
+  ctx.beginPath();
+  ctx.moveTo(-width / 2, -height / 2 + 2);
+  ctx.lineTo(width / 2, -height / 2);
+  ctx.lineTo(width / 2 - 2, height / 2);
+  ctx.lineTo(-width / 2 + 3, height / 2 - 1);
+  ctx.closePath();
+  ctx.fill();
+
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setFillStyle(ctx, "rgba(255,255,255,0.30)");
+  ctx.fillRect(-width * 0.34, -height / 2 + 2, width * 0.12, height - 4);
+  ctx.fillRect(width * 0.16, -height / 2 + 1, width * 0.08, height - 2);
+  setStrokeStyle(ctx, "rgba(104,96,82,0.14)");
+  setLineWidth(ctx, 1);
+  ctx.stroke();
   ctx.restore();
 }
 

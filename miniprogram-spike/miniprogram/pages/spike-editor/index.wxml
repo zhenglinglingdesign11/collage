@@ -37,6 +37,7 @@
     <button bindtap="duplicateLayer">复制</button>
     <button bindtap="moveLayerUp">上移</button>
     <button bindtap="moveLayerDown">下移</button>
+    <button wx:if="{{selectedLayerType === 'image' || selectedLayerType === 'sticker' || selectedLayerType === 'paper'}}" class="{{selectedLayerTaped ? 'active-effect' : ''}}" bindtap="toggleTapeAttachment">{{selectedLayerTaped ? '已贴住' : '贴住'}}</button>
     <button bindtap="deleteLayer">删除</button>
     <button bindtap="clearSelection">完成</button>
   </view>

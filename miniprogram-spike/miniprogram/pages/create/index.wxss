@@ -802,6 +802,12 @@ button::after {
   align-items: flex-end;
 }
 
+.canvas-stage.effect-editing {
+  min-height: 0;
+  padding: 6rpx 0 8rpx;
+  align-items: flex-end;
+}
+
 .canvas {
   display: block;
   position: relative;
@@ -856,6 +862,7 @@ button::after {
 
 .main-toolbar,
 .layer-toolbar,
+.effect-editor-panel,
 .tool-palette,
 .drawer-backdrop,
 .drawer,
@@ -975,6 +982,15 @@ button::after {
   bottom: calc(246rpx + env(safe-area-inset-bottom));
 }
 
+.effect-palette {
+  left: 112rpx;
+  right: 112rpx;
+}
+
+.layer-effect-palette {
+  bottom: calc(246rpx + env(safe-area-inset-bottom));
+}
+
 .palette-tool {
   position: absolute;
   bottom: 0;
@@ -998,6 +1014,10 @@ button::after {
   width: 16.666%;
 }
 
+.effect-palette .palette-tool {
+  width: 25%;
+}
+
 .palette-tool-0 { left: 0; }
 .cut-palette .palette-tool-1 { left: 25%; }
 .cut-palette .palette-tool-2 { left: 50%; }
@@ -1011,6 +1031,9 @@ button::after {
 .outline-palette .palette-tool-3 { left: 50%; }
 .outline-palette .palette-tool-4 { left: 66.666%; }
 .outline-palette .palette-tool-5 { left: 83.333%; }
+.effect-palette .palette-tool-1 { left: 25%; }
+.effect-palette .palette-tool-2 { left: 50%; }
+.effect-palette .palette-tool-3 { left: 75%; }
 
 .palette-label {
   position: absolute;
@@ -1038,6 +1061,112 @@ button::after {
   background: #111111;
   color: #ffffff;
   font-weight: 700;
+}
+
+.effect-palette .palette-label {
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 18rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  color: #5f5f5a;
+  font-size: 22rpx;
+  line-height: 36rpx;
+  font-weight: 500;
+}
+
+.effect-palette .palette-tool.active .palette-label {
+  background: #111111;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.effect-swatch {
+  position: absolute;
+  left: 50%;
+  bottom: 58rpx;
+  width: 52rpx;
+  height: 44rpx;
+  margin-left: -26rpx;
+}
+
+.effect-swatch-none {
+  box-sizing: border-box;
+  border: 3rpx solid #a9a9a4;
+  border-radius: 5rpx;
+}
+
+.effect-swatch-none::after {
+  content: "";
+  position: absolute;
+  left: 23rpx;
+  top: -6rpx;
+  width: 3rpx;
+  height: 54rpx;
+  background: #d94a38;
+  transform: rotate(45deg);
+}
+
+.effect-swatch-tear {
+  box-sizing: border-box;
+  border: 3rpx solid #111111;
+  clip-path: polygon(0 0, 100% 0, 100% 78%, 88% 69%, 75% 88%, 62% 72%, 48% 91%, 33% 70%, 18% 86%, 0 74%);
+}
+
+.effect-swatch-tear view {
+  position: absolute;
+  left: 7rpx;
+  right: 7rpx;
+  top: 18rpx;
+  height: 3rpx;
+  background: #111111;
+  transform: rotate(-7deg);
+}
+
+.effect-swatch-taped {
+  box-sizing: border-box;
+  border: 3rpx solid #111111;
+  border-radius: 4rpx;
+  transform: scale(0.84);
+}
+
+.effect-swatch-taped view {
+  position: absolute;
+  top: -9rpx;
+  width: 24rpx;
+  height: 12rpx;
+  box-sizing: border-box;
+  border: 2rpx solid #8c877b;
+  background: rgba(245, 241, 232, 0.9);
+}
+
+.effect-swatch-taped view:first-child {
+  left: -6rpx;
+  transform: rotate(-10deg);
+}
+
+.effect-swatch-taped view:last-child {
+  right: -6rpx;
+  transform: rotate(10deg);
+}
+
+.effect-swatch-floating {
+  box-sizing: border-box;
+  border: 3rpx solid #111111;
+  border-radius: 4rpx;
+  background: #ffffff;
+}
+
+.effect-swatch-floating view {
+  position: absolute;
+  left: 5rpx;
+  right: 5rpx;
+  bottom: -10rpx;
+  height: 8rpx;
+  border-radius: 50%;
+  background: rgba(17, 17, 17, 0.26);
+  filter: blur(2rpx);
+  z-index: -1;
 }
 
 .cut-palette .palette-label {
@@ -1645,6 +1774,333 @@ button::after {
   z-index: 920;
 }
 
+.effect-editor-panel {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(414rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  padding: 10rpx 24rpx calc(18rpx + env(safe-area-inset-bottom));
+  border-top: 1rpx solid #eceae5;
+  border-radius: 36rpx 36rpx 0 0;
+  background: #ffffff;
+  box-shadow: 0 -16rpx 44rpx rgba(17, 17, 17, 0.06);
+  z-index: 920;
+}
+
+.effect-editor-head {
+  position: relative;
+  height: 62rpx;
+}
+
+.effect-editor-action,
+.effect-editor-title {
+  position: absolute;
+  top: 0;
+  height: 62rpx;
+  font-size: 28rpx;
+  line-height: 62rpx;
+}
+
+.effect-editor-action {
+  left: 8rpx;
+  width: 112rpx;
+  color: #6f6f6f;
+}
+
+.effect-editor-action.align-right {
+  right: 8rpx;
+  left: auto;
+  text-align: right;
+  color: #111111;
+  font-weight: 650;
+}
+
+.effect-editor-title {
+  left: 132rpx;
+  right: 132rpx;
+  color: #111111;
+  text-align: center;
+  font-weight: 700;
+}
+
+.effect-adjustment-head {
+  position: relative;
+  height: 62rpx;
+}
+
+.effect-adjustment-title {
+  position: absolute;
+  left: 132rpx;
+  right: 132rpx;
+  height: 62rpx;
+  color: #111111;
+  font-size: 28rpx;
+  line-height: 62rpx;
+  text-align: center;
+  font-weight: 700;
+}
+
+.effect-adjustment-section {
+  padding: 12rpx 8rpx 0;
+}
+
+.effect-adjustment-label {
+  height: 32rpx;
+  color: #77736d;
+  font-size: 22rpx;
+  line-height: 32rpx;
+}
+
+.effect-adjustment-options {
+  display: flex;
+  gap: 12rpx;
+  margin: 6rpx 0 12rpx;
+}
+
+.effect-adjustment-options + .effect-adjustment-label {
+  margin-top: 20rpx;
+}
+
+.effect-adjustment-option {
+  flex: 1 1 0;
+  height: 52rpx;
+  border: 1rpx solid #e3e1dc;
+  border-radius: 12rpx;
+  color: #66645f;
+  font-size: 23rpx;
+  line-height: 52rpx;
+  text-align: center;
+}
+
+.effect-adjustment-option.active {
+  border-color: #111111;
+  background: #f7f7f5;
+  color: #111111;
+  font-weight: 700;
+}
+
+.effect-editor-section {
+  height: 144rpx;
+  padding-top: 4rpx;
+}
+
+.effect-editor-head + .effect-editor-section {
+  margin-top: 12rpx;
+}
+
+.effect-editor-section.texture-section {
+  margin-top: 16rpx;
+}
+
+.effect-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24rpx;
+  padding: 0 8rpx;
+}
+
+.effect-section-title {
+  color: #111111;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 24rpx;
+}
+
+.effect-section-current {
+  color: #8b8984;
+  font-size: 22rpx;
+  line-height: 34rpx;
+}
+
+.effect-options-scroll {
+  height: 108rpx;
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.effect-options-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  height: 108rpx;
+  padding: 20rpx 8rpx 0;
+  box-sizing: border-box;
+}
+
+.effect-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  flex: 0 0 112rpx;
+  height: 88rpx;
+  margin-right: 12rpx;
+  box-sizing: border-box;
+  border: 1rpx solid transparent;
+  border-radius: 16rpx;
+  color: #66645f;
+  font-size: 22rpx;
+  line-height: 28rpx;
+  text-align: center;
+}
+
+.effect-option > view:nth-child(2) {
+  flex: 0 0 28rpx;
+  height: 28rpx;
+  line-height: 28rpx;
+}
+
+.effect-option.active {
+  border-color: #111111;
+  background: #f7f7f5;
+  color: #111111;
+  font-weight: 700;
+}
+
+.effect-adjust-trigger {
+  position: absolute;
+  top: -20rpx;
+  right: -20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52rpx;
+  height: 52rpx;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.effect-option > view.effect-adjust-trigger {
+  height: 52rpx;
+  line-height: normal;
+}
+
+.effect-adjust-trigger::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 36rpx;
+  height: 36rpx;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2rpx solid #111111;
+  background: #ffffff;
+}
+
+.effect-adjust-trigger > view {
+  position: absolute;
+  width: 18rpx;
+  height: 2rpx;
+  border-radius: 2rpx;
+  background: #111111;
+  z-index: 1;
+}
+
+.effect-adjust-trigger > view:nth-child(1) { transform: translate(8rpx, -16rpx); }
+.effect-adjust-trigger > view:nth-child(2) { transform: translate(8rpx, -8rpx); }
+.effect-adjust-trigger > view:nth-child(3) { transform: translate(8rpx, 0); }
+
+.effect-adjust-trigger > view::after {
+  content: "";
+  position: absolute;
+  top: -4rpx;
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: #111111;
+}
+
+.effect-adjust-trigger > view:nth-child(1)::after,
+.effect-adjust-trigger > view:nth-child(3)::after { left: 2rpx; }
+.effect-adjust-trigger > view:nth-child(2)::after { right: 2rpx; }
+
+.effect-option.disabled {
+  opacity: 0.35;
+}
+
+.effect-editor-panel .effect-swatch,
+.texture-swatch {
+  position: relative;
+  left: auto;
+  bottom: auto;
+  display: block;
+  flex: 0 0 34rpx;
+  width: 40rpx;
+  height: 34rpx;
+  margin: 0;
+}
+
+.texture-swatch {
+  box-sizing: border-box;
+  border: 3rpx solid #a7a59f;
+  border-radius: 4rpx;
+}
+
+.texture-swatch-none::after {
+  content: "";
+  position: absolute;
+  left: 18rpx;
+  top: -5rpx;
+  width: 3rpx;
+  height: 42rpx;
+  background: #a7a59f;
+  transform: rotate(45deg);
+}
+
+.texture-swatch-photo {
+  background: linear-gradient(145deg, #bfc1b5 0%, #ece8dc 46%, #898f8b 100%);
+}
+
+.texture-swatch-blueprint {
+  border-color: #304b9d;
+  background:
+    radial-gradient(circle at 2rpx 2rpx, rgba(255,255,255,0.42) 0 1rpx, transparent 1.5rpx),
+    linear-gradient(135deg, #405cae 0%, #263f8c 100%);
+  background-size: 5rpx 5rpx, 100% 100%;
+}
+
+.texture-swatch-botanical {
+  border-color: #617d8e;
+  background:
+    linear-gradient(45deg, transparent 44%, #617d8e 45% 53%, transparent 54%),
+    linear-gradient(-45deg, transparent 44%, #617d8e 45% 53%, transparent 54%),
+    #e9eee9;
+}
+
+.texture-swatch-stitch {
+  border-color: #7b5c75;
+  background:
+    linear-gradient(45deg, transparent 42%, #7b5c75 43% 50%, transparent 51%),
+    linear-gradient(-45deg, transparent 42%, #7b5c75 43% 50%, transparent 51%),
+    #f0e8ee;
+  background-size: 12rpx 12rpx;
+}
+
+.texture-swatch-matisse {
+  border-color: #bc8058;
+  background:
+    radial-gradient(circle at 28% 30%, #d94a38 0 23%, transparent 24%),
+    radial-gradient(circle at 72% 68%, #33549d 0 28%, transparent 29%),
+    #f1d18b;
+}
+
+.texture-swatch-stamp {
+  border-color: #a4483d;
+  color: #a4483d;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 28rpx;
+}
+
+.texture-swatch-emboss {
+  background: repeating-linear-gradient(135deg, #e9e8e3 0, #e9e8e3 5rpx, #ffffff 5rpx, #ffffff 10rpx);
+}
+
 .crop-fullscreen,
 .scissor-fullscreen,
 .emboss-fullscreen {
@@ -2109,6 +2565,34 @@ button::after {
   left: 18rpx;
   top: 16rpx;
   background: #ffffff;
+}
+
+.la-effect-icon {
+  display: block;
+  font-size: 0;
+  line-height: 1;
+}
+
+.effect-paper {
+  position: absolute;
+  left: 8rpx;
+  top: 8rpx;
+  width: 32rpx;
+  height: 34rpx;
+  box-sizing: border-box;
+  border: 4rpx solid currentColor;
+  border-radius: 4rpx;
+}
+
+.effect-tape {
+  position: absolute;
+  left: 17rpx;
+  top: 5rpx;
+  width: 24rpx;
+  height: 10rpx;
+  background: currentColor;
+  opacity: 0.5;
+  transform: rotate(-9deg);
 }
 
 .la-icon-img {

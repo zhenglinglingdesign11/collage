@@ -20,6 +20,8 @@ Page({
     canvasCssWidth: 300,
     canvasCssHeight: 400,
     selectedLayerId: "",
+    selectedLayerType: "",
+    selectedLayerTaped: false,
     saveStatus: "未保存",
     exporting: false,
     textInputVisible: false,
@@ -35,6 +37,7 @@ Page({
     this.draft = loadLatestDraft() || createDraft("3:4");
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.updateCanvasSize(this.draft.ratio);
+    this.updateSelectedLayerState(this.draft.layers[this.draft.layers.length - 1]?.id || "");
   },
 
   onReady() {
@@ -89,7 +92,7 @@ Page({
             const layer = createImageLayer(file.tempFilePath, info, this.draft);
             this.draft.layers.push(layer);
             this.draft.layers = normalizeLayerOrder(this.draft.layers);
-            this.setData({ selectedLayerId: layer.id });
+            this.updateSelectedLayerState(layer.id);
             this.markDirty();
             this.render();
           },
@@ -103,7 +106,7 @@ Page({
     const layer = createTapeLayer("", "#8c9a8d", this.draft.width * 0.58, this.draft.height * 0.22, 12);
     this.draft.layers.push(layer);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({ selectedLayerId: layer.id });
+    this.updateSelectedLayerState(layer.id);
     this.markDirty();
     this.render();
   },
@@ -115,7 +118,7 @@ Page({
     layer.height = 330;
     this.draft.layers.push(layer);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({ selectedLayerId: layer.id });
+    this.updateSelectedLayerState(layer.id);
     this.markDirty();
     this.render();
   },
@@ -135,8 +138,7 @@ Page({
     const layer = createTextLayer(text, this.draft);
     this.draft.layers.push(layer);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({
-      selectedLayerId: layer.id,
+    this.updateSelectedLayerState(layer.id, {
       textInputVisible: true,
       textDraft: ""
     });
@@ -158,7 +160,7 @@ Page({
 
     if (touches.length === 1) {
       const target = hitTest(points[0].x, points[0].y, this.draft.layers);
-      this.setData({ selectedLayerId: target ? target.id : "" });
+      this.updateSelectedLayerState(target ? target.id : "");
       this.gesture = target
         ? { mode: "drag", layerId: target.id, start: points[0], origin: { x: target.x, y: target.y } }
         : null;
@@ -220,6 +222,17 @@ Page({
     return this.getLayerById(this.data.selectedLayerId);
   },
 
+  updateSelectedLayerState(layerId, extraData = {}) {
+    const layer = this.getLayerById(layerId);
+    const effect = layer && layer.style && layer.style.handmadeEffect;
+    this.setData({
+      selectedLayerId: layerId,
+      selectedLayerType: layer ? layer.type : "",
+      selectedLayerTaped: !!effect && effect.type === "taped",
+      ...extraData
+    });
+  },
+
   getLayerById(id) {
     return this.draft.layers.find((layer) => layer.id === id);
   },
@@ -240,7 +253,7 @@ Page({
     };
     this.draft.layers.splice(index + 1, 0, copy);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({ selectedLayerId: copy.id });
+    this.updateSelectedLayerState(copy.id);
     this.markDirty();
     this.render();
   },
@@ -274,13 +287,35 @@ Page({
     if (!id) return;
     this.draft.layers = this.draft.layers.filter((layer) => layer.id !== id);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({ selectedLayerId: "" });
+    this.updateSelectedLayerState("");
+    this.markDirty();
+    this.render();
+  },
+
+  toggleTapeAttachment() {
+    const layer = this.getSelectedLayer();
+    if (!supportsTapeAttachment(layer)) return;
+
+    const style = { ...(layer.style || {}) };
+    const effect = style.handmadeEffect;
+    if (effect && effect.type === "taped") {
+      delete style.handmadeEffect;
+    } else {
+      style.handmadeEffect = {
+        type: "taped",
+        placement: "double-corners",
+        tapeColor: "#f5f1e8",
+        tapeOpacity: 0.64
+      };
+    }
+    layer.style = style;
+    this.updateSelectedLayerState(layer.id);
     this.markDirty();
     this.render();
   },
 
   clearSelection() {
-    this.setData({ selectedLayerId: "" });
+    this.updateSelectedLayerState("");
     this.render();
   },
 
@@ -301,7 +336,7 @@ Page({
     this.draft = draft;
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.updateCanvasSize(draft.ratio);
-    this.setData({ selectedLayerId: "", saveStatus: "已恢复手动草稿" });
+    this.updateSelectedLayerState("", { saveStatus: "已恢复手动草稿" });
     setTimeout(() => this.render(), 0);
   },
 
@@ -315,7 +350,7 @@ Page({
   },
 
   exportImage() {
-    this.setData({ exporting: true, selectedLayerId: "" });
+    this.updateSelectedLayerState("", { exporting: true });
     this.render();
     wx.canvasToTempFilePath({
       canvasId: "spikeCanvas",
@@ -342,4 +377,8 @@ function distance(a, b) {
 
 function angle(a, b) {
   return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+}
+
+function supportsTapeAttachment(layer) {
+  return !!layer && ["image", "sticker", "paper"].includes(layer.type);
 }
