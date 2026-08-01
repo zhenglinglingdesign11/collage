@@ -67,7 +67,7 @@
     <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
     <cover-view wx:if="{{imageEffectDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="effect-dev-entry" bindtap="beginImageEffectEditing">效果DEV</cover-view>
 
-    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}} {{activePalette === 'effect' ? 'effect-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
+    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{selectedLayerId && activePalette !== 'effect' && !textInputVisible ? 'layer-editing' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}} {{activePalette === 'effect' ? 'effect-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
       <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
         <canvas
           type="2d"
@@ -476,7 +476,7 @@
             </view>
           </view>
           <view wx:if="{{textToolMode === 'color'}}" class="text-option-row swatch-row">
-            <view wx:for="{{textColors}}" wx:key="value" class="swatch swatch-{{index}} {{textColor === item.value ? 'active' : ''}}" data-color="{{item.value}}" data-index="{{index}}" bindtap="setTextColor"></view>
+            <view wx:for="{{textColors}}" wx:key="value" class="swatch {{textColor === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" data-index="{{index}}" bindtap="setTextColor"></view>
           </view>
           <view wx:if="{{textToolMode === 'size'}}" class="text-option-row text-control-row">
             <view class="size-steps">

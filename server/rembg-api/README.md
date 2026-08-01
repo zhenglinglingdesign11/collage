@@ -2,6 +2,14 @@
 
 小程序“主体剪”使用的去背景服务。接口兼容 `wx.uploadFile`，接收 `file` 或 `image` 字段，返回 base64 透明 PNG。
 
+## 身份验证
+
+`POST /remove-bg` 需要 `Authorization: Bearer <token>`。令牌由项目的 CloudBase 云函数
+`rembg-auth` 以微信 `openid` 签发，服务端用相同的 `REMBG_AUTH_SECRET` 验证。
+
+不要将该密钥写入小程序代码、镜像或仓库。部署时在 CloudBase 云函数环境变量和 Docker
+容器环境变量中分别设置同一个随机值。
+
 ## 本地构建
 
 ```bash

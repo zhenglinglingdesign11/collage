@@ -59,6 +59,10 @@ const EMBOSS_MIN_SIZE = 48;
 const SCISSOR_BRUSH_SIZE = 56;
 const SCISSOR_MIN_CUT_SIZE = 8;
 const SCISSOR_MAX_OUTPUT_SIZE = 1600;
+const REMBG_SOURCE_MAX_BYTES = 20 * 1024 * 1024;
+const REMBG_UPLOAD_MAX_SIDE = 1600;
+const REMBG_UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
+const REMBG_UPLOAD_QUALITIES = [0.88, 0.76, 0.66];
 const WAVE_CUT_AMPLITUDE = 22;
 const WAVE_CUT_WAVELENGTH = 76;
 const WAVE_CUT_POINT_STEP = 10;
@@ -128,7 +132,14 @@ Page({
       { value: "#ffffff", label: "白色" },
       { value: "#d94a38", label: "印章红" },
       { value: "#e9d28a", label: "胶带黄" },
-      { value: "#8c9a8d", label: "鼠尾草" }
+      { value: "#8c9a8d", label: "鼠尾草" },
+      { value: "#304b9d", label: "靛蓝" },
+      { value: "#6d9bc3", label: "雾蓝" },
+      { value: "#b45d79", label: "玫瑰粉" },
+      { value: "#7b5c75", label: "莓紫" },
+      { value: "#c97945", label: "陶橙" },
+      { value: "#5f806f", label: "松绿" },
+      { value: "#6b4f3f", label: "可可棕" }
     ],
     textBackgrounds: ["无", "纸底", "白底", "黑底", "胶带"],
     textFont: DEFAULT_TEXT_FONT_STYLE.fontId,
@@ -2014,8 +2025,13 @@ Page({
       textPanelBottom: 0,
       layerActionsPage: 0,
       layerActionsOffset: 0
+    }, () => {
+      if (closesEffectEditor) {
+        this.restoreDefaultCanvasAfterEffectEditor();
+      } else {
+        this.render();
+      }
     });
-    this.render();
   },
 
   updateKeyboardHeight(res) {
@@ -2406,15 +2422,18 @@ Page({
 
   beginTextLayerEditing(layer, options = {}) {
     if (!layer || layer.type !== "text") return;
+    const isNew = !!options.isNew;
     this.textEditSession = {
       layerId: layer.id,
-      isNew: !!options.isNew,
+      isNew,
       original: {
         x: layer.x,
         y: layer.y
       }
     };
-    this.moveTextLayerToEditingPreview(layer);
+    if (isNew) {
+      this.moveTextLayerToEditingPreview(layer);
+    }
   },
 
   moveTextLayerToEditingPreview(layer) {
@@ -4301,7 +4320,24 @@ Page({
       effectAdjusting: "",
       effectAdjustingLabel: "",
       canvasStageStyle: ""
-    }, () => this.render());
+    }, () => this.restoreDefaultCanvasAfterEffectEditor());
+  },
+
+  restoreDefaultCanvasAfterEffectEditor() {
+    const applyDefaultLayout = () => {
+      if (this.data.activePalette === "effect") return;
+      this.effectStageHeight = 0;
+      this.effectPanelHeight = 0;
+      this.setData({
+        ...this.getCanvasSizeData(this.draft.ratio),
+        canvasStageStyle: ""
+      }, () => this.render());
+    };
+    if (wx.nextTick) {
+      wx.nextTick(applyDefaultLayout);
+    } else {
+      setTimeout(applyDefaultLayout, 0);
+    }
   },
 
   selectOutlineStyle(event) {
@@ -4761,6 +4797,12 @@ Page({
       saveStatus: "主体剪中..."
     });
     try {
+      if (!isRemoteImageSource(layer.source)) {
+        const sourceInfo = await getFileInfoAsync(layer.source);
+        if (Number(sourceInfo.size || 0) > REMBG_SOURCE_MAX_BYTES) {
+          throw new Error("rembg_source_too_large");
+        }
+      }
       const uploadPath = await this.createBackgroundRemovalUploadImage(layer);
       const resultPath = await removeImageBackground({ filePath: uploadPath });
       const info = await getImageInfoAsync(resultPath);
@@ -4773,7 +4815,11 @@ Page({
     } catch (error) {
       const message = error && error.message === "missing_rembg_endpoint"
         ? "请先配置 Rembg API 地址"
-        : "主体剪失败，请稍后重试";
+        : error && error.message === "rembg_source_too_large"
+          ? "主体剪支持 20MB 以内的原图"
+        : error && error.message === "rembg_upload_too_large"
+          ? "图片细节过多，请先裁剪后再试"
+          : "主体剪失败，请稍后重试";
       this.setData({ saveStatus: "主体剪失败" });
       showError(message);
     } finally {
@@ -4818,31 +4864,30 @@ Page({
     await this.ensureCanvasContext();
     const image = await this.loadCanvasImage(layer.source);
     if (!image) throw new Error("image_not_ready");
-    const width = Math.max(1, Math.round(layer.sourceWidth || image.width || layer.width));
-    const height = Math.max(1, Math.round(layer.sourceHeight || image.height || layer.height));
+    const sourceWidth = Math.max(1, Math.round(layer.sourceWidth || image.width || layer.width));
+    const sourceHeight = Math.max(1, Math.round(layer.sourceHeight || image.height || layer.height));
+    const scale = Math.min(1, REMBG_UPLOAD_MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+    const width = Math.max(1, Math.round(sourceWidth * scale));
+    const height = Math.max(1, Math.round(sourceHeight * scale));
+
     this.configureCanvasBitmapSize(width, height);
-    this.ctx.clearRect(0, 0, width, height);
-    this.ctx.drawImage(image, 0, 0, width, height);
-    return new Promise((resolve, reject) => {
-      wx.canvasToTempFilePath({
-        canvas: this.canvasNode,
-        width,
-        height,
-        destWidth: width,
-        destHeight: height,
-        fileType: "png",
-        success: (res) => {
-          this.configureCanvasBitmap();
-          this.render();
-          resolve(res.tempFilePath);
-        },
-        fail: (error) => {
-          this.configureCanvasBitmap();
-          this.render();
-          reject(error);
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.drawImage(image, 0, 0, sourceWidth, sourceHeight, 0, 0, width, height);
+
+    try {
+      for (const quality of REMBG_UPLOAD_QUALITIES) {
+        const tempFilePath = await canvasToTempFilePathAsync(this.canvasNode, width, height, quality, this);
+        const fileInfo = await getFileInfoAsync(tempFilePath);
+        if (Number(fileInfo.size || 0) <= REMBG_UPLOAD_MAX_BYTES) {
+          return tempFilePath;
         }
-      }, this);
-    });
+      }
+      throw new Error("rembg_upload_too_large");
+    } finally {
+      this.configureCanvasBitmap();
+      this.render();
+    }
   },
 
   duplicateLayer() {
@@ -5067,6 +5112,36 @@ function getImageInfoAsync(src) {
       success: resolve,
       fail: reject
     });
+  });
+}
+
+function getFileInfoAsync(filePath) {
+  return new Promise((resolve, reject) => {
+    const fileSystemManager = wx.getFileSystemManager && wx.getFileSystemManager();
+    const getFileInfo = fileSystemManager && fileSystemManager.getFileInfo
+      ? fileSystemManager.getFileInfo.bind(fileSystemManager)
+      : wx.getFileInfo;
+    getFileInfo({
+      filePath,
+      success: resolve,
+      fail: reject
+    });
+  });
+}
+
+function canvasToTempFilePathAsync(canvas, width, height, quality, component) {
+  return new Promise((resolve, reject) => {
+    wx.canvasToTempFilePath({
+      canvas,
+      width,
+      height,
+      destWidth: width,
+      destHeight: height,
+      fileType: "jpg",
+      quality,
+      success: (res) => resolve(res.tempFilePath),
+      fail: reject
+    }, component);
   });
 }
 

@@ -82,7 +82,7 @@ class FastSamHandler(BaseHTTPRequestHandler):
 
         source = file_item.file.read()
         try:
-            image = Image.open(BytesIO(source)).convert("RGB")
+            image = open_segmentation_image(source)
             options = {
                 "edge_grow": parse_int_field(form, "edgeGrow", type(self).edge_grow),
                 "edge_refine": parse_bool_field(form, "edgeRefine", type(self).edge_refine),
@@ -262,6 +262,19 @@ def encode_png(array):
     buffer = BytesIO()
     Image.fromarray(array, mode="RGBA").save(buffer, format="PNG")
     return buffer.getvalue()
+
+
+def open_segmentation_image(source):
+    image = Image.open(BytesIO(source))
+    has_alpha = image.mode in {"RGBA", "LA"} or (
+        image.mode == "P" and "transparency" in image.info
+    )
+    if not has_alpha:
+        return image.convert("RGB")
+
+    rgba = image.convert("RGBA")
+    background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+    return Image.alpha_composite(background, rgba).convert("RGB")
 
 
 def parse_int_field(form, name, default):

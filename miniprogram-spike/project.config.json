@@ -1,6 +1,7 @@
 {
   "description": "手账拼贴小程序 Spike",
   "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "compileType": "miniprogram",
   "appid": "wx14858b69234d54db",
   "projectname": "journal-collage-spike",
@@ -74,5 +75,6 @@
     ],
     "include": []
   },
-  "editorSetting": {}
+  "editorSetting": {},
+  "cloudfunctionTemplateRoot": "cloudfunctionTemplate/"
 }

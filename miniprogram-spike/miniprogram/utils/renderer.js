@@ -1,4 +1,5 @@
 const { getOrderedLayers } = require("../models/draft");
+const floatingAlphaShadowCache = {};
 
 function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   const dpr = options.dpr || 1;
@@ -98,22 +99,24 @@ function drawLayer(ctx, layer, options = {}) {
   ctx.translate(cx, cy);
   ctx.rotate((layer.rotation || 0) * Math.PI / 180);
   setGlobalAlpha(ctx, layer.opacity == null ? 1 : layer.opacity);
-  if (layer.type === "brush") {
-    setShadow(ctx, 0, 0, 0, "transparent");
-  } else if (hasTapeAttachment(layer)) {
-    setShadow(ctx, 0, 10, 20, "rgba(17, 17, 17, 0.14)");
-  } else if (hasFloatingEffect(layer)) {
-    setShadow(ctx, 0, 16, 30, "rgba(17, 17, 17, 0.18)");
-  } else if (layer.shadow) {
-    setShadow(ctx, 0, 18, 36, "rgba(17, 17, 17, 0.18)");
-  } else {
-    setShadow(ctx, 0, 8, 18, "rgba(17, 17, 17, 0.08)");
-  }
   const clipShape = getLayerClipShape(layer);
   const excludeShape = getLayerExcludeShape(layer);
   const clipPolygons = getLayerClipPolygons(layer);
   const clipPolygon = clipPolygons[clipPolygons.length - 1] || null;
   const hasTear = !!(layer.tear && layer.type !== "text");
+  const floating = hasFloatingEffect(layer);
+  if (floating) {
+    drawFloatingPaperShadow(ctx, layer, { clipShape, clipPolygon, hasTear }, options);
+  }
+  if (layer.type === "brush" || floating) {
+    setShadow(ctx, 0, 0, 0, "transparent");
+  } else if (hasTapeAttachment(layer)) {
+    setShadow(ctx, 0, 10, 20, "rgba(17, 17, 17, 0.14)");
+  } else if (layer.shadow) {
+    setShadow(ctx, 0, 18, 36, "rgba(17, 17, 17, 0.18)");
+  } else {
+    setShadow(ctx, 0, 8, 18, "rgba(17, 17, 17, 0.08)");
+  }
   if (excludeShape && layer.type !== "text") {
     drawInverseShapeClip(ctx, excludeShape, layer);
   }
@@ -151,7 +154,7 @@ function drawLayer(ctx, layer, options = {}) {
     drawExcludeEdge(ctx, excludeShape, layer);
   }
   drawLayerOutline(ctx, layer, { clipShape, clipPolygon, hasTear });
-  drawFloatingEdge(ctx, layer);
+  drawFloatingEdge(ctx, layer, options);
   drawTapeAttachment(ctx, layer);
   ctx.restore();
 }
@@ -166,19 +169,244 @@ function hasFloatingEffect(layer) {
   return !!effect && effect.type === "floating";
 }
 
-function drawFloatingEdge(ctx, layer) {
-  if (!hasFloatingEffect(layer) || layer.tear) return;
+function getFloatingElevation(layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  const elevation = effect && Number(effect.elevation);
+  return Math.max(0.8, Math.min(3, Number.isFinite(elevation) ? elevation : 1));
+}
+
+function drawFloatingPaperShadow(ctx, layer, outline = {}, options = {}) {
+  if (!hasFloatingEffect(layer) || layer.type === "text" || layer.type === "brush") return;
+  const elevation = getFloatingElevation(layer);
+  const opacity = layer.opacity == null ? 1 : layer.opacity;
+  const longOffsetX = 2 + elevation * 2.2;
+  const longOffsetY = 6 + elevation * 4.6;
+  const softBlur = 10 + elevation * 8;
+  const contactOffsetX = 1.2 + elevation;
+  const contactOffsetY = 2.2 + elevation * 1.8;
+  const useSourceAlpha = shouldUseSourceAlphaShadow(layer, outline, options);
   ctx.save();
-  setShadow(ctx, 0, 0, 0, "transparent");
-  setGlobalAlpha(ctx, (layer.opacity == null ? 1 : layer.opacity) * 0.38);
-  setStrokeStyle(ctx, "rgba(255,255,255,0.92)");
-  setLineWidth(ctx, 1.5);
+  setLineJoin(ctx, "round");
+  setLineCap(ctx, "round");
+
+  if (useSourceAlpha) {
+    setGlobalAlpha(ctx, opacity * 0.78);
+    drawSourceAlphaShadowOnly(ctx, layer, options, longOffsetX * 1.1, longOffsetY * 1.08, softBlur * 1.05, "rgba(35, 27, 20, 0.20)");
+  } else {
+    setGlobalAlpha(ctx, opacity * 0.58);
+    setShadow(ctx, longOffsetX, longOffsetY, softBlur, "rgba(35, 27, 20, 0.15)");
+    setFillStyle(ctx, "rgba(35, 27, 20, 0.04)");
+    ctx.save();
+    ctx.translate(elevation * 0.45, elevation * 0.35);
+    fillLayerSurfacePath(ctx, layer, outline);
+    ctx.restore();
+  }
+
+  if (useSourceAlpha) {
+    setGlobalAlpha(ctx, opacity * 0.94);
+    drawSourceAlphaShadowOnly(ctx, layer, options, contactOffsetX * 1.12, contactOffsetY * 1.14, 5.5 + elevation * 3.8, "rgba(35, 27, 20, 0.36)");
+  } else {
+    setGlobalAlpha(ctx, opacity * 0.78);
+    setShadow(ctx, contactOffsetX, contactOffsetY, 5 + elevation * 3.5, "rgba(35, 27, 20, 0.24)");
+    setFillStyle(ctx, "rgba(35, 27, 20, 0.07)");
+    ctx.save();
+    ctx.translate(elevation * 0.22, elevation * 1.1);
+    fillLayerSurfacePath(ctx, layer, outline);
+    ctx.restore();
+  }
+
+  if (!useSourceAlpha) {
+    setShadow(ctx, 0, 0, 0, "transparent");
+    setGlobalAlpha(ctx, opacity * 0.16);
+    setFillStyle(ctx, "rgba(255, 255, 255, 0.86)");
+    ctx.save();
+    ctx.translate(-elevation * 0.8, -elevation * 0.7);
+    fillLayerSurfacePath(ctx, layer, outline);
+    ctx.restore();
+  }
+
+  setGlobalAlpha(ctx, opacity);
+  ctx.restore();
+}
+
+function shouldUseSourceAlphaShadow(layer, outline = {}, options = {}) {
+  if (!layer || !layer.source || layer.type === "paper" || layer.type === "tape") return false;
+  if (outline.hasTear || outline.clipShape || outline.clipPolygon || layer.radius) return false;
+  const source = getCachedLayerSource(layer, options);
+  return !!source && typeof source !== "string";
+}
+
+function drawSourceAlphaShadowOnly(ctx, layer, options = {}, offsetX, offsetY, blur, color) {
+  const source = getCachedLayerSource(layer, options);
+  if (!source || typeof source === "string") {
+    fillLayerSurfacePath(ctx, layer);
+    return;
+  }
+  const shadow = getFloatingAlphaShadow(source, layer, offsetX, offsetY, blur, color);
+  if (shadow && shadow.canvas) {
+    setShadow(ctx, 0, 0, 0, "transparent");
+    ctx.drawImage(shadow.canvas, -layer.width / 2 - shadow.margin, -layer.height / 2 - shadow.margin, shadow.width, shadow.height);
+    return;
+  }
+  setGlobalAlpha(ctx, (ctx.globalAlpha == null ? 1 : ctx.globalAlpha) * 0.28);
+  setShadow(ctx, offsetX, offsetY, blur, color);
+  drawSourceImage(ctx, layer, source);
+}
+
+function getFloatingAlphaShadow(source, layer, offsetX, offsetY, blur, color) {
+  const margin = Math.ceil(Math.max(16, Math.abs(offsetX) + Math.abs(offsetY) + blur * 2 + 8));
+  const width = Math.max(1, Math.ceil(layer.width + margin * 2));
+  const height = Math.max(1, Math.ceil(layer.height + margin * 2));
+  const key = [
+    layer.source || "",
+    Math.round(layer.width),
+    Math.round(layer.height),
+    getCropCacheKey(layer.crop),
+    Math.round(offsetX * 10),
+    Math.round(offsetY * 10),
+    Math.round(blur * 10),
+    color,
+    width,
+    height
+  ].join("|");
+  if (floatingAlphaShadowCache[key]) return floatingAlphaShadowCache[key];
+  const canvas = createRenderCanvas(width, height);
+  const shadowCtx = canvas && canvas.getContext ? canvas.getContext("2d") : null;
+  if (!canvas || !shadowCtx) return null;
+  canvas.width = width;
+  canvas.height = height;
+  if (shadowCtx.clearRect) shadowCtx.clearRect(0, 0, width, height);
+  setShadow(shadowCtx, offsetX, offsetY, blur, color);
+  drawSourceImageAtRect(shadowCtx, layer, source, margin, margin, layer.width, layer.height);
+  setShadow(shadowCtx, 0, 0, 0, "transparent");
+  setGlobalCompositeOperation(shadowCtx, "destination-out");
+  drawSourceImageAtRect(shadowCtx, layer, source, margin, margin, layer.width, layer.height);
+  setGlobalCompositeOperation(shadowCtx, "source-over");
+  const result = { canvas, margin, width, height };
+  floatingAlphaShadowCache[key] = result;
+  return result;
+}
+
+function getCropCacheKey(crop) {
+  if (!crop || crop.width <= 0 || crop.height <= 0) return "full";
+  return [crop.x, crop.y, crop.width, crop.height].map((value) => Math.round((Number(value) || 0) * 10)).join(",");
+}
+
+function createRenderCanvas(width, height) {
+  if (typeof wx !== "undefined" && wx.createOffscreenCanvas) {
+    const canvas = wx.createOffscreenCanvas({ type: "2d", width, height });
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  if (typeof OffscreenCanvas !== "undefined") {
+    return new OffscreenCanvas(width, height);
+  }
+  if (typeof document !== "undefined" && document.createElement) {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  return null;
+}
+
+function getCachedLayerSource(layer, options = {}) {
+  return options.imageCache && options.imageCache[layer.source]
+    ? options.imageCache[layer.source]
+    : null;
+}
+
+function drawSourceImage(ctx, layer, source) {
+  drawSourceImageAtOffset(ctx, layer, source, 0, 0);
+}
+
+function drawSourceImageAtOffset(ctx, layer, source, offsetX, offsetY) {
+  drawSourceImageAtRect(ctx, layer, source, -layer.width / 2 + offsetX, -layer.height / 2 + offsetY, layer.width, layer.height);
+}
+
+function drawSourceImageAtRect(ctx, layer, source, x, y, width, height) {
+  const crop = layer.crop;
+  if (crop && crop.width > 0 && crop.height > 0) {
+    ctx.drawImage(
+      source,
+      crop.x,
+      crop.y,
+      crop.width,
+      crop.height,
+      x,
+      y,
+      width,
+      height
+    );
+    return;
+  }
+  ctx.drawImage(source, x, y, width, height);
+}
+
+function fillLayerSurfacePath(ctx, layer, outline = {}) {
+  drawLayerSurfacePath(ctx, layer, outline);
+  ctx.fill();
+}
+
+function drawLayerSurfacePath(ctx, layer, outline = {}) {
+  if (outline.hasTear) {
+    drawTearPath(ctx, layer, outline);
+    return;
+  }
+  if (outline.clipPolygon && outline.clipPolygon.length >= 3) {
+    drawLayerClipPolygon(ctx, outline.clipPolygon, layer);
+    return;
+  }
+  if (outline.clipShape) {
+    drawShapePath(ctx, outline.clipShape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    return;
+  }
   if (layer.radius) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
-  } else {
-    ctx.rect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    return;
   }
-  ctx.stroke();
+  ctx.beginPath();
+  ctx.rect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+}
+
+function drawFloatingEdge(ctx, layer, options = {}) {
+  if (!hasFloatingEffect(layer) || layer.type === "text" || layer.type === "brush") return;
+  const clipShape = getLayerClipShape(layer);
+  const clipPolygons = getLayerClipPolygons(layer);
+  const clipPolygon = clipPolygons[clipPolygons.length - 1] || null;
+  const hasTear = !!(layer.tear && layer.type !== "text");
+  const outline = { clipShape, clipPolygon, hasTear };
+  if (shouldUseSourceAlphaShadow(layer, outline, options)) {
+    return;
+  }
+  const elevation = getFloatingElevation(layer);
+  const opacity = layer.opacity == null ? 1 : layer.opacity;
+  ctx.save();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineJoin(ctx, "round");
+  setLineCap(ctx, "round");
+
+  setGlobalAlpha(ctx, opacity * 0.34);
+  setStrokeStyle(ctx, "rgba(64, 50, 38, 0.42)");
+  setLineWidth(ctx, Math.max(1.2, elevation * 1.6));
+  ctx.save();
+  ctx.translate(elevation * 0.7, elevation * 1.1);
+  strokeLayerOutlinePath(ctx, layer, outline);
+  ctx.restore();
+
+  setGlobalAlpha(ctx, opacity * 0.46);
+  setStrokeStyle(ctx, "rgba(255, 255, 255, 0.92)");
+  setLineWidth(ctx, Math.max(1, elevation * 1.15));
+  ctx.save();
+  ctx.translate(-elevation * 0.45, -elevation * 0.55);
+  strokeLayerOutlinePath(ctx, layer, outline);
+  ctx.restore();
+
+  setGlobalAlpha(ctx, opacity * 0.18);
+  setStrokeStyle(ctx, "rgba(85, 67, 49, 0.36)");
+  setLineWidth(ctx, 1);
+  strokeLayerOutlinePath(ctx, layer, outline);
   ctx.restore();
 }
 
@@ -235,26 +463,9 @@ function drawSourceLayer(ctx, layer, options = {}) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.clip();
   }
-  const source = options.imageCache && options.imageCache[layer.source]
-    ? options.imageCache[layer.source]
-    : layer.source;
+  const source = getCachedLayerSource(layer, options) || layer.source;
   if (!source || typeof source === "string") return;
-  const crop = layer.crop;
-  if (crop && crop.width > 0 && crop.height > 0) {
-    ctx.drawImage(
-      source,
-      crop.x,
-      crop.y,
-      crop.width,
-      crop.height,
-      -layer.width / 2,
-      -layer.height / 2,
-      layer.width,
-      layer.height
-    );
-    return;
-  }
-  ctx.drawImage(source, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  drawSourceImage(ctx, layer, source);
 }
 
 function drawPaper(ctx, layer) {
@@ -1372,6 +1583,10 @@ function setLineJoin(ctx, value) {
 function setGlobalAlpha(ctx, value) {
   if (ctx.setGlobalAlpha) ctx.setGlobalAlpha(value);
   ctx.globalAlpha = value;
+}
+
+function setGlobalCompositeOperation(ctx, value) {
+  ctx.globalCompositeOperation = value;
 }
 
 function setShadow(ctx, offsetX, offsetY, blur, color) {

@@ -1,4 +1,6 @@
 const rembgConfig = require("../config/rembg");
+// Temporary network troubleshooting: bypass the OpenID/HMAC auth chain.
+// const { getRembgAccessToken } = require("./rembg-auth");
 
 function removeImageBackground(options = {}) {
   const endpoint = options.endpoint || rembgConfig.endpoint;
@@ -13,6 +15,18 @@ function removeImageBackground(options = {}) {
     formData: options.formData || rembgConfig.formData || {},
     headers: options.headers || rembgConfig.headers || {}
   });
+
+  // Restore this block when OpenID-based access control is enabled again.
+  // return getRembgAccessToken().then((token) => uploadToRembg({
+  //   endpoint,
+  //   filePath: options.filePath,
+  //   fileFieldName: options.fileFieldName || rembgConfig.fileFieldName || "file",
+  //   formData: options.formData || rembgConfig.formData || {},
+  //   headers: {
+  //     ...(options.headers || rembgConfig.headers || {}),
+  //     Authorization: `Bearer ${token}`
+  //   }
+  // }));
 }
 
 function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers }) {

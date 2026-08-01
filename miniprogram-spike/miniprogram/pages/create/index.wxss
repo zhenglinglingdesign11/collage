@@ -792,6 +792,10 @@ button::after {
   z-index: 0;
 }
 
+.canvas-stage.layer-editing {
+  padding-bottom: calc(252rpx + env(safe-area-inset-bottom));
+}
+
 .canvas-stage.text-editing {
   top: -96rpx;
 }
@@ -3044,14 +3048,6 @@ button::after {
   border: 1rpx solid #e8e6e1;
   border-radius: 50%;
 }
-
-.swatch-0 { background: #111111; }
-.swatch-1 { background: #4a4a4a; }
-.swatch-2 { background: #9a9a9a; }
-.swatch-3 { background: #ffffff; }
-.swatch-4 { background: #d94a38; }
-.swatch-5 { background: #e9d28a; }
-.swatch-6 { background: #8c9a8d; }
 
 .swatch.active {
   outline: 3rpx solid #111111;

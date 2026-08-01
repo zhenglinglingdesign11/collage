@@ -4,6 +4,7 @@ const els = {
   rembgButton: document.querySelector("#rembgButton"),
   rembgAllButton: document.querySelector("#rembgAllButton"),
   fastSamButton: document.querySelector("#fastSamButton"),
+  fastSamRembgButton: document.querySelector("#fastSamRembgButton"),
   fastSamAllButton: document.querySelector("#fastSamAllButton"),
   previewMaskButton: document.querySelector("#previewMaskButton"),
   saveButton: document.querySelector("#saveButton"),
@@ -81,6 +82,10 @@ function bindEvents() {
     const job = getActiveJob();
     if (job) segmentJobWithFastSam(job);
   });
+  els.fastSamRembgButton.addEventListener("click", () => {
+    const job = getActiveJob();
+    if (job) segmentJobWithFastSam(job, { useRembg: true });
+  });
   els.fastSamAllButton.addEventListener("click", segmentAllJobsWithFastSam);
   els.previewMaskButton.addEventListener("click", toggleMaskPreview);
   els.spriteModalCloseButton.addEventListener("click", closeSpriteModal);
@@ -110,14 +115,18 @@ function bindEvents() {
     syncControlLabels();
     const job = getActiveJob();
     if (job && job.fastSamProcessed) {
-      els.fastSamButton.textContent = "重新 FastSAM 分割";
+      if (job.fastSamSource === "rembg") {
+        els.fastSamRembgButton.textContent = "重新抠图后 FastSAM";
+      } else {
+        els.fastSamButton.textContent = "重新 FastSAM 分割";
+      }
     }
   });
 
   els.fastSamEdgeGrowInput.addEventListener("change", () => {
     const job = getActiveJob();
     if (job && job.fastSamProcessed) {
-      segmentJobWithFastSam(job);
+      segmentJobWithFastSam(job, { useRembg: job.fastSamSource === "rembg" });
     }
   });
 
@@ -193,9 +202,12 @@ function createJob(file, image) {
     imageName: sanitizeName(file.name.replace(/\.[^.]+$/, "") || "sprite-sheet"),
     sourceBlob: file,
     processedBlob: null,
+    rembgBlob: null,
     rembgProcessed: false,
     fastSamProcessed: false,
+    fastSamSource: null,
     maskImage: null,
+    rembgImage: null,
     showMaskPreview: false,
     image,
     imageData: context.getImageData(0, 0, canvas.width, canvas.height),
@@ -264,9 +276,9 @@ function clearFastSamMask(job) {
   job.instanceMaskImageData = null;
   job.fastSamProcessed = false;
   if (job.maskImageData === fastSamMask) {
-    job.maskImageData = null;
+    job.maskImageData = job.rembgProcessed ? job.rembgImageData : null;
   }
-  job.maskImage = job.rembgProcessed ? job.maskImage : null;
+  job.maskImage = job.rembgProcessed ? job.rembgImage : null;
   job.showMaskPreview = job.rembgProcessed && job.showMaskPreview;
   job.detectionMode = null;
   job.labelMap = null;
@@ -322,7 +334,7 @@ function renderJobList() {
     item.className = `job-item${job.id === state.activeJobId ? " active" : ""}`;
     const badges = [
       job.rembgProcessed ? "AI" : "",
-      job.fastSamProcessed ? "SAM" : ""
+      job.fastSamProcessed ? (job.fastSamSource === "rembg" ? "SAM/抠图" : "SAM/原图") : ""
     ].filter(Boolean).join(" · ");
     item.innerHTML = `
       <span>${index + 1}. ${escapeHtml(job.fileName)}${badges ? ` · ${badges}` : ""}</span>
@@ -458,7 +470,7 @@ function renderSpriteCanvas(job, sprite) {
 
   const options = getOptions();
   const source = job.imageData;
-  const rembgSource = job.rembgProcessed && job.rembgImageData
+  const rembgSource = !job.fastSamProcessed && job.rembgProcessed && job.rembgImageData
     ? job.rembgImageData
     : null;
   const labelSet = new Set(sprite.labels);
@@ -560,6 +572,7 @@ function updateUI() {
   els.rembgButton.disabled = !activeJob;
   els.rembgAllButton.disabled = state.jobs.length === 0;
   els.fastSamButton.disabled = !activeJob;
+  els.fastSamRembgButton.disabled = !activeJob || !activeJob.rembgBlob;
   els.fastSamAllButton.disabled = state.jobs.length === 0;
   els.previewMaskButton.disabled = !activeJob || !activeJob.maskImage;
   els.previewMaskButton.textContent = activeJob && activeJob.showMaskPreview ? "显示原图" : "显示 AI 预览";
@@ -623,14 +636,20 @@ async function preprocessAllJobsWithRembg() {
   }
 }
 
-async function segmentJobWithFastSam(job) {
-  setBusy(true, "FastSAM 分割中...");
+async function segmentJobWithFastSam(job, options = {}) {
+  const useRembg = Boolean(options.useRembg);
+  if (useRembg && !job.rembgBlob) {
+    alert("请先对当前图片执行 AI 去背景，再使用抠图后 FastSAM。");
+    return;
+  }
+
+  setBusy(true, useRembg ? "抠图后 FastSAM 中..." : "FastSAM 分割中...");
   try {
-    const payload = await segmentWithFastSam(job.sourceBlob);
-    await setJobInstanceMask(job, payload.labelPng);
+    const payload = await segmentWithFastSam(useRembg ? job.rembgBlob : job.sourceBlob);
+    await setJobInstanceMask(job, payload.labelPng, useRembg ? "rembg" : "source");
     detectJob(job);
   } catch (error) {
-    alert(`FastSAM 分割失败：${error.message || error}`);
+    alert(`${useRembg ? "抠图后 " : ""}FastSAM 分割失败：${error.message || error}`);
   } finally {
     setBusy(false);
   }
@@ -642,7 +661,7 @@ async function segmentAllJobsWithFastSam() {
   try {
     for (const job of state.jobs) {
       const payload = await segmentWithFastSam(job.sourceBlob);
-      await setJobInstanceMask(job, payload.labelPng);
+      await setJobInstanceMask(job, payload.labelPng, "source");
       detectJob(job);
     }
     renderActiveJob();
@@ -722,9 +741,12 @@ function replaceJobImage(job, blob, rembgProcessed) {
       job.maskImageData = imageData;
       job.rembgImageData = rembgProcessed ? imageData : null;
       job.processedBlob = blob;
+      job.rembgBlob = rembgProcessed ? blob : null;
       job.rembgProcessed = rembgProcessed;
       job.fastSamProcessed = false;
+      job.fastSamSource = null;
       job.maskImage = image;
+      job.rembgImage = rembgProcessed ? image : null;
       job.showMaskPreview = rembgProcessed;
       job.instanceMaskImageData = null;
       job.detectionMode = null;
@@ -738,7 +760,7 @@ function replaceJobImage(job, blob, rembgProcessed) {
   });
 }
 
-function setJobInstanceMask(job, dataUrl) {
+function setJobInstanceMask(job, dataUrl, source = "source") {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -750,12 +772,10 @@ function setJobInstanceMask(job, dataUrl) {
 
       job.instanceMaskImageData = context.getImageData(0, 0, canvas.width, canvas.height);
       job.maskImageData = job.instanceMaskImageData;
-      job.rembgImageData = null;
       job.maskImage = image;
       job.showMaskPreview = true;
       job.fastSamProcessed = true;
-      job.rembgProcessed = false;
-      job.processedBlob = null;
+      job.fastSamSource = source;
       job.detectionMode = "fastsam";
       job.labelMap = null;
       job.sprites = [];
@@ -771,6 +791,7 @@ function setBusy(busy, label = "") {
   els.rembgButton.disabled = busy || !getActiveJob();
   els.rembgAllButton.disabled = busy || state.jobs.length === 0;
   els.fastSamButton.disabled = busy || !getActiveJob();
+  els.fastSamRembgButton.disabled = busy || !getActiveJob() || !getActiveJob().rembgBlob;
   els.fastSamAllButton.disabled = busy || state.jobs.length === 0;
   els.previewMaskButton.disabled = busy || !getActiveJob() || !getActiveJob().maskImage;
   els.detectButton.disabled = busy || !getActiveJob();
@@ -781,9 +802,16 @@ function setBusy(busy, label = "") {
     els.rembgButton.textContent = "AI 去背景";
   }
   if (busy && label && label.includes("FastSAM")) {
-    els.fastSamButton.textContent = label;
+    if (label.startsWith("抠图后")) {
+      els.fastSamRembgButton.textContent = label;
+      els.fastSamButton.textContent = "FastSAM 分割";
+    } else {
+      els.fastSamButton.textContent = label;
+      els.fastSamRembgButton.textContent = "抠图后 FastSAM";
+    }
   } else {
     els.fastSamButton.textContent = "FastSAM 分割";
+    els.fastSamRembgButton.textContent = "抠图后 FastSAM";
   }
 }
 
