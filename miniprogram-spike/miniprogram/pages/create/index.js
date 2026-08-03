@@ -2463,7 +2463,8 @@ Page({
   selectCutStyle(event) {
     const style = event.currentTarget.dataset.style || "straight";
     if (style === "subject") {
-      return this.removeSelectedImageBackground();
+      showToast("主体剪即将上线");
+      return;
     }
     if (style === "straight" || style === "wave") {
       const layer = this.getSelectedLayer();
