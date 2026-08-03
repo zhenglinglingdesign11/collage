@@ -1,10 +1,12 @@
 const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
+const { checkImageContent, checkTextContent } = require("../../utils/content-security");
 const { removeImageBackground } = require("../../utils/rembg-api");
 const {
   ASSET_TRANSFER_STORAGE_KEY,
   ASSET_TRANSFER_MODE_STORAGE_KEY,
   ASSET_ENTRY_CONTEXT_STORAGE_KEY,
+  recommendedAssetPackIds,
   getAssetPacks,
   getAssetItem,
   getAssetPack,
@@ -1875,11 +1877,13 @@ Page({
             this.markDirty();
             if (pendingAfterPhoto === "scissorFree") {
               this.pendingAfterPhoto = "";
+              checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
               setTimeout(() => this.beginScissorCut(layer), 0);
               return;
             }
             this.closeAfterAddingLayer();
             this.render();
+            checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
           },
           fail: () => {
             if (pendingAfterPhoto) this.pendingAfterPhoto = "";
@@ -5059,28 +5063,153 @@ Page({
 
   exportImage() {
     if (this.data.exporting) return;
+    const pendingChecks = hasPendingContentChecks(this);
+    if (pendingChecks) {
+      showToast("作品导出中");
+    }
     this.setData({ exporting: true, selectedLayerId: "" });
     const restoreEditorCanvas = () => {
       this.setData({ exporting: false });
       this.render();
     };
-    this.exportCanvasFile(EXPORT_HIGH_PIXEL_RATIO)
+    waitForPendingContentChecks(this)
+      .then((canExport) => {
+        if (!canExport) throw new Error("content_removed");
+        return checkDraftTextContent(this);
+      })
+      .then(() => {
+        return this.exportCanvasFile(EXPORT_HIGH_PIXEL_RATIO);
+      })
       .catch((error) => {
+        if (error && error.message === "content_removed") throw error;
         console.warn("[export] high resolution export failed, retry fallback", error);
         return this.exportCanvasFile(EXPORT_FALLBACK_PIXEL_RATIO);
       })
-      .then((filePath) => this.saveExportedImage(filePath))
+      .then((filePath) => this.saveExportedImage(filePath).catch((error) => {
+        const wrapped = new Error("save_album_failed");
+        wrapped.cause = error;
+        throw wrapped;
+      }))
       .then(() => {
         showSuccess("已保存到相册");
         restoreEditorCanvas();
       })
       .catch((error) => {
-        console.warn("[export] failed", error);
-        showModal("保存失败", "高清导出或保存失败，请确认已允许保存到相册后重试。", { showCancel: false });
+        if (error && ["content_removed", "text_removed"].includes(error.message)) {
+          restoreEditorCanvas();
+          return;
+        }
+        console.warn("[export] failed", error, error && error.detail || error && error.cause || "");
+        showModal("保存失败", getExportErrorMessage(error), { showCancel: false });
         restoreEditorCanvas();
       });
   }
 });
+
+function getExportErrorMessage(error) {
+  if (!error) return "导出失败，请稍后重试。";
+  if (error.message === "save_album_failed") return "请确认已允许保存到相册后重试。";
+  if (["media_too_large", "media_risky", "media_upload_failed", "content_check_failed", "cloud_unavailable"].includes(error.message)) {
+    return getContentSecurityErrorMessage(error);
+  }
+  if (["text_risky", "text_check_failed"].includes(error.message)) return getTextSecurityErrorMessage(error);
+  return "导出失败，请稍后重试。";
+}
+
+function getContentSecurityErrorMessage(error) {
+  if (error && error.message === "media_too_large") return "图片需小于 10MB";
+  if (error && error.message === "media_risky") return "图片内容未通过安全检测";
+  if (error && error.message === "media_upload_failed") return "图片上传检测失败，请稍后重试";
+  if (error && error.message === "content_check_failed") return "作品检测失败，请稍后重试";
+  if (error && error.message === "cloud_unavailable") return "检测服务暂时不可用，请稍后重试";
+  return "图片安全检测失败";
+}
+
+function getTextSecurityErrorMessage(error) {
+  if (error && error.message === "text_risky") return "这段文字暂时无法使用";
+  if (error && error.message === "text_check_failed") return "文字处理失败，请稍后重试";
+  if (error && error.message === "cloud_unavailable") return "检测服务暂时不可用，请稍后重试";
+  return "文字处理失败，请稍后重试";
+}
+
+function checkDraftTextContent(page) {
+  const textLayers = (page && page.draft && Array.isArray(page.draft.layers) ? page.draft.layers : [])
+    .filter((layer) => layer && layer.type === "text" && String(layer.text || layer.content || "").trim());
+  return textLayers.reduce((promise, layer) => promise.then(() => (
+    checkTextContent(layer.text || layer.content || "").catch((error) => {
+      console.warn("[content-security] export text check failed", error);
+      if (error && error.message === "text_risky") {
+        const removed = removeTextLayer(page, layer.id);
+        if (removed) showError("作品中有违规文字已移除，请重试");
+        throw new Error("text_removed");
+      }
+      throw error;
+    })
+  )), Promise.resolve());
+}
+
+function hasPendingContentChecks(page) {
+  return !!(page && page.pendingContentCheckPromises && page.pendingContentCheckPromises.size);
+}
+
+function waitForPendingContentChecks(page) {
+  if (!hasPendingContentChecks(page)) return Promise.resolve(true);
+  return Promise.all(Array.from(page.pendingContentCheckPromises.values()))
+    .then((results) => results.every(Boolean));
+}
+
+function checkImportedImageContent(page, filePath, size, layerId) {
+  if (!page.pendingContentCheckPromises) {
+    page.pendingContentCheckPromises = new Map();
+  }
+  const checkPromise = checkImageContent(filePath, { size })
+    .then((checkResult) => {
+      console.info("[content-security] mediaCheckAsync submitted", checkResult.traceId);
+      return true;
+    })
+    .catch((error) => {
+      console.warn("[content-security] imported image check failed", error);
+      if (!error || error.message !== "media_risky") return true;
+      const removed = removeImportedImageLayer(page, layerId);
+      if (removed) showError("作品中有违规图片已移除，请重试");
+      return false;
+    })
+    .finally(() => {
+      if (page.pendingContentCheckPromises) {
+        page.pendingContentCheckPromises.delete(layerId);
+      }
+    });
+  page.pendingContentCheckPromises.set(layerId, checkPromise);
+  return checkPromise;
+}
+
+function removeImportedImageLayer(page, layerId) {
+  if (!page || !page.draft || !layerId) return false;
+  const beforeCount = page.draft.layers.length;
+  page.draft.layers = page.draft.layers.filter((layer) => layer.id !== layerId);
+  if (page.draft.layers.length === beforeCount) return false;
+  page.draft.layers = normalizeLayerOrder(page.draft.layers);
+  if (page.data.selectedLayerId === layerId) {
+    page.setData({ selectedLayerId: "", selectedLayerType: "" });
+  }
+  page.markDirty();
+  page.render();
+  return true;
+}
+
+function removeTextLayer(page, layerId) {
+  if (!page || !page.draft || !layerId) return false;
+  const beforeCount = page.draft.layers.length;
+  page.draft.layers = page.draft.layers.filter((layer) => layer.id !== layerId);
+  if (page.draft.layers.length === beforeCount) return false;
+  page.draft.layers = normalizeLayerOrder(page.draft.layers);
+  if (page.data.selectedLayerId === layerId) {
+    page.setData({ selectedLayerId: "", selectedLayerType: "" });
+  }
+  page.markDirty();
+  page.render();
+  return true;
+}
 
 function distance(a, b) {
   return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
@@ -6656,8 +6785,13 @@ function decorateAssetPanelPack(pack) {
 }
 
 function filterAssetPanelPacks(packs, category) {
-  if (!category || category === "推荐") return packs;
+  if (!category || category === "推荐") return filterRecommendedAssetPanelPacks(packs);
   return packs.filter((pack) => pack.category === category);
+}
+
+function filterRecommendedAssetPanelPacks(packs) {
+  const byId = new Map((packs || []).map((pack) => [pack.id, pack]));
+  return recommendedAssetPackIds.map((packId) => byId.get(packId)).filter(Boolean);
 }
 
 function getAssetPanelPreviewStyle(item) {

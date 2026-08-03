@@ -7,6 +7,21 @@ struct AssetsView: View {
     @State private var favoritePackIds: Set<String> = []
 
     private let favoriteStore = AssetFavoriteStore()
+    private let recommendedPackIds = [
+        "blue-01",
+        "fugu-02",
+        "fugu-03",
+        "youpiao-01",
+        "caise-01",
+        "troy-01",
+        "hudiejie",
+        "leisi",
+        "zhiganxingxing",
+        "blingshuijing",
+        "jiaodai",
+        "biantie-01",
+        "xiangkuang-02"
+    ]
 
     private var categories: [AssetCategorySelection] {
         [.recommended, .favorites] + Array(Set(catalog.packs.map(\.category))).sorted().map(AssetCategorySelection.pack)
@@ -17,7 +32,8 @@ struct AssetsView: View {
         case .favorites:
             return catalog.packs.filter { favoritePackIds.contains($0.id) }
         case .recommended:
-            return catalog.packs
+            let packsById = Dictionary(uniqueKeysWithValues: catalog.packs.map { ($0.id, $0) })
+            return recommendedPackIds.compactMap { packsById[$0] }
         case .pack(let category):
             return catalog.packs.filter { $0.category == category }
         }

@@ -3,6 +3,7 @@ const {
   ASSET_TRANSFER_MODE_STORAGE_KEY,
   ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   FAVORITE_PACK_STORAGE_KEY,
+  recommendedAssetPackIds,
   getAssetPacks,
   getAssetPack,
   getResolvedAssetPacks,
@@ -142,7 +143,7 @@ Page({
     if (category && category !== "推荐") {
       return packs.filter((pack) => pack.category === category);
     }
-    return packs;
+    return filterRecommendedPacks(packs);
   },
 
   setAssetCategory(event) {
@@ -261,6 +262,11 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
     })),
     detailPaperHeight: layout.paperHeight
   };
+}
+
+function filterRecommendedPacks(packs) {
+  const byId = new Map((packs || []).map((pack) => [pack.id, pack]));
+  return recommendedAssetPackIds.map((packId) => byId.get(packId)).filter(Boolean);
 }
 
 function getSelectedAssets(pack, selectedAssetIds) {

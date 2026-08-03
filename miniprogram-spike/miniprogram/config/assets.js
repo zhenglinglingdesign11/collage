@@ -6,6 +6,22 @@ const { imagePackDefinitions } = require("./assets/packs/index");
 
 const remoteUrlCache = {};
 
+const recommendedAssetPackIds = [
+  "blue-01",
+  "fugu-02",
+  "fugu-03",
+  "youpiao-01",
+  "caise-01",
+  "troy-01",
+  "hudiejie",
+  "leisi",
+  "zhiganxingxing",
+  "blingshuijing",
+  "jiaodai",
+  "biantie-01",
+  "xiangkuang-02"
+];
+
 const assetPacks = imagePackDefinitions.map(createImagePack);
 
 function createImagePack(definition) {
@@ -164,6 +180,7 @@ module.exports = {
   ASSET_TRANSFER_MODE_STORAGE_KEY,
   ASSET_ENTRY_CONTEXT_STORAGE_KEY,
   FAVORITE_PACK_STORAGE_KEY,
+  recommendedAssetPackIds,
   assetPacks,
   getAssetPacks,
   getAssetPack,

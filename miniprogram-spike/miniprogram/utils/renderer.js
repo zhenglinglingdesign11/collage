@@ -1,5 +1,6 @@
 const { getOrderedLayers } = require("../models/draft");
 const floatingAlphaShadowCache = {};
+const tornSourceRenderCache = {};
 
 function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   const dpr = options.dpr || 1;
@@ -104,6 +105,9 @@ function drawLayer(ctx, layer, options = {}) {
   const clipPolygons = getLayerClipPolygons(layer);
   const clipPolygon = clipPolygons[clipPolygons.length - 1] || null;
   const hasTear = !!(layer.tear && layer.type !== "text");
+  const tornSourceRender = hasTear && layer.source
+    ? getTornSourceRender(layer, { clipShape, clipPolygon, hasTear }, options)
+    : null;
   const floating = hasFloatingEffect(layer);
   if (floating) {
     drawFloatingPaperShadow(ctx, layer, { clipShape, clipPolygon, hasTear }, options);
@@ -120,7 +124,7 @@ function drawLayer(ctx, layer, options = {}) {
   if (excludeShape && layer.type !== "text") {
     drawInverseShapeClip(ctx, excludeShape, layer);
   }
-  if (hasTear) {
+  if (hasTear && !tornSourceRender) {
     drawTearPath(ctx, layer, { clipShape, clipPolygon });
     ctx.clip();
   } else if (clipPolygons.length && layer.type !== "text") {
@@ -133,7 +137,16 @@ function drawLayer(ctx, layer, options = {}) {
     ctx.clip();
   }
 
-  if (layer.source) {
+  if (tornSourceRender) {
+    setShadow(ctx, 0, 0, 0, "transparent");
+    ctx.drawImage(
+      tornSourceRender.canvas,
+      -layer.width / 2 - tornSourceRender.margin,
+      -layer.height / 2 - tornSourceRender.margin,
+      tornSourceRender.width,
+      tornSourceRender.height
+    );
+  } else if (layer.source) {
     drawSourceLayer(ctx, layer, options);
   } else if (layer.type === "brush") {
     drawBrushLayer(ctx, layer, options);
@@ -147,7 +160,7 @@ function drawLayer(ctx, layer, options = {}) {
   if (clipShape && layer.type !== "text" && !hasTear) {
     drawEmbossEdge(ctx, clipShape, layer.width, layer.height);
   }
-  if (hasTear) {
+  if (hasTear && !tornSourceRender) {
     drawTearEdge(ctx, layer, { clipShape, clipPolygon });
   }
   if (excludeShape && layer.type !== "text") {
@@ -234,6 +247,73 @@ function shouldUseSourceAlphaShadow(layer, outline = {}, options = {}) {
   if (outline.hasTear || outline.clipShape || outline.clipPolygon || layer.radius) return false;
   const source = getCachedLayerSource(layer, options);
   return !!source && typeof source !== "string";
+}
+
+function getTornSourceRender(layer, outline = {}, options = {}) {
+  const source = getCachedLayerSource(layer, options);
+  if (!source || typeof source === "string") return null;
+  const margin = Math.ceil(Math.max(18, Math.min(layer.width || 1, layer.height || 1) * 0.055));
+  const width = Math.max(1, Math.ceil(layer.width + margin * 2));
+  const height = Math.max(1, Math.ceil(layer.height + margin * 2));
+  const key = [
+    layer.source || "",
+    Math.round(layer.width),
+    Math.round(layer.height),
+    getCropCacheKey(layer.crop),
+    getTearSeed(layer),
+    getTearOutlineCacheKey(outline),
+    width,
+    height
+  ].join("|");
+  if (tornSourceRenderCache[key]) return tornSourceRenderCache[key];
+  const canvas = createRenderCanvas(width, height);
+  const tearCtx = canvas && canvas.getContext ? canvas.getContext("2d") : null;
+  if (!canvas || !tearCtx) return null;
+  canvas.width = width;
+  canvas.height = height;
+  if (tearCtx.clearRect) tearCtx.clearRect(0, 0, width, height);
+
+  drawTornSourceContent(tearCtx, layer, source, outline, margin);
+  drawTornEdgeMaterial(tearCtx, layer, outline, margin);
+
+  const result = { canvas, margin, width, height };
+  tornSourceRenderCache[key] = result;
+  return result;
+}
+
+function getTearOutlineCacheKey(outline = {}) {
+  if (outline.clipPolygon && outline.clipPolygon.length) {
+    return outline.clipPolygon
+      .map((point) => `${Math.round(point.x * 10)},${Math.round(point.y * 10)}`)
+      .join(";");
+  }
+  if (outline.clipShape) return `shape:${outline.clipShape}`;
+  return "rect";
+}
+
+function drawTornSourceContent(ctx, layer, source, outline = {}, margin = 0) {
+  ctx.save();
+  ctx.translate(margin + layer.width / 2, margin + layer.height / 2);
+  drawTearPath(ctx, layer, outline);
+  ctx.clip();
+  ctx.translate(-layer.width / 2, -layer.height / 2);
+  drawSourceImageAtRect(ctx, layer, source, 0, 0, layer.width, layer.height);
+  ctx.restore();
+}
+
+function drawTornEdgeMaterial(ctx, layer, outline = {}, margin = 0) {
+  ctx.save();
+  ctx.translate(margin + layer.width / 2, margin + layer.height / 2);
+  const seed = getTearSeed(layer);
+  const points = getTearPathPoints(layer, outline);
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineJoin(ctx, "round");
+  setLineCap(ctx, "round");
+  strokeTearPoints(ctx, points, Math.max(6, Math.min(14, Math.min(layer.width, layer.height) * 0.035)), "rgba(246, 240, 228, 0.42)");
+  strokeTearPoints(ctx, points, Math.max(3, Math.min(8, Math.min(layer.width, layer.height) * 0.018)), "rgba(210, 196, 174, 0.24)");
+  drawTearFiberStrokes(ctx, points, seed + 409, layer);
+  drawTearEdge(ctx, layer, outline);
+  ctx.restore();
 }
 
 function drawSourceAlphaShadowOnly(ctx, layer, options = {}, offsetX, offsetY, blur, color) {
@@ -862,21 +942,68 @@ function drawTearPath(ctx, layer, outline = {}) {
 }
 
 function drawTearEdge(ctx, layer, outline = {}) {
+  const points = getTearPathPoints(layer, outline);
+  if (!points.length) return;
+  const seed = getTearSeed(layer);
   setShadow(ctx, 0, 0, 0, "transparent");
   setLineJoin(ctx, "round");
   setLineCap(ctx, "round");
-  setLineWidth(ctx, 8);
-  setStrokeStyle(ctx, "rgba(255,255,255,0.72)");
-  drawTearPath(ctx, layer, outline);
+  strokeTearPoints(ctx, points, 9, "rgba(255, 255, 255, 0.68)");
+  strokeTearPoints(ctx, points, 5, "rgba(237, 229, 214, 0.48)");
+  drawTearFiberStrokes(ctx, points, seed, layer);
+  strokeTearPoints(ctx, points, 2.2, "rgba(92, 74, 55, 0.16)");
+  strokeTearPoints(ctx, points, 0.9, "rgba(34, 28, 22, 0.24)");
+}
+
+function strokeTearPoints(ctx, points, width, color) {
+  setLineWidth(ctx, width);
+  setStrokeStyle(ctx, color);
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.closePath();
   ctx.stroke();
-  setLineWidth(ctx, 3);
-  setStrokeStyle(ctx, "rgba(17,17,17,0.12)");
-  drawTearPath(ctx, layer, outline);
-  ctx.stroke();
-  setLineWidth(ctx, 1);
-  setStrokeStyle(ctx, "rgba(17,17,17,0.2)");
-  drawTearPath(ctx, layer, outline);
-  ctx.stroke();
+}
+
+function drawTearFiberStrokes(ctx, points, seed, layer) {
+  const scale = Math.max(1, Math.min(2.4, Math.min(layer.width || 1, layer.height || 1) / 260));
+  setLineCap(ctx, "round");
+  points.forEach((point, index) => {
+    const next = points[(index + 1) % points.length];
+    const previous = points[(index + points.length - 1) % points.length];
+    const tangent = normalizeVector({
+      x: next.x - previous.x,
+      y: next.y - previous.y
+    });
+    if (!tangent) return;
+    const normal = normalizeVector({ x: tangent.y, y: -tangent.x });
+    if (!normal) return;
+    const density = seededUnit(seed + index * 131);
+    if (density < 0.42) return;
+    const length = (2.5 + seededUnit(seed + index * 197) * 8) * scale;
+    const inward = seededUnit(seed + index * 239) > 0.36 ? 1 : -1;
+    const side = {
+      x: normal.x * inward,
+      y: normal.y * inward
+    };
+    const along = (seededUnit(seed + index * 283) - 0.5) * 4 * scale;
+    const start = {
+      x: point.x + tangent.x * along - side.x * 1.5 * scale,
+      y: point.y + tangent.y * along - side.y * 1.5 * scale
+    };
+    const end = {
+      x: start.x + side.x * length + tangent.x * (seededUnit(seed + index * 311) - 0.5) * 3 * scale,
+      y: start.y + side.y * length + tangent.y * (seededUnit(seed + index * 337) - 0.5) * 3 * scale
+    };
+    setLineWidth(ctx, (0.45 + seededUnit(seed + index * 353) * 0.95) * scale);
+    setStrokeStyle(ctx, density > 0.78 ? "rgba(255, 255, 255, 0.52)" : "rgba(126, 104, 78, 0.22)");
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.lineTo(end.x, end.y);
+    ctx.stroke();
+  });
 }
 
 function getTearPathPoints(layer, outline = {}) {
@@ -893,8 +1020,8 @@ function getTearPathPoints(layer, outline = {}) {
   const right = width / 2;
   const bottom = height / 2;
   const seed = getTearSeed(layer);
-  const amplitude = Math.max(7, Math.min(24, Math.min(width, height) * 0.035));
-  const step = Math.max(24, Math.min(48, Math.min(width, height) / 7));
+  const amplitude = Math.max(8, Math.min(28, Math.min(width, height) * 0.042));
+  const step = Math.max(18, Math.min(38, Math.min(width, height) / 8));
   const points = [];
   addTearEdgePoints(points, "top", left, top, right, top, step, amplitude, seed + 11);
   addTearEdgePoints(points, "right", right, top, right, bottom, step, amplitude, seed + 29);
@@ -907,8 +1034,8 @@ function getTornPolygonPoints(layer, polygon) {
   const width = Math.max(1, layer.width || 1);
   const height = Math.max(1, layer.height || 1);
   const seed = getTearSeed(layer);
-  const amplitude = Math.max(7, Math.min(24, Math.min(width, height) * 0.035));
-  const step = Math.max(24, Math.min(48, Math.min(width, height) / 7));
+  const amplitude = Math.max(8, Math.min(28, Math.min(width, height) * 0.042));
+  const step = Math.max(18, Math.min(38, Math.min(width, height) / 8));
   const points = [];
   polygon.forEach((point, index) => {
     const next = polygon[(index + 1) % polygon.length];
@@ -932,7 +1059,7 @@ function getTornShapePoints(layer, shape) {
   const samples = sampleShapeOutline(shape, -width / 2, -height / 2, width, height);
   if (!samples.length) return getTearPathPoints(layer);
   const seed = getTearSeed(layer);
-  const amplitude = Math.max(5, Math.min(18, Math.min(width, height) * 0.028));
+  const amplitude = Math.max(6, Math.min(20, Math.min(width, height) * 0.034));
   return samples.map((point, index) => {
     const normal = getOutwardNormal(point, width, height);
     const jitter = getTearJitter(seed + index * 41, index, amplitude);
@@ -951,9 +1078,10 @@ function addTornSegmentPoints(points, x1, y1, x2, y2, step, amplitude, seed) {
     if (points.length && index === 0) continue;
     const t = index / count;
     const jitter = getTearJitter(seed, index, amplitude);
+    const alongJitter = (seededUnit(seed + index * 173) - 0.5) * Math.min(step * 0.34, amplitude * 0.9);
     points.push({
-      x: x1 + (x2 - x1) * t + normal.x * jitter,
-      y: y1 + (y2 - y1) * t + normal.y * jitter
+      x: x1 + (x2 - x1) * t + normal.x * jitter + (x2 - x1) / length * alongJitter,
+      y: y1 + (y2 - y1) * t + normal.y * jitter + (y2 - y1) / length * alongJitter
     });
   }
 }
@@ -1064,8 +1192,11 @@ function addTearEdgePoints(points, edge, x1, y1, x2, y2, step, amplitude, seed) 
   for (let index = 0; index <= count; index += 1) {
     if (points.length && index === 0) continue;
     const t = index / count;
-    const x = x1 + (x2 - x1) * t;
-    const y = y1 + (y2 - y1) * t;
+    const alongJitter = (seededUnit(seed + index * 173) - 0.5) * Math.min(step * 0.34, amplitude * 0.9);
+    const unitX = (x2 - x1) / length;
+    const unitY = (y2 - y1) / length;
+    const x = x1 + (x2 - x1) * t + unitX * alongJitter;
+    const y = y1 + (y2 - y1) * t + unitY * alongJitter;
     const jitter = getTearJitter(seed, index, amplitude);
     if (edge === "top") points.push({ x, y: y + jitter });
     if (edge === "right") points.push({ x: x - jitter, y });
@@ -1076,8 +1207,20 @@ function addTearEdgePoints(points, edge, x1, y1, x2, y2, step, amplitude, seed) 
 
 function getTearJitter(seed, index, amplitude) {
   const raw = seededUnit(seed + index * 97);
-  const wave = Math.sin((seed % 31 + index) * 1.37) * 0.28 + 0.72;
-  return Math.max(1, raw * amplitude * wave);
+  const chip = seededUnit(seed + index * 211);
+  const wave = Math.sin((seed % 31 + index) * 1.37) * 0.24 + 0.74;
+  const micro = (seededUnit(seed + index * 157) - 0.5) * amplitude * 0.34;
+  const notch = chip > 0.86 ? amplitude * (0.42 + seededUnit(seed + index * 223) * 0.5) : 0;
+  return Math.max(1, raw * amplitude * wave + micro + notch);
+}
+
+function normalizeVector(vector) {
+  const length = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+  if (!length) return null;
+  return {
+    x: vector.x / length,
+    y: vector.y / length
+  };
 }
 
 function getTearSeed(layer) {
