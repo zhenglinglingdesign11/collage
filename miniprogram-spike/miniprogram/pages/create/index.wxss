@@ -1845,8 +1845,13 @@ button::after {
   font-weight: 700;
 }
 
+.effect-adjustment-scroll {
+  height: calc(100% - 62rpx);
+  box-sizing: border-box;
+}
+
 .effect-adjustment-section {
-  padding: 12rpx 8rpx 0;
+  padding: 12rpx 8rpx 28rpx;
 }
 
 .effect-adjustment-label {
@@ -2066,6 +2071,24 @@ button::after {
     radial-gradient(circle at 2rpx 2rpx, rgba(255,255,255,0.42) 0 1rpx, transparent 1.5rpx),
     linear-gradient(135deg, #405cae 0%, #263f8c 100%);
   background-size: 5rpx 5rpx, 100% 100%;
+}
+
+.texture-swatch-screen {
+  border-color: #2e4772;
+  background:
+    radial-gradient(circle at 3rpx 3rpx, rgba(246,235,212,0.7) 0 1.2rpx, transparent 1.4rpx),
+    linear-gradient(135deg, transparent 0 34%, rgba(39, 88, 150, 0.88) 35% 63%, transparent 64%),
+    linear-gradient(45deg, rgba(232, 83, 70, 0.92) 0 48%, rgba(35, 72, 124, 0.9) 49% 100%);
+  background-size: 6rpx 6rpx, 100% 100%, 100% 100%;
+}
+
+.texture-swatch-riso {
+  border-color: #dc4b92;
+  background:
+    radial-gradient(circle at 2rpx 2rpx, rgba(255,255,255,0.55) 0 1rpx, transparent 1.3rpx),
+    radial-gradient(circle at 68% 36%, rgba(247, 194, 52, 0.92) 0 18%, transparent 19%),
+    linear-gradient(135deg, rgba(246, 92, 153, 0.94) 0 48%, rgba(42, 116, 201, 0.9) 49% 100%);
+  background-size: 5rpx 5rpx, 100% 100%, 100% 100%;
 }
 
 .texture-swatch-botanical {

@@ -120,6 +120,7 @@ Page({
     selectedHandmadeEffect: "none",
     selectedTextureEffect: "none",
     textureEffectBusy: false,
+    textureEffectBusyType: "",
     effectAdjusting: "",
     selectedTapePlacement: "double-corners",
     saveStatus: "未保存",
@@ -291,6 +292,64 @@ Page({
       { value: "gray", label: "灰纸" }
     ],
     blueprintGrains: [
+      { value: "low", label: "低" },
+      { value: "medium", label: "中" },
+      { value: "high", label: "高" }
+    ],
+    screenPrintPalette: "red-blue",
+    screenPrintStrength: "standard",
+    screenPrintHalftone: "medium",
+    screenPrintOffset: "slight",
+    screenPrintPalettes: [
+      { value: "red-blue", label: "红蓝" },
+      { value: "orange-blue", label: "橙蓝" },
+      { value: "pink-green", label: "粉绿" },
+      { value: "black-cream", label: "黑米" },
+      { value: "purple-yellow", label: "紫黄" }
+    ],
+    screenPrintStrengths: [
+      { value: "soft", label: "柔和" },
+      { value: "standard", label: "标准" },
+      { value: "bold", label: "强烈" }
+    ],
+    screenPrintHalftones: [
+      { value: "none", label: "无" },
+      { value: "fine", label: "细" },
+      { value: "medium", label: "中" },
+      { value: "coarse", label: "粗" }
+    ],
+    screenPrintOffsets: [
+      { value: "none", label: "无" },
+      { value: "slight", label: "轻微" },
+      { value: "strong", label: "明显" }
+    ],
+    risoPalette: "pink-blue",
+    risoMode: "three",
+    risoInk: "standard",
+    risoOffset: "slight",
+    risoGrain: "medium",
+    risoPalettes: [
+      { value: "pink-blue", label: "粉蓝" },
+      { value: "orange-teal", label: "橙青" },
+      { value: "purple-yellow", label: "紫黄" },
+      { value: "red-black", label: "红黑" },
+      { value: "green-pink", label: "绿粉" }
+    ],
+    risoModes: [
+      { value: "duo", label: "双色" },
+      { value: "three", label: "三色" }
+    ],
+    risoInks: [
+      { value: "light", label: "淡" },
+      { value: "standard", label: "标准" },
+      { value: "dense", label: "浓" }
+    ],
+    risoOffsets: [
+      { value: "none", label: "无" },
+      { value: "slight", label: "轻微" },
+      { value: "strong", label: "明显" }
+    ],
+    risoGrains: [
       { value: "low", label: "低" },
       { value: "medium", label: "中" },
       { value: "high", label: "高" }
@@ -4376,7 +4435,7 @@ Page({
     const layer = this.getSelectedLayer();
     if (!layer || !layer.style) return;
 
-    if (effect === "blueprint-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout") {
+    if (effect === "blueprint-print" || effect === "screen-print" || effect === "riso-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout") {
       const saved = layer.style.textureEffect && layer.style.textureEffect.settings || {};
       const label = getTextureEffectConfig(effect, this.data).label;
       const values = effect === "blueprint-print"
@@ -4386,11 +4445,26 @@ Page({
           blueprintPaper: saved.blueprintPaper || "warm",
           blueprintGrain: saved.blueprintGrain || "medium"
         }
-        : effect === "vintage-botanical"
-          ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium" }
-          : effect === "pixel-cross-stitch"
-            ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
-            : { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" };
+        : effect === "screen-print"
+          ? {
+            screenPrintPalette: saved.screenPrintPalette || "red-blue",
+            screenPrintStrength: saved.screenPrintStrength || "standard",
+            screenPrintHalftone: saved.screenPrintHalftone || "medium",
+            screenPrintOffset: saved.screenPrintOffset || "slight"
+          }
+          : effect === "riso-print"
+            ? {
+              risoPalette: saved.risoPalette || "pink-blue",
+              risoMode: saved.risoMode || "three",
+              risoInk: saved.risoInk || "standard",
+              risoOffset: saved.risoOffset || "slight",
+              risoGrain: saved.risoGrain || "medium"
+            }
+            : effect === "vintage-botanical"
+              ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium" }
+              : effect === "pixel-cross-stitch"
+                ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
+                : { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" };
       this.setData({ effectAdjusting: effect, effectAdjustingLabel: label, ...values });
       return;
     }
@@ -4462,7 +4536,7 @@ Page({
 
     const textureConfig = getTextureEffectConfig(texture, this.data);
     if (!textureConfig) return;
-    this.setData({ textureEffectBusy: true, saveStatus: `${textureConfig.label}生成中...` });
+    this.setData({ textureEffectBusy: true, textureEffectBusyType: texture, saveStatus: `${textureConfig.label}生成中...` });
     try {
       const original = current && current.originalSource
         ? current
@@ -4494,13 +4568,13 @@ Page({
       };
       layer.style = style;
       delete this.canvasImageCache[previousSource];
-      this.setData({ selectedTextureEffect: texture, textureEffectBusy: false });
+      this.setData({ selectedTextureEffect: texture, textureEffectBusy: false, textureEffectBusyType: "" });
       this.markDirty();
       this.render();
       if (!force) showSuccess(`${textureConfig.label}已应用`);
     } catch (error) {
       console.warn("[texture-effect] failed", texture, error);
-      this.setData({ textureEffectBusy: false, saveStatus: `${textureConfig.label}生成失败` });
+      this.setData({ textureEffectBusy: false, textureEffectBusyType: "", saveStatus: `${textureConfig.label}生成失败` });
       this.render();
       showError(`${textureConfig.label}生成失败`);
     }
@@ -4757,6 +4831,51 @@ Page({
   setBlueprintGrain(event) {
     const value = event.currentTarget.dataset.value || "medium";
     this.setData({ blueprintGrain: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+  },
+
+  setScreenPrintPalette(event) {
+    const value = event.currentTarget.dataset.value || "red-blue";
+    this.setData({ screenPrintPalette: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+  },
+
+  setScreenPrintStrength(event) {
+    const value = event.currentTarget.dataset.value || "standard";
+    this.setData({ screenPrintStrength: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+  },
+
+  setScreenPrintHalftone(event) {
+    const value = event.currentTarget.dataset.value || "medium";
+    this.setData({ screenPrintHalftone: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+  },
+
+  setScreenPrintOffset(event) {
+    const value = event.currentTarget.dataset.value || "slight";
+    this.setData({ screenPrintOffset: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+  },
+
+  setRisoPalette(event) {
+    const value = event.currentTarget.dataset.value || "pink-blue";
+    this.setData({ risoPalette: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+  },
+
+  setRisoMode(event) {
+    const value = event.currentTarget.dataset.value || "three";
+    this.setData({ risoMode: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+  },
+
+  setRisoInk(event) {
+    const value = event.currentTarget.dataset.value || "standard";
+    this.setData({ risoInk: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+  },
+
+  setRisoOffset(event) {
+    const value = event.currentTarget.dataset.value || "slight";
+    this.setData({ risoOffset: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+  },
+
+  setRisoGrain(event) {
+    const value = event.currentTarget.dataset.value || "medium";
+    this.setData({ risoGrain: value }, () => this.scheduleTextureEffectPreview("riso-print"));
   },
 
   setBotanicalTone(event) {
@@ -5063,6 +5182,74 @@ Page({
     const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
     this.ctx.putImageData(createBlueprintPrintImageData(imageData, options), 0, 0);
     drawBlueprintPrintOverlay(this.ctx, outputWidth, outputHeight, options);
+
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight }),
+        fail: reject
+      }, this);
+    });
+  },
+
+  async createScreenPrintImage(layer, options = {}) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
+    const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const maxOutputSize = 1280;
+    const scale = Math.min(1, maxOutputSize / Math.max(crop.width, crop.height));
+    const outputWidth = Math.max(1, Math.round(crop.width * scale));
+    const outputHeight = Math.max(1, Math.round(crop.height * scale));
+
+    this.configureCanvasBitmapSize(outputWidth, outputHeight);
+    this.ctx.clearRect(0, 0, outputWidth, outputHeight);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+    const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
+    this.ctx.putImageData(createScreenPrintImageData(imageData, options), 0, 0);
+    drawScreenPrintOverlay(this.ctx, outputWidth, outputHeight, options);
+
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight }),
+        fail: reject
+      }, this);
+    });
+  },
+
+  async createRisoPrintImage(layer, options = {}) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
+    const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const maxOutputSize = 1280;
+    const scale = Math.min(1, maxOutputSize / Math.max(crop.width, crop.height));
+    const outputWidth = Math.max(1, Math.round(crop.width * scale));
+    const outputHeight = Math.max(1, Math.round(crop.height * scale));
+
+    this.configureCanvasBitmapSize(outputWidth, outputHeight);
+    this.ctx.clearRect(0, 0, outputWidth, outputHeight);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+    const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
+    this.ctx.putImageData(createRisoPrintImageData(imageData, options), 0, 0);
+    drawRisoPrintOverlay(this.ctx, outputWidth, outputHeight, options);
 
     return new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -6836,6 +7023,10 @@ function clampColor(value) {
   return Math.max(0, Math.min(255, Math.round(value)));
 }
 
+function clamp01(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
 function seededNoise(seed, salt) {
   const value = Math.sin(seed * 12.9898 + salt * 78.233) * 43758.5453;
   return (value - Math.floor(value)) * 2 - 1;
@@ -7393,6 +7584,25 @@ function getTextureEffectConfig(type, settings = {}) {
         grain: settings.blueprintGrain || "medium"
       })
     },
+    "screen-print": {
+      label: "丝网印",
+      create: (page, layer) => page.createScreenPrintImage(layer, {
+        palette: settings.screenPrintPalette || "red-blue",
+        strength: settings.screenPrintStrength || "standard",
+        halftone: settings.screenPrintHalftone || "medium",
+        offset: settings.screenPrintOffset || "slight"
+      })
+    },
+    "riso-print": {
+      label: "Riso印刷",
+      create: (page, layer) => page.createRisoPrintImage(layer, {
+        palette: settings.risoPalette || "pink-blue",
+        mode: settings.risoMode || "three",
+        ink: settings.risoInk || "standard",
+        offset: settings.risoOffset || "slight",
+        grain: settings.risoGrain || "medium"
+      })
+    },
     "vintage-botanical": {
       label: "图鉴",
       create: (page, layer) => page.createBotanicalPlateImage(layer, {
@@ -7428,6 +7638,23 @@ function getTextureEffectSettings(type, settings = {}) {
       blueprintGrain: settings.blueprintGrain || "medium"
     };
   }
+  if (type === "screen-print") {
+    return {
+      screenPrintPalette: settings.screenPrintPalette || "red-blue",
+      screenPrintStrength: settings.screenPrintStrength || "standard",
+      screenPrintHalftone: settings.screenPrintHalftone || "medium",
+      screenPrintOffset: settings.screenPrintOffset || "slight"
+    };
+  }
+  if (type === "riso-print") {
+    return {
+      risoPalette: settings.risoPalette || "pink-blue",
+      risoMode: settings.risoMode || "three",
+      risoInk: settings.risoInk || "standard",
+      risoOffset: settings.risoOffset || "slight",
+      risoGrain: settings.risoGrain || "medium"
+    };
+  }
   if (type === "vintage-botanical") return { botanicalTone: settings.botanicalTone || "blueprint", botanicalDetail: settings.botanicalDetail || "medium" };
   if (type === "pixel-cross-stitch") return { crossStitchGrid: settings.crossStitchGrid || 72, crossStitchColors: settings.crossStitchColors || 8 };
   if (type === "matisse-cutout") return { matisseDetail: settings.matisseDetail || 64, matissePalette: settings.matissePalette || "vivid" };
@@ -7448,6 +7675,7 @@ function createBlueprintPrintImageData(imageData, options = {}) {
     15, 7, 13, 5
   ];
   const width = imageData.width || 1;
+  const height = imageData.height || Math.max(1, Math.floor(data.length / 4 / width));
 
   for (let index = 0; index < data.length; index += 4) {
     const pixel = index / 4;
@@ -7458,17 +7686,23 @@ function createBlueprintPrintImageData(imageData, options = {}) {
 
     const luminance = data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722;
     const contrast = Math.max(0, Math.min(1, ((luminance - 128) * exposure.contrast + 128) / 255));
-    const dotOffset = (bayer4[(y % 4) * 4 + (x % 4)] / 15 - 0.5) * exposure.dot;
-    const paperNoise = seededNoise(x + y * width, 17) * grainAmount.paper;
-    const fiberNoise = seededNoise(x * 0.35, y * 0.21) * grainAmount.fiber;
-    const inkNoise = seededNoise(x * 3 + y * 7, 29) * grainAmount.ink;
-    const coverageBase = Math.pow(Math.max(0, Math.min(1, 1 - contrast + dotOffset + inkNoise)), exposure.gamma);
+    const toneAmount = 1 - contrast;
+    const midtonePowder = Math.sin(Math.PI * Math.max(0, Math.min(1, toneAmount)));
+    const dotOffset = (bayer4[(y % 4) * 4 + (x % 4)] / 15 - 0.5) * exposure.dot * grainAmount.screen;
+    const cloudNoise = blueprintValueNoise(x / 96, y / 96, 21) * grainAmount.cloud;
+    const pulpNoise = blueprintValueNoise(x / 23, y / 19, 37) * grainAmount.pulp;
+    const fiberNoise = (seededNoise(x * 0.18 + y * 0.05, 43) * 0.65 + seededNoise(x * 0.04 - y * 0.22, 47) * 0.35) * grainAmount.fiber;
+    const sedimentNoise = (blueprintValueNoise(x / 7.5, y / 7.5, 59) + seededNoise(x * 2.3 + y * 3.1, 61) * 0.42) * grainAmount.ink;
+    const sedimentWeight = 0.34 + toneAmount * 0.54 + midtonePowder * 0.2;
+    const coverageBase = Math.pow(Math.max(0, Math.min(1, toneAmount + dotOffset + sedimentNoise * sedimentWeight + cloudNoise * 0.28)), exposure.gamma);
     const inkCoverage = Math.max(0, Math.min(1, coverageBase * exposure.depth));
-    const paperLift = Math.max(-0.06, Math.min(0.08, paperNoise + fiberNoise));
+    const paperLift = Math.max(-0.07, Math.min(0.09, cloudNoise + pulpNoise + fiberNoise * (1 - inkCoverage * 0.48)));
+    const edgeFade = getBlueprintEdgeFade(x, y, width, height) * grainAmount.edgeFade;
+    const settledCoverage = Math.max(0, Math.min(1, inkCoverage - edgeFade + pulpNoise * midtonePowder * 0.25));
 
-    data[index] = mixChannel(paper[0] + 255 * paperLift, ink[0], inkCoverage);
-    data[index + 1] = mixChannel(paper[1] + 255 * paperLift, ink[1], inkCoverage);
-    data[index + 2] = mixChannel(paper[2] + 255 * paperLift, ink[2], inkCoverage);
+    data[index] = mixChannel(paper[0] + 255 * paperLift, ink[0], settledCoverage);
+    data[index + 1] = mixChannel(paper[1] + 255 * paperLift, ink[1], settledCoverage);
+    data[index + 2] = mixChannel(paper[2] + 255 * paperLift, ink[2], settledCoverage);
     data[index + 3] = Math.round(alpha * 255);
   }
   return imageData;
@@ -7476,23 +7710,46 @@ function createBlueprintPrintImageData(imageData, options = {}) {
 
 function drawBlueprintPrintOverlay(ctx, width, height, options = {}) {
   const palette = getBlueprintPrintPalette(options);
+  const areaScale = Math.max(0.7, Math.min(2.4, Math.sqrt((width * height) / (1000 * 1000))));
+  const speckCount = Math.round(palette.grain.speckles * areaScale);
+  const stainCount = Math.round(palette.grain.stains * areaScale);
   ctx.save();
   ctx.globalCompositeOperation = "multiply";
-  ctx.globalAlpha = palette.grain.overlay;
-  ctx.fillStyle = rgba(palette.inkColor, 0.16);
-  for (let i = 0; i < 90; i += 1) {
+  ctx.fillStyle = rgba(palette.inkColor, 0.18);
+  for (let i = 0; i < stainCount; i += 1) {
+    const x = (seededNoise(i, 31) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 33) * 0.5 + 0.5) * height;
+    const radius = (18 + Math.abs(seededNoise(i, 35)) * 68) * areaScale;
+    const opacity = palette.grain.overlay * (0.08 + Math.abs(seededNoise(i, 39)) * 0.12);
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, rgba(palette.inkColor, opacity));
+    gradient.addColorStop(1, rgba(palette.inkColor, 0));
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.fillStyle = rgba(palette.inkColor, 0.2);
+  for (let i = 0; i < speckCount; i += 1) {
     const x = (seededNoise(i, 41) * 0.5 + 0.5) * width;
     const y = (seededNoise(i, 43) * 0.5 + 0.5) * height;
-    const size = 0.7 + Math.abs(seededNoise(i, 47)) * 1.8;
-    ctx.fillRect(x, y, size, size);
+    const size = 0.35 + Math.pow(Math.abs(seededNoise(i, 47)), 2) * 2.6;
+    ctx.globalAlpha = palette.grain.overlay * (0.32 + Math.abs(seededNoise(i, 49)) * 0.5);
+    ctx.beginPath();
+    ctx.arc(x, y, size * areaScale, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalAlpha = palette.grain.fiberLine;
   ctx.strokeStyle = rgba(palette.inkColor, 0.12);
-  ctx.lineWidth = Math.max(0.5, Math.min(1.2, width / 1200));
-  for (let y = 0; y < height; y += Math.max(9, Math.round(height / 90))) {
+  ctx.lineWidth = Math.max(0.45, Math.min(1, width / 1400));
+  for (let i = 0; i < palette.grain.fibers * areaScale; i += 1) {
+    const x = (seededNoise(i, 67) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 71) * 0.5 + 0.5) * height;
+    const length = (12 + Math.abs(seededNoise(i, 73)) * 42) * areaScale;
+    const angle = seededNoise(i, 79) * 0.55 + (seededNoise(i, 83) > 0 ? 0 : Math.PI);
     ctx.beginPath();
-    ctx.moveTo(0, y + seededNoise(y, 53) * 1.5);
-    ctx.lineTo(width, y + seededNoise(y, 59) * 1.5);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
     ctx.stroke();
   }
   ctx.restore();
@@ -7519,9 +7776,9 @@ function getBlueprintPrintPalette(options = {}) {
     deep: { contrast: 1.42, gamma: 0.76, depth: 1.16, dot: 0.13 }
   };
   const grainMap = {
-    low: { paper: 0.008, fiber: 0.006, ink: 0.014, overlay: 0.08, fiberLine: 0.07 },
-    medium: { paper: 0.014, fiber: 0.012, ink: 0.026, overlay: 0.13, fiberLine: 0.1 },
-    high: { paper: 0.022, fiber: 0.018, ink: 0.044, overlay: 0.2, fiberLine: 0.14 }
+    low: { cloud: 0.012, pulp: 0.007, paper: 0.008, fiber: 0.006, ink: 0.018, screen: 0.42, edgeFade: 0.012, overlay: 0.08, fiberLine: 0.055, speckles: 120, fibers: 34, stains: 3 },
+    medium: { cloud: 0.02, pulp: 0.012, paper: 0.014, fiber: 0.012, ink: 0.034, screen: 0.32, edgeFade: 0.018, overlay: 0.13, fiberLine: 0.085, speckles: 210, fibers: 58, stains: 5 },
+    high: { cloud: 0.032, pulp: 0.018, paper: 0.022, fiber: 0.018, ink: 0.056, screen: 0.24, edgeFade: 0.026, overlay: 0.2, fiberLine: 0.12, speckles: 360, fibers: 92, stains: 8 }
   };
   const tone = toneMap[options.tone] || toneMap.prussian;
   return {
@@ -7531,4 +7788,408 @@ function getBlueprintPrintPalette(options = {}) {
     exposure: intensityMap[options.intensity] || intensityMap.standard,
     grain: grainMap[options.grain] || grainMap.medium
   };
+}
+
+function blueprintValueNoise(x, y, salt) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const xf = x - x0;
+  const yf = y - y0;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const n00 = seededNoise(x0 * 131 + y0 * 197, salt);
+  const n10 = seededNoise((x0 + 1) * 131 + y0 * 197, salt);
+  const n01 = seededNoise(x0 * 131 + (y0 + 1) * 197, salt);
+  const n11 = seededNoise((x0 + 1) * 131 + (y0 + 1) * 197, salt);
+  const nx0 = n00 + (n10 - n00) * u;
+  const nx1 = n01 + (n11 - n01) * u;
+  return nx0 + (nx1 - nx0) * v;
+}
+
+function getBlueprintEdgeFade(x, y, width, height) {
+  const edge = Math.min(x, y, width - 1 - x, height - 1 - y);
+  const edgeWidth = Math.max(12, Math.min(width, height) * 0.045);
+  if (edge >= edgeWidth) return 0;
+  return Math.pow(1 - edge / edgeWidth, 1.6);
+}
+
+function createScreenPrintImageData(imageData, options = {}) {
+  const data = imageData.data;
+  const source = new Uint8ClampedArray(data);
+  const width = imageData.width || 1;
+  const height = imageData.height || Math.max(1, Math.floor(data.length / 4 / width));
+  const palette = getScreenPrintPalette(options.palette);
+  const strength = getScreenPrintStrength(options.strength);
+  const halftone = getScreenPrintHalftone(options.halftone);
+  const offset = getScreenPrintOffset(options.offset);
+
+  for (let index = 0; index < data.length; index += 4) {
+    const pixel = index / 4;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const alpha = source[index + 3] / 255;
+    if (alpha <= 0) continue;
+
+    const current = readScreenPrintSample(source, width, height, x, y);
+    const mainSample = readScreenPrintSample(source, width, height, x - offset.x, y - offset.y);
+    const shadowSample = readScreenPrintSample(source, width, height, x + offset.x, y + offset.y);
+    const midSample = readScreenPrintSample(source, width, height, x + offset.y * 0.55, y - offset.x * 0.55);
+    const tone = 1 - clamp01(((current.luminance - 128) * strength.contrast + 128) / 255);
+    const mainTone = 1 - clamp01(((mainSample.luminance - 128) * strength.contrast + 128) / 255);
+    const shadowTone = 1 - clamp01(((shadowSample.luminance - 128) * strength.contrast + 128) / 255);
+    const midTone = 1 - clamp01(((midSample.luminance - 128) * strength.contrast + 128) / 255);
+    const colorBias = Math.max(0, Math.min(1, current.saturation * 1.18 + (current.warmth + 0.35) * 0.18));
+    const paperNoise = screenPrintValueNoise(x / 72, y / 68, 103) * strength.paperNoise;
+    const leakNoise = screenPrintValueNoise(x / 11, y / 13, 109) * 0.65 + seededNoise(x * 2.1 + y * 3.7, 113) * 0.35;
+    const dropout = leakNoise > strength.leakThreshold ? strength.leak : 0;
+    const baseCoverage = clamp01((0.2 + colorBias * 0.5 + midTone * 0.38) * strength.base - dropout * 0.55);
+    const mainCoverage = applyScreenHalftone(x, y, clamp01((mainTone - 0.13) * strength.main - dropout), halftone, 15);
+    const shadowCoverage = applyScreenHalftone(x, y, clamp01((shadowTone - 0.48) * strength.shadow - dropout * 0.75), halftone, 47);
+    const highlightLift = clamp01((1 - tone - 0.58) * 1.65) * strength.highlight;
+
+    let r = palette.paper[0] + paperNoise * 255;
+    let g = palette.paper[1] + paperNoise * 255;
+    let b = palette.paper[2] + paperNoise * 255;
+
+    r = mixChannel(r, palette.base[0], baseCoverage * (1 - highlightLift * 0.65));
+    g = mixChannel(g, palette.base[1], baseCoverage * (1 - highlightLift * 0.65));
+    b = mixChannel(b, palette.base[2], baseCoverage * (1 - highlightLift * 0.65));
+    r = mixChannel(r, palette.main[0], mainCoverage);
+    g = mixChannel(g, palette.main[1], mainCoverage);
+    b = mixChannel(b, palette.main[2], mainCoverage);
+    r = mixChannel(r, palette.shadow[0], shadowCoverage);
+    g = mixChannel(g, palette.shadow[1], shadowCoverage);
+    b = mixChannel(b, palette.shadow[2], shadowCoverage);
+
+    data[index] = clampColor(r);
+    data[index + 1] = clampColor(g);
+    data[index + 2] = clampColor(b);
+    data[index + 3] = Math.round(alpha * 255);
+  }
+  return imageData;
+}
+
+function drawScreenPrintOverlay(ctx, width, height, options = {}) {
+  const palette = getScreenPrintPalette(options.palette);
+  const strength = getScreenPrintStrength(options.strength);
+  const areaScale = Math.max(0.7, Math.min(2.2, Math.sqrt((width * height) / (1000 * 1000))));
+  const scuffCount = Math.round(strength.scuffs * areaScale);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.strokeStyle = rgba({ r: palette.paper[0], g: palette.paper[1], b: palette.paper[2] }, 0.24);
+  ctx.lineWidth = Math.max(0.7, Math.min(1.8, width / 900));
+  for (let i = 0; i < scuffCount; i += 1) {
+    const x = (seededNoise(i, 131) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 137) * 0.5 + 0.5) * height;
+    const length = (16 + Math.abs(seededNoise(i, 139)) * 70) * areaScale;
+    const angle = seededNoise(i, 149) * 0.8;
+    ctx.globalAlpha = strength.scuffAlpha * (0.45 + Math.abs(seededNoise(i, 151)) * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "multiply";
+  ctx.fillStyle = rgba({ r: palette.shadow[0], g: palette.shadow[1], b: palette.shadow[2] }, 0.18);
+  for (let i = 0; i < scuffCount * 0.65; i += 1) {
+    const x = (seededNoise(i, 157) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 163) * 0.5 + 0.5) * height;
+    const size = 0.6 + Math.abs(seededNoise(i, 167)) * 1.8;
+    ctx.globalAlpha = strength.scuffAlpha * 0.55;
+    ctx.fillRect(x, y, size * areaScale, size * areaScale);
+  }
+  ctx.restore();
+}
+
+function getScreenPrintPalette(name) {
+  const palettes = {
+    "red-blue": {
+      paper: [246, 235, 212],
+      base: [238, 92, 78],
+      main: [34, 88, 150],
+      shadow: [26, 42, 75]
+    },
+    "orange-blue": {
+      paper: [245, 233, 208],
+      base: [236, 128, 48],
+      main: [28, 101, 151],
+      shadow: [32, 55, 86]
+    },
+    "pink-green": {
+      paper: [247, 238, 226],
+      base: [229, 112, 144],
+      main: [38, 128, 101],
+      shadow: [31, 74, 64]
+    },
+    "black-cream": {
+      paper: [242, 232, 207],
+      base: [217, 198, 159],
+      main: [55, 55, 52],
+      shadow: [28, 28, 27]
+    },
+    "purple-yellow": {
+      paper: [247, 237, 210],
+      base: [235, 184, 59],
+      main: [104, 72, 147],
+      shadow: [56, 44, 86]
+    }
+  };
+  return palettes[name] || palettes["red-blue"];
+}
+
+function getScreenPrintStrength(name) {
+  const values = {
+    soft: { contrast: 1.08, base: 0.65, main: 1.04, shadow: 1.25, leak: 0.08, leakThreshold: 0.78, highlight: 0.42, paperNoise: 0.009, scuffs: 34, scuffAlpha: 0.1 },
+    standard: { contrast: 1.24, base: 0.82, main: 1.22, shadow: 1.45, leak: 0.13, leakThreshold: 0.68, highlight: 0.5, paperNoise: 0.014, scuffs: 54, scuffAlpha: 0.14 },
+    bold: { contrast: 1.42, base: 1, main: 1.42, shadow: 1.7, leak: 0.18, leakThreshold: 0.58, highlight: 0.56, paperNoise: 0.019, scuffs: 78, scuffAlpha: 0.18 }
+  };
+  return values[name] || values.standard;
+}
+
+function getScreenPrintHalftone(name) {
+  const values = {
+    none: { size: 0, softness: 1 },
+    fine: { size: 6, softness: 1.15 },
+    medium: { size: 9, softness: 1.05 },
+    coarse: { size: 14, softness: 0.96 }
+  };
+  return values[name] || values.medium;
+}
+
+function getScreenPrintOffset(name) {
+  const values = {
+    none: { x: 0, y: 0 },
+    slight: { x: 2, y: 1 },
+    strong: { x: 5, y: 3 }
+  };
+  return values[name] || values.slight;
+}
+
+function readScreenPrintSample(source, width, height, x, y) {
+  const px = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(height - 1, Math.round(y)));
+  const index = (py * width + px) * 4;
+  const r = source[index];
+  const g = source[index + 1];
+  const b = source[index + 2];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  return {
+    luminance: r * 0.2126 + g * 0.7152 + b * 0.0722,
+    saturation: max <= 0 ? 0 : (max - min) / max,
+    warmth: (r - b) / 255
+  };
+}
+
+function applyScreenHalftone(x, y, coverage, halftone, salt) {
+  if (!halftone.size || coverage <= 0) return coverage;
+  const size = halftone.size;
+  const angle = salt === 15 ? 0.43 : -0.31;
+  const rx = x * Math.cos(angle) - y * Math.sin(angle);
+  const ry = x * Math.sin(angle) + y * Math.cos(angle);
+  const cx = ((rx % size) + size) % size - size / 2;
+  const cy = ((ry % size) + size) % size - size / 2;
+  const distanceToCenter = Math.sqrt(cx * cx + cy * cy) / (size * 0.5);
+  const dotRadius = Math.sqrt(clamp01(coverage)) * halftone.softness;
+  const edge = Math.max(0, Math.min(1, (dotRadius - distanceToCenter) * 4.2));
+  const dot = edge * edge * (3 - 2 * edge);
+  return coverage * 0.28 + dot * 0.72;
+}
+
+function screenPrintValueNoise(x, y, salt) {
+  return blueprintValueNoise(x, y, salt);
+}
+
+function createRisoPrintImageData(imageData, options = {}) {
+  const data = imageData.data;
+  const source = new Uint8ClampedArray(data);
+  const width = imageData.width || 1;
+  const height = imageData.height || Math.max(1, Math.floor(data.length / 4 / width));
+  const palette = getRisoPrintPalette(options.palette);
+  const ink = getRisoPrintInk(options.ink);
+  const offset = getRisoPrintOffset(options.offset);
+  const grain = getRisoPrintGrain(options.grain);
+  const useThreeColors = options.mode !== "duo";
+
+  for (let index = 0; index < data.length; index += 4) {
+    const pixel = index / 4;
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const alpha = source[index + 3] / 255;
+    if (alpha <= 0) continue;
+
+    const current = readRisoSample(source, width, height, x, y);
+    const firstSample = readRisoSample(source, width, height, x - offset.a.x, y - offset.a.y);
+    const secondSample = readRisoSample(source, width, height, x - offset.b.x, y - offset.b.y);
+    const thirdSample = readRisoSample(source, width, height, x - offset.c.x, y - offset.c.y);
+    const tone = 1 - clamp01(((current.luminance - 128) * ink.contrast + 128) / 255);
+    const firstTone = 1 - clamp01(((firstSample.luminance - 128) * ink.contrast + 128) / 255);
+    const secondTone = 1 - clamp01(((secondSample.luminance - 128) * ink.contrast + 128) / 255);
+    const thirdTone = 1 - clamp01(((thirdSample.luminance - 128) * ink.contrast + 128) / 255);
+    const chroma = clamp01(current.saturation * 1.25);
+    const warmBias = clamp01((current.warmth + 1) * 0.5);
+    const coolBias = 1 - warmBias;
+    const midtone = Math.sin(Math.PI * clamp01(tone));
+    const paperNoise = risoValueNoise(x / 82, y / 76, 211) * grain.paper;
+    const grainNoise = risoValueNoise(x / 4.7, y / 4.3, 223) * 0.72 + seededNoise(x * 5.1 + y * 7.3, 227) * 0.28;
+    const dropout = grainNoise > grain.dropoutThreshold ? grain.dropout : 0;
+    const firstCoverage = applyRisoDot(x, y, clamp01((firstTone * 0.7 + chroma * 0.22 + warmBias * 0.2) * ink.amount - dropout), grain, 0.22);
+    const secondCoverage = applyRisoDot(x, y, clamp01((secondTone * 0.78 + coolBias * 0.18 + midtone * 0.16) * ink.amount - dropout * 0.82), grain, -0.34);
+    const thirdCoverage = useThreeColors
+      ? applyRisoDot(x, y, clamp01((0.16 + thirdTone * 0.34 + midtone * 0.34 + chroma * 0.16) * ink.third - dropout * 0.62), grain, 0.58)
+      : 0;
+    const paperLift = clamp01((1 - tone - 0.56) * 1.7) * ink.paperLift;
+
+    let r = palette.paper[0] + paperNoise * 255;
+    let g = palette.paper[1] + paperNoise * 255;
+    let b = palette.paper[2] + paperNoise * 255;
+
+    r = blendRisoInk(r, palette.first[0], firstCoverage);
+    g = blendRisoInk(g, palette.first[1], firstCoverage);
+    b = blendRisoInk(b, palette.first[2], firstCoverage);
+    r = blendRisoInk(r, palette.second[0], secondCoverage);
+    g = blendRisoInk(g, palette.second[1], secondCoverage);
+    b = blendRisoInk(b, palette.second[2], secondCoverage);
+    if (useThreeColors) {
+      r = blendRisoInk(r, palette.third[0], thirdCoverage);
+      g = blendRisoInk(g, palette.third[1], thirdCoverage);
+      b = blendRisoInk(b, palette.third[2], thirdCoverage);
+    }
+
+    data[index] = clampColor(r + paperLift * (palette.paper[0] - r) * 0.45);
+    data[index + 1] = clampColor(g + paperLift * (palette.paper[1] - g) * 0.45);
+    data[index + 2] = clampColor(b + paperLift * (palette.paper[2] - b) * 0.45);
+    data[index + 3] = Math.round(alpha * 255);
+  }
+  return imageData;
+}
+
+function drawRisoPrintOverlay(ctx, width, height, options = {}) {
+  const palette = getRisoPrintPalette(options.palette);
+  const grain = getRisoPrintGrain(options.grain);
+  const areaScale = Math.max(0.7, Math.min(2.3, Math.sqrt((width * height) / (1000 * 1000))));
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.lineWidth = Math.max(0.45, Math.min(1.1, width / 1400));
+  for (let i = 0; i < grain.scanLines * areaScale; i += 1) {
+    const y = (i / Math.max(1, grain.scanLines * areaScale)) * height + seededNoise(i, 241) * 3;
+    ctx.globalAlpha = grain.scanAlpha * (0.5 + Math.abs(seededNoise(i, 251)) * 0.45);
+    ctx.strokeStyle = rgba({ r: palette.second[0], g: palette.second[1], b: palette.second[2] }, 0.16);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y + seededNoise(i, 257) * 2);
+    ctx.stroke();
+  }
+  for (let i = 0; i < grain.speckles * areaScale; i += 1) {
+    const x = (seededNoise(i, 263) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 269) * 0.5 + 0.5) * height;
+    const size = 0.3 + Math.abs(seededNoise(i, 271)) * 1.2;
+    const color = seededNoise(i, 277) > 0 ? palette.first : palette.second;
+    ctx.globalAlpha = grain.speckAlpha * (0.4 + Math.abs(seededNoise(i, 281)) * 0.6);
+    ctx.fillStyle = rgba({ r: color[0], g: color[1], b: color[2] }, 0.22);
+    ctx.fillRect(x, y, size * areaScale, size * areaScale);
+  }
+  ctx.restore();
+}
+
+function getRisoPrintPalette(name) {
+  const palettes = {
+    "pink-blue": {
+      paper: [246, 238, 220],
+      first: [246, 92, 153],
+      second: [42, 116, 201],
+      third: [246, 190, 51]
+    },
+    "orange-teal": {
+      paper: [246, 236, 214],
+      first: [245, 112, 42],
+      second: [24, 151, 159],
+      third: [244, 69, 116]
+    },
+    "purple-yellow": {
+      paper: [247, 238, 213],
+      first: [116, 73, 179],
+      second: [244, 194, 49],
+      third: [238, 82, 128]
+    },
+    "red-black": {
+      paper: [244, 234, 211],
+      first: [227, 57, 65],
+      second: [38, 39, 42],
+      third: [47, 129, 193]
+    },
+    "green-pink": {
+      paper: [246, 238, 219],
+      first: [38, 166, 113],
+      second: [240, 88, 151],
+      third: [247, 171, 48]
+    }
+  };
+  return palettes[name] || palettes["pink-blue"];
+}
+
+function getRisoPrintInk(name) {
+  const values = {
+    light: { contrast: 1.08, amount: 0.74, third: 0.48, paperLift: 0.42 },
+    standard: { contrast: 1.22, amount: 0.9, third: 0.62, paperLift: 0.36 },
+    dense: { contrast: 1.38, amount: 1.06, third: 0.78, paperLift: 0.28 }
+  };
+  return values[name] || values.standard;
+}
+
+function getRisoPrintOffset(name) {
+  const values = {
+    none: { a: { x: 0, y: 0 }, b: { x: 0, y: 0 }, c: { x: 0, y: 0 } },
+    slight: { a: { x: 1.4, y: -0.7 }, b: { x: -1.6, y: 1 }, c: { x: 0.8, y: 1.7 } },
+    strong: { a: { x: 3.5, y: -2.1 }, b: { x: -4.2, y: 2.5 }, c: { x: 2.3, y: 4 } }
+  };
+  return values[name] || values.slight;
+}
+
+function getRisoPrintGrain(name) {
+  const values = {
+    low: { paper: 0.009, dot: 0.035, dropout: 0.06, dropoutThreshold: 0.82, scanLines: 22, scanAlpha: 0.06, speckles: 180, speckAlpha: 0.08 },
+    medium: { paper: 0.015, dot: 0.055, dropout: 0.1, dropoutThreshold: 0.72, scanLines: 34, scanAlpha: 0.09, speckles: 320, speckAlpha: 0.12 },
+    high: { paper: 0.024, dot: 0.084, dropout: 0.16, dropoutThreshold: 0.62, scanLines: 48, scanAlpha: 0.13, speckles: 520, speckAlpha: 0.18 }
+  };
+  return values[name] || values.medium;
+}
+
+function readRisoSample(source, width, height, x, y) {
+  const px = Math.max(0, Math.min(width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(height - 1, Math.round(y)));
+  const index = (py * width + px) * 4;
+  const r = source[index];
+  const g = source[index + 1];
+  const b = source[index + 2];
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  return {
+    luminance: r * 0.2126 + g * 0.7152 + b * 0.0722,
+    saturation: max <= 0 ? 0 : (max - min) / max,
+    warmth: (r - b) / 255
+  };
+}
+
+function applyRisoDot(x, y, coverage, grain, angle) {
+  const noise = risoValueNoise(x / 5.8, y / 5.4, Math.round((angle + 1) * 300)) * grain.dot;
+  const rx = x * Math.cos(angle) - y * Math.sin(angle);
+  const ry = x * Math.sin(angle) + y * Math.cos(angle);
+  const cell = 5.5;
+  const cx = ((rx % cell) + cell) % cell - cell / 2;
+  const cy = ((ry % cell) + cell) % cell - cell / 2;
+  const dot = Math.sqrt(cx * cx + cy * cy) / (cell * 0.5);
+  const edge = clamp01((Math.sqrt(clamp01(coverage + noise)) * 1.1 - dot) * 5);
+  const screen = edge * edge * (3 - 2 * edge);
+  return clamp01(coverage * 0.55 + screen * 0.45 + noise);
+}
+
+function blendRisoInk(base, ink, coverage) {
+  const transparentInk = base * (1 - coverage * 0.58) + ink * coverage * 0.58;
+  const stainedPaper = base * (1 - coverage * 0.18) + Math.min(base, ink) * coverage * 0.18;
+  return transparentInk * 0.72 + stainedPaper * 0.28;
+}
+
+function risoValueNoise(x, y, salt) {
+  return blueprintValueNoise(x, y, salt);
 }

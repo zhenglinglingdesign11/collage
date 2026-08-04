@@ -312,7 +312,9 @@
         <scroll-view scroll-x class="effect-options-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
           <view class="effect-options-track">
             <view class="effect-option {{selectedTextureEffect === 'none' ? 'active' : ''}}" data-texture="none" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-none"></view><view>无质感</view></view>
-            <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'blueprint-print' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="blueprint-print" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-blueprint"></view><view>{{textureEffectBusy ? '生成中' : '蓝晒印刷'}}</view><view wx:if="{{selectedTextureEffect === 'blueprint-print'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="blueprint-print"><view></view><view></view><view></view></view></view>
+            <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'blueprint-print' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="blueprint-print" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-blueprint"></view><view>{{textureEffectBusyType === 'blueprint-print' ? '生成中' : '蓝晒印刷'}}</view><view wx:if="{{selectedTextureEffect === 'blueprint-print'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="blueprint-print"><view></view><view></view><view></view></view></view>
+            <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'screen-print' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="screen-print" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-screen"></view><view>{{textureEffectBusyType === 'screen-print' ? '生成中' : '丝网印'}}</view><view wx:if="{{selectedTextureEffect === 'screen-print'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="screen-print"><view></view><view></view><view></view></view></view>
+            <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'riso-print' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="riso-print" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-riso"></view><view>{{textureEffectBusyType === 'riso-print' ? '生成中' : 'Riso印刷'}}</view><view wx:if="{{selectedTextureEffect === 'riso-print'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="riso-print"><view></view><view></view><view></view></view></view>
             <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'vintage-botanical' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="vintage-botanical" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-botanical"></view><view>图鉴</view><view wx:if="{{selectedTextureEffect === 'vintage-botanical'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="vintage-botanical"><view></view><view></view><view></view></view></view>
             <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'pixel-cross-stitch' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="pixel-cross-stitch" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-stitch"></view><view>像素绣</view><view wx:if="{{selectedTextureEffect === 'pixel-cross-stitch'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="pixel-cross-stitch"><view></view><view></view><view></view></view></view>
             <view class="effect-option effect-option-adjustable {{selectedTextureEffect === 'matisse-cutout' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" data-texture="matisse-cutout" bindtap="selectTextureEffect"><view class="texture-swatch texture-swatch-matisse"></view><view>马蒂斯</view><view wx:if="{{selectedTextureEffect === 'matisse-cutout'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="matisse-cutout"><view></view><view></view><view></view></view></view>
@@ -330,38 +332,62 @@
           <view class="effect-adjustment-title">{{effectAdjustingLabel}}</view>
           <view class="effect-editor-action align-right" bindtap="confirmEffectAdjustment">完成</view>
         </view>
-        <view wx:if="{{effectAdjusting === 'blueprint-print'}}" class="effect-adjustment-section">
-          <view class="effect-adjustment-label">色调</view>
-          <view class="effect-adjustment-options"><view wx:for="{{blueprintTones}}" wx:key="value" class="effect-adjustment-option {{blueprintTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintTone">{{item.label}}</view></view>
-          <view class="effect-adjustment-label">强度</view>
-          <view class="effect-adjustment-options"><view wx:for="{{blueprintIntensities}}" wx:key="value" class="effect-adjustment-option {{blueprintIntensity === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintIntensity">{{item.label}}</view></view>
-          <view class="effect-adjustment-label">纸底</view>
-          <view class="effect-adjustment-options"><view wx:for="{{blueprintPapers}}" wx:key="value" class="effect-adjustment-option {{blueprintPaper === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintPaper">{{item.label}}</view></view>
-          <view class="effect-adjustment-label">颗粒</view>
-          <view class="effect-adjustment-options"><view wx:for="{{blueprintGrains}}" wx:key="value" class="effect-adjustment-option {{blueprintGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintGrain">{{item.label}}</view></view>
-        </view>
-        <view wx:if="{{effectAdjusting === 'vintage-botanical'}}" class="effect-adjustment-section">
-          <view class="effect-adjustment-label">色调</view>
-          <view class="effect-adjustment-options"><view wx:for="{{botanicalTones}}" wx:key="value" class="effect-adjustment-option {{botanicalTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalTone">{{item.label}}</view></view>
-          <view class="effect-adjustment-label">线稿</view>
-          <view class="effect-adjustment-options"><view wx:for="{{botanicalDetails}}" wx:key="value" class="effect-adjustment-option {{botanicalDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalDetail">{{item.label}}</view></view>
-        </view>
-        <view wx:if="{{effectAdjusting === 'pixel-cross-stitch'}}" class="effect-adjustment-section">
-          <view class="effect-adjustment-label">网格</view>
-          <view class="effect-adjustment-options"><view wx:for="{{crossStitchGrids}}" wx:key="value" class="effect-adjustment-option {{crossStitchGrid === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchGrid">{{item.label}}</view></view>
-          <view class="effect-adjustment-label">色数</view>
-          <view class="effect-adjustment-options"><view wx:for="{{crossStitchColorOptions}}" wx:key="value" class="effect-adjustment-option {{crossStitchColors === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchColors">{{item.label}}</view></view>
-        </view>
-        <view wx:if="{{effectAdjusting === 'matisse-cutout'}}" class="effect-adjustment-section">
-          <view class="effect-adjustment-label">复杂度</view>
-          <view class="effect-adjustment-options"><view wx:for="{{matisseDetails}}" wx:key="value" class="effect-adjustment-option {{matisseDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatisseDetail">{{item.label}}</view></view>
-          <view class="effect-adjustment-label">色板</view>
-          <view class="effect-adjustment-options"><view wx:for="{{matissePalettes}}" wx:key="value" class="effect-adjustment-option {{matissePalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatissePalette">{{item.label}}</view></view>
-        </view>
-        <view wx:if="{{effectAdjusting === 'taped'}}" class="effect-adjustment-section">
-          <view class="effect-adjustment-label">贴住位置</view>
-          <view class="effect-adjustment-options"><view class="effect-adjustment-option {{selectedTapePlacement === 'double-corners' ? 'active' : ''}}" data-value="double-corners" bindtap="setTapePlacement">双角</view><view class="effect-adjustment-option {{selectedTapePlacement === 'top-left' ? 'active' : ''}}" data-value="top-left" bindtap="setTapePlacement">左上</view><view class="effect-adjustment-option {{selectedTapePlacement === 'top-right' ? 'active' : ''}}" data-value="top-right" bindtap="setTapePlacement">右上</view></view>
-        </view>
+        <scroll-view scroll-y class="effect-adjustment-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+          <view wx:if="{{effectAdjusting === 'blueprint-print'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">色调</view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintTones}}" wx:key="value" class="effect-adjustment-option {{blueprintTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintTone">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">强度</view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintIntensities}}" wx:key="value" class="effect-adjustment-option {{blueprintIntensity === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintIntensity">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">纸底</view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintPapers}}" wx:key="value" class="effect-adjustment-option {{blueprintPaper === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintPaper">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">颗粒</view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintGrains}}" wx:key="value" class="effect-adjustment-option {{blueprintGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintGrain">{{item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'screen-print'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">色板</view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintPalettes}}" wx:key="value" class="effect-adjustment-option {{screenPrintPalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintPalette">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">强度</view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintStrengths}}" wx:key="value" class="effect-adjustment-option {{screenPrintStrength === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintStrength">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">网点</view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintHalftones}}" wx:key="value" class="effect-adjustment-option {{screenPrintHalftone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintHalftone">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">偏移</view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintOffsets}}" wx:key="value" class="effect-adjustment-option {{screenPrintOffset === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintOffset">{{item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'riso-print'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">色板</view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoPalettes}}" wx:key="value" class="effect-adjustment-option {{risoPalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoPalette">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">模式</view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoModes}}" wx:key="value" class="effect-adjustment-option {{risoMode === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoMode">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">油墨</view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoInks}}" wx:key="value" class="effect-adjustment-option {{risoInk === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoInk">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">错位</view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoOffsets}}" wx:key="value" class="effect-adjustment-option {{risoOffset === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoOffset">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">颗粒</view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoGrains}}" wx:key="value" class="effect-adjustment-option {{risoGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoGrain">{{item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'vintage-botanical'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">色调</view>
+            <view class="effect-adjustment-options"><view wx:for="{{botanicalTones}}" wx:key="value" class="effect-adjustment-option {{botanicalTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalTone">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">线稿</view>
+            <view class="effect-adjustment-options"><view wx:for="{{botanicalDetails}}" wx:key="value" class="effect-adjustment-option {{botanicalDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalDetail">{{item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'pixel-cross-stitch'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">网格</view>
+            <view class="effect-adjustment-options"><view wx:for="{{crossStitchGrids}}" wx:key="value" class="effect-adjustment-option {{crossStitchGrid === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchGrid">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">色数</view>
+            <view class="effect-adjustment-options"><view wx:for="{{crossStitchColorOptions}}" wx:key="value" class="effect-adjustment-option {{crossStitchColors === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchColors">{{item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'matisse-cutout'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">复杂度</view>
+            <view class="effect-adjustment-options"><view wx:for="{{matisseDetails}}" wx:key="value" class="effect-adjustment-option {{matisseDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatisseDetail">{{item.label}}</view></view>
+            <view class="effect-adjustment-label">色板</view>
+            <view class="effect-adjustment-options"><view wx:for="{{matissePalettes}}" wx:key="value" class="effect-adjustment-option {{matissePalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatissePalette">{{item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'taped'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">贴住位置</view>
+            <view class="effect-adjustment-options"><view class="effect-adjustment-option {{selectedTapePlacement === 'double-corners' ? 'active' : ''}}" data-value="double-corners" bindtap="setTapePlacement">双角</view><view class="effect-adjustment-option {{selectedTapePlacement === 'top-left' ? 'active' : ''}}" data-value="top-left" bindtap="setTapePlacement">左上</view><view class="effect-adjustment-option {{selectedTapePlacement === 'top-right' ? 'active' : ''}}" data-value="top-right" bindtap="setTapePlacement">右上</view></view>
+          </view>
+        </scroll-view>
       </block>
     </view>
 
