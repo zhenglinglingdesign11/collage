@@ -268,6 +268,7 @@ Page({
     ],
     botanicalTone: "blueprint",
     botanicalDetail: "medium",
+    botanicalFrame: "on",
     blueprintTone: "prussian",
     blueprintIntensity: "standard",
     blueprintPaper: "warm",
@@ -363,6 +364,10 @@ Page({
       { value: "soft", label: "柔" },
       { value: "medium", label: "中" },
       { value: "etched", label: "蚀刻" }
+    ],
+    botanicalFrames: [
+      { value: "on", label: "有" },
+      { value: "off", label: "无" }
     ],
     canUndo: false,
     canRedo: false,
@@ -4461,7 +4466,7 @@ Page({
               risoGrain: saved.risoGrain || "medium"
             }
             : effect === "vintage-botanical"
-              ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium" }
+              ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium", botanicalFrame: saved.botanicalFrame || "on" }
               : effect === "pixel-cross-stitch"
                 ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
                 : { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" };
@@ -4560,9 +4565,9 @@ Page({
       layer.sourceHeight = result.height;
       layer.crop = null;
       style.textureEffect = {
+        ...original,
         type: texture,
         settings: getTextureEffectSettings(texture, this.data),
-        ...original,
         generatedSource: result.path,
         createdAt: Date.now()
       };
@@ -4888,6 +4893,11 @@ Page({
     this.setData({ botanicalDetail: value }, () => this.scheduleTextureEffectPreview("vintage-botanical"));
   },
 
+  setBotanicalFrame(event) {
+    const value = event.currentTarget.dataset.value || "on";
+    this.setData({ botanicalFrame: value }, () => this.scheduleTextureEffectPreview("vintage-botanical"));
+  },
+
   scheduleTextureEffectPreview(texture) {
     if (this.data.effectAdjusting !== texture) return;
     clearTimeout(this.effectAdjustmentTimer);
@@ -5004,11 +5014,13 @@ Page({
         type: "vintage-botanical",
         tone: this.data.botanicalTone,
         detail: this.data.botanicalDetail,
+        frame: this.data.botanicalFrame,
         createdAt: Date.now()
       },
       create: (layer) => this.createBotanicalPlateImage(layer, {
         tone: this.data.botanicalTone,
-        detail: this.data.botanicalDetail
+        detail: this.data.botanicalDetail,
+        frame: this.data.botanicalFrame
       })
     });
   },
@@ -5108,7 +5120,11 @@ Page({
     const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
     const result = createBotanicalImageData(imageData, options.tone || "blueprint", options.detail || "medium");
     this.ctx.putImageData(result, 0, 0);
-    drawBotanicalPlateOverlay(this.ctx, outputWidth, outputHeight, options.tone || "blueprint");
+    if ((options.frame || "on") !== "off") {
+      drawBotanicalPlateOverlay(this.ctx, outputWidth, outputHeight, options.tone || "blueprint");
+    } else {
+      drawBotanicalPaperMarks(this.ctx, outputWidth, outputHeight, getBotanicalTone(options.tone || "blueprint"));
+    }
 
     return new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -6902,20 +6918,24 @@ function createBotanicalImageData(imageData, toneName, detail) {
   const source = new Uint8ClampedArray(data);
   const output = new Uint8ClampedArray(data.length);
   const tone = getBotanicalTone(toneName);
-  const threshold = detail === "etched" ? 14 : detail === "soft" ? 28 : 20;
-  const lineBoost = detail === "etched" ? 1.55 : detail === "soft" ? 1.05 : 1.3;
+  const threshold = detail === "etched" ? 10 : detail === "soft" ? 21 : 15;
+  const lineBoost = detail === "etched" ? 1.92 : detail === "soft" ? 1.28 : 1.58;
+  const washBoost = detail === "etched" ? 0.33 : detail === "soft" ? 0.22 : 0.28;
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const offset = (y * width + x) * 4;
       const gray = getSourceGray(source, width, height, x, y);
-      const rightGray = getSourceGray(source, width, height, Math.min(width - 1, x + 1), y);
-      const bottomGray = getSourceGray(source, width, height, x, Math.min(height - 1, y + 1));
-      const edge = Math.abs(gray - rightGray) + Math.abs(gray - bottomGray);
-      const tonalInk = Math.max(0, (178 - gray) / 255) * 0.16;
-      const edgeInk = edge > threshold ? Math.min(1, (edge - threshold) / 68 * lineBoost) : 0;
+      const localGray = getBotanicalLocalGray(source, width, height, x, y);
+      const shapedGray = Math.max(0, Math.min(255, (gray - localGray) * 1.22 + gray * 0.9 + 13));
+      const edge = getBotanicalEdgeStrength(source, width, height, x, y);
+      const shadow = Math.max(0, (198 - shapedGray) / 255);
+      const midtone = Math.sin(Math.PI * Math.max(0, Math.min(1, (235 - shapedGray) / 210)));
+      const tonalInk = Math.pow(shadow, 1.18) * washBoost + Math.max(0, midtone) * 0.045;
+      const edgeInk = edge > threshold ? Math.min(1, (edge - threshold) / 58 * lineBoost) : 0;
       const hatchInk = createBotanicalHatchInk(x, y, gray, detail);
-      const ink = Math.max(edgeInk, tonalInk, hatchInk);
-      const grain = seededNoise(y * 4099 + x * 17, 11) * 3.5;
+      const microLine = createBotanicalMicroLineInk(x, y, shapedGray, edge, detail);
+      const ink = Math.min(0.88, Math.max(edgeInk, tonalInk, hatchInk, microLine));
+      const grain = seededNoise(y * 4099 + x * 17, 11) * 3.5 + blueprintValueNoise(x / 34, y / 31, 7) * 3;
       const paper = {
         r: clampColor(tone.paper.r + grain),
         g: clampColor(tone.paper.g + grain),
@@ -6938,15 +6958,48 @@ function getSourceGray(source, width, height, x, y) {
   return source[offset] * 0.299 + source[offset + 1] * 0.587 + source[offset + 2] * 0.114;
 }
 
+function getBotanicalLocalGray(source, width, height, x, y) {
+  const radius = 3;
+  let total = 0;
+  let count = 0;
+  for (let dy = -radius; dy <= radius; dy += 3) {
+    for (let dx = -radius; dx <= radius; dx += 3) {
+      total += getSourceGray(source, width, height, x + dx, y + dy);
+      count += 1;
+    }
+  }
+  return total / Math.max(1, count);
+}
+
+function getBotanicalEdgeStrength(source, width, height, x, y) {
+  const left = getSourceGray(source, width, height, x - 1, y);
+  const right = getSourceGray(source, width, height, x + 1, y);
+  const top = getSourceGray(source, width, height, x, y - 1);
+  const bottom = getSourceGray(source, width, height, x, y + 1);
+  const diagA = getSourceGray(source, width, height, x - 1, y - 1) - getSourceGray(source, width, height, x + 1, y + 1);
+  const diagB = getSourceGray(source, width, height, x + 1, y - 1) - getSourceGray(source, width, height, x - 1, y + 1);
+  return Math.abs(right - left) * 0.75 + Math.abs(bottom - top) * 0.75 + Math.abs(diagA) * 0.34 + Math.abs(diagB) * 0.34;
+}
+
 function createBotanicalHatchInk(x, y, gray, detail) {
-  if (gray > 178) return 0;
+  if (gray > 205) return 0;
   const spacing = detail === "etched" ? 10 : detail === "soft" ? 20 : 15;
   const diagonal = (x + y) % spacing;
   const cross = detail === "etched" ? Math.abs((x - y) % (spacing + 5)) : spacing;
-  const shade = Math.max(0, (178 - gray) / 255);
-  const primary = diagonal < 1 ? shade * 0.16 : 0;
-  const secondary = cross < 0.8 ? shade * 0.1 : 0;
+  const shade = Math.max(0, (205 - gray) / 255);
+  const primary = diagonal < 1 ? shade * 0.21 : 0;
+  const secondary = cross < 0.8 ? shade * 0.13 : 0;
   return Math.max(primary, secondary);
+}
+
+function createBotanicalMicroLineInk(x, y, gray, edge, detail) {
+  if (gray > 218 && edge < 18) return 0;
+  const spacing = detail === "etched" ? 7 : detail === "soft" ? 14 : 10;
+  const shade = Math.max(0, (218 - gray) / 255);
+  const line = Math.abs((x * 0.72 + y * 0.38) % spacing);
+  const broken = seededNoise(x * 19 + y * 23, 31) > (detail === "soft" ? 0.55 : 0.32);
+  if (!broken || line > 0.75) return 0;
+  return shade * (detail === "etched" ? 0.16 : 0.1) + Math.max(0, edge - 18) / 255 * 0.08;
 }
 
 function drawBotanicalPlateOverlay(ctx, width, height, toneName) {
@@ -7607,7 +7660,8 @@ function getTextureEffectConfig(type, settings = {}) {
       label: "图鉴",
       create: (page, layer) => page.createBotanicalPlateImage(layer, {
         tone: settings.botanicalTone || "blueprint",
-        detail: settings.botanicalDetail || "medium"
+        detail: settings.botanicalDetail || "medium",
+        frame: settings.botanicalFrame || "on"
       })
     },
     "pixel-cross-stitch": {
@@ -7655,7 +7709,7 @@ function getTextureEffectSettings(type, settings = {}) {
       risoGrain: settings.risoGrain || "medium"
     };
   }
-  if (type === "vintage-botanical") return { botanicalTone: settings.botanicalTone || "blueprint", botanicalDetail: settings.botanicalDetail || "medium" };
+  if (type === "vintage-botanical") return { botanicalTone: settings.botanicalTone || "blueprint", botanicalDetail: settings.botanicalDetail || "medium", botanicalFrame: settings.botanicalFrame || "on" };
   if (type === "pixel-cross-stitch") return { crossStitchGrid: settings.crossStitchGrid || 72, crossStitchColors: settings.crossStitchColors || 8 };
   if (type === "matisse-cutout") return { matisseDetail: settings.matisseDetail || 64, matissePalette: settings.matissePalette || "vivid" };
   return {};
