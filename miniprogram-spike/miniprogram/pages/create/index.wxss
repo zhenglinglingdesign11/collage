@@ -2116,6 +2116,14 @@ button::after {
     #f1d18b;
 }
 
+.texture-swatch-kpop {
+  border-color: #c59bff;
+  background:
+    radial-gradient(circle at 72% 28%, rgba(255,255,255,0.92) 0 8%, transparent 9%),
+    linear-gradient(135deg, rgba(255,255,255,0.68) 0 18%, transparent 19% 52%, rgba(255,255,255,0.45) 53% 61%, transparent 62%),
+    linear-gradient(135deg, #f9bed6 0%, #c8dcff 48%, #f7f1b8 100%);
+}
+
 .texture-swatch-stamp {
   border-color: #a4483d;
   color: #a4483d;

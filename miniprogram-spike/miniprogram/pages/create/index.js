@@ -84,6 +84,8 @@ const CROSS_STITCH_MAX_OUTPUT_SIZE = 1800;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const FONT_FILE_CACHE_PREFIX = "journal.fontFileCache.v1.";
 const TEXT_FONTS = getTextFonts();
+const CUTTABLE_SOURCE_LAYER_TYPES = ["image", "sticker", "paper"];
+const KPOP_HOLO_FOIL_TEXTURE = "/assets/textures/holo-foil-768.webp";
 const TEXT_FONT_OPTIONS = getTextFontOptions();
 const DEFAULT_TEXT_FONT_STYLE = createTextFontStyle("system");
 const PAPER_BACKGROUND_PACKS = [
@@ -247,7 +249,10 @@ Page({
     crossStitchColorOptions: [
       { value: 4, label: "4色" },
       { value: 8, label: "8色" },
-      { value: 12, label: "12色" }
+      { value: 12, label: "12色" },
+      { value: 16, label: "16色" },
+      { value: 24, label: "24色" },
+      { value: 32, label: "32色" }
     ],
     crossStitchStyles: [
       { value: "stitch", label: "X针" },
@@ -265,6 +270,12 @@ Page({
       { value: "vivid", label: "明亮" },
       { value: "earth", label: "复古" },
       { value: "soft", label: "柔和" }
+    ],
+    kpopCardText: "subtle",
+    kpopCardTextOptions: [
+      { value: "off", label: "无" },
+      { value: "subtle", label: "弱" },
+      { value: "standard", label: "标准" }
     ],
     botanicalTone: "blueprint",
     botanicalDetail: "medium",
@@ -1329,8 +1340,8 @@ Page({
 
   beginScissorCut(targetLayer) {
     const layer = targetLayer || this.getSelectedLayer();
-    if (!layer || layer.type !== "image" || !layer.source) {
-      showToast("请先选中一张图片", { icon: "none" });
+    if (!isCuttableSourceLayer(layer)) {
+      showToast("请先选中图片或素材", { icon: "none" });
       return;
     }
     const originalLayer = JSON.parse(JSON.stringify(layer));
@@ -1532,7 +1543,7 @@ Page({
     if (!this.scissorSession || this.data.scissorBusy) return;
     const layer = this.getLayerById(this.scissorSession.layerId);
     const strokes = this.scissorSession.strokes || [];
-    if (!layer || layer.type !== "image" || !strokes.length) {
+    if (!isCuttableSourceLayer(layer) || !strokes.length) {
       showToast("先涂抹要剪出的区域", { icon: "none" });
       return;
     }
@@ -1696,7 +1707,7 @@ Page({
   },
 
   layerNeedsVisualSourceBake(layer) {
-    if (!layer || layer.type !== "image") return false;
+    if (!isCuttableSourceLayer(layer)) return false;
     const style = layer.style || {};
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
@@ -1707,7 +1718,7 @@ Page({
   },
 
   layerNeedsNonPolygonVisualBake(layer) {
-    if (!layer || layer.type !== "image") return false;
+    if (!isCuttableSourceLayer(layer)) return false;
     const style = layer.style || {};
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
@@ -2688,7 +2699,7 @@ Page({
     }
     if (style === "straight" || style === "wave") {
       const layer = this.getSelectedLayer();
-      if (!layer || layer.type !== "image" || !layer.source) {
+      if (!isCuttableSourceLayer(layer)) {
         this.straightCutPickPending = true;
         this.pendingStraightCutStyle = style;
         this.setData({
@@ -2698,7 +2709,7 @@ Page({
           selectedLayerId: "",
           selectedLayerType: ""
         });
-        showToast("请在画布上选择图片", { icon: "none" });
+        showToast("请在画布上选择图片或素材", { icon: "none" });
         return;
       }
       this.beginStraightCut(layer, style);
@@ -2709,7 +2720,7 @@ Page({
       return;
     }
     const layer = this.getSelectedLayer();
-    if (!layer || layer.type !== "image" || !layer.source) {
+    if (!isCuttableSourceLayer(layer)) {
       this.scissorPickPending = true;
       this.setData({
         activeTool: "cut",
@@ -2718,7 +2729,7 @@ Page({
         selectedLayerId: "",
         selectedLayerType: ""
       });
-      showToast("请在画布上选择图片", { icon: "none" });
+      showToast("请在画布上选择图片或素材", { icon: "none" });
       return;
     }
     this.beginScissorCut(layer);
@@ -2726,8 +2737,8 @@ Page({
 
   beginStraightCut(targetLayer, style = "straight") {
     const layer = targetLayer || this.getSelectedLayer();
-    if (!layer || layer.type !== "image" || !layer.source) {
-      showToast("请选择图片图层", { icon: "none" });
+    if (!isCuttableSourceLayer(layer)) {
+      showToast("请选择图片或素材图层", { icon: "none" });
       return;
     }
     const cutStyle = style === "wave" ? "wave" : "straight";
@@ -2797,7 +2808,7 @@ Page({
         ? splitRectByWave(baseLayer.width, baseLayer.height, start, end)
         : splitRectByLine(baseLayer.width, baseLayer.height, start, end);
       if (!polygons) {
-        showToast("剪切线需要穿过图片", { icon: "none" });
+        showToast("剪切线需要穿过图片或素材", { icon: "none" });
         return;
       }
       const normal = lineNormal(start, end);
@@ -3324,7 +3335,7 @@ Page({
         return;
       }
       if (this.straightCutPickPending) {
-        if (target && target.type === "image" && target.source) {
+        if (isCuttableSourceLayer(target)) {
           const cutStyle = this.pendingStraightCutStyle === "wave" ? "wave" : "straight";
           this.straightCutPickPending = false;
           this.pendingStraightCutStyle = "";
@@ -3339,11 +3350,11 @@ Page({
           this.beginStraightCut(target, cutStyle);
           return;
         }
-        showToast("请选择图片图层", { icon: "none" });
+        showToast("请选择图片或素材图层", { icon: "none" });
         return;
       }
       if (this.scissorPickPending) {
-        if (target && target.type === "image" && target.source) {
+        if (isCuttableSourceLayer(target)) {
           this.scissorPickPending = false;
           this.setData({
             selectedLayerId: target.id,
@@ -3356,7 +3367,7 @@ Page({
           this.beginScissorCut(target);
           return;
         }
-        showToast("请选择图片图层", { icon: "none" });
+        showToast("请选择图片或素材图层", { icon: "none" });
         return;
       }
       if (this.embossPickPending) {
@@ -4440,7 +4451,7 @@ Page({
     const layer = this.getSelectedLayer();
     if (!layer || !layer.style) return;
 
-    if (effect === "blueprint-print" || effect === "screen-print" || effect === "riso-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout") {
+    if (effect === "blueprint-print" || effect === "screen-print" || effect === "riso-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout" || effect === "kpop-card") {
       const saved = layer.style.textureEffect && layer.style.textureEffect.settings || {};
       const label = getTextureEffectConfig(effect, this.data).label;
       const values = effect === "blueprint-print"
@@ -4469,7 +4480,9 @@ Page({
               ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium", botanicalFrame: saved.botanicalFrame || "on" }
               : effect === "pixel-cross-stitch"
                 ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
-                : { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" };
+                : effect === "matisse-cutout"
+                  ? { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" }
+                  : { kpopCardText: saved.kpopCardText || "subtle" };
       this.setData({ effectAdjusting: effect, effectAdjustingLabel: label, ...values });
       return;
     }
@@ -4497,12 +4510,15 @@ Page({
 
   closeEffectAdjustment() {
     clearTimeout(this.effectAdjustmentTimer);
+    this.effectAdjustmentToken = (this.effectAdjustmentToken || 0) + 1;
     this.setData({ effectAdjusting: "", effectAdjustingLabel: "" });
   },
 
   confirmEffectAdjustment() {
     const texture = this.data.effectAdjusting;
     if (!texture || this.data.textureEffectBusy) return;
+    clearTimeout(this.effectAdjustmentTimer);
+    this.effectAdjustmentToken = (this.effectAdjustmentToken || 0) + 1;
     if (texture === "taped") {
       this.closeEffectAdjustment();
       return;
@@ -4541,6 +4557,7 @@ Page({
 
     const textureConfig = getTextureEffectConfig(texture, this.data);
     if (!textureConfig) return;
+    const layerId = layer.id;
     this.setData({ textureEffectBusy: true, textureEffectBusyType: texture, saveStatus: `${textureConfig.label}生成中...` });
     try {
       const original = current && current.originalSource
@@ -4563,6 +4580,7 @@ Page({
       layer.source = result.path;
       layer.sourceWidth = result.width;
       layer.sourceHeight = result.height;
+      applyGeneratedLayerGeometry(layer, result);
       layer.crop = null;
       style.textureEffect = {
         ...original,
@@ -4573,13 +4591,22 @@ Page({
       };
       layer.style = style;
       delete this.canvasImageCache[previousSource];
-      this.setData({ selectedTextureEffect: texture, textureEffectBusy: false, textureEffectBusyType: "" });
+      this.setData({
+        selectedTextureEffect: this.data.selectedLayerId === layerId ? getTextureEffectKey(layer) : this.data.selectedTextureEffect,
+        textureEffectBusy: false,
+        textureEffectBusyType: ""
+      });
       this.markDirty();
       this.render();
       if (!force) showSuccess(`${textureConfig.label}已应用`);
     } catch (error) {
       console.warn("[texture-effect] failed", texture, error);
-      this.setData({ textureEffectBusy: false, textureEffectBusyType: "", saveStatus: `${textureConfig.label}生成失败` });
+      this.setData({
+        selectedTextureEffect: this.data.selectedLayerId === layerId ? getTextureEffectKey(layer) : this.data.selectedTextureEffect,
+        textureEffectBusy: false,
+        textureEffectBusyType: "",
+        saveStatus: `${textureConfig.label}生成失败`
+      });
       this.render();
       showError(`${textureConfig.label}生成失败`);
     }
@@ -4795,7 +4822,7 @@ Page({
 
   setCrossStitchColors(event) {
     const value = Number(event.currentTarget.dataset.value || 8);
-    this.setData({ crossStitchColors: Math.max(2, Math.min(16, value)) }, () => this.scheduleTextureEffectPreview("pixel-cross-stitch"));
+    this.setData({ crossStitchColors: Math.max(2, Math.min(32, value)) }, () => this.scheduleTextureEffectPreview("pixel-cross-stitch"));
   },
 
   setCrossStitchStyle(event) {
@@ -4816,6 +4843,11 @@ Page({
   setMatissePalette(event) {
     const value = event.currentTarget.dataset.value || "vivid";
     this.setData({ matissePalette: value }, () => this.scheduleTextureEffectPreview("matisse-cutout"));
+  },
+
+  setKpopCardText(event) {
+    const value = event.currentTarget.dataset.value || "subtle";
+    this.setData({ kpopCardText: value }, () => this.scheduleTextureEffectPreview("kpop-card"));
   },
 
   setBlueprintTone(event) {
@@ -4901,7 +4933,10 @@ Page({
   scheduleTextureEffectPreview(texture) {
     if (this.data.effectAdjusting !== texture) return;
     clearTimeout(this.effectAdjustmentTimer);
+    const token = (this.effectAdjustmentToken || 0) + 1;
+    this.effectAdjustmentToken = token;
     this.effectAdjustmentTimer = setTimeout(() => {
+      if (this.effectAdjustmentToken !== token) return;
       if (this.data.effectAdjusting !== texture) return;
       if (this.data.textureEffectBusy) {
         this.scheduleTextureEffectPreview(texture);
@@ -4944,6 +4979,7 @@ Page({
       layer.source = result.path;
       layer.sourceWidth = result.width;
       layer.sourceHeight = result.height;
+      applyGeneratedLayerGeometry(layer, result);
       layer.crop = null;
       layer.effect = config.effect;
       delete this.canvasImageCache[previousSource];
@@ -5074,17 +5110,25 @@ Page({
     const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
     const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
     const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
-    const maxOutputSize = Number(options.detail) >= 86 ? 1500 : Number(options.detail) <= 44 ? 980 : 1240;
-    const scale = maxOutputSize / Math.max(crop.width, crop.height);
-    const outputWidth = Math.max(1, Math.round(crop.width * scale));
-    const outputHeight = Math.max(1, Math.round(crop.height * scale));
+    const detail = Math.max(36, Math.min(104, Number(options.detail) || 64));
+    const maxOutputSize = detail >= 86 ? 1500 : detail <= 44 ? 980 : 1240;
+    const aspect = crop.width / Math.max(1, crop.height);
+    const workLongEdge = Math.round(detail * 2);
+    const workWidth = aspect >= 1 ? workLongEdge : Math.max(1, Math.round(workLongEdge * aspect));
+    const workHeight = aspect >= 1 ? Math.max(1, Math.round(workLongEdge / aspect)) : workLongEdge;
+    const cellSize = Math.max(5, Math.floor(maxOutputSize / Math.max(workWidth, workHeight)));
+    const outputWidth = workWidth * cellSize;
+    const outputHeight = workHeight * cellSize;
+
+    this.configureCanvasBitmapSize(workWidth, workHeight);
+    this.ctx.clearRect(0, 0, workWidth, workHeight);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, workWidth, workHeight);
+    const imageData = this.ctx.getImageData(0, 0, workWidth, workHeight);
+    const result = createContinuousMatisseImageData(imageData, getMatissePalette(options.palette), options.palette || "vivid", detail);
 
     this.configureCanvasBitmapSize(outputWidth, outputHeight);
     this.ctx.clearRect(0, 0, outputWidth, outputHeight);
-    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
-    const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
-    const result = createContinuousMatisseImageData(imageData, getMatissePalette(options.palette), options.palette || "vivid");
-    this.ctx.putImageData(result.imageData, 0, 0);
+    drawContinuousMatisseOutput(this.ctx, result.indexes, result.palette, workWidth, workHeight, cellSize, options.palette || "vivid");
     drawCutoutPaperTexture(this.ctx, outputWidth, outputHeight, 0.08);
 
     return new Promise((resolve, reject) => {
@@ -5276,6 +5320,69 @@ Page({
         destHeight: outputHeight,
         fileType: "png",
         success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight }),
+        fail: reject
+      }, this);
+    });
+  },
+
+  async createKpopCardImage(layer, options = {}) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("image_not_ready");
+    const holoTexture = await this.loadCanvasImage(KPOP_HOLO_FOIL_TEXTURE);
+    const sourceWidth = Math.max(1, layer.sourceWidth || image.width || Math.round(layer.width));
+    const sourceHeight = Math.max(1, layer.sourceHeight || image.height || Math.round(layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const outputWidth = 900;
+    const outputHeight = 1350;
+    const margin = 86;
+    const radius = 64;
+    const photoRadius = 40;
+    const photoX = margin;
+    const photoY = margin;
+    const photoWidth = outputWidth - margin * 2;
+    const photoHeight = outputHeight - margin * 2;
+    const coverScale = Math.max(photoWidth / crop.width, photoHeight / crop.height);
+    const drawWidth = crop.width * coverScale;
+    const drawHeight = crop.height * coverScale;
+    const drawX = photoX + (photoWidth - drawWidth) / 2;
+    const drawY = photoY + (photoHeight - drawHeight) / 2;
+
+    this.configureCanvasBitmapSize(outputWidth, outputHeight);
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+    drawKpopCardPhysicalShadow(ctx, outputWidth, outputHeight, radius);
+    const bg = ctx.createLinearGradient(0, 0, outputWidth, outputHeight);
+    bg.addColorStop(0, "#fff4fb");
+    bg.addColorStop(0.48, "#edf4ff");
+    bg.addColorStop(1, "#fff8d8");
+    ctx.fillStyle = bg;
+    drawRoundedMaskPath(ctx, 0, 0, outputWidth, outputHeight, radius);
+    ctx.fill();
+
+    ctx.save();
+    drawRoundedMaskPath(ctx, photoX, photoY, photoWidth, photoHeight, photoRadius);
+    ctx.clip();
+    ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, drawX, drawY, drawWidth, drawHeight);
+    applyKpopCardTone(ctx, photoX, photoY, photoWidth, photoHeight);
+    ctx.restore();
+
+    drawKpopHolographicBorder(ctx, outputWidth, outputHeight, radius, holoTexture);
+    drawKpopLaminateTexture(ctx, outputWidth, outputHeight, radius);
+    drawKpopCardGloss(ctx, outputWidth, outputHeight, radius);
+    drawKpopCardDecor(ctx, photoX, photoY, photoWidth, photoHeight, photoRadius, options.text || "subtle");
+    drawKpopCardEdgeDepth(ctx, outputWidth, outputHeight, radius);
+
+    return new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.canvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve({ path: res.tempFilePath, width: outputWidth, height: outputHeight, resizeLayer: true }),
         fail: reject
       }, this);
     });
@@ -5595,6 +5702,25 @@ function getTextSecurityErrorMessage(error) {
   if (error && error.message === "text_check_failed") return "文字处理失败，请稍后重试";
   if (error && error.message === "cloud_unavailable") return "检测服务暂时不可用，请稍后重试";
   return "文字处理失败，请稍后重试";
+}
+
+function isCuttableSourceLayer(layer) {
+  return !!(layer && layer.source && CUTTABLE_SOURCE_LAYER_TYPES.includes(layer.type));
+}
+
+function applyGeneratedLayerGeometry(layer, result) {
+  if (!layer || !result || !result.resizeLayer || !result.width || !result.height) return layer;
+  const centerX = layer.x + layer.width / 2;
+  const centerY = layer.y + layer.height / 2;
+  const longSide = Math.max(layer.width || result.width, layer.height || result.height);
+  const ratio = result.width / Math.max(1, result.height);
+  const nextWidth = longSide * ratio;
+  const nextHeight = longSide;
+  layer.x = centerX - nextWidth / 2;
+  layer.y = centerY - nextHeight / 2;
+  layer.width = nextWidth;
+  layer.height = nextHeight;
+  return layer;
 }
 
 function checkDraftTextContent(page) {
@@ -6689,19 +6815,19 @@ function drawMatisseCutoutOutput(ctx, cells, cols, rows, cellSize, paletteName) 
   ctx.restore();
 }
 
-function createContinuousMatisseImageData(imageData, palette, paletteName) {
+function createContinuousMatisseImageData(imageData, palette, paletteName, detail = 64) {
   const { width, height, data } = imageData;
   const output = new Uint8ClampedArray(data.length);
   const indexes = new Uint8Array(width * height);
   const background = getMatisseBackgroundColor(paletteName);
+  const smoothed = smoothMatisseSourceData(data, width, height, background, detail);
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const offset = (y * width + x) * 4;
-      const alpha = data[offset + 3] / 255;
       const color = {
-        r: Math.round(data[offset] * alpha + background.r * (1 - alpha)),
-        g: Math.round(data[offset + 1] * alpha + background.g * (1 - alpha)),
-        b: Math.round(data[offset + 2] * alpha + background.b * (1 - alpha))
+        r: smoothed[offset],
+        g: smoothed[offset + 1],
+        b: smoothed[offset + 2]
       };
       const match = findNearestPaletteEntry(color, palette);
       indexes[y * width + x] = match.index;
@@ -6711,13 +6837,145 @@ function createContinuousMatisseImageData(imageData, palette, paletteName) {
       output[offset + 3] = 255;
     }
   }
-  softenQuantizedImage(output, width, height);
-  drawMatisseEdgesToPixels(output, indexes, width, height, paletteName);
+  mergeSmallMatisseRegions(indexes, width, height, palette, detail);
+  writeMatissePalettePixels(output, indexes, palette);
   imageData.data.set(output);
   return {
     imageData,
-    indexes
+    indexes,
+    palette
   };
+}
+
+function smoothMatisseSourceData(data, width, height, background, detail) {
+  const first = new Uint8ClampedArray(data.length);
+  const passes = Number(detail) <= 44 ? 2 : 1;
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const alpha = data[offset + 3] / 255;
+    first[offset] = Math.round(data[offset] * alpha + background.r * (1 - alpha));
+    first[offset + 1] = Math.round(data[offset + 1] * alpha + background.g * (1 - alpha));
+    first[offset + 2] = Math.round(data[offset + 2] * alpha + background.b * (1 - alpha));
+    first[offset + 3] = 255;
+  }
+  let source = first;
+  let target = new Uint8ClampedArray(data.length);
+  for (let pass = 0; pass < passes; pass += 1) {
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const offset = (y * width + x) * 4;
+        let totalWeight = 0;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        for (let dy = -1; dy <= 1; dy += 1) {
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const px = Math.max(0, Math.min(width - 1, x + dx));
+            const py = Math.max(0, Math.min(height - 1, y + dy));
+            const weight = dx === 0 && dy === 0 ? 4 : dx === 0 || dy === 0 ? 2 : 1;
+            const sample = (py * width + px) * 4;
+            totalWeight += weight;
+            r += source[sample] * weight;
+            g += source[sample + 1] * weight;
+            b += source[sample + 2] * weight;
+          }
+        }
+        target[offset] = Math.round(r / totalWeight);
+        target[offset + 1] = Math.round(g / totalWeight);
+        target[offset + 2] = Math.round(b / totalWeight);
+        target[offset + 3] = 255;
+      }
+    }
+    const next = source;
+    source = target;
+    target = next;
+  }
+  return source;
+}
+
+function mergeSmallMatisseRegions(indexes, width, height, palette, detail) {
+  const minArea = Number(detail) <= 44 ? 10 : Number(detail) >= 86 ? 3 : 5;
+  const passes = Number(detail) <= 44 ? 2 : 1;
+  const total = width * height;
+  const queue = new Int32Array(total);
+  const region = new Int32Array(total);
+  for (let pass = 0; pass < passes; pass += 1) {
+    const visited = new Uint8Array(total);
+    for (let start = 0; start < total; start += 1) {
+      if (visited[start]) continue;
+      const colorIndex = indexes[start];
+      let head = 0;
+      let tail = 0;
+      let regionSize = 0;
+      const neighborCounts = {};
+      queue[tail] = start;
+      tail += 1;
+      visited[start] = 1;
+      while (head < tail) {
+        const current = queue[head];
+        head += 1;
+        region[regionSize] = current;
+        regionSize += 1;
+        const x = current % width;
+        const y = Math.floor(current / width);
+        const neighbors = [
+          x > 0 ? current - 1 : -1,
+          x < width - 1 ? current + 1 : -1,
+          y > 0 ? current - width : -1,
+          y < height - 1 ? current + width : -1
+        ];
+        neighbors.forEach((next) => {
+          if (next < 0) return;
+          if (indexes[next] === colorIndex) {
+            if (!visited[next]) {
+              visited[next] = 1;
+              queue[tail] = next;
+              tail += 1;
+            }
+            return;
+          }
+          const neighborIndex = indexes[next];
+          neighborCounts[neighborIndex] = (neighborCounts[neighborIndex] || 0) + 1;
+        });
+      }
+      if (regionSize >= minArea) continue;
+      const replacement = chooseMatisseMergeIndex(colorIndex, neighborCounts, palette);
+      if (replacement == null || replacement === colorIndex) continue;
+      for (let i = 0; i < regionSize; i += 1) {
+        indexes[region[i]] = replacement;
+      }
+    }
+  }
+}
+
+function chooseMatisseMergeIndex(colorIndex, neighborCounts, palette) {
+  let bestIndex = null;
+  let bestScore = -Infinity;
+  Object.keys(neighborCounts).forEach((key) => {
+    const index = Number(key);
+    const current = palette[colorIndex] || palette[0];
+    const candidate = palette[index] || palette[0];
+    const dr = current.r - candidate.r;
+    const dg = current.g - candidate.g;
+    const db = current.b - candidate.b;
+    const distancePenalty = (dr * dr + dg * dg + db * db) / 9000;
+    const score = neighborCounts[key] - distancePenalty;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  });
+  return bestIndex;
+}
+
+function writeMatissePalettePixels(data, indexes, palette) {
+  for (let i = 0; i < indexes.length; i += 1) {
+    const color = palette[indexes[i]] || palette[0];
+    const offset = i * 4;
+    data[offset] = color.r;
+    data[offset + 1] = color.g;
+    data[offset + 2] = color.b;
+    data[offset + 3] = 255;
+  }
 }
 
 function findNearestPaletteEntry(color, palette) {
@@ -6795,6 +7053,66 @@ function paintEdgeDot(data, width, height, x, y, color, radius) {
 function getMatisseBackgroundColor(paletteName) {
   if (paletteName === "vivid") return { r: 247, g: 214, b: 220 };
   return { r: 247, g: 240, b: 223 };
+}
+
+function drawContinuousMatisseOutput(ctx, indexes, palette, cols, rows, cellSize, paletteName) {
+  const width = cols * cellSize;
+  const height = rows * cellSize;
+  ctx.save();
+  ctx.fillStyle = paletteName === "vivid" ? "#f7d6dc" : "#f7f0df";
+  ctx.fillRect(0, 0, width, height);
+  drawCutoutPaperTexture(ctx, width, height, 0.045);
+  palette.forEach((color, paletteIndex) => {
+    ctx.fillStyle = toRgb(color);
+    ctx.globalAlpha = 0.98;
+    ctx.beginPath();
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        if (indexes[row * cols + col] !== paletteIndex) continue;
+        const jitterX = seededNoise(row * 97 + col * 17, paletteIndex) * cellSize * 0.018;
+        const jitterY = seededNoise(row * 53 + col * 31, paletteIndex + 13) * cellSize * 0.018;
+        ctx.rect(
+          col * cellSize - 0.6 + jitterX,
+          row * cellSize - 0.6 + jitterY,
+          cellSize + 1.2,
+          cellSize + 1.2
+        );
+      }
+    }
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  drawSoftMatisseBoundaries(ctx, indexes, cols, rows, cellSize, paletteName);
+  ctx.restore();
+}
+
+function drawSoftMatisseBoundaries(ctx, indexes, cols, rows, cellSize, paletteName) {
+  const stroke = paletteName === "vivid"
+    ? "rgba(33, 37, 31, 0.16)"
+    : "rgba(72, 54, 42, 0.13)";
+  ctx.save();
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = Math.max(0.75, cellSize * 0.035);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const index = indexes[row * cols + col];
+      const x = col * cellSize;
+      const y = row * cellSize;
+      if (col < cols - 1 && indexes[row * cols + col + 1] !== index) {
+        if (Math.abs(seededNoise(row * 131 + col * 17, 21)) > 0.28) {
+          drawWobblyLine(ctx, x + cellSize, y + cellSize * 0.08, x + cellSize, y + cellSize * 0.92, row * 19 + col * 31);
+        }
+      }
+      if (row < rows - 1 && indexes[(row + 1) * cols + col] !== index) {
+        if (Math.abs(seededNoise(row * 31 + col * 113, 22)) > 0.28) {
+          drawWobblyLine(ctx, x + cellSize * 0.08, y + cellSize, x + cellSize * 0.92, y + cellSize, row * 31 + col * 19);
+        }
+      }
+    }
+  }
+  ctx.restore();
 }
 
 function drawMatisseColorSheets(ctx, cells, cols, rows, cellSize) {
@@ -7678,6 +7996,12 @@ function getTextureEffectConfig(type, settings = {}) {
         detail: settings.matisseDetail || 64,
         palette: settings.matissePalette || "vivid"
       })
+    },
+    "kpop-card": {
+      label: "小卡",
+      create: (page, layer) => page.createKpopCardImage(layer, {
+        text: settings.kpopCardText || "subtle"
+      })
     }
   };
   return config[type] || null;
@@ -7712,6 +8036,7 @@ function getTextureEffectSettings(type, settings = {}) {
   if (type === "vintage-botanical") return { botanicalTone: settings.botanicalTone || "blueprint", botanicalDetail: settings.botanicalDetail || "medium", botanicalFrame: settings.botanicalFrame || "on" };
   if (type === "pixel-cross-stitch") return { crossStitchGrid: settings.crossStitchGrid || 72, crossStitchColors: settings.crossStitchColors || 8 };
   if (type === "matisse-cutout") return { matisseDetail: settings.matisseDetail || 64, matissePalette: settings.matissePalette || "vivid" };
+  if (type === "kpop-card") return { template: "pearl", kpopCardText: settings.kpopCardText || "subtle" };
   return {};
 }
 
@@ -8143,6 +8468,384 @@ function drawRisoPrintOverlay(ctx, width, height, options = {}) {
     ctx.fillStyle = rgba({ r: color[0], g: color[1], b: color[2] }, 0.22);
     ctx.fillRect(x, y, size * areaScale, size * areaScale);
   }
+  ctx.restore();
+}
+
+function applyKpopCardTone(ctx, x, y, width, height) {
+  const imageData = ctx.getImageData(x, y, width, height);
+  const data = imageData.data;
+  for (let offset = 0; offset < data.length; offset += 4) {
+    const alpha = data[offset + 3] / 255;
+    if (alpha <= 0) continue;
+    let r = data[offset];
+    let g = data[offset + 1];
+    let b = data[offset + 2];
+    const avg = (r + g + b) / 3;
+    r = avg + (r - avg) * 0.98 + 5;
+    g = avg + (g - avg) * 0.96 + 4;
+    b = avg + (b - avg) * 0.98 + 9;
+    const lift = 7;
+    data[offset] = clampColor(r + lift);
+    data[offset + 1] = clampColor(g + lift);
+    data[offset + 2] = clampColor(b + lift);
+  }
+  ctx.putImageData(imageData, x, y);
+  const veil = ctx.createLinearGradient(x, y, x + width, y + height);
+  veil.addColorStop(0, "rgba(255, 204, 226, 0.06)");
+  veil.addColorStop(0.52, "rgba(232, 244, 255, 0.08)");
+  veil.addColorStop(1, "rgba(255, 247, 190, 0.05)");
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  ctx.fillStyle = veil;
+  ctx.fillRect(x, y, width, height);
+  ctx.restore();
+}
+
+function drawKpopCardPhysicalShadow(ctx, width, height, radius) {
+  ctx.save();
+  ctx.shadowColor = "rgba(35, 34, 42, 0.22)";
+  ctx.shadowBlur = 34;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 22;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.96)";
+  drawRoundedMaskPath(ctx, 18, 20, width - 36, height - 40, radius);
+  ctx.fill();
+  ctx.shadowColor = "transparent";
+  ctx.strokeStyle = "rgba(255,255,255,0.82)";
+  ctx.lineWidth = 6;
+  drawRoundedMaskPath(ctx, 24, 26, width - 48, height - 52, radius - 4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawKpopHolographicBorder(ctx, width, height, radius, holoTexture) {
+  ctx.save();
+  const outerInset = 12;
+  const innerInset = 80;
+  const band = innerInset - outerInset;
+  drawRoundedMaskPath(ctx, outerInset, outerInset, width - outerInset * 2, height - outerInset * 2, radius + 2);
+  ctx.clip();
+
+  ctx.save();
+  ctx.shadowColor = "rgba(255, 255, 255, 0.48)";
+  ctx.shadowBlur = 6;
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.34)";
+  drawRoundedMaskPath(ctx, 18, 18, width - 36, height - 36, radius);
+  ctx.stroke();
+  ctx.restore();
+
+  drawKpopBorderStrips(ctx, width, height, band, () => {
+    const metal = ctx.createLinearGradient(0, 0, width, height);
+    metal.addColorStop(0, "rgba(166, 176, 190, 0.42)");
+    metal.addColorStop(0.28, "rgba(232, 236, 242, 0.46)");
+    metal.addColorStop(0.54, "rgba(138, 150, 168, 0.34)");
+    metal.addColorStop(0.78, "rgba(245, 247, 250, 0.38)");
+    metal.addColorStop(1, "rgba(154, 166, 184, 0.4)");
+    ctx.fillStyle = metal;
+    ctx.fillRect(0, 0, width, height);
+  });
+
+  if (holoTexture) {
+    drawKpopHoloTextureStrip(ctx, holoTexture, width, height, 0, 0, width, band);
+    drawKpopHoloTextureStrip(ctx, holoTexture, width, height, 0, height - band, width, band);
+    drawKpopHoloTextureStrip(ctx, holoTexture, width, height, 0, 0, band, height);
+    drawKpopHoloTextureStrip(ctx, holoTexture, width, height, width - band, 0, band, height);
+  } else {
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, "rgba(255, 157, 205, 0.96)");
+    gradient.addColorStop(0.22, "rgba(174, 211, 255, 0.98)");
+    gradient.addColorStop(0.45, "rgba(255, 246, 153, 0.94)");
+    gradient.addColorStop(0.68, "rgba(194, 157, 255, 0.96)");
+    gradient.addColorStop(1, "rgba(149, 245, 221, 0.92)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, band);
+    ctx.fillRect(0, height - band, width, band);
+    ctx.fillRect(0, 0, band, height);
+    ctx.fillRect(width - band, 0, band, height);
+  }
+
+  drawKpopPrismaticFoil(ctx, width, height, band);
+
+  const sheen = ctx.createLinearGradient(0, 0, width, height);
+  sheen.addColorStop(0, "rgba(255,255,255,0.045)");
+  sheen.addColorStop(0.38, "rgba(255,255,255,0)");
+  sheen.addColorStop(0.72, "rgba(255,255,255,0.04)");
+  sheen.addColorStop(1, "rgba(255,255,255,0.018)");
+  ctx.globalCompositeOperation = "screen";
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, width, band);
+  ctx.fillRect(0, height - band, width, band);
+  ctx.fillRect(0, 0, band, height);
+  ctx.fillRect(width - band, 0, band, height);
+
+  ctx.globalCompositeOperation = "source-over";
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+  drawRoundedMaskPath(ctx, innerInset - 2, innerInset - 2, width - (innerInset - 2) * 2, height - (innerInset - 2) * 2, radius - 25);
+  ctx.stroke();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(28, 30, 38, 0.2)";
+  drawRoundedMaskPath(ctx, innerInset + 4, innerInset + 4, width - (innerInset + 4) * 2, height - (innerInset + 4) * 2, radius - 31);
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+  drawRoundedMaskPath(ctx, 24, 24, width - 48, height - 48, radius - 3);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawKpopHoloTextureStrip(ctx, texture, width, height, x, y, stripWidth, stripHeight) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, stripWidth, stripHeight);
+  ctx.clip();
+  const tileWidth = Math.max(160, Math.round(width * 0.36));
+  const tileHeight = Math.max(160, Math.round(tileWidth * texture.height / Math.max(1, texture.width)));
+  for (let drawY = y - (y % tileHeight) - tileHeight; drawY < y + stripHeight + tileHeight; drawY += tileHeight) {
+    for (let drawX = x - (x % tileWidth) - tileWidth; drawX < x + stripWidth + tileWidth; drawX += tileWidth) {
+      ctx.drawImage(texture, 0, 0, texture.width, texture.height, drawX, drawY, tileWidth, tileHeight);
+    }
+  }
+  ctx.restore();
+}
+
+function drawKpopBorderStrips(ctx, width, height, band, draw) {
+  const strips = [
+    [0, 0, width, band],
+    [0, height - band, width, band],
+    [0, 0, band, height],
+    [width - band, 0, band, height]
+  ];
+  strips.forEach(([x, y, stripWidth, stripHeight]) => {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, stripWidth, stripHeight);
+    ctx.clip();
+    draw();
+    ctx.restore();
+  });
+}
+
+function drawKpopPrismaticFoil(ctx, width, height, band) {
+  const palette = [
+    [255, 50, 164],
+    [64, 198, 255],
+    [255, 234, 74],
+    [162, 88, 255],
+    [47, 232, 198],
+    [255, 111, 181],
+    [118, 157, 255]
+  ];
+
+  drawKpopBorderStrips(ctx, width, height, band, () => {
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    const cell = 118;
+    const cols = Math.ceil(width / cell) + 2;
+    const rows = Math.ceil(height / cell) + 2;
+    for (let row = -1; row < rows; row += 1) {
+      for (let col = -1; col < cols; col += 1) {
+        const index = row * 37 + col * 19;
+        if (Math.abs(seededNoise(index, 697)) < 0.38) continue;
+        const x = col * cell + seededNoise(index, 701) * 13;
+        const y = row * cell + seededNoise(index, 709) * 13;
+        const size = cell * (0.82 + Math.abs(seededNoise(index, 719)) * 0.55);
+        const heightScale = 0.24 + Math.abs(seededNoise(index, 723)) * 0.18;
+        const skew = seededNoise(index, 727) * 28;
+        const color = palette[Math.abs(Math.floor(seededNoise(index, 733) * 1000)) % palette.length];
+        const alpha = 0.18 + Math.abs(seededNoise(index, 739)) * 0.2;
+        const brightness = seededNoise(index, 743);
+        const gradient = ctx.createLinearGradient(x, y, x + size, y + size * heightScale);
+        gradient.addColorStop(0, brightness > 0 ? rgba({ r: color[0], g: color[1], b: color[2] }, alpha * 0.42) : "rgba(42,48,62,0.18)");
+        gradient.addColorStop(0.48, rgba({ r: color[0], g: color[1], b: color[2] }, alpha));
+        gradient.addColorStop(1, brightness > 0
+          ? `rgba(255,255,255,${0.07 + Math.abs(brightness) * 0.12})`
+          : "rgba(22,27,38,0.26)");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(x + skew, y);
+        ctx.lineTo(x + size, y + size * heightScale * 0.22 + skew * 0.18);
+        ctx.lineTo(x + size * 0.86 - skew * 0.16, y + size * heightScale);
+        ctx.lineTo(x + size * 0.06, y + size * heightScale * 0.78);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = brightness > 0
+          ? "rgba(255,255,255,0.16)"
+          : "rgba(18,24,34,0.24)";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalCompositeOperation = "multiply";
+    ctx.lineWidth = 1;
+    for (let i = -height; i < width; i += 42) {
+      ctx.strokeStyle = "rgba(28,34,48,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(i, height);
+      ctx.lineTo(i + height * 0.55, 0);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 28; i += 1) {
+      const x = (seededNoise(i, 829) * 0.5 + 0.5) * width;
+      const y = (seededNoise(i, 839) * 0.5 + 0.5) * height;
+      const length = 42 + Math.abs(seededNoise(i, 853)) * 88;
+      ctx.strokeStyle = "rgba(45,52,68,0.13)";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + length, y + seededNoise(i, 857) * 15);
+      ctx.stroke();
+    }
+
+    ctx.globalCompositeOperation = "screen";
+    ctx.lineWidth = 0.65;
+    for (let i = -height; i < width; i += 16) {
+      const hueShift = Math.abs(seededNoise(i, 881));
+      ctx.strokeStyle = hueShift > 0.66
+        ? "rgba(255,255,255,0.18)"
+        : hueShift > 0.33
+          ? "rgba(105,238,230,0.13)"
+          : "rgba(255,151,222,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(i, height);
+      ctx.lineTo(i + height * 0.34, 0);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 14; i += 1) {
+      const x = (seededNoise(i, 761) * 0.5 + 0.5) * width;
+      const y = (seededNoise(i, 769) * 0.5 + 0.5) * height;
+      const length = 22 + Math.abs(seededNoise(i, 773)) * 58;
+      const alpha = 0.04 + Math.abs(seededNoise(i, 787)) * 0.08;
+      ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + length, y + seededNoise(i, 797) * 8);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 8; i += 1) {
+      const x = (seededNoise(i, 809) * 0.5 + 0.5) * width;
+      const y = (seededNoise(i, 811) * 0.5 + 0.5) * height;
+      const radius = 1.5 + Math.abs(seededNoise(i, 821)) * 3;
+      const glint = ctx.createRadialGradient(x, y, 0, x, y, radius * 4);
+      glint.addColorStop(0, "rgba(255,255,255,0.34)");
+      glint.addColorStop(0.36, "rgba(255,255,255,0.1)");
+      glint.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = glint;
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+function drawKpopLaminateTexture(ctx, width, height, radius) {
+  ctx.save();
+  drawRoundedMaskPath(ctx, 24, 24, width - 48, height - 48, radius - 8);
+  ctx.clip();
+  ctx.globalCompositeOperation = "screen";
+  for (let i = 0; i < 42; i += 1) {
+    const x = (seededNoise(i, 601) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 607) * 0.5 + 0.5) * height;
+    const alpha = 0.006 + Math.abs(seededNoise(i, 613)) * 0.012;
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fillRect(x, y, 1.2, 1.2);
+  }
+  ctx.restore();
+}
+
+function drawKpopCardGloss(ctx, width, height, radius) {
+  ctx.save();
+  drawRoundedMaskPath(ctx, 0, 0, width, height, radius);
+  ctx.clip();
+  ctx.globalCompositeOperation = "screen";
+  const thin = ctx.createLinearGradient(width * 0.62, height * 0.02, width, height * 0.36);
+  thin.addColorStop(0, "rgba(255,255,255,0)");
+  thin.addColorStop(0.5, "rgba(255,255,255,0.012)");
+  thin.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = thin;
+  ctx.beginPath();
+  ctx.moveTo(width * 0.7, 0);
+  ctx.lineTo(width * 0.76, 0);
+  ctx.lineTo(width * 1.02, height * 0.25);
+  ctx.lineTo(width * 0.96, height * 0.28);
+  ctx.closePath();
+  ctx.fill();
+  const pearl = ctx.createRadialGradient(width * 0.72, height * 0.22, width * 0.03, width * 0.72, height * 0.22, width * 0.62);
+  pearl.addColorStop(0, "rgba(255,255,255,0.012)");
+  pearl.addColorStop(0.36, "rgba(197,216,255,0.008)");
+  pearl.addColorStop(0.62, "rgba(255,203,232,0.006)");
+  pearl.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = pearl;
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.restore();
+}
+
+function drawKpopCardEdgeDepth(ctx, width, height, radius) {
+  ctx.save();
+  ctx.lineWidth = 12;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.58)";
+  drawRoundedMaskPath(ctx, 31, 31, width - 62, height - 62, radius - 12);
+  ctx.stroke();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(42, 43, 54, 0.16)";
+  drawRoundedMaskPath(ctx, 18, 18, width - 36, height - 36, radius);
+  ctx.stroke();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.34)";
+  drawRoundedMaskPath(ctx, 42, 42, width - 84, height - 84, radius - 26);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawKpopCardDecor(ctx, x, y, width, height, radius, textMode = "subtle") {
+  ctx.save();
+  drawRoundedMaskPath(ctx, x, y, width, height, radius);
+  ctx.clip();
+  if (textMode !== "off") {
+    const title = "MY CARD";
+    const number = `No. ${String(Math.floor(Math.abs(seededNoise(width, height)) * 999) + 1).padStart(3, "0")}`;
+    const textX = x + 28;
+    const numberY = y + height - 36;
+    const titleY = numberY - 36;
+    const alpha = textMode === "standard" ? 0.78 : 0.46;
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.strokeStyle = `rgba(31, 35, 42, ${textMode === "standard" ? 0.16 : 0.08})`;
+    ctx.lineWidth = textMode === "standard" ? 2.5 : 1.4;
+    ctx.font = `${textMode === "standard" ? "700 30px" : "600 24px"} sans-serif`;
+    ctx.textBaseline = "alphabetic";
+    ctx.strokeText(title, textX, titleY);
+    ctx.fillText(title, textX, titleY);
+    ctx.font = `${textMode === "standard" ? "600 22px" : "500 17px"} sans-serif`;
+    ctx.fillStyle = `rgba(255, 255, 255, ${textMode === "standard" ? 0.64 : 0.36})`;
+    ctx.fillText(number, textX, numberY);
+  }
+  for (let i = 0; i < 11; i += 1) {
+    const sparkleX = x + (seededNoise(i, 401) * 0.5 + 0.5) * width;
+    const sparkleY = y + (seededNoise(i, 409) * 0.5 + 0.5) * height;
+    const size = 6 + Math.abs(seededNoise(i, 419)) * 13;
+    const alpha = 0.2 + Math.abs(seededNoise(i, 421)) * 0.26;
+    drawKpopSparkle(ctx, sparkleX, sparkleY, size, `rgba(255,255,255,${alpha})`);
+  }
+  ctx.restore();
+}
+
+function drawKpopSparkle(ctx, x, y, size, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y - size);
+  ctx.quadraticCurveTo(x + size * 0.18, y - size * 0.18, x + size, y);
+  ctx.quadraticCurveTo(x + size * 0.18, y + size * 0.18, x, y + size);
+  ctx.quadraticCurveTo(x - size * 0.18, y + size * 0.18, x - size, y);
+  ctx.quadraticCurveTo(x - size * 0.18, y - size * 0.18, x, y - size);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 
