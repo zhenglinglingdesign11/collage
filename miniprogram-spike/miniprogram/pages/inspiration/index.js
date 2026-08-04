@@ -3,6 +3,7 @@ const {
   resolveCachedRemoteImage
 } = require("../../utils/remote-image-cache");
 const { shareInspiration } = require("../../utils/share");
+const { track, trackPageShow, trackPageHide, trackShare } = require("../../utils/analytics");
 
 Page({
   data: {
@@ -59,26 +60,39 @@ Page({
   onLoad() {
     enableShareMenu();
     this.refreshInspirations();
+    track("inspiration_page_view", { page: "inspiration" });
   },
 
   onShareAppMessage() {
+    trackShare("inspiration", "app_message");
     return shareInspiration();
   },
 
   onShareTimeline() {
+    trackShare("inspiration", "timeline");
     return shareInspiration();
   },
 
   onShow() {
+    trackPageShow(this, "inspiration");
     const tabBar = this.getTabBar && this.getTabBar();
     if (tabBar && tabBar.setSelectedByPath) {
       tabBar.setSelectedByPath("/pages/inspiration/index");
     }
   },
 
+  onHide() {
+    trackPageHide(this);
+  },
+
   openInspiration(event) {
-    const { src, alt } = event.currentTarget.dataset;
+    const { src, alt, id } = event.currentTarget.dataset;
     if (!src) return;
+    track("inspiration_open", {
+      page: "inspiration",
+      inspirationId: id || "",
+      hasRemoteImage: /^https?:\/\//i.test(src)
+    });
     this.setData({
       selectedImageSrc: src,
       selectedImageAlt: alt || "灵感大图"

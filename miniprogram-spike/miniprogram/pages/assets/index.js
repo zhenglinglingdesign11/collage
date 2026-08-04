@@ -10,6 +10,7 @@ const {
   getResolvedAssetPack
 } = require("../../config/assets");
 const { shareAssets } = require("../../utils/share");
+const { track, trackPageShow, trackPageHide, trackShare } = require("../../utils/analytics");
 
 const assetPageCategories = ["推荐", "收藏", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
 
@@ -62,17 +63,21 @@ Page({
       toolbarGap: Math.max(0, chromeTop - statusTop)
     });
     this.refreshPacks();
+    track("assets_page_view", { page: "assets" });
   },
 
   onShareAppMessage() {
+    trackShare("assets", "app_message");
     return shareAssets();
   },
 
   onShareTimeline() {
+    trackShare("assets", "timeline");
     return shareAssets();
   },
 
   onShow() {
+    trackPageShow(this, "assets");
     this.captureEntryContext();
     if (!this.data.detailPack) {
       wx.showTabBar({ animation: false });
@@ -85,6 +90,7 @@ Page({
   },
 
   onHide() {
+    trackPageHide(this);
     if (!this.isTransferringSelectedAssets) {
       this.assetEntryContext = null;
     }
@@ -159,6 +165,7 @@ Page({
   setAssetCategory(event) {
     const activeCategory = event.currentTarget.dataset.category || "推荐";
     if (activeCategory === this.data.activeCategory) return;
+    track("asset_category_select", { page: "assets", category: activeCategory });
     this.setData({
       activeCategory,
       visiblePacks: this.filterPacks(this.data.packs, activeCategory)
@@ -169,6 +176,12 @@ Page({
     const packId = event.currentTarget.dataset.pack;
     const pack = getAssetPack(packId);
     if (!pack) return;
+    track("asset_pack_open", {
+      page: "assets",
+      packId: pack.id,
+      category: pack.category || "",
+      itemCount: Array.isArray(pack.items) ? pack.items.length : 0
+    });
     wx.hideTabBar({ animation: false });
     this.setData({
       detailPack: decoratePack(pack, readFavoritePackIds(), []),
@@ -198,18 +211,31 @@ Page({
     const pack = this.data.detailPack;
     if (!pack) return;
     const current = readFavoritePackIds();
-    const favoritePackIds = current.includes(pack.id)
+    const wasFavorite = current.includes(pack.id);
+    const favoritePackIds = wasFavorite
       ? current.filter((id) => id !== pack.id)
       : current.concat(pack.id);
     wx.setStorageSync(FAVORITE_PACK_STORAGE_KEY, favoritePackIds);
+    track(wasFavorite ? "asset_pack_unfavorite" : "asset_pack_favorite", {
+      page: "assets",
+      packId: pack.id,
+      category: pack.category || ""
+    });
     this.refreshPacks();
   },
 
   selectDetailAsset(event) {
     const assetId = event.currentTarget.dataset.assetId;
-    const selectedAssetIds = this.data.selectedAssetIds.includes(assetId)
+    const wasSelected = this.data.selectedAssetIds.includes(assetId);
+    const selectedAssetIds = wasSelected
       ? this.data.selectedAssetIds.filter((id) => id !== assetId)
       : this.data.selectedAssetIds.concat(assetId);
+    track(wasSelected ? "asset_unselect" : "asset_select", {
+      page: "assets",
+      packId: this.data.detailPack && this.data.detailPack.id || "",
+      assetId,
+      selectedCount: selectedAssetIds.length
+    });
     const sourcePack = this.data.detailPack || getAssetPack(this.data.detailPack.id);
     const detailPack = decoratePack(sourcePack, readFavoritePackIds(), selectedAssetIds);
     this.setData({
@@ -234,6 +260,12 @@ Page({
   addSelectedAsset() {
     if (!this.data.selectedAssetIds.length) return;
     const preserveDraft = !!(this.assetEntryContext && this.assetEntryContext.preserveDraft);
+    track("asset_transfer_to_editor", {
+      page: "assets",
+      source: preserveDraft ? "createAssetDrawer" : "assetsTab",
+      selectedCount: this.data.selectedAssetIds.length,
+      packId: this.data.detailPack && this.data.detailPack.id || ""
+    });
     wx.setStorageSync(ASSET_TRANSFER_STORAGE_KEY, this.data.selectedAssetIds);
     wx.setStorageSync(ASSET_TRANSFER_MODE_STORAGE_KEY, {
       preserveDraft,

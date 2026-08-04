@@ -2,6 +2,7 @@ const { saveDraft, saveAutoDraft, loadDraft, loadLatestDraft } = require("../../
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
 const { checkImageContent, checkTextContent } = require("../../utils/content-security");
 const { shareCreate } = require("../../utils/share");
+const { persistTempFile } = require("../../utils/local-file");
 const {
   ratioSizeMap,
   createDraft,
@@ -100,13 +101,15 @@ Page({
         wx.getImageInfo({
           src: file.tempFilePath,
           success: (info) => {
-            const layer = createImageLayer(file.tempFilePath, info, this.draft);
-            this.draft.layers.push(layer);
-            this.draft.layers = normalizeLayerOrder(this.draft.layers);
-            this.updateSelectedLayerState(layer.id);
-            this.markDirty();
-            this.render();
-            checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
+            persistTempFile(file.tempFilePath).then((imageSource) => {
+              const layer = createImageLayer(imageSource || file.tempFilePath, info, this.draft);
+              this.draft.layers.push(layer);
+              this.draft.layers = normalizeLayerOrder(this.draft.layers);
+              this.updateSelectedLayerState(layer.id);
+              this.markDirty();
+              this.render();
+              checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
+            });
           },
           fail: () => {
             showError("图片添加失败");

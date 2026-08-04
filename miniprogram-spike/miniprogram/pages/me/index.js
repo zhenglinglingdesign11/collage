@@ -1,6 +1,7 @@
 const { showModal, showSuccess } = require("../../utils/feedback");
 const { clearDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { shareDefault } = require("../../utils/share");
+const { track, trackPageShow, trackPageHide, trackShare } = require("../../utils/analytics");
 
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 
@@ -12,18 +13,26 @@ Page({
 
   onLoad() {
     enableShareMenu();
+    track("me_page_view", { page: "me" });
   },
 
   onShareAppMessage() {
+    trackShare("me", "app_message");
     return shareDefault();
   },
 
   onShareTimeline() {
+    trackShare("me", "timeline");
     return shareDefault();
   },
 
   onShow() {
+    trackPageShow(this, "me");
     this.refreshRecentDrafts();
+  },
+
+  onHide() {
+    trackPageHide(this);
   },
 
   refreshRecentDrafts() {
@@ -46,6 +55,10 @@ Page({
     if (app && app.globalData) {
       app.globalData.currentDraftId = draftId;
     }
+    track("me_recent_draft_open", {
+      page: "me",
+      draftId
+    });
     wx.setStorageSync(PENDING_DRAFT_OPEN_KEY, draftId);
     wx.switchTab({ url: "/pages/create/index" });
   },
@@ -64,6 +77,7 @@ Page({
       app.globalData.currentDraftId = "";
     }
     this.refreshRecentDrafts();
+    track("cache_clear", { page: "me" });
     showSuccess("缓存已清理");
   }
 });

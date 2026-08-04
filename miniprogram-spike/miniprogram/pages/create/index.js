@@ -2,7 +2,9 @@ const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loa
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
 const { checkImageContent, checkTextContent } = require("../../utils/content-security");
 const { shareCreate } = require("../../utils/share");
+const { persistTempFile } = require("../../utils/local-file");
 const { removeImageBackground } = require("../../utils/rembg-api");
+const { track, trackPageShow, trackPageHide, trackShare } = require("../../utils/analytics");
 const {
   ASSET_TRANSFER_STORAGE_KEY,
   ASSET_TRANSFER_MODE_STORAGE_KEY,
@@ -265,6 +267,34 @@ Page({
     ],
     botanicalTone: "blueprint",
     botanicalDetail: "medium",
+    blueprintTone: "prussian",
+    blueprintIntensity: "standard",
+    blueprintPaper: "warm",
+    blueprintGrain: "medium",
+    blueprintTones: [
+      { value: "prussian", label: "蓝晒" },
+      { value: "teal", label: "青绿" },
+      { value: "violet", label: "靛紫" },
+      { value: "sepia", label: "棕晒" },
+      { value: "rose", label: "粉晒" },
+      { value: "mono", label: "黑白" }
+    ],
+    blueprintIntensities: [
+      { value: "soft", label: "浅" },
+      { value: "standard", label: "中" },
+      { value: "deep", label: "深" }
+    ],
+    blueprintPapers: [
+      { value: "cool", label: "冷白" },
+      { value: "warm", label: "米白" },
+      { value: "aged", label: "泛黄" },
+      { value: "gray", label: "灰纸" }
+    ],
+    blueprintGrains: [
+      { value: "low", label: "低" },
+      { value: "medium", label: "中" },
+      { value: "high", label: "高" }
+    ],
     botanicalTones: [
       { value: "blueprint", label: "蓝晒" },
       { value: "sage", label: "墨绿" },
@@ -302,10 +332,12 @@ Page({
   },
 
   onShareAppMessage() {
+    trackShare("create", "app_message", getDraftAnalyticsParams(this.draft));
     return shareCreate();
   },
 
   onShareTimeline() {
+    trackShare("create", "timeline", getDraftAnalyticsParams(this.draft));
     return shareCreate();
   },
 
@@ -374,6 +406,12 @@ Page({
       hasRecentDraft: !!latestDraft,
       recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
       recentDrafts
+    });
+    track("create_page_view", {
+      page: "create",
+      hasRecentDraft: !!latestDraft,
+      recentDraftCount: recentDrafts.length,
+      ...getDraftAnalyticsParams(this.draft)
     });
   },
 
@@ -548,6 +586,7 @@ Page({
   },
 
   onShow() {
+    trackPageShow(this, "create");
     this.consumePendingAssets();
     if (this.consumePendingDraftOpen()) {
       return;
@@ -572,7 +611,12 @@ Page({
     return true;
   },
 
+  onHide() {
+    trackPageHide(this);
+  },
+
   onUnload() {
+    trackPageHide(this);
     if (wx.offKeyboardHeightChange && this.keyboardHandler) {
       wx.offKeyboardHeightChange(this.keyboardHandler);
     }
@@ -807,6 +851,11 @@ Page({
     } else {
       wx.removeStorageSync(ASSET_ENTRY_CONTEXT_STORAGE_KEY);
     }
+    track("assets_tab_open", {
+      page: "create",
+      source: this.data.isEditMode && this.data.activeDrawer === "asset" ? "createAssetDrawer" : "createTab",
+      ...getDraftAnalyticsParams(this.draft)
+    });
     wx.switchTab({ url: "/pages/assets/index" });
   },
 
@@ -823,6 +872,12 @@ Page({
       showError("暂无草稿");
       return;
     }
+    track("recent_draft_open", {
+      page: "create",
+      draftId: draft.id || draftId || "",
+      ratio: draft.ratio || "",
+      layerCount: Array.isArray(draft.layers) ? draft.layers.length : 0
+    });
     this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.resetHistory();
@@ -1001,6 +1056,19 @@ Page({
     const topChrome = this.data.chromeTop || 0;
     const height = Math.max(260, Math.floor((this.screenHeight || 667) - topChrome - topbarHeight - panelHeight - EFFECT_PANEL_GAP));
     return `height:${height}px;`;
+  },
+
+  getEffectEditorLayoutResetPatch(includeCanvasSize = false) {
+    if (this.data.activePalette !== "effect" && !this.effectStageHeight && !this.effectPanelHeight) {
+      return {};
+    }
+    clearTimeout(this.effectAdjustmentTimer);
+    this.effectStageHeight = 0;
+    this.effectPanelHeight = 0;
+    return {
+      ...(includeCanvasSize && this.draft ? this.getCanvasSizeData(this.draft.ratio) : {}),
+      canvasStageStyle: ""
+    };
   },
 
   refreshBrushCanvasLayout() {
@@ -1864,6 +1932,11 @@ Page({
   choosePhotoBySource(source = "album") {
     const shouldStartBlank = this.data.isEmptyMode;
     const pendingAfterPhoto = this.pendingAfterPhoto;
+    track("photo_choose_start", {
+      page: "create",
+      source,
+      fromEmpty: shouldStartBlank
+    });
     if (shouldStartBlank) {
       this.resetToBlankDraftForEmptyEntry();
     }
@@ -1881,28 +1954,48 @@ Page({
         wx.getImageInfo({
           src: file.tempFilePath,
           success: (info) => {
-            const layer = createImageLayer(file.tempFilePath, info, this.draft);
-            this.draft.layers.push(layer);
-            this.draft.layers = normalizeLayerOrder(this.draft.layers);
-            this.markDirty();
-            if (pendingAfterPhoto === "scissorFree") {
-              this.pendingAfterPhoto = "";
+            persistTempFile(file.tempFilePath).then((imageSource) => {
+              const layer = createImageLayer(imageSource || file.tempFilePath, info, this.draft);
+              this.draft.layers.push(layer);
+              this.draft.layers = normalizeLayerOrder(this.draft.layers);
+              this.markDirty();
+              track("photo_choose_success", {
+                page: "create",
+                source,
+                width: info.width || 0,
+                height: info.height || 0,
+                fileSize: file.size || 0,
+                ...getDraftAnalyticsParams(this.draft)
+              });
+              if (pendingAfterPhoto === "scissorFree") {
+                this.pendingAfterPhoto = "";
+                checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
+                setTimeout(() => this.beginScissorCut(layer), 0);
+                return;
+              }
+              this.closeAfterAddingLayer();
+              this.render();
               checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
-              setTimeout(() => this.beginScissorCut(layer), 0);
-              return;
-            }
-            this.closeAfterAddingLayer();
-            this.render();
-            checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
+            });
           },
           fail: () => {
             if (pendingAfterPhoto) this.pendingAfterPhoto = "";
+            track("photo_choose_fail", {
+              page: "create",
+              source,
+              errorCode: "get_image_info_failed"
+            });
             showError("图片添加失败");
           }
         });
       },
       fail: () => {
         if (pendingAfterPhoto) this.pendingAfterPhoto = "";
+        track("photo_choose_fail", {
+          page: "create",
+          source,
+          errorCode: "choose_media_failed"
+        });
       }
     });
   },
@@ -2002,17 +2095,25 @@ Page({
   },
 
   closeToolPanel() {
+    const closesEffectEditor = this.data.activePalette === "effect";
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
     this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     this.setData({
+      ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
       activeTool: "",
       activeDrawer: "",
       activePalette: "",
+      effectAdjusting: "",
+      effectAdjustingLabel: "",
       textInputVisible: false,
       keyboardHeight: 0,
       textPanelBottom: 0
+    }, () => {
+      if (closesEffectEditor) {
+        this.restoreDefaultCanvasAfterEffectEditor();
+      }
     });
   },
 
@@ -2212,6 +2313,7 @@ Page({
   selectAssetCategory(event) {
     const category = event.currentTarget.dataset.category || "推荐";
     if (category === this.data.activeAssetCategory && !this.data.activeAssetPack) return;
+    track("asset_category_select", { page: "create", category });
     this.setData(this.getAssetPanelState(category, ""));
     this.refreshAssetPanel(category, "");
   },
@@ -2219,6 +2321,11 @@ Page({
   openAssetPack(event) {
     const packId = event.currentTarget.dataset.pack;
     if (!packId) return;
+    track("asset_pack_open", {
+      page: "create",
+      packId,
+      category: this.data.activeAssetCategory || "推荐"
+    });
     this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId));
     this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", packId);
   },
@@ -2276,6 +2383,11 @@ Page({
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.closeAfterAddingLayer();
     this.markDirty();
+    track("tape_add", {
+      page: "create",
+      color,
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.render();
   },
 
@@ -2289,6 +2401,10 @@ Page({
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.closeAfterAddingLayer();
     this.markDirty();
+    track("paper_add", {
+      page: "create",
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.render();
   },
 
@@ -2331,6 +2447,13 @@ Page({
         this.addAssetItemToDraft(asset);
         this.keepAssetDrawerAfterAddingLayer();
         this.markDirty();
+        track("asset_add_to_canvas", {
+          page: "create",
+          source: "assetDrawer",
+          assetId,
+          packId: asset.packId || "",
+          ...getDraftAnalyticsParams(this.draft)
+        });
         this.render();
         return;
       }
@@ -2345,6 +2468,13 @@ Page({
       this.addAssetItemToDraft(resolvedAsset);
       this.keepAssetDrawerAfterAddingLayer();
       this.markDirty();
+      track("asset_add_to_canvas", {
+        page: "create",
+        source: "assetDrawer",
+        assetId,
+        packId: resolvedAsset.packId || "",
+        ...getDraftAnalyticsParams(this.draft)
+      });
       this.render();
     });
   },
@@ -2371,6 +2501,13 @@ Page({
         showError("素材添加失败");
         return;
       }
+      track("asset_add_to_canvas", {
+        page: "create",
+        source: transferMode.source || "assetsTab",
+        selectedCount: assetIds.length,
+        addedCount: added,
+        ...getDraftAnalyticsParams(this.draft)
+      });
       this.closeAfterAddingLayer();
       this.markDirty();
       setTimeout(() => this.render(), 0);
@@ -2409,6 +2546,11 @@ Page({
       this.draft.layers = normalizeLayerOrder(this.draft.layers);
       layer = this.getLayerById(layer.id) || layer;
     }
+    track("text_add_start", {
+      page: "create",
+      isNewLayer,
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.beginTextLayerEditing(layer, { isNew: isNewLayer });
     const textFontStyle = createTextFontStyle(layer.style.fontId || layer.style.fontLabel || "system");
     this.setData({
@@ -2951,6 +3093,7 @@ Page({
     const selectedLayer = this.getSelectedLayer();
     if (selectedLayer && selectedLayer.type === "text" && this.data.textInputVisible) {
       selectedLayer.text = text;
+      const textSession = this.textEditSession;
       this.finishTextLayerEditing();
       this.setData({
         selectedLayerId: "",
@@ -2962,6 +3105,13 @@ Page({
         textPanelBottom: 0
       });
       this.markDirty();
+      if (textSession && textSession.isNew) {
+        track("text_add", {
+          page: "create",
+          textLength: text.length,
+          ...getDraftAnalyticsParams(this.draft)
+        });
+      }
       this.render();
       return;
     }
@@ -2980,6 +3130,11 @@ Page({
       textPanelBottom: 0
     });
     this.markDirty();
+    track("text_add", {
+      page: "create",
+      textLength: text.length,
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.render();
   },
 
@@ -3170,12 +3325,18 @@ Page({
           layerActionsOffset: 0
         });
       } else if (this.data.selectedLayerId && this.data.selectedLayerId !== target.id) {
+        const closesEffectEditor = this.data.activePalette === "effect";
         this.setData({
+          ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
           selectedLayerId: "",
           selectedLayerType: "",
+          ...(closesEffectEditor ? { activeTool: "", activePalette: "", activeDrawer: "", effectAdjusting: "", effectAdjustingLabel: "" } : {}),
           layerActionsPage: 0,
           layerActionsOffset: 0
         });
+        if (closesEffectEditor) {
+          this.restoreDefaultCanvasAfterEffectEditor();
+        }
       }
       this.gesture = target
         ? { mode: "drag", layerId: target.id, start: points[0], origin: { x: target.x, y: target.y } }
@@ -3187,12 +3348,18 @@ Page({
     const layer = this.getGestureLayer(points);
     if (touches.length >= 2 && layer) {
       if (this.data.selectedLayerId && this.data.selectedLayerId !== layer.id) {
+        const closesEffectEditor = this.data.activePalette === "effect";
         this.setData({
+          ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
           selectedLayerId: "",
           selectedLayerType: "",
+          ...(closesEffectEditor ? { activeTool: "", activePalette: "", activeDrawer: "", effectAdjusting: "", effectAdjustingLabel: "" } : {}),
           layerActionsPage: 0,
           layerActionsOffset: 0
         });
+        if (closesEffectEditor) {
+          this.restoreDefaultCanvasAfterEffectEditor();
+        }
       }
       this.gesture = {
         mode: "pinch",
@@ -3939,7 +4106,9 @@ Page({
   },
 
   selectLayer(layer) {
+    const closesEffectEditor = this.data.activePalette === "effect";
     this.setData({
+      ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
       selectedLayerId: layer.id,
       selectedLayerType: layer.type,
       selectedHandmadeEffect: getHandmadeEffectKey(layer),
@@ -3948,11 +4117,17 @@ Page({
       activeTool: "",
       activeDrawer: "",
       activePalette: "",
+      effectAdjusting: "",
+      effectAdjustingLabel: "",
       textInputVisible: false,
       keyboardHeight: 0,
       textPanelBottom: 0,
       layerActionsPage: 0,
       layerActionsOffset: 0
+    }, () => {
+      if (closesEffectEditor) {
+        this.restoreDefaultCanvasAfterEffectEditor();
+      }
     });
   },
 
@@ -4201,14 +4376,21 @@ Page({
     const layer = this.getSelectedLayer();
     if (!layer || !layer.style) return;
 
-    if (effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout") {
+    if (effect === "blueprint-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout") {
       const saved = layer.style.textureEffect && layer.style.textureEffect.settings || {};
       const label = getTextureEffectConfig(effect, this.data).label;
-      const values = effect === "vintage-botanical"
-        ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium" }
-        : effect === "pixel-cross-stitch"
-          ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
-          : { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" };
+      const values = effect === "blueprint-print"
+        ? {
+          blueprintTone: saved.blueprintTone || "prussian",
+          blueprintIntensity: saved.blueprintIntensity || "standard",
+          blueprintPaper: saved.blueprintPaper || "warm",
+          blueprintGrain: saved.blueprintGrain || "medium"
+        }
+        : effect === "vintage-botanical"
+          ? { botanicalTone: saved.botanicalTone || "blueprint", botanicalDetail: saved.botanicalDetail || "medium" }
+          : effect === "pixel-cross-stitch"
+            ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
+            : { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" };
       this.setData({ effectAdjusting: effect, effectAdjustingLabel: label, ...values });
       return;
     }
@@ -4557,6 +4739,26 @@ Page({
     this.setData({ matissePalette: value }, () => this.scheduleTextureEffectPreview("matisse-cutout"));
   },
 
+  setBlueprintTone(event) {
+    const value = event.currentTarget.dataset.value || "prussian";
+    this.setData({ blueprintTone: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+  },
+
+  setBlueprintIntensity(event) {
+    const value = event.currentTarget.dataset.value || "standard";
+    this.setData({ blueprintIntensity: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+  },
+
+  setBlueprintPaper(event) {
+    const value = event.currentTarget.dataset.value || "warm";
+    this.setData({ blueprintPaper: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+  },
+
+  setBlueprintGrain(event) {
+    const value = event.currentTarget.dataset.value || "medium";
+    this.setData({ blueprintGrain: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+  },
+
   setBotanicalTone(event) {
     const value = event.currentTarget.dataset.value || "blueprint";
     this.setData({ botanicalTone: value }, () => this.scheduleTextureEffectPreview("vintage-botanical"));
@@ -4842,7 +5044,7 @@ Page({
     }
   },
 
-  async createBlueprintPrintImage(layer) {
+  async createBlueprintPrintImage(layer, options = {}) {
     await this.ensureCanvasContext();
     if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
     const image = await this.loadCanvasImage(layer.source);
@@ -4859,7 +5061,8 @@ Page({
     this.ctx.clearRect(0, 0, outputWidth, outputHeight);
     this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
     const imageData = this.ctx.getImageData(0, 0, outputWidth, outputHeight);
-    this.ctx.putImageData(createBlueprintPrintImageData(imageData), 0, 0);
+    this.ctx.putImageData(createBlueprintPrintImageData(imageData, options), 0, 0);
+    drawBlueprintPrintOverlay(this.ctx, outputWidth, outputHeight, options);
 
     return new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
@@ -4957,8 +5160,19 @@ Page({
   },
 
   clearSelection() {
-    this.setData({ selectedLayerId: "", selectedLayerType: "" });
-    this.render();
+    const closesEffectEditor = this.data.activePalette === "effect";
+    this.setData({
+      ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
+      selectedLayerId: "",
+      selectedLayerType: "",
+      ...(closesEffectEditor ? { activeTool: "", activePalette: "", activeDrawer: "", effectAdjusting: "", effectAdjustingLabel: "" } : {})
+    }, () => {
+      if (closesEffectEditor) {
+        this.restoreDefaultCanvasAfterEffectEditor();
+      } else {
+        this.render();
+      }
+    });
   },
 
   saveDraftWithThumbnail() {
@@ -5007,6 +5221,10 @@ Page({
     this.saveDraftWithThumbnail()
       .then((draft) => {
         this.draft = draft;
+        track("draft_manual_save", {
+          page: "create",
+          ...getDraftAnalyticsParams(this.draft)
+        });
         this.setData({
           saveStatus: "手动草稿已保存",
           hasRecentDraft: true,
@@ -5073,6 +5291,11 @@ Page({
 
   exportImage() {
     if (this.data.exporting) return;
+    track("export_start", {
+      page: "create",
+      pendingContentChecks: hasPendingContentChecks(this),
+      ...getDraftAnalyticsParams(this.draft)
+    });
     const pendingChecks = hasPendingContentChecks(this);
     if (pendingChecks) {
       showToast("作品导出中");
@@ -5102,6 +5325,10 @@ Page({
       }))
       .then(() => {
         showSuccess("已保存到相册");
+        track("export_save_album_success", {
+          page: "create",
+          ...getDraftAnalyticsParams(this.draft)
+        });
         restoreEditorCanvas();
       })
       .catch((error) => {
@@ -5110,11 +5337,28 @@ Page({
           return;
         }
         console.warn("[export] failed", error, error && error.detail || error && error.cause || "");
+        track("export_fail", {
+          page: "create",
+          errorCode: error && error.message || "unknown",
+          ...getDraftAnalyticsParams(this.draft)
+        });
         showModal("保存失败", getExportErrorMessage(error), { showCancel: false });
         restoreEditorCanvas();
       });
   }
 });
+
+function getDraftAnalyticsParams(draft) {
+  const layers = draft && Array.isArray(draft.layers) ? draft.layers : [];
+  return {
+    draftId: draft && draft.id || "",
+    ratio: draft && draft.ratio || "",
+    layerCount: layers.length,
+    imageLayerCount: layers.filter((layer) => layer && layer.type === "image").length,
+    assetLayerCount: layers.filter((layer) => layer && ["sticker", "paper", "tape"].includes(layer.type)).length,
+    textLayerCount: layers.filter((layer) => layer && layer.type === "text").length
+  };
+}
 
 function getExportErrorMessage(error) {
   if (!error) return "导出失败，请稍后重试。";
@@ -7142,7 +7386,12 @@ function getTextureEffectConfig(type, settings = {}) {
   const config = {
     "blueprint-print": {
       label: "蓝晒印刷",
-      create: (page, layer) => page.createBlueprintPrintImage(layer)
+      create: (page, layer) => page.createBlueprintPrintImage(layer, {
+        tone: settings.blueprintTone || "prussian",
+        intensity: settings.blueprintIntensity || "standard",
+        paper: settings.blueprintPaper || "warm",
+        grain: settings.blueprintGrain || "medium"
+      })
     },
     "vintage-botanical": {
       label: "图鉴",
@@ -7171,16 +7420,27 @@ function getTextureEffectConfig(type, settings = {}) {
 }
 
 function getTextureEffectSettings(type, settings = {}) {
+  if (type === "blueprint-print") {
+    return {
+      blueprintTone: settings.blueprintTone || "prussian",
+      blueprintIntensity: settings.blueprintIntensity || "standard",
+      blueprintPaper: settings.blueprintPaper || "warm",
+      blueprintGrain: settings.blueprintGrain || "medium"
+    };
+  }
   if (type === "vintage-botanical") return { botanicalTone: settings.botanicalTone || "blueprint", botanicalDetail: settings.botanicalDetail || "medium" };
   if (type === "pixel-cross-stitch") return { crossStitchGrid: settings.crossStitchGrid || 72, crossStitchColors: settings.crossStitchColors || 8 };
   if (type === "matisse-cutout") return { matisseDetail: settings.matisseDetail || 64, matissePalette: settings.matissePalette || "vivid" };
   return {};
 }
 
-function createBlueprintPrintImageData(imageData) {
+function createBlueprintPrintImageData(imageData, options = {}) {
   const data = imageData.data;
-  const paper = [243, 240, 230];
-  const ink = [43, 62, 140];
+  const palette = getBlueprintPrintPalette(options);
+  const paper = palette.paper;
+  const ink = palette.ink;
+  const exposure = palette.exposure;
+  const grainAmount = palette.grain;
   const bayer4 = [
     0, 8, 2, 10,
     12, 4, 14, 6,
@@ -7197,15 +7457,78 @@ function createBlueprintPrintImageData(imageData) {
     if (alpha <= 0) continue;
 
     const luminance = data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722;
-    const contrast = Math.max(0, Math.min(1, ((luminance - 128) * 1.28 + 128) / 255));
-    const dotOffset = (bayer4[(y % 4) * 4 + (x % 4)] / 15 - 0.5) * 0.11;
-    const grain = (((x * 17 + y * 31) % 19) - 9) / 255;
-    const inkCoverage = Math.max(0, Math.min(1, Math.pow(1 - contrast + dotOffset, 0.84) + grain));
+    const contrast = Math.max(0, Math.min(1, ((luminance - 128) * exposure.contrast + 128) / 255));
+    const dotOffset = (bayer4[(y % 4) * 4 + (x % 4)] / 15 - 0.5) * exposure.dot;
+    const paperNoise = seededNoise(x + y * width, 17) * grainAmount.paper;
+    const fiberNoise = seededNoise(x * 0.35, y * 0.21) * grainAmount.fiber;
+    const inkNoise = seededNoise(x * 3 + y * 7, 29) * grainAmount.ink;
+    const coverageBase = Math.pow(Math.max(0, Math.min(1, 1 - contrast + dotOffset + inkNoise)), exposure.gamma);
+    const inkCoverage = Math.max(0, Math.min(1, coverageBase * exposure.depth));
+    const paperLift = Math.max(-0.06, Math.min(0.08, paperNoise + fiberNoise));
 
-    data[index] = Math.round(paper[0] + (ink[0] - paper[0]) * inkCoverage);
-    data[index + 1] = Math.round(paper[1] + (ink[1] - paper[1]) * inkCoverage);
-    data[index + 2] = Math.round(paper[2] + (ink[2] - paper[2]) * inkCoverage);
+    data[index] = mixChannel(paper[0] + 255 * paperLift, ink[0], inkCoverage);
+    data[index + 1] = mixChannel(paper[1] + 255 * paperLift, ink[1], inkCoverage);
+    data[index + 2] = mixChannel(paper[2] + 255 * paperLift, ink[2], inkCoverage);
     data[index + 3] = Math.round(alpha * 255);
   }
   return imageData;
+}
+
+function drawBlueprintPrintOverlay(ctx, width, height, options = {}) {
+  const palette = getBlueprintPrintPalette(options);
+  ctx.save();
+  ctx.globalCompositeOperation = "multiply";
+  ctx.globalAlpha = palette.grain.overlay;
+  ctx.fillStyle = rgba(palette.inkColor, 0.16);
+  for (let i = 0; i < 90; i += 1) {
+    const x = (seededNoise(i, 41) * 0.5 + 0.5) * width;
+    const y = (seededNoise(i, 43) * 0.5 + 0.5) * height;
+    const size = 0.7 + Math.abs(seededNoise(i, 47)) * 1.8;
+    ctx.fillRect(x, y, size, size);
+  }
+  ctx.globalAlpha = palette.grain.fiberLine;
+  ctx.strokeStyle = rgba(palette.inkColor, 0.12);
+  ctx.lineWidth = Math.max(0.5, Math.min(1.2, width / 1200));
+  for (let y = 0; y < height; y += Math.max(9, Math.round(height / 90))) {
+    ctx.beginPath();
+    ctx.moveTo(0, y + seededNoise(y, 53) * 1.5);
+    ctx.lineTo(width, y + seededNoise(y, 59) * 1.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function getBlueprintPrintPalette(options = {}) {
+  const toneMap = {
+    prussian: { ink: [43, 62, 140], color: { r: 43, g: 62, b: 140 } },
+    teal: { ink: [28, 105, 118], color: { r: 28, g: 105, b: 118 } },
+    violet: { ink: [88, 69, 146], color: { r: 88, g: 69, b: 146 } },
+    sepia: { ink: [105, 72, 45], color: { r: 105, g: 72, b: 45 } },
+    rose: { ink: [159, 72, 104], color: { r: 159, g: 72, b: 104 } },
+    mono: { ink: [54, 58, 62], color: { r: 54, g: 58, b: 62 } }
+  };
+  const paperMap = {
+    cool: [248, 249, 246],
+    warm: [243, 240, 230],
+    aged: [240, 231, 209],
+    gray: [231, 231, 225]
+  };
+  const intensityMap = {
+    soft: { contrast: 1.12, gamma: 0.96, depth: 0.82, dot: 0.075 },
+    standard: { contrast: 1.28, gamma: 0.84, depth: 1, dot: 0.11 },
+    deep: { contrast: 1.42, gamma: 0.76, depth: 1.16, dot: 0.13 }
+  };
+  const grainMap = {
+    low: { paper: 0.008, fiber: 0.006, ink: 0.014, overlay: 0.08, fiberLine: 0.07 },
+    medium: { paper: 0.014, fiber: 0.012, ink: 0.026, overlay: 0.13, fiberLine: 0.1 },
+    high: { paper: 0.022, fiber: 0.018, ink: 0.044, overlay: 0.2, fiberLine: 0.14 }
+  };
+  const tone = toneMap[options.tone] || toneMap.prussian;
+  return {
+    paper: paperMap[options.paper] || paperMap.warm,
+    ink: tone.ink,
+    inkColor: tone.color,
+    exposure: intensityMap[options.intensity] || intensityMap.standard,
+    grain: grainMap[options.grain] || grainMap.medium
+  };
 }
