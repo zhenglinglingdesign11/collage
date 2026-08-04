@@ -1,6 +1,7 @@
 const { saveDraft, saveAutoDraft, loadDraft, loadLatestDraft } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
 const { checkImageContent, checkTextContent } = require("../../utils/content-security");
+const { shareCreate } = require("../../utils/share");
 const {
   ratioSizeMap,
   createDraft,
@@ -30,6 +31,7 @@ Page({
   },
 
   onLoad() {
+    enableShareMenu();
     const system = wx.getSystemInfoSync();
     this.dpr = system.pixelRatio || 1;
     this.screenWidth = system.windowWidth;
@@ -39,6 +41,14 @@ Page({
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.updateCanvasSize(this.draft.ratio);
     this.updateSelectedLayerState(this.draft.layers[this.draft.layers.length - 1]?.id || "");
+  },
+
+  onShareAppMessage() {
+    return shareCreate();
+  },
+
+  onShareTimeline() {
+    return shareCreate();
   },
 
   onReady() {
@@ -405,6 +415,14 @@ function getContentSecurityErrorMessage(error) {
   if (error && error.message === "content_check_failed") return "作品检测失败，请稍后重试";
   if (error && error.message === "cloud_unavailable") return "检测服务暂时不可用，请稍后重试";
   return "图片安全检测失败";
+}
+
+function enableShareMenu() {
+  if (!wx.showShareMenu) return;
+  wx.showShareMenu({
+    withShareTicket: true,
+    menus: ["shareAppMessage", "shareTimeline"]
+  });
 }
 
 function getTextSecurityErrorMessage(error) {

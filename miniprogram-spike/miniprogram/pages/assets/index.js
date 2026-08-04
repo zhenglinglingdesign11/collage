@@ -9,6 +9,7 @@ const {
   getResolvedAssetPacks,
   getResolvedAssetPack
 } = require("../../config/assets");
+const { shareAssets } = require("../../utils/share");
 
 const assetPageCategories = ["推荐", "收藏", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
 
@@ -45,6 +46,7 @@ Page({
   },
 
   onLoad() {
+    enableShareMenu();
     const system = wx.getSystemInfoSync();
     const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
     const statusBarHeight = system.statusBarHeight || 0;
@@ -60,6 +62,14 @@ Page({
       toolbarGap: Math.max(0, chromeTop - statusTop)
     });
     this.refreshPacks();
+  },
+
+  onShareAppMessage() {
+    return shareAssets();
+  },
+
+  onShareTimeline() {
+    return shareAssets();
   },
 
   onShow() {
@@ -267,6 +277,14 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
 function filterRecommendedPacks(packs) {
   const byId = new Map((packs || []).map((pack) => [pack.id, pack]));
   return recommendedAssetPackIds.map((packId) => byId.get(packId)).filter(Boolean);
+}
+
+function enableShareMenu() {
+  if (!wx.showShareMenu) return;
+  wx.showShareMenu({
+    withShareTicket: true,
+    menus: ["shareAppMessage", "shareTimeline"]
+  });
 }
 
 function getSelectedAssets(pack, selectedAssetIds) {

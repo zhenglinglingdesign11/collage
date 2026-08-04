@@ -1,6 +1,7 @@
 const { saveDraft, saveAutoDraft, loadDraft, loadDraftById, loadLatestDraft, loadRecentDrafts } = require("../../utils/draft-store");
 const { showToast, showSuccess, showError, showModal } = require("../../utils/feedback");
 const { checkImageContent, checkTextContent } = require("../../utils/content-security");
+const { shareCreate } = require("../../utils/share");
 const { removeImageBackground } = require("../../utils/rembg-api");
 const {
   ASSET_TRANSFER_STORAGE_KEY,
@@ -300,7 +301,16 @@ Page({
     straightCutEndHandleStyle: ""
   },
 
+  onShareAppMessage() {
+    return shareCreate();
+  },
+
+  onShareTimeline() {
+    return shareCreate();
+  },
+
   onLoad() {
+    enableShareMenu();
     const system = wx.getSystemInfoSync();
     const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null;
     this.dpr = system.pixelRatio || 1;
@@ -5114,6 +5124,14 @@ function getExportErrorMessage(error) {
   }
   if (["text_risky", "text_check_failed"].includes(error.message)) return getTextSecurityErrorMessage(error);
   return "导出失败，请稍后重试。";
+}
+
+function enableShareMenu() {
+  if (!wx.showShareMenu) return;
+  wx.showShareMenu({
+    withShareTicket: true,
+    menus: ["shareAppMessage", "shareTimeline"]
+  });
 }
 
 function getContentSecurityErrorMessage(error) {

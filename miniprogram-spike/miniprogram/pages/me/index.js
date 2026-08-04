@@ -1,5 +1,6 @@
 const { showModal, showSuccess } = require("../../utils/feedback");
 const { clearDraft, loadRecentDrafts } = require("../../utils/draft-store");
+const { shareDefault } = require("../../utils/share");
 
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 
@@ -7,6 +8,18 @@ Page({
   data: {
     recentDrafts: [],
     hasRecentDrafts: false
+  },
+
+  onLoad() {
+    enableShareMenu();
+  },
+
+  onShareAppMessage() {
+    return shareDefault();
+  },
+
+  onShareTimeline() {
+    return shareDefault();
   },
 
   onShow() {
@@ -54,3 +67,11 @@ Page({
     showSuccess("缓存已清理");
   }
 });
+
+function enableShareMenu() {
+  if (!wx.showShareMenu) return;
+  wx.showShareMenu({
+    withShareTicket: true,
+    menus: ["shareAppMessage", "shareTimeline"]
+  });
+}

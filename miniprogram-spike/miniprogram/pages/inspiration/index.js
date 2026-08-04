@@ -2,6 +2,7 @@ const {
   isRemoteImageSource,
   resolveCachedRemoteImage
 } = require("../../utils/remote-image-cache");
+const { shareInspiration } = require("../../utils/share");
 
 Page({
   data: {
@@ -56,7 +57,16 @@ Page({
   },
 
   onLoad() {
+    enableShareMenu();
     this.refreshInspirations();
+  },
+
+  onShareAppMessage() {
+    return shareInspiration();
+  },
+
+  onShareTimeline() {
+    return shareInspiration();
   },
 
   onShow() {
@@ -98,6 +108,14 @@ Page({
 });
 
 const remoteInspirationImageCache = {};
+
+function enableShareMenu() {
+  if (!wx.showShareMenu) return;
+  wx.showShareMenu({
+    withShareTicket: true,
+    menus: ["shareAppMessage", "shareTimeline"]
+  });
+}
 
 function resolveInspirationImages(items) {
   return Promise.all((items || []).map((item) => resolveInspirationImage(item)));
