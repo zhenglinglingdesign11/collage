@@ -1672,14 +1672,14 @@ function drawSelection(ctx, layer) {
   ctx.translate(cx, cy);
   ctx.rotate((layer.rotation || 0) * Math.PI / 180);
   setShadow(ctx, 0, 0, 0, "transparent");
-  setStrokeStyle(ctx, "#111111");
+  setStrokeStyle(ctx, layer.locked ? "rgba(17, 17, 17, 0.58)" : "#111111");
   setLineWidth(ctx, 3);
   const clipPolygons = getLayerClipPolygons(layer);
   const clipPolygon = clipPolygons[clipPolygons.length - 1] || null;
   if (clipPolygon && clipPolygon.length >= 3) {
     drawLayerClipPolygon(ctx, clipPolygon, layer);
     ctx.stroke();
-    setFillStyle(ctx, "#111111");
+    setFillStyle(ctx, layer.locked ? "rgba(17, 17, 17, 0.58)" : "#111111");
     const bounds = getClipPolygonBounds(clipPolygon);
     [
       [bounds.minX, bounds.minY],
@@ -1691,7 +1691,7 @@ function drawSelection(ctx, layer) {
     return;
   }
   ctx.strokeRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
-  setFillStyle(ctx, "#111111");
+  setFillStyle(ctx, layer.locked ? "rgba(17, 17, 17, 0.58)" : "#111111");
   const points = [
     [-layer.width / 2, -layer.height / 2],
     [layer.width / 2, -layer.height / 2],

@@ -416,10 +416,15 @@ button::after {
 }
 
 .editor-safe {
+  position: relative;
+  z-index: 20;
   box-sizing: border-box;
+  background: #fafaf8;
 }
 
 .editor-topbar {
+  position: relative;
+  z-index: 20;
   height: 112rpx;
   display: grid;
   grid-template-columns: minmax(88rpx, 1fr) auto minmax(250rpx, 1fr);
@@ -776,7 +781,7 @@ button::after {
 .canvas-stage {
   position: relative;
   top: 0;
-  z-index: 1;
+  z-index: 0;
   height: calc(100vh - 300rpx);
   min-height: 600rpx;
   display: flex;
@@ -785,7 +790,7 @@ button::after {
   box-sizing: border-box;
   padding: 16rpx 0 208rpx;
   overflow: hidden;
-  transition: top 160ms ease;
+  transition: top 160ms ease, transform 160ms ease;
 }
 
 .canvas-stage.panel-active {
@@ -797,7 +802,8 @@ button::after {
 }
 
 .canvas-stage.text-editing {
-  top: -96rpx;
+  top: 0;
+  transition: none;
 }
 
 .canvas-stage.brush-editing {
@@ -822,6 +828,30 @@ button::after {
 
 .canvas-shell {
   position: relative;
+}
+
+.selected-layer-lock {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  z-index: 6;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.54);
+  box-shadow: 0 4rpx 12rpx rgba(17, 17, 17, 0.10);
+}
+
+.selected-layer-lock.locked {
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 0 0 1rpx rgba(17, 17, 17, 0.10), 0 4rpx 12rpx rgba(17, 17, 17, 0.10);
+}
+
+.selected-layer-lock-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 5px 0 0 5px;
 }
 
 .straight-cut-canvas {
@@ -1818,6 +1848,11 @@ button::after {
   text-align: right;
   color: #111111;
   font-weight: 650;
+}
+
+.effect-editor-action.disabled {
+  color: #aaa7a1;
+  font-weight: 500;
 }
 
 .effect-editor-title {

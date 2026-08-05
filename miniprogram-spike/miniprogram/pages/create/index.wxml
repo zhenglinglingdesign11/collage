@@ -45,8 +45,8 @@
   </scroll-view>
 
   <view wx:else class="editor-content">
-    <view class="editor-safe" style="height: {{statusTop}}px;"></view>
-    <view class="editor-topbar" style="margin-top: {{toolbarGap}}px;">
+    <view class="editor-safe" style="height: {{chromeTop}}px;"></view>
+    <view class="editor-topbar">
       <view class="top-control icon-button back-button" bindtap="backToEmpty" aria-label="返回">
         <image class="line-icon" src="/assets/icons/line-back.svg" mode="aspectFit"></image>
       </view>
@@ -91,6 +91,15 @@
           catchtouchend="onStraightCutTouchEnd"
           catchtouchcancel="onStraightCutTouchEnd"
         ></canvas>
+        <cover-view
+          wx:if="{{selectedLayerId && selectedLayerLockStyle}}"
+          class="selected-layer-lock {{selectedLayerLocked ? 'locked' : ''}}"
+          style="{{selectedLayerLockStyle}}"
+          catchtap="toggleSelectedLayerLock"
+          aria-label="{{selectedLayerLocked ? '解锁图层' : '锁定图层'}}"
+        >
+          <cover-image class="selected-layer-lock-icon" src="{{selectedLayerLocked ? '/assets/icons/layer-actions/lock-outline.png' : '/assets/icons/layer-actions/unlock-outline.png'}}"></cover-image>
+        </cover-view>
       </view>
     </view>
 
@@ -331,64 +340,64 @@
         <view class="effect-adjustment-head">
           <view class="effect-editor-action" bindtap="closeEffectAdjustment">返回</view>
           <view class="effect-adjustment-title">{{effectAdjustingLabel}}</view>
-          <view class="effect-editor-action align-right" bindtap="confirmEffectAdjustment">完成</view>
+          <view class="effect-editor-action align-right {{textureEffectBusy && textureEffectBusyType === effectAdjusting ? 'disabled' : ''}}" bindtap="confirmEffectAdjustment">{{textureEffectBusy && textureEffectBusyType === effectAdjusting ? '生成中' : '完成'}}</view>
         </view>
         <scroll-view scroll-y class="effect-adjustment-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
           <view wx:if="{{effectAdjusting === 'blueprint-print'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">色调</view>
-            <view class="effect-adjustment-options"><view wx:for="{{blueprintTones}}" wx:key="value" class="effect-adjustment-option {{blueprintTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintTone">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintTones}}" wx:key="value" class="effect-adjustment-option {{blueprintTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintTone">{{textureEffectBusySetting === 'blueprintTone:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">强度</view>
-            <view class="effect-adjustment-options"><view wx:for="{{blueprintIntensities}}" wx:key="value" class="effect-adjustment-option {{blueprintIntensity === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintIntensity">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintIntensities}}" wx:key="value" class="effect-adjustment-option {{blueprintIntensity === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintIntensity">{{textureEffectBusySetting === 'blueprintIntensity:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">纸底</view>
-            <view class="effect-adjustment-options"><view wx:for="{{blueprintPapers}}" wx:key="value" class="effect-adjustment-option {{blueprintPaper === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintPaper">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintPapers}}" wx:key="value" class="effect-adjustment-option {{blueprintPaper === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintPaper">{{textureEffectBusySetting === 'blueprintPaper:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">颗粒</view>
-            <view class="effect-adjustment-options"><view wx:for="{{blueprintGrains}}" wx:key="value" class="effect-adjustment-option {{blueprintGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintGrain">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{blueprintGrains}}" wx:key="value" class="effect-adjustment-option {{blueprintGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBlueprintGrain">{{textureEffectBusySetting === 'blueprintGrain:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'screen-print'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">色板</view>
-            <view class="effect-adjustment-options"><view wx:for="{{screenPrintPalettes}}" wx:key="value" class="effect-adjustment-option {{screenPrintPalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintPalette">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintPalettes}}" wx:key="value" class="effect-adjustment-option {{screenPrintPalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintPalette">{{textureEffectBusySetting === 'screenPrintPalette:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">强度</view>
-            <view class="effect-adjustment-options"><view wx:for="{{screenPrintStrengths}}" wx:key="value" class="effect-adjustment-option {{screenPrintStrength === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintStrength">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintStrengths}}" wx:key="value" class="effect-adjustment-option {{screenPrintStrength === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintStrength">{{textureEffectBusySetting === 'screenPrintStrength:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">网点</view>
-            <view class="effect-adjustment-options"><view wx:for="{{screenPrintHalftones}}" wx:key="value" class="effect-adjustment-option {{screenPrintHalftone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintHalftone">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintHalftones}}" wx:key="value" class="effect-adjustment-option {{screenPrintHalftone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintHalftone">{{textureEffectBusySetting === 'screenPrintHalftone:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">偏移</view>
-            <view class="effect-adjustment-options"><view wx:for="{{screenPrintOffsets}}" wx:key="value" class="effect-adjustment-option {{screenPrintOffset === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintOffset">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{screenPrintOffsets}}" wx:key="value" class="effect-adjustment-option {{screenPrintOffset === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setScreenPrintOffset">{{textureEffectBusySetting === 'screenPrintOffset:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'riso-print'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">色板</view>
-            <view class="effect-adjustment-options"><view wx:for="{{risoPalettes}}" wx:key="value" class="effect-adjustment-option {{risoPalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoPalette">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoPalettes}}" wx:key="value" class="effect-adjustment-option {{risoPalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoPalette">{{textureEffectBusySetting === 'risoPalette:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">模式</view>
-            <view class="effect-adjustment-options"><view wx:for="{{risoModes}}" wx:key="value" class="effect-adjustment-option {{risoMode === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoMode">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoModes}}" wx:key="value" class="effect-adjustment-option {{risoMode === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoMode">{{textureEffectBusySetting === 'risoMode:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">油墨</view>
-            <view class="effect-adjustment-options"><view wx:for="{{risoInks}}" wx:key="value" class="effect-adjustment-option {{risoInk === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoInk">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoInks}}" wx:key="value" class="effect-adjustment-option {{risoInk === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoInk">{{textureEffectBusySetting === 'risoInk:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">错位</view>
-            <view class="effect-adjustment-options"><view wx:for="{{risoOffsets}}" wx:key="value" class="effect-adjustment-option {{risoOffset === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoOffset">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoOffsets}}" wx:key="value" class="effect-adjustment-option {{risoOffset === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoOffset">{{textureEffectBusySetting === 'risoOffset:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">颗粒</view>
-            <view class="effect-adjustment-options"><view wx:for="{{risoGrains}}" wx:key="value" class="effect-adjustment-option {{risoGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoGrain">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{risoGrains}}" wx:key="value" class="effect-adjustment-option {{risoGrain === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setRisoGrain">{{textureEffectBusySetting === 'risoGrain:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'vintage-botanical'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">色调</view>
-            <view class="effect-adjustment-options"><view wx:for="{{botanicalTones}}" wx:key="value" class="effect-adjustment-option {{botanicalTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalTone">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{botanicalTones}}" wx:key="value" class="effect-adjustment-option {{botanicalTone === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalTone">{{textureEffectBusySetting === 'botanicalTone:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">线稿</view>
-            <view class="effect-adjustment-options"><view wx:for="{{botanicalDetails}}" wx:key="value" class="effect-adjustment-option {{botanicalDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalDetail">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{botanicalDetails}}" wx:key="value" class="effect-adjustment-option {{botanicalDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalDetail">{{textureEffectBusySetting === 'botanicalDetail:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">图鉴外框</view>
-            <view class="effect-adjustment-options"><view wx:for="{{botanicalFrames}}" wx:key="value" class="effect-adjustment-option {{botanicalFrame === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalFrame">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{botanicalFrames}}" wx:key="value" class="effect-adjustment-option {{botanicalFrame === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setBotanicalFrame">{{textureEffectBusySetting === 'botanicalFrame:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'pixel-cross-stitch'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">网格</view>
-            <view class="effect-adjustment-options"><view wx:for="{{crossStitchGrids}}" wx:key="value" class="effect-adjustment-option {{crossStitchGrid === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchGrid">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{crossStitchGrids}}" wx:key="value" class="effect-adjustment-option {{crossStitchGrid === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchGrid">{{textureEffectBusySetting === 'crossStitchGrid:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">色数</view>
-            <view class="effect-adjustment-options"><view wx:for="{{crossStitchColorOptions}}" wx:key="value" class="effect-adjustment-option {{crossStitchColors === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchColors">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{crossStitchColorOptions}}" wx:key="value" class="effect-adjustment-option {{crossStitchColors === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCrossStitchColors">{{textureEffectBusySetting === 'crossStitchColors:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'matisse-cutout'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">复杂度</view>
-            <view class="effect-adjustment-options"><view wx:for="{{matisseDetails}}" wx:key="value" class="effect-adjustment-option {{matisseDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatisseDetail">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{matisseDetails}}" wx:key="value" class="effect-adjustment-option {{matisseDetail === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatisseDetail">{{textureEffectBusySetting === 'matisseDetail:' + item.value ? '生成中' : item.label}}</view></view>
             <view class="effect-adjustment-label">色板</view>
-            <view class="effect-adjustment-options"><view wx:for="{{matissePalettes}}" wx:key="value" class="effect-adjustment-option {{matissePalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatissePalette">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{matissePalettes}}" wx:key="value" class="effect-adjustment-option {{matissePalette === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setMatissePalette">{{textureEffectBusySetting === 'matissePalette:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'kpop-card'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">标识</view>
-            <view class="effect-adjustment-options"><view wx:for="{{kpopCardTextOptions}}" wx:key="value" class="effect-adjustment-option {{kpopCardText === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setKpopCardText">{{item.label}}</view></view>
+            <view class="effect-adjustment-options"><view wx:for="{{kpopCardTextOptions}}" wx:key="value" class="effect-adjustment-option {{kpopCardText === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setKpopCardText">{{textureEffectBusySetting === 'kpopCardText:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'taped'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">贴住位置</view>

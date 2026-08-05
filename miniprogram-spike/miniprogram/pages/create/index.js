@@ -76,6 +76,8 @@ const BRUSH_PANEL_FALLBACK_RPX = 386;
 const BRUSH_PANEL_GAP = 0;
 const EFFECT_PANEL_FALLBACK_RPX = 414;
 const EFFECT_PANEL_GAP = 12;
+const TEXT_EDITOR_SAFE_GAP = 16;
+const TEXT_EDITOR_MAX_EXTRA_SHIFT = 120;
 const EXPORT_HIGH_PIXEL_RATIO = 3;
 const EXPORT_FALLBACK_PIXEL_RATIO = 2;
 const BOW_BRUSH_SOURCE = "/assets/brushes/bow-brush.png";
@@ -123,6 +125,7 @@ Page({
     selectedTextureEffect: "none",
     textureEffectBusy: false,
     textureEffectBusyType: "",
+    textureEffectBusySetting: "",
     effectAdjusting: "",
     selectedTapePlacement: "double-corners",
     saveStatus: "未保存",
@@ -455,6 +458,7 @@ Page({
     this.brushStageHeight = 0;
     this.effectPanelHeight = 0;
     this.effectStageHeight = 0;
+    this.textCanvasOffsetY = 0;
     this.keyboardHandler = (res) => {
       this.updateKeyboardHeight(res);
     };
@@ -821,9 +825,11 @@ Page({
     this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
     this.setData({
-      selectedLayerId: "",
-      selectedLayerType: "",
-      saveStatus: "未保存",
+    selectedLayerId: "",
+    selectedLayerType: "",
+    selectedLayerLocked: false,
+    selectedLayerLockStyle: "",
+    saveStatus: "未保存",
       textInputVisible: false,
       textDraft: "",
       activeTool: "",
@@ -1146,6 +1152,66 @@ Page({
     };
   },
 
+  scheduleTextCanvasOffsetRefresh() {
+    clearTimeout(this.textCanvasOffsetTimer);
+    this.textCanvasOffsetTimer = setTimeout(() => this.refreshTextCanvasOffset(), 0);
+  },
+
+  refreshTextCanvasOffset() {
+    if (!this.data.textInputVisible) {
+      this.resetTextCanvasOffset();
+      return;
+    }
+    const layer = this.getSelectedLayer();
+    if (!layer || layer.type !== "text") {
+      this.resetTextCanvasOffset();
+      return;
+    }
+    wx.createSelectorQuery()
+      .in(this)
+      .select(".canvas-shell")
+      .boundingClientRect()
+      .select(".text-editor-panel")
+      .boundingClientRect()
+      .exec((res) => {
+        const canvasRect = res && res[0];
+        const panelRect = res && res[1];
+        if (!canvasRect || !panelRect || !this.data.textInputVisible) return;
+        const currentLayer = this.getSelectedLayer();
+        if (!currentLayer || currentLayer.type !== "text") return;
+        const scale = this.renderScale || (this.draft ? this.data.canvasCssWidth / this.draft.width : 1);
+        const currentOffset = Math.max(0, Math.round(this.textCanvasOffsetY || 0));
+        const baseCanvasRect = {
+          ...canvasRect,
+          top: canvasRect.top + currentOffset,
+          bottom: canvasRect.bottom + currentOffset
+        };
+        const bounds = getLayerScreenBounds(currentLayer, baseCanvasRect, scale);
+        const requiredOffset = Math.max(0, Math.ceil(bounds.bottom - panelRect.top + TEXT_EDITOR_SAFE_GAP));
+        const topLimit = Math.max(0, this.data.chromeTop || 0);
+        const keepCanvasTopOffset = Math.max(0, Math.floor(baseCanvasRect.top - topLimit));
+        const maxOffset = keepCanvasTopOffset + TEXT_EDITOR_MAX_EXTRA_SHIFT;
+        const nextOffset = Math.min(requiredOffset, maxOffset);
+        if (Math.abs(nextOffset - (this.textCanvasOffsetY || 0)) < 1) return;
+        this.textCanvasOffsetY = nextOffset;
+        this.setData({ canvasStageStyle: this.getTextCanvasStageStyle() });
+      });
+  },
+
+  getTextCanvasStageStyle() {
+    const offset = Math.max(0, Math.round(this.textCanvasOffsetY || 0));
+    return offset ? `transform: translateY(-${offset}px);` : "";
+  },
+
+  resetTextCanvasOffset() {
+    clearTimeout(this.textCanvasOffsetTimer);
+    if (!this.textCanvasOffsetY && !this.data.canvasStageStyle) return;
+    this.textCanvasOffsetY = 0;
+    if (!this.data.brushEditing && this.data.activePalette !== "effect") {
+      this.setData({ canvasStageStyle: "" });
+    }
+  },
+
   refreshBrushCanvasLayout() {
     if (!this.data.brushEditing) return;
     wx.createSelectorQuery()
@@ -1214,6 +1280,37 @@ Page({
       scissor: this.getScissorRenderState(),
       brushDraft: this.getBrushRenderState(),
       isolatedLayerId: this.getStraightCutIsolatedLayerId()
+    });
+    this.syncSelectedLayerLockControl();
+  },
+
+  syncSelectedLayerLockControl() {
+    const layer = this.getSelectedLayer();
+    const shouldHide = !layer
+      || this.data.textInputVisible
+      || this.data.cropEditing
+      || this.data.scissorEditing
+      || this.data.embossEditing
+      || this.data.straightCutEditing
+      || this.data.brushEditing
+      || this.data.imageEffectEditing;
+    if (shouldHide) {
+      this.updateSelectedLayerLockControl("", false);
+      return;
+    }
+    const style = getLayerLockControlStyle(layer, {
+      canvasWidth: this.data.canvasCssWidth || 1,
+      canvasHeight: this.data.canvasCssHeight || 1,
+      scale: this.renderScale || 1
+    });
+    this.updateSelectedLayerLockControl(style, !!layer.locked);
+  },
+
+  updateSelectedLayerLockControl(style, locked) {
+    if (this.data.selectedLayerLockStyle === style && this.data.selectedLayerLocked === locked) return;
+    this.setData({
+      selectedLayerLockStyle: style,
+      selectedLayerLocked: locked
     });
   },
 
@@ -1342,6 +1439,10 @@ Page({
     const layer = targetLayer || this.getSelectedLayer();
     if (!isCuttableSourceLayer(layer)) {
       showToast("请先选中图片或素材", { icon: "none" });
+      return;
+    }
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
       return;
     }
     const originalLayer = JSON.parse(JSON.stringify(layer));
@@ -2229,6 +2330,10 @@ Page({
     this.setData({
       keyboardHeight: height,
       textPanelBottom: this.data.textInputVisible ? height : 0
+    }, () => {
+      if (this.data.textInputVisible) {
+        this.scheduleTextCanvasOffsetRefresh();
+      }
     });
   },
 
@@ -2238,8 +2343,10 @@ Page({
 
   onTextFocus() {
     if (this.data.keyboardHeight > 0) {
-      this.setData({ textPanelBottom: this.data.keyboardHeight });
+      this.setData({ textPanelBottom: this.data.keyboardHeight }, () => this.scheduleTextCanvasOffsetRefresh());
+      return;
     }
+    this.scheduleTextCanvasOffsetRefresh();
   },
 
   onLayerActionsTouchStart(event) {
@@ -2646,6 +2753,8 @@ Page({
       textBackground: layer.style.backgroundLabel || "无",
       textOpacity: Math.round((layer.opacity == null ? 1 : layer.opacity) * 100),
       textPanelBottom: this.data.keyboardHeight || 0
+    }, () => {
+      this.scheduleTextCanvasOffsetRefresh();
     });
     this.ensureTextFontLoaded(textFontStyle.fontId).then(() => this.render());
     this.render();
@@ -2739,6 +2848,10 @@ Page({
     const layer = targetLayer || this.getSelectedLayer();
     if (!isCuttableSourceLayer(layer)) {
       showToast("请选择图片或素材图层", { icon: "none" });
+      return;
+    }
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
       return;
     }
     const cutStyle = style === "wave" ? "wave" : "straight";
@@ -3155,6 +3268,9 @@ Page({
     if (layer && layer.type === "text") {
       layer.text = value;
       this.render();
+      if (this.data.textInputVisible) {
+        this.scheduleTextCanvasOffsetRefresh();
+      }
       if (!this.data.textInputVisible) {
         this.markDirty();
       }
@@ -3170,6 +3286,8 @@ Page({
       selectedLayer.text = text;
       const textSession = this.textEditSession;
       this.finishTextLayerEditing();
+      this.textCanvasOffsetY = 0;
+      clearTimeout(this.textCanvasOffsetTimer);
       this.setData({
         selectedLayerId: "",
         selectedLayerType: "",
@@ -3177,7 +3295,8 @@ Page({
         textDraft: "",
         activeTool: "",
         keyboardHeight: 0,
-        textPanelBottom: 0
+        textPanelBottom: 0,
+        canvasStageStyle: ""
       });
       this.markDirty();
       if (textSession && textSession.isNew) {
@@ -3193,6 +3312,8 @@ Page({
     const layer = createTextLayer(text, this.draft);
     this.draft.layers.push(layer);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.textCanvasOffsetY = 0;
+    clearTimeout(this.textCanvasOffsetTimer);
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
@@ -3202,7 +3323,8 @@ Page({
       activeDrawer: "",
       activePalette: "",
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      canvasStageStyle: ""
     });
     this.markDirty();
     track("text_add", {
@@ -3220,6 +3342,8 @@ Page({
       this.finishTextLayerEditing({ removeNew });
       this.render();
     }
+    this.textCanvasOffsetY = 0;
+    clearTimeout(this.textCanvasOffsetTimer);
     this.setData({
       textInputVisible: false,
       textDraft: "",
@@ -3227,7 +3351,8 @@ Page({
       selectedLayerId: "",
       selectedLayerType: "",
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      canvasStageStyle: ""
     });
   },
 
@@ -3241,6 +3366,8 @@ Page({
       }
       this.finishTextLayerEditing({ removeNew });
     }
+    this.textCanvasOffsetY = 0;
+    clearTimeout(this.textCanvasOffsetTimer);
     this.setData({
       textInputVisible: false,
       textDraft: "",
@@ -3248,7 +3375,8 @@ Page({
       selectedLayerId: "",
       selectedLayerType: "",
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      canvasStageStyle: ""
     });
     this.markDirty();
     this.render();
@@ -3413,7 +3541,7 @@ Page({
           this.restoreDefaultCanvasAfterEffectEditor();
         }
       }
-      this.gesture = target
+      this.gesture = target && !this.isLayerLocked(target)
         ? { mode: "drag", layerId: target.id, start: points[0], origin: { x: target.x, y: target.y } }
         : null;
       this.render();
@@ -3422,6 +3550,13 @@ Page({
 
     const layer = this.getGestureLayer(points);
     if (touches.length >= 2 && layer) {
+      if (this.isLayerLocked(layer)) {
+        this.pendingLayerTap = null;
+        this.gesture = null;
+        this.selectLayer(layer);
+        this.render();
+        return;
+      }
       if (this.data.selectedLayerId && this.data.selectedLayerId !== layer.id) {
         const closesEffectEditor = this.data.activePalette === "effect";
         this.setData({
@@ -3664,6 +3799,10 @@ Page({
     }
     if (layer.type !== "image" || !layer.source) {
       showToast("请先选择图片图层", { icon: "none" });
+      return;
+    }
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
       return;
     }
     const originalLayer = JSON.parse(JSON.stringify(layer));
@@ -3959,6 +4098,10 @@ Page({
   beginImageCrop() {
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "image") return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
     const originalLayer = JSON.parse(JSON.stringify(layer));
     const startCrop = () => {
       const sourceSize = {
@@ -4169,6 +4312,23 @@ Page({
     return this.draft.layers.findIndex((layer) => layer.id === this.data.selectedLayerId);
   },
 
+  isLayerLocked(layer) {
+    return !!(layer && layer.locked);
+  },
+
+  showLockedLayerToast() {
+    showToast("图层已锁定，先解锁", { icon: "none" });
+  },
+
+  toggleSelectedLayerLock() {
+    const layer = this.getSelectedLayer();
+    if (!layer) return;
+    layer.locked = !layer.locked;
+    this.setData({ selectedLayerLocked: !!layer.locked });
+    this.markDirty();
+    this.render();
+  },
+
   getGestureLayer(points) {
     if (!points || points.length < 2) return this.getSelectedLayer();
     const midpoint = {
@@ -4186,6 +4346,8 @@ Page({
       ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
       selectedLayerId: layer.id,
       selectedLayerType: layer.type,
+      selectedLayerLocked: !!layer.locked,
+      selectedLayerLockStyle: "",
       selectedHandmadeEffect: getHandmadeEffectKey(layer),
       selectedTextureEffect: getTextureEffectKey(layer),
       selectedOutlineStyle: getLayerOutlineStyleKey(layer.outline),
@@ -4210,6 +4372,8 @@ Page({
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
+      selectedLayerLocked: false,
+      selectedLayerLockStyle: "",
       activeTool: "",
       activeDrawer: "",
       activePalette: "",
@@ -4223,6 +4387,8 @@ Page({
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
+      selectedLayerLocked: false,
+      selectedLayerLockStyle: "",
       activeTool: "asset",
       activeDrawer: "asset",
       activePalette: "",
@@ -4235,6 +4401,10 @@ Page({
   editSelectedText() {
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "text") return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
     this.beginTextLayerEditing(layer, { isNew: false });
     const textFontStyle = createTextFontStyle(layer.style.fontId || layer.style.fontLabel || "system");
     this.setData({
@@ -4253,6 +4423,8 @@ Page({
       textBackground: layer.style.backgroundLabel || "无",
       textOpacity: Math.round((layer.opacity == null ? 1 : layer.opacity) * 100),
       textPanelBottom: this.data.keyboardHeight || 0
+    }, () => {
+      this.scheduleTextCanvasOffsetRefresh();
     });
     this.ensureTextFontLoaded(textFontStyle.fontId).then(() => this.render());
   },
@@ -4329,6 +4501,9 @@ Page({
       this.markDirty();
     }
     this.render();
+    if (this.data.textInputVisible) {
+      this.scheduleTextCanvasOffsetRefresh();
+    }
   },
 
   updateEditingTextStyle(nextStyle) {
@@ -4342,11 +4517,21 @@ Page({
       this.markDirty();
     }
     this.render();
+    if (this.data.textInputVisible) {
+      this.scheduleTextCanvasOffsetRefresh();
+    }
   },
 
   applyLayerAction(event) {
     if (this.ignoreLayerActionTap) return;
     const action = event.currentTarget.dataset.action;
+    const layer = this.getSelectedLayer();
+    if (action === "lock") return this.toggleSelectedLayerLock();
+    const allowedWhenLocked = ["copy", "delete", "up", "down"];
+    if (this.isLayerLocked(layer) && !allowedWhenLocked.includes(action)) {
+      this.showLockedLayerToast();
+      return;
+    }
     if (action === "shape") {
       return this.beginEmbossEdit();
     }
@@ -4362,7 +4547,6 @@ Page({
       return;
     }
     if (action === "outline") {
-      const layer = this.getSelectedLayer();
       const isOpen = this.data.activePalette === "outline";
       this.setData({
         activeTool: isOpen ? "" : "outline",
@@ -4375,7 +4559,6 @@ Page({
       return;
     }
     if (action === "effect") {
-      const layer = this.getSelectedLayer();
       const isOpen = this.data.activePalette === "effect";
       if (isOpen) {
         this.closeEffectEditor();
@@ -4404,7 +4587,6 @@ Page({
     if (action === "up") return this.moveLayerUp();
     if (action === "down") return this.moveLayerDown();
 
-    const layer = this.getSelectedLayer();
     if (!layer) return;
     if (action === "shadow") layer.shadow = !layer.shadow;
     if (action === "opacity") layer.opacity = layer.opacity === 0.58 ? 1 : 0.58;
@@ -4417,6 +4599,10 @@ Page({
     const effect = event.currentTarget.dataset.effect || "none";
     const layer = this.getSelectedLayer();
     if (!layer || layer.type === "text") return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
 
     const style = { ...(layer.style || {}) };
     layer.tear = effect === "tear";
@@ -4450,6 +4636,10 @@ Page({
     const effect = event.currentTarget.dataset.effect;
     const layer = this.getSelectedLayer();
     if (!layer || !layer.style) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
 
     if (effect === "blueprint-print" || effect === "screen-print" || effect === "riso-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout" || effect === "kpop-card") {
       const saved = layer.style.textureEffect && layer.style.textureEffect.settings || {};
@@ -4499,6 +4689,10 @@ Page({
     const placement = event.currentTarget.dataset.value || "double-corners";
     const layer = this.getSelectedLayer();
     if (!layer || !layer.style || !layer.style.handmadeEffect) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
     layer.style = {
       ...layer.style,
       handmadeEffect: { ...layer.style.handmadeEffect, type: "taped", placement }
@@ -4516,11 +4710,33 @@ Page({
 
   confirmEffectAdjustment() {
     const texture = this.data.effectAdjusting;
-    if (!texture || this.data.textureEffectBusy) return;
+    if (!texture) return;
     clearTimeout(this.effectAdjustmentTimer);
     this.effectAdjustmentToken = (this.effectAdjustmentToken || 0) + 1;
     if (texture === "taped") {
       this.closeEffectAdjustment();
+      return;
+    }
+    if (this.data.textureEffectBusy) {
+      showToast("效果生成中，请稍候", { icon: "none" });
+      return;
+    }
+    const layer = this.getSelectedLayer();
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
+    const current = layer && layer.style && layer.style.textureEffect;
+    const nextSettings = getTextureEffectSettings(texture, this.data);
+    if (current && current.type === texture && areTextureEffectSettingsEqual(current.settings, nextSettings)) {
+      this.setData({
+        effectAdjusting: "",
+        effectAdjustingLabel: "",
+        selectedTextureEffect: getTextureEffectKey(layer),
+        textureEffectBusy: false,
+        textureEffectBusyType: "",
+        textureEffectBusySetting: ""
+      });
       return;
     }
     this.setData({ effectAdjusting: "", effectAdjustingLabel: "" }, () => {
@@ -4533,6 +4749,10 @@ Page({
     const force = !!event.currentTarget.dataset.force;
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "image" || !layer.source || this.data.textureEffectBusy) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
 
     const style = { ...(layer.style || {}) };
     const current = style.textureEffect;
@@ -4558,7 +4778,8 @@ Page({
     const textureConfig = getTextureEffectConfig(texture, this.data);
     if (!textureConfig) return;
     const layerId = layer.id;
-    this.setData({ textureEffectBusy: true, textureEffectBusyType: texture, saveStatus: `${textureConfig.label}生成中...` });
+    const busySetting = event.currentTarget.dataset.setting || "";
+    this.setData({ textureEffectBusy: true, textureEffectBusyType: texture, textureEffectBusySetting: busySetting, saveStatus: `${textureConfig.label}生成中...` });
     try {
       const original = current && current.originalSource
         ? current
@@ -4594,7 +4815,8 @@ Page({
       this.setData({
         selectedTextureEffect: this.data.selectedLayerId === layerId ? getTextureEffectKey(layer) : this.data.selectedTextureEffect,
         textureEffectBusy: false,
-        textureEffectBusyType: ""
+        textureEffectBusyType: "",
+        textureEffectBusySetting: ""
       });
       this.markDirty();
       this.render();
@@ -4605,6 +4827,7 @@ Page({
         selectedTextureEffect: this.data.selectedLayerId === layerId ? getTextureEffectKey(layer) : this.data.selectedTextureEffect,
         textureEffectBusy: false,
         textureEffectBusyType: "",
+        textureEffectBusySetting: "",
         saveStatus: `${textureConfig.label}生成失败`
       });
       this.render();
@@ -4817,12 +5040,14 @@ Page({
 
   setCrossStitchGrid(event) {
     const value = Number(event.currentTarget.dataset.value || 72);
-    this.setData({ crossStitchGrid: Math.max(24, Math.min(140, value)) }, () => this.scheduleTextureEffectPreview("pixel-cross-stitch"));
+    const nextValue = Math.max(24, Math.min(140, value));
+    this.setData({ crossStitchGrid: nextValue }, () => this.scheduleTextureEffectPreview("pixel-cross-stitch", `crossStitchGrid:${nextValue}`));
   },
 
   setCrossStitchColors(event) {
     const value = Number(event.currentTarget.dataset.value || 8);
-    this.setData({ crossStitchColors: Math.max(2, Math.min(32, value)) }, () => this.scheduleTextureEffectPreview("pixel-cross-stitch"));
+    const nextValue = Math.max(2, Math.min(32, value));
+    this.setData({ crossStitchColors: nextValue }, () => this.scheduleTextureEffectPreview("pixel-cross-stitch", `crossStitchColors:${nextValue}`));
   },
 
   setCrossStitchStyle(event) {
@@ -4837,100 +5062,101 @@ Page({
 
   setMatisseDetail(event) {
     const value = Number(event.currentTarget.dataset.value || 64);
-    this.setData({ matisseDetail: Math.max(32, Math.min(100, value)) }, () => this.scheduleTextureEffectPreview("matisse-cutout"));
+    const nextValue = Math.max(32, Math.min(100, value));
+    this.setData({ matisseDetail: nextValue }, () => this.scheduleTextureEffectPreview("matisse-cutout", `matisseDetail:${nextValue}`));
   },
 
   setMatissePalette(event) {
     const value = event.currentTarget.dataset.value || "vivid";
-    this.setData({ matissePalette: value }, () => this.scheduleTextureEffectPreview("matisse-cutout"));
+    this.setData({ matissePalette: value }, () => this.scheduleTextureEffectPreview("matisse-cutout", `matissePalette:${value}`));
   },
 
   setKpopCardText(event) {
     const value = event.currentTarget.dataset.value || "subtle";
-    this.setData({ kpopCardText: value }, () => this.scheduleTextureEffectPreview("kpop-card"));
+    this.setData({ kpopCardText: value }, () => this.scheduleTextureEffectPreview("kpop-card", `kpopCardText:${value}`));
   },
 
   setBlueprintTone(event) {
     const value = event.currentTarget.dataset.value || "prussian";
-    this.setData({ blueprintTone: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+    this.setData({ blueprintTone: value }, () => this.scheduleTextureEffectPreview("blueprint-print", `blueprintTone:${value}`));
   },
 
   setBlueprintIntensity(event) {
     const value = event.currentTarget.dataset.value || "standard";
-    this.setData({ blueprintIntensity: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+    this.setData({ blueprintIntensity: value }, () => this.scheduleTextureEffectPreview("blueprint-print", `blueprintIntensity:${value}`));
   },
 
   setBlueprintPaper(event) {
     const value = event.currentTarget.dataset.value || "warm";
-    this.setData({ blueprintPaper: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+    this.setData({ blueprintPaper: value }, () => this.scheduleTextureEffectPreview("blueprint-print", `blueprintPaper:${value}`));
   },
 
   setBlueprintGrain(event) {
     const value = event.currentTarget.dataset.value || "medium";
-    this.setData({ blueprintGrain: value }, () => this.scheduleTextureEffectPreview("blueprint-print"));
+    this.setData({ blueprintGrain: value }, () => this.scheduleTextureEffectPreview("blueprint-print", `blueprintGrain:${value}`));
   },
 
   setScreenPrintPalette(event) {
     const value = event.currentTarget.dataset.value || "red-blue";
-    this.setData({ screenPrintPalette: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+    this.setData({ screenPrintPalette: value }, () => this.scheduleTextureEffectPreview("screen-print", `screenPrintPalette:${value}`));
   },
 
   setScreenPrintStrength(event) {
     const value = event.currentTarget.dataset.value || "standard";
-    this.setData({ screenPrintStrength: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+    this.setData({ screenPrintStrength: value }, () => this.scheduleTextureEffectPreview("screen-print", `screenPrintStrength:${value}`));
   },
 
   setScreenPrintHalftone(event) {
     const value = event.currentTarget.dataset.value || "medium";
-    this.setData({ screenPrintHalftone: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+    this.setData({ screenPrintHalftone: value }, () => this.scheduleTextureEffectPreview("screen-print", `screenPrintHalftone:${value}`));
   },
 
   setScreenPrintOffset(event) {
     const value = event.currentTarget.dataset.value || "slight";
-    this.setData({ screenPrintOffset: value }, () => this.scheduleTextureEffectPreview("screen-print"));
+    this.setData({ screenPrintOffset: value }, () => this.scheduleTextureEffectPreview("screen-print", `screenPrintOffset:${value}`));
   },
 
   setRisoPalette(event) {
     const value = event.currentTarget.dataset.value || "pink-blue";
-    this.setData({ risoPalette: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+    this.setData({ risoPalette: value }, () => this.scheduleTextureEffectPreview("riso-print", `risoPalette:${value}`));
   },
 
   setRisoMode(event) {
     const value = event.currentTarget.dataset.value || "three";
-    this.setData({ risoMode: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+    this.setData({ risoMode: value }, () => this.scheduleTextureEffectPreview("riso-print", `risoMode:${value}`));
   },
 
   setRisoInk(event) {
     const value = event.currentTarget.dataset.value || "standard";
-    this.setData({ risoInk: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+    this.setData({ risoInk: value }, () => this.scheduleTextureEffectPreview("riso-print", `risoInk:${value}`));
   },
 
   setRisoOffset(event) {
     const value = event.currentTarget.dataset.value || "slight";
-    this.setData({ risoOffset: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+    this.setData({ risoOffset: value }, () => this.scheduleTextureEffectPreview("riso-print", `risoOffset:${value}`));
   },
 
   setRisoGrain(event) {
     const value = event.currentTarget.dataset.value || "medium";
-    this.setData({ risoGrain: value }, () => this.scheduleTextureEffectPreview("riso-print"));
+    this.setData({ risoGrain: value }, () => this.scheduleTextureEffectPreview("riso-print", `risoGrain:${value}`));
   },
 
   setBotanicalTone(event) {
     const value = event.currentTarget.dataset.value || "blueprint";
-    this.setData({ botanicalTone: value }, () => this.scheduleTextureEffectPreview("vintage-botanical"));
+    this.setData({ botanicalTone: value }, () => this.scheduleTextureEffectPreview("vintage-botanical", `botanicalTone:${value}`));
   },
 
   setBotanicalDetail(event) {
     const value = event.currentTarget.dataset.value || "medium";
-    this.setData({ botanicalDetail: value }, () => this.scheduleTextureEffectPreview("vintage-botanical"));
+    this.setData({ botanicalDetail: value }, () => this.scheduleTextureEffectPreview("vintage-botanical", `botanicalDetail:${value}`));
   },
 
   setBotanicalFrame(event) {
     const value = event.currentTarget.dataset.value || "on";
-    this.setData({ botanicalFrame: value }, () => this.scheduleTextureEffectPreview("vintage-botanical"));
+    this.setData({ botanicalFrame: value }, () => this.scheduleTextureEffectPreview("vintage-botanical", `botanicalFrame:${value}`));
   },
 
-  scheduleTextureEffectPreview(texture) {
+  scheduleTextureEffectPreview(texture, setting = "") {
     if (this.data.effectAdjusting !== texture) return;
     clearTimeout(this.effectAdjustmentTimer);
     const token = (this.effectAdjustmentToken || 0) + 1;
@@ -4939,10 +5165,10 @@ Page({
       if (this.effectAdjustmentToken !== token) return;
       if (this.data.effectAdjusting !== texture) return;
       if (this.data.textureEffectBusy) {
-        this.scheduleTextureEffectPreview(texture);
+        this.scheduleTextureEffectPreview(texture, setting);
         return;
       }
-      this.selectTextureEffect({ currentTarget: { dataset: { texture, force: true } } });
+      this.selectTextureEffect({ currentTarget: { dataset: { texture, force: true, setting } } });
     }, 260);
   },
 
@@ -5188,6 +5414,10 @@ Page({
     if (this.data.backgroundRemoving) return;
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "image" || !layer.source) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
     this.setData({
       backgroundRemoving: true,
       saveStatus: "主体剪中..."
@@ -5426,11 +5656,12 @@ Page({
       ...JSON.parse(JSON.stringify(layer)),
       id: `${layer.type}-${Date.now()}`,
       x: layer.x + 36,
-      y: layer.y + 36
+      y: layer.y + 36,
+      locked: false
     };
     this.draft.layers.splice(index + 1, 0, copy);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({ selectedLayerId: copy.id, selectedLayerType: copy.type });
+    this.setData({ selectedLayerId: copy.id, selectedLayerType: copy.type, selectedLayerLocked: false, selectedLayerLockStyle: "" });
     this.markDirty();
     this.render();
   },
@@ -5464,7 +5695,7 @@ Page({
     if (!id) return;
     this.draft.layers = this.draft.layers.filter((layer) => layer.id !== id);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
-    this.setData({ selectedLayerId: "", selectedLayerType: "" });
+    this.setData({ selectedLayerId: "", selectedLayerType: "", selectedLayerLocked: false, selectedLayerLockStyle: "" });
     this.markDirty();
     this.render();
   },
@@ -5475,6 +5706,8 @@ Page({
       ...(closesEffectEditor ? this.getEffectEditorLayoutResetPatch(true) : {}),
       selectedLayerId: "",
       selectedLayerType: "",
+      selectedLayerLocked: false,
+      selectedLayerLockStyle: "",
       ...(closesEffectEditor ? { activeTool: "", activePalette: "", activeDrawer: "", effectAdjusting: "", effectAdjustingLabel: "" } : {})
     }, () => {
       if (closesEffectEditor) {
@@ -5923,6 +6156,50 @@ function getLayerCurrentClipShape(layer) {
   if (!layer) return "";
   const style = layer.style || {};
   return normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
+}
+
+function getLayerScreenBounds(layer, canvasRect, scale) {
+  const width = Math.max(1, layer.width || 1);
+  const height = Math.max(1, layer.height || 1);
+  const rotation = (layer.rotation || 0) * Math.PI / 180;
+  const cos = Math.cos(rotation);
+  const sin = Math.sin(rotation);
+  const centerX = canvasRect.left + (layer.x + width / 2) * scale;
+  const centerY = canvasRect.top + (layer.y + height / 2) * scale;
+  const halfWidth = width * scale / 2;
+  const halfHeight = height * scale / 2;
+  const corners = [
+    { x: -halfWidth, y: -halfHeight },
+    { x: halfWidth, y: -halfHeight },
+    { x: halfWidth, y: halfHeight },
+    { x: -halfWidth, y: halfHeight }
+  ].map((point) => ({
+    x: centerX + point.x * cos - point.y * sin,
+    y: centerY + point.x * sin + point.y * cos
+  }));
+  return corners.reduce((bounds, point) => ({
+    left: Math.min(bounds.left, point.x),
+    right: Math.max(bounds.right, point.x),
+    top: Math.min(bounds.top, point.y),
+    bottom: Math.max(bounds.bottom, point.y)
+  }), {
+    left: Number.POSITIVE_INFINITY,
+    right: Number.NEGATIVE_INFINITY,
+    top: Number.POSITIVE_INFINITY,
+    bottom: Number.NEGATIVE_INFINITY
+  });
+}
+
+function getLayerLockControlStyle(layer, options) {
+  const scale = options.scale || 1;
+  const canvasWidth = Math.max(1, options.canvasWidth || 1);
+  const canvasHeight = Math.max(1, options.canvasHeight || 1);
+  const bounds = getLayerScreenBounds(layer, { left: 0, top: 0 }, scale);
+  const inset = 14;
+  const offset = 10;
+  const left = clamp(Math.round(bounds.right + offset), inset, canvasWidth - inset);
+  const top = clamp(Math.round(bounds.top - offset), inset, canvasHeight - inset);
+  return `left:${left}px;top:${top}px;`;
 }
 
 function getDefaultEmbossMask(layer, shape) {
@@ -8038,6 +8315,13 @@ function getTextureEffectSettings(type, settings = {}) {
   if (type === "matisse-cutout") return { matisseDetail: settings.matisseDetail || 64, matissePalette: settings.matissePalette || "vivid" };
   if (type === "kpop-card") return { template: "pearl", kpopCardText: settings.kpopCardText || "subtle" };
   return {};
+}
+
+function areTextureEffectSettingsEqual(left = {}, right = {}) {
+  const leftKeys = Object.keys(left || {});
+  const rightKeys = Object.keys(right || {});
+  if (leftKeys.length !== rightKeys.length) return false;
+  return rightKeys.every((key) => String(left[key]) === String(right[key]));
 }
 
 function createBlueprintPrintImageData(imageData, options = {}) {

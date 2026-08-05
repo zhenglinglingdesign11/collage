@@ -95,7 +95,7 @@ function getFontFamily(font) {
 
 function getCanvasFontFamily(font) {
   if (!font) return getDefaultTextFont().fallback;
-  return font.packaged ? font.family : font.fallback;
+  return font.packaged ? `${font.family}, ${font.fallback}` : font.fallback;
 }
 
 function getFontSource(font) {
