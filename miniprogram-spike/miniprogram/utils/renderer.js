@@ -628,6 +628,10 @@ function drawAttachmentTapeStrip(ctx, x, y, width, height, rotation, color) {
 }
 
 function drawSourceLayer(ctx, layer, options = {}) {
+  if (hasLaceCenterEffect(layer)) {
+    drawLaceCenterLayer(ctx, layer, options);
+    return;
+  }
   if (layer.radius && !layer.tear) {
     roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
     ctx.clip();
@@ -635,6 +639,135 @@ function drawSourceLayer(ctx, layer, options = {}) {
   const source = getCachedLayerSource(layer, options) || layer.source;
   if (!source || typeof source === "string") return;
   drawSourceImage(ctx, layer, source);
+}
+
+function hasLaceCenterEffect(layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  return !!effect && effect.type === "lace-center";
+}
+
+function drawLaceCenterLayer(ctx, layer, options = {}) {
+  const effect = layer.style && layer.style.handmadeEffect || {};
+  const source = getCachedLayerSource(layer, options) || layer.source;
+  const frameSource = effect.frameSource || layer.frameSource || "";
+  const frame = frameSource ? getCachedLayerSource({ source: frameSource }, options) : null;
+  const opening = getLaceCenterOpening(layer, effect);
+
+  setShadow(ctx, 0, 0, 0, "transparent");
+  if (source && typeof source !== "string") {
+    ctx.save();
+    drawEllipsePath(ctx, opening.x, opening.y, opening.width, opening.height);
+    ctx.clip();
+    drawLaceCenterContent(ctx, layer, source, effect);
+    ctx.restore();
+  } else {
+    ctx.save();
+    drawEllipsePath(ctx, opening.x, opening.y, opening.width, opening.height);
+    setFillStyle(ctx, "rgba(239, 231, 216, 0.72)");
+    ctx.fill();
+    ctx.restore();
+  }
+
+  if (frame && typeof frame !== "string") {
+    ctx.save();
+    setShadow(
+      ctx,
+      effect.shadowOffsetX == null ? 0 : effect.shadowOffsetX,
+      effect.shadowOffsetY == null ? 10 : effect.shadowOffsetY,
+      effect.shadowBlur == null ? 22 : effect.shadowBlur,
+      effect.shadowColor || "rgba(35, 27, 20, 0.20)"
+    );
+    setGlobalAlpha(ctx, effect.frameOpacity == null ? 1 : effect.frameOpacity);
+    ctx.drawImage(frame, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+    ctx.restore();
+    return;
+  }
+
+  if (effect.showFallbackFrame) {
+    drawFallbackLaceFrame(ctx, layer, opening);
+  }
+}
+
+function drawLaceCenterContent(ctx, layer, source, effect = {}) {
+  const scale = 1 / getLaceCenterContentRange(effect);
+  const offsetX = (Number(effect.contentOffsetX) || 0) * layer.width;
+  const offsetY = (Number(effect.contentOffsetY) || 0) * layer.height;
+  const width = layer.width * scale;
+  const height = layer.height * scale;
+  drawSourceImageAtRect(
+    ctx,
+    layer,
+    source,
+    -width / 2 + offsetX,
+    -height / 2 + offsetY,
+    width,
+    height
+  );
+}
+
+function getLaceCenterContentRange(effect = {}) {
+  const value = Number(effect.contentScale);
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.65, Math.min(1.8, value));
+}
+
+function getLaceCenterOpening(layer, effect = {}) {
+  const preset = getLaceCenterFramePreset(effect);
+  const openingScale = getLaceCenterOpeningScale(effect);
+  const widthRatio = (effect.openingWidthRatio == null ? preset.openingWidthRatio : effect.openingWidthRatio) * openingScale;
+  const heightRatio = (effect.openingHeightRatio == null ? preset.openingHeightRatio : effect.openingHeightRatio) * openingScale;
+  const width = layer.width * Math.max(0.34, Math.min(0.76, widthRatio));
+  const height = layer.height * Math.max(0.34, Math.min(0.76, heightRatio));
+  return {
+    x: -width / 2,
+    y: -height / 2,
+    width,
+    height
+  };
+}
+
+function getLaceCenterOpeningScale(effect = {}) {
+  const value = Number(effect.openingScale);
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.45, Math.min(1, value));
+}
+
+function getLaceCenterFramePreset(effect = {}) {
+  if (effect.frameId === "wide-hole" || /lace-center-01\.png(?:$|\?)/.test(effect.frameSource || "")) {
+    return { openingWidthRatio: 0.73, openingHeightRatio: 0.73 };
+  }
+  if (effect.frameId === "classic-doily" || /lace-doily-frame-transparent\.png(?:$|\?)/.test(effect.frameSource || "")) {
+    return { openingWidthRatio: 0.54, openingHeightRatio: 0.54 };
+  }
+  return { openingWidthRatio: 0.54, openingHeightRatio: 0.54 };
+}
+
+function drawEllipsePath(ctx, x, y, width, height) {
+  ctx.beginPath();
+  if (ctx.ellipse) {
+    ctx.ellipse(x + width / 2, y + height / 2, width / 2, height / 2, 0, 0, Math.PI * 2);
+    return;
+  }
+  ctx.save();
+  ctx.translate(x + width / 2, y + height / 2);
+  ctx.scale(width / height, 1);
+  ctx.arc(0, 0, height / 2, 0, Math.PI * 2);
+  ctx.restore();
+}
+
+function drawFallbackLaceFrame(ctx, layer, opening) {
+  ctx.save();
+  setShadow(ctx, 0, 10, 22, "rgba(35, 27, 20, 0.20)");
+  setStrokeStyle(ctx, "rgba(244, 234, 214, 0.96)");
+  setLineWidth(ctx, Math.max(18, Math.min(layer.width, layer.height) * 0.065));
+  drawEllipsePath(ctx, -layer.width / 2 + 18, -layer.height / 2 + 18, layer.width - 36, layer.height - 36);
+  ctx.stroke();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setLineWidth(ctx, Math.max(4, Math.min(layer.width, layer.height) * 0.018));
+  setStrokeStyle(ctx, "rgba(138, 119, 92, 0.18)");
+  drawEllipsePath(ctx, opening.x, opening.y, opening.width, opening.height);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawPaper(ctx, layer) {

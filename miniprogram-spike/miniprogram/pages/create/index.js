@@ -68,6 +68,25 @@ const REMBG_SOURCE_MAX_BYTES = 20 * 1024 * 1024;
 const REMBG_UPLOAD_MAX_SIDE = 1600;
 const REMBG_UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
 const REMBG_UPLOAD_QUALITIES = [0.88, 0.76, 0.66];
+const LACE_CENTER_FRAME_OPTIONS = [
+  {
+    id: "wide-hole",
+    label: "宽孔蕾丝",
+    source: "https://assets.zllarchi.site/packs/leisi/items/lace-center-01.png",
+    openingWidthRatio: 0.73,
+    openingHeightRatio: 0.73
+  },
+  {
+    id: "classic-doily",
+    label: "经典花边",
+    source: "https://assets.zllarchi.site/packs/leisi/items/lace-doily-frame-transparent.png",
+    openingWidthRatio: 0.54,
+    openingHeightRatio: 0.54
+  }
+];
+const DEFAULT_LACE_CENTER_FRAME = LACE_CENTER_FRAME_OPTIONS[0];
+const LACE_CONTENT_RANGE_MIN = 0.65;
+const LACE_CONTENT_RANGE_MAX = 1.8;
 const WAVE_CUT_AMPLITUDE = 22;
 const WAVE_CUT_WAVELENGTH = 76;
 const WAVE_CUT_POINT_STEP = 10;
@@ -128,6 +147,10 @@ Page({
     textureEffectBusySetting: "",
     effectAdjusting: "",
     selectedTapePlacement: "double-corners",
+    laceContentScale: 100,
+    laceOpeningScale: 100,
+    laceFrameOptions: LACE_CENTER_FRAME_OPTIONS,
+    selectedLaceFrameId: DEFAULT_LACE_CENTER_FRAME.id,
     saveStatus: "未保存",
     exporting: false,
     backgroundRemoving: false,
@@ -469,6 +492,7 @@ Page({
     const recentDrafts = this.getRecentDrafts();
     this.draft = normalizeDraftTextFonts(latestDraft || createDraft("3:4"));
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.refreshDraftTextFonts(this.draft);
     this.resetHistory();
     this.updateCanvasSize(this.draft.ratio);
     this.refreshAssetPanel();
@@ -503,6 +527,29 @@ Page({
   preloadPackagedFonts(options = {}) {
     TEXT_FONTS.filter((font) => font.packaged && font.preload !== false).forEach((font) => {
       this.ensureTextFontLoaded(font.id, options);
+    });
+  },
+
+  ensureDraftTextFontsLoaded(draft = this.draft) {
+    if (!draft || !Array.isArray(draft.layers)) return Promise.resolve(false);
+    const fontIds = [];
+    draft.layers.forEach((layer) => {
+      if (!layer || layer.type !== "text") return;
+      const style = layer.style || {};
+      const font = resolveTextFont(style.fontId || style.fontLabel || "system");
+      if (font && font.packaged && !fontIds.includes(font.id)) {
+        fontIds.push(font.id);
+      }
+    });
+    if (!fontIds.length) return Promise.resolve(false);
+    return Promise.all(fontIds.map((fontId) => this.ensureTextFontLoaded(fontId)))
+      .then((results) => results.some(Boolean));
+  },
+
+  refreshDraftTextFonts(draft = this.draft) {
+    return this.ensureDraftTextFontsLoaded(draft).then((loaded) => {
+      if (loaded && draft === this.draft) this.render();
+      return loaded;
     });
   },
 
@@ -772,6 +819,9 @@ Page({
       image.onerror = () => {
         delete this.canvasImageCache[src];
         console.warn("[canvas] image load failed", src, imageSrc);
+        if (isLaceCenterFrameSource(src)) {
+          console.warn("[lace-center] frame image unavailable; upload the compressed asset to", src);
+        }
         resolve(null);
       };
       image.src = imageSrc;
@@ -789,12 +839,13 @@ Page({
     const layerSources = Array.isArray(this.draft.layers)
       ? this.draft.layers.map((layer) => layer && layer.source).filter(Boolean)
       : [];
+    const effectSources = getLayerEffectSources(this.draft.layers || []);
     const brushSources = getBrushStampSources(this.draft.layers || []);
     const brushDraftSources = this.brushSession
       ? getBrushStampSources([{ strokes: (this.brushSession.strokes || []).concat(this.brushStroke ? [this.brushStroke] : []) }])
       : [];
     const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
-    const sources = Array.from(new Set([backgroundSource].concat(layerSources, brushSources, brushDraftSources).filter(Boolean)));
+    const sources = Array.from(new Set([backgroundSource].concat(layerSources, effectSources, brushSources, brushDraftSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -961,6 +1012,7 @@ Page({
     });
     this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.refreshDraftTextFonts(this.draft);
     this.resetHistory();
     this.updateCanvasSize(draft.ratio);
     this.setEditorMode(true);
@@ -2034,6 +2086,7 @@ Page({
     this.clearStraightCutRuntime();
     this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.refreshDraftTextFonts(this.draft);
     this.updateCanvasSize(this.draft.ratio);
     this.setData({
       selectedLayerId: "",
@@ -4623,6 +4676,23 @@ Page({
         type: "floating",
         elevation: 1
       };
+    } else if (effect === "lace-center") {
+      style.handmadeEffect = {
+        type: "lace-center",
+        frameId: DEFAULT_LACE_CENTER_FRAME.id,
+        frameLabel: DEFAULT_LACE_CENTER_FRAME.label,
+        frameSource: DEFAULT_LACE_CENTER_FRAME.source,
+        openingWidthRatio: DEFAULT_LACE_CENTER_FRAME.openingWidthRatio,
+        openingHeightRatio: DEFAULT_LACE_CENTER_FRAME.openingHeightRatio,
+        openingScale: 1,
+        contentScale: 1,
+        contentOffsetX: 0,
+        contentOffsetY: 0,
+        frameOpacity: 1,
+        shadowOffsetY: 10,
+        shadowBlur: 22
+      };
+      makeLayerSquareAroundCenter(layer);
     } else {
       delete style.handmadeEffect;
     }
@@ -4677,6 +4747,17 @@ Page({
       return;
     }
 
+    if (effect === "lace-center" && layer.style.handmadeEffect) {
+      this.setData({
+        effectAdjusting: "lace-center",
+        effectAdjustingLabel: "蕾丝框裁",
+        laceContentScale: laceContentScaleToSliderValue(layer.style.handmadeEffect.contentScale),
+        laceOpeningScale: Math.round((layer.style.handmadeEffect.openingScale || 1) * 100),
+        selectedLaceFrameId: getLaceCenterFrameId(layer.style.handmadeEffect)
+      });
+      return;
+    }
+
     if (effect !== "taped" || !layer.style.handmadeEffect) return;
     this.setData({
       effectAdjusting: "taped",
@@ -4702,6 +4783,77 @@ Page({
     this.render();
   },
 
+  setLaceFrameOption(event) {
+    const frameId = event.currentTarget.dataset.frameId || DEFAULT_LACE_CENTER_FRAME.id;
+    const frame = getLaceCenterFrameOption(frameId);
+    const layer = this.getSelectedLayer();
+    if (!frame || !layer || !layer.style || !layer.style.handmadeEffect) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
+    layer.style = {
+      ...layer.style,
+      handmadeEffect: {
+        ...layer.style.handmadeEffect,
+        type: "lace-center",
+        frameId: frame.id,
+        frameLabel: frame.label,
+        frameSource: frame.source,
+        openingWidthRatio: frame.openingWidthRatio,
+        openingHeightRatio: frame.openingHeightRatio
+      }
+    };
+    this.setData({ selectedLaceFrameId: frame.id });
+    this.markDirty();
+    this.render();
+  },
+
+  setLaceOpeningScale(event) {
+    const value = Number(event.detail && event.detail.value);
+    const layer = this.getSelectedLayer();
+    if (!layer || !layer.style || !layer.style.handmadeEffect) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
+    const scale = Math.max(45, Math.min(100, Number.isFinite(value) ? value : 100)) / 100;
+    layer.style = {
+      ...layer.style,
+      handmadeEffect: {
+        ...layer.style.handmadeEffect,
+        type: "lace-center",
+        openingScale: scale
+      }
+    };
+    this.setData({ laceOpeningScale: Math.round(scale * 100) });
+    this.markDirty();
+    this.render();
+  },
+
+  setLaceContentScale(event) {
+    const value = Number(event.detail && event.detail.value);
+    const layer = this.getSelectedLayer();
+    if (!layer || !layer.style || !layer.style.handmadeEffect) return;
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
+    const sliderValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 30));
+    const scale = laceContentSliderValueToScale(sliderValue);
+    layer.style = {
+      ...layer.style,
+      handmadeEffect: {
+        ...layer.style.handmadeEffect,
+        type: "lace-center",
+        contentScale: scale
+      }
+    };
+    this.setData({ laceContentScale: Math.round(sliderValue) });
+    this.markDirty();
+    this.render();
+  },
+
   closeEffectAdjustment() {
     clearTimeout(this.effectAdjustmentTimer);
     this.effectAdjustmentToken = (this.effectAdjustmentToken || 0) + 1;
@@ -4713,7 +4865,7 @@ Page({
     if (!texture) return;
     clearTimeout(this.effectAdjustmentTimer);
     this.effectAdjustmentToken = (this.effectAdjustmentToken || 0) + 1;
-    if (texture === "taped") {
+    if (texture === "taped" || texture === "lace-center") {
       this.closeEffectAdjustment();
       return;
     }
@@ -5794,6 +5946,7 @@ Page({
     }
     this.draft = normalizeDraftTextFonts(draft);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.refreshDraftTextFonts(this.draft);
     this.resetHistory();
     this.updateCanvasSize(draft.ratio);
     this.setEditorMode(true);
@@ -7801,6 +7954,58 @@ function getBrushStampSources(layers) {
   }, []);
 }
 
+function getLayerEffectSources(layers) {
+  return (layers || []).reduce((sources, layer) => {
+    const effect = layer && layer.style && layer.style.handmadeEffect;
+    if (effect && effect.type === "lace-center" && effect.frameSource) {
+      sources.push(effect.frameSource);
+    }
+    return sources;
+  }, []);
+}
+
+function getLaceCenterFrameOption(frameId) {
+  return LACE_CENTER_FRAME_OPTIONS.find((option) => option.id === frameId) || DEFAULT_LACE_CENTER_FRAME;
+}
+
+function getLaceCenterFrameId(effect) {
+  if (!effect || effect.type !== "lace-center") return DEFAULT_LACE_CENTER_FRAME.id;
+  const idMatch = LACE_CENTER_FRAME_OPTIONS.find((option) => option.id === effect.frameId);
+  if (idMatch) return idMatch.id;
+  const match = LACE_CENTER_FRAME_OPTIONS.find((option) => option.source === effect.frameSource);
+  return match ? match.id : DEFAULT_LACE_CENTER_FRAME.id;
+}
+
+function isLaceCenterFrameSource(src) {
+  return LACE_CENTER_FRAME_OPTIONS.some((option) => option.source === src);
+}
+
+function laceContentSliderValueToScale(value) {
+  const normalized = Math.max(0, Math.min(100, Number(value) || 0)) / 100;
+  return LACE_CONTENT_RANGE_MIN + (LACE_CONTENT_RANGE_MAX - LACE_CONTENT_RANGE_MIN) * normalized;
+}
+
+function laceContentScaleToSliderValue(scale) {
+  const value = Number(scale);
+  const normalized = (Number.isFinite(value) ? value : 1) - LACE_CONTENT_RANGE_MIN;
+  return Math.round(Math.max(0, Math.min(1, normalized / (LACE_CONTENT_RANGE_MAX - LACE_CONTENT_RANGE_MIN))) * 100);
+}
+
+function makeLayerSquareAroundCenter(layer) {
+  if (!layer || !layer.width || !layer.height) return layer;
+  const centerX = layer.x + layer.width / 2;
+  const centerY = layer.y + layer.height / 2;
+  const size = Math.max(layer.width, layer.height);
+  layer.x = centerX - size / 2;
+  layer.y = centerY - size / 2;
+  layer.width = size;
+  layer.height = size;
+  layer.radius = 0;
+  layer.tear = false;
+  delete layer.tearSeed;
+  return layer;
+}
+
 function createLayerOutlineByStyle(style) {
   if (style === "cream") {
     return {
@@ -8212,7 +8417,7 @@ function getHandmadeEffectKey(layer) {
   if (layer.tear) return "tear";
   const effect = layer.style && layer.style.handmadeEffect;
   if (!effect) return "none";
-  if (effect.type === "taped" || effect.type === "floating") return effect.type;
+  if (effect.type === "taped" || effect.type === "floating" || effect.type === "lace-center") return effect.type;
   return "none";
 }
 
