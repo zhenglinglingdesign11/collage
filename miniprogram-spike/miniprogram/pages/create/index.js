@@ -48,6 +48,8 @@ const paper02Pack = require("../../config/assets/packs/paper-02");
 const paper03Pack = require("../../config/assets/packs/paper-03");
 const paper04Pack = require("../../config/assets/packs/paper-04");
 const paper05Pack = require("../../config/assets/packs/paper-05");
+const HOME_SHOWCASES = require("../../config/home-showcases");
+const HOME_SHOWCASE_MANIFEST_URL = "https://assets.zllarchi.site/homecase/manifest.json";
 
 const LAYER_ACTIONS_PAGE_OFFSET = 560;
 const LAYER_ACTIONS_TOUCH_SLOP = 6;
@@ -217,6 +219,7 @@ Page({
     hasRecentDraft: false,
     recentDraftThumb: "",
     recentDrafts: [],
+    homeShowcaseGroups: HOME_SHOWCASES,
     activeTool: "",
     activeDrawer: "",
     activePalette: "",
@@ -518,6 +521,7 @@ Page({
       recentDraftCount: recentDrafts.length,
       ...getDraftAnalyticsParams(this.draft)
     });
+    this.loadHomeShowcases();
   },
 
   onReady() {
@@ -737,6 +741,25 @@ Page({
     }
     this.openRecentDraft({ currentTarget: { dataset: { id: draftId } } });
     return true;
+  },
+
+  loadHomeShowcases() {
+    if (!wx.request) return;
+    wx.request({
+      url: HOME_SHOWCASE_MANIFEST_URL,
+      method: "GET",
+      success: (res) => {
+        const groups = normalizeHomeShowcaseManifest(res.data);
+        if (!groups.length) {
+          console.warn("[home-showcases] manifest has no valid groups");
+          return;
+        }
+        this.setData({ homeShowcaseGroups: groups });
+      },
+      fail: (error) => {
+        console.warn("[home-showcases] manifest request failed; using local fallback", error);
+      }
+    });
   },
 
   onHide() {
@@ -6079,6 +6102,34 @@ Page({
       });
   }
 });
+
+function normalizeHomeShowcaseManifest(payload) {
+  let data = payload;
+  if (typeof data === "string") {
+    try {
+      data = JSON.parse(data);
+    } catch (error) {
+      console.warn("[home-showcases] invalid manifest JSON", error);
+      return [];
+    }
+  }
+  const rawGroups = Array.isArray(data) ? data : data && data.groups;
+  if (!Array.isArray(rawGroups)) return [];
+  return rawGroups.map((group, groupIndex) => {
+    const items = Array.isArray(group && group.items) ? group.items : [];
+    const normalizedItems = items.map((item, itemIndex) => ({
+      id: String(item && item.id || `${group && group.id || groupIndex}-${itemIndex}`),
+      title: String(item && item.title || "创作灵感"),
+      imageSrc: typeof (item && item.imageSrc) === "string" ? item.imageSrc : "",
+      tone: typeof (item && item.tone) === "string" ? item.tone : "structure"
+    })).filter((item) => item.imageSrc);
+    return {
+      id: String(group && group.id || groupIndex),
+      title: String(group && group.title || "创作效果"),
+      items: normalizedItems
+    };
+  }).filter((group) => group.items.length);
+}
 
 function getDraftAnalyticsParams(draft) {
   const layers = draft && Array.isArray(draft.layers) ? draft.layers : [];

@@ -41,6 +41,37 @@
           </button>
         </view>
       </block>
+
+      <view class="home-showcase-section">
+        <view wx:for="{{homeShowcaseGroups}}" wx:key="id" wx:for-item="group" class="home-showcase-group">
+          <view class="section-head home-showcase-head">
+            <text>{{group.title}}</text>
+          </view>
+          <scroll-view scroll-x enhanced="{{true}}" show-scrollbar="{{false}}" class="home-showcase-scroll">
+            <view class="home-showcase-track">
+              <view wx:for="{{group.items}}" wx:key="id" wx:for-item="showcase" class="home-showcase-card" bindtap="choosePhoto" aria-label="选择照片并开始创作">
+                <image wx:if="{{showcase.imageSrc}}" class="home-showcase-image" src="{{showcase.imageSrc}}" mode="aspectFill"></image>
+                <view wx:else class="home-showcase-placeholder home-showcase-{{showcase.tone}}">
+                  <view wx:if="{{showcase.tone === 'structure'}}" class="showcase-structure-art">
+                  <view class="showcase-paper showcase-paper-back"></view>
+                  <view class="showcase-paper showcase-paper-front"></view>
+                  <view class="showcase-tape"></view>
+                  </view>
+                  <view wx:if="{{showcase.tone === 'texture'}}" class="showcase-texture-art">
+                  <view class="showcase-texture-sun"></view>
+                  <view class="showcase-texture-lines"></view>
+                  </view>
+                  <view wx:if="{{showcase.tone === 'emboss'}}" class="showcase-emboss-art">
+                  <view class="showcase-emboss-paper"></view>
+                  <view class="showcase-emboss-heart"></view>
+                  </view>
+                </view>
+                <view class="home-showcase-title">{{showcase.title}}</view>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+      </view>
     </view>
   </scroll-view>
 
