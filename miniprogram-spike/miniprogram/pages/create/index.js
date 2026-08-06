@@ -181,6 +181,7 @@ Page({
     textFontVariant: DEFAULT_TEXT_FONT_STYLE.fontId,
     textColor: "#111111",
     textSize: 54,
+    textAlign: "center",
     textBackground: "无",
     textOpacity: 100,
     cropEditing: false,
@@ -196,6 +197,7 @@ Page({
     embossMaskShapeClass: "circle",
     embossShapes: [
       { value: "circle", label: "圆形" },
+      { value: "rect", label: "方形" },
       { value: "heart", label: "心形" },
       { value: "star", label: "星形" },
       { value: "tag", label: "标签" },
@@ -943,7 +945,7 @@ Page({
 
   refreshRecentDraftState() {
     const recentDrafts = this.getRecentDrafts();
-    const latestDraft = recentDrafts[0] || loadLatestDraft();
+    const latestDraft = recentDrafts[0] || null;
     this.setData({
       hasRecentDraft: !!latestDraft,
       recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
@@ -952,19 +954,16 @@ Page({
   },
 
   hasStoredDraft() {
-    return !!loadLatestDraft();
+    return !!loadDraft();
   },
 
   getLatestDraftThumbnail() {
-    const latestDraft = loadLatestDraft();
+    const latestDraft = loadDraft();
     return latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "";
   },
 
   getRecentDrafts() {
-    const recentDrafts = loadRecentDrafts();
-    if (recentDrafts.length) return recentDrafts;
-    const latestDraft = loadLatestDraft();
-    return latestDraft ? [latestDraft] : [];
+    return loadRecentDrafts();
   },
 
   enterEditMode() {
@@ -2161,6 +2160,8 @@ Page({
   choosePhotoBySource(source = "album") {
     const shouldStartBlank = this.data.isEmptyMode;
     const pendingAfterPhoto = this.pendingAfterPhoto;
+    // 相册支持批量导入；拍照及需要紧接着进入剪刀编辑的场景只能选择一张。
+    const imageCount = source === "album" && pendingAfterPhoto !== "scissorFree" ? 9 : 1;
     track("photo_choose_start", {
       page: "create",
       source,
@@ -2171,43 +2172,28 @@ Page({
     }
     this.enterEditMode();
     wx.chooseMedia({
-      count: 1,
+      count: imageCount,
       mediaType: ["image"],
       sourceType: [source],
       success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0];
-        if (!file || !file.tempFilePath) {
+        const files = (res.tempFiles || []).filter((file) => file && file.tempFilePath);
+        if (!files.length) {
           if (pendingAfterPhoto) this.pendingAfterPhoto = "";
           return;
         }
-        wx.getImageInfo({
-          src: file.tempFilePath,
-          success: (info) => {
-            persistTempFile(file.tempFilePath).then((imageSource) => {
-              const layer = createImageLayer(imageSource || file.tempFilePath, info, this.draft);
-              this.draft.layers.push(layer);
-              this.draft.layers = normalizeLayerOrder(this.draft.layers);
-              this.markDirty();
-              track("photo_choose_success", {
-                page: "create",
-                source,
-                width: info.width || 0,
-                height: info.height || 0,
-                fileSize: file.size || 0,
-                ...getDraftAnalyticsParams(this.draft)
-              });
-              if (pendingAfterPhoto === "scissorFree") {
-                this.pendingAfterPhoto = "";
-                checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
-                setTimeout(() => this.beginScissorCut(layer), 0);
-                return;
-              }
-              this.closeAfterAddingLayer();
-              this.render();
-              checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
-            });
-          },
-          fail: () => {
+        Promise.all(files.map((file) => new Promise((resolve) => {
+          wx.getImageInfo({
+            src: file.tempFilePath,
+            success: (info) => {
+              persistTempFile(file.tempFilePath)
+                .then((imageSource) => resolve({ file, info, imageSource: imageSource || file.tempFilePath }))
+                .catch(() => resolve({ file, info, imageSource: file.tempFilePath }));
+            },
+            fail: () => resolve(null)
+          });
+        }))).then((results) => {
+          const importedImages = results.filter(Boolean);
+          if (!importedImages.length) {
             if (pendingAfterPhoto) this.pendingAfterPhoto = "";
             track("photo_choose_fail", {
               page: "create",
@@ -2215,7 +2201,31 @@ Page({
               errorCode: "get_image_info_failed"
             });
             showError("图片添加失败");
+            return;
           }
+          const layers = importedImages.map(({ file, info, imageSource }) => {
+            const layer = createImageLayer(imageSource, info, this.draft);
+            this.draft.layers.push(layer);
+            checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
+            track("photo_choose_success", {
+              page: "create",
+              source,
+              width: info.width || 0,
+              height: info.height || 0,
+              fileSize: file.size || 0,
+              ...getDraftAnalyticsParams(this.draft)
+            });
+            return layer;
+          });
+          this.draft.layers = normalizeLayerOrder(this.draft.layers);
+          this.markDirty();
+          if (pendingAfterPhoto === "scissorFree") {
+            this.pendingAfterPhoto = "";
+            setTimeout(() => this.beginScissorCut(layers[0]), 0);
+            return;
+          }
+          this.closeAfterAddingLayer();
+          this.render();
         });
       },
       fail: () => {
@@ -2773,6 +2783,7 @@ Page({
         fontSize: this.data.textSize || 54,
         color: this.data.textColor || "#111111",
         ...createTextFontStyle(this.data.textFont || "system"),
+        textAlign: this.data.textAlign || "center",
         backgroundLabel: this.data.textBackground || "无",
         background: backgroundColorForLabel(this.data.textBackground || "无")
       };
@@ -2803,6 +2814,7 @@ Page({
       textFontVariants: getTextFontVariantOptions(textFontStyle.fontGroupId),
       textColor: layer.style.color || "#111111",
       textSize: layer.style.fontSize || 54,
+      textAlign: normalizeTextAlign(layer.style.textAlign),
       textBackground: layer.style.backgroundLabel || "无",
       textOpacity: Math.round((layer.opacity == null ? 1 : layer.opacity) * 100),
       textPanelBottom: this.data.keyboardHeight || 0
@@ -2821,7 +2833,8 @@ Page({
       isNew,
       original: {
         x: layer.x,
-        y: layer.y
+        y: layer.y,
+        centerY: layer.y + layer.height / 2
       }
     };
     if (isNew) {
@@ -2843,7 +2856,9 @@ Page({
     const layer = this.getLayerById(session.layerId);
     if (layer && !session.isNew && session.original) {
       layer.x = session.original.x;
-      layer.y = session.original.y;
+      layer.y = Number.isFinite(session.original.centerY)
+        ? session.original.centerY - layer.height / 2
+        : session.original.y;
     }
     if (layer && session.isNew && options.removeNew) {
       this.draft.layers = this.draft.layers.filter((item) => item.id !== layer.id);
@@ -3320,6 +3335,7 @@ Page({
     const layer = this.getSelectedLayer();
     if (layer && layer.type === "text") {
       layer.text = value;
+      resizeTextLayerToContent(layer);
       this.render();
       if (this.data.textInputVisible) {
         this.scheduleTextCanvasOffsetRefresh();
@@ -3332,11 +3348,13 @@ Page({
   },
 
   confirmText() {
-    const text = (this.data.textDraft || "").trim() || "weekend";
+    const rawText = this.data.textDraft || "";
+    const text = rawText.trim() ? rawText : "weekend";
     this.enterEditMode();
     const selectedLayer = this.getSelectedLayer();
     if (selectedLayer && selectedLayer.type === "text" && this.data.textInputVisible) {
       selectedLayer.text = text;
+      resizeTextLayerToContent(selectedLayer);
       const textSession = this.textEditSession;
       this.finishTextLayerEditing();
       this.textCanvasOffsetY = 0;
@@ -3363,6 +3381,7 @@ Page({
       return;
     }
     const layer = createTextLayer(text, this.draft);
+    resizeTextLayerToContent(layer);
     this.draft.layers.push(layer);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.textCanvasOffsetY = 0;
@@ -3411,11 +3430,13 @@ Page({
 
   dismissTextEditorFromCanvas() {
     const layer = this.getSelectedLayer();
-    const text = (this.data.textDraft || "").trim();
-    const removeNew = !!(this.textEditSession && this.textEditSession.isNew && !text);
+    const text = this.data.textDraft || "";
+    const hasText = !!text.trim();
+    const removeNew = !!(this.textEditSession && this.textEditSession.isNew && !hasText);
     if (layer && layer.type === "text") {
-      if (text) {
+      if (hasText) {
         layer.text = text;
+        resizeTextLayerToContent(layer);
       }
       this.finishTextLayerEditing({ removeNew });
     }
@@ -4041,9 +4062,10 @@ Page({
   },
 
   selectEmbossShape(event) {
-    const shape = normalizeEmbossShape(event.currentTarget.dataset.shape || "circle") || "circle";
-    this.updateEmbossPreviewData(shape);
-    this.setData({ embossShape: shape });
+    const selectedShape = event.currentTarget.dataset.shape || "circle";
+    this.updateEmbossPreviewData(selectedShape);
+    // “rect” 在绘制时会被标准化为空形状（即矩形路径），但需保留其值以高亮当前选项。
+    this.setData({ embossShape: selectedShape });
   },
 
   onEmbossTouchStart(event) {
@@ -4132,7 +4154,11 @@ Page({
     const preview = this.embossSession.preview;
     const mask = clampEmbossMask(this.embossSession.mask, layer);
     this.embossSession.mask = mask;
-    const nextShape = normalizeEmbossShape(shape || this.data.embossShape || "circle") || "circle";
+    const selectedShape = shape || this.data.embossShape || "circle";
+    // 矩形在画布路径中以空形状表示；预览层需要保留 rect 类名，不能回退为圆形。
+    const nextShape = selectedShape === "rect"
+      ? "rect"
+      : (normalizeEmbossShape(selectedShape) || "circle");
     this.setData({
       embossImageStyle: `left:${preview.left}px;top:${preview.top}px;width:${preview.width}px;height:${preview.height}px;`,
       embossMaskStyle: `left:${preview.left + mask.x * preview.scale}px;top:${preview.top + mask.y * preview.scale}px;width:${mask.width * preview.scale}px;height:${mask.height * preview.scale}px;`,
@@ -4473,6 +4499,7 @@ Page({
       textFontVariants: getTextFontVariantOptions(textFontStyle.fontGroupId),
       textColor: layer.style.color || "#111111",
       textSize: layer.style.fontSize || 54,
+      textAlign: normalizeTextAlign(layer.style.textAlign),
       textBackground: layer.style.backgroundLabel || "无",
       textOpacity: Math.round((layer.opacity == null ? 1 : layer.opacity) * 100),
       textPanelBottom: this.data.keyboardHeight || 0
@@ -4535,6 +4562,12 @@ Page({
     this.setData({ textSize: size });
   },
 
+  setTextAlign(event) {
+    const align = normalizeTextAlign(event.currentTarget.dataset.align);
+    this.updateEditingTextStyle({ textAlign: align });
+    this.setData({ textAlign: align });
+  },
+
   setTextBackground(event) {
     const background = event.currentTarget.dataset.background || "无";
     this.updateEditingTextStyle({
@@ -4566,6 +4599,9 @@ Page({
       ...(layer.style || {}),
       ...nextStyle
     };
+    if (Object.prototype.hasOwnProperty.call(nextStyle, "fontSize")) {
+      resizeTextLayerToContent(layer);
+    }
     if (!this.data.textInputVisible) {
       this.markDirty();
     }
@@ -8354,11 +8390,43 @@ function normalizeDraftTextFonts(draft) {
       source: normalizeLegacyAssetSource(layer.source),
       style: {
         ...style,
-        ...createTextFontStyle(style.fontId || style.fontLabel || "system")
+        ...createTextFontStyle(style.fontId || style.fontLabel || "system"),
+        textAlign: normalizeTextAlign(style.textAlign)
       }
     };
+  }).map((layer) => {
+    if (layer && layer.type === "text") resizeTextLayerToContent(layer);
+    return layer;
   });
   return draft;
+}
+
+function resizeTextLayerToContent(layer) {
+  if (!layer || layer.type !== "text") return layer;
+  const centerY = (Number(layer.y) || 0) + (Number(layer.height) || 0) / 2;
+  const nextHeight = getTextLayerContentHeight(layer);
+  if (!nextHeight || Math.abs(nextHeight - (Number(layer.height) || 0)) < 0.5) return layer;
+  layer.y = centerY - nextHeight / 2;
+  layer.height = nextHeight;
+  return layer;
+}
+
+function getTextLayerContentHeight(layer) {
+  const style = layer && layer.style || {};
+  const fontSize = Math.max(1, Number(style.fontSize) || 54);
+  const lineCount = getTextLineCount(layer && layer.text);
+  const lineHeight = fontSize * 1.22;
+  const verticalPadding = Math.max(20, fontSize * 0.32);
+  return Math.max(86, Math.ceil(lineCount * lineHeight + verticalPadding));
+}
+
+function getTextLineCount(text) {
+  const normalized = String(text == null || text === "" ? "weekend" : text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  return Math.max(1, normalized.split("\n").length);
+}
+
+function normalizeTextAlign(value) {
+  return ["left", "center", "right"].includes(value) ? value : "center";
 }
 
 function getFontFileCacheKey(font, source) {

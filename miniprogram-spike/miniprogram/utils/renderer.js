@@ -694,7 +694,7 @@ function drawLaceCenterContent(ctx, layer, source, effect = {}) {
   const offsetY = (Number(effect.contentOffsetY) || 0) * layer.height;
   const width = layer.width * scale;
   const height = layer.height * scale;
-  drawSourceImageAtRect(
+  drawLaceCenterSourceAtRect(
     ctx,
     layer,
     source,
@@ -703,6 +703,24 @@ function drawLaceCenterContent(ctx, layer, source, effect = {}) {
     width,
     height
   );
+}
+
+function drawLaceCenterSourceAtRect(ctx, layer, source, x, y, width, height) {
+  const crop = layer.crop;
+  const sourceWidth = Math.max(1, crop && crop.width > 0 ? crop.width : layer.sourceWidth || source.width || width);
+  const sourceHeight = Math.max(1, crop && crop.height > 0 ? crop.height : layer.sourceHeight || source.height || height);
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = width / Math.max(1, height);
+  let drawWidth = width;
+  let drawHeight = height;
+  if (sourceRatio > targetRatio) {
+    drawWidth = height * sourceRatio;
+  } else {
+    drawHeight = width / sourceRatio;
+  }
+  const drawX = x + (width - drawWidth) / 2;
+  const drawY = y + (height - drawHeight) / 2;
+  drawSourceImageAtRect(ctx, layer, source, drawX, drawY, drawWidth, drawHeight);
 }
 
 function getLaceCenterContentRange(effect = {}) {
@@ -1694,6 +1712,13 @@ function sampleBrushPath(points, spacing) {
 function drawText(ctx, layer) {
   const style = layer.style || {};
   const outline = normalizeOutline(layer.outline);
+  const fontSize = style.fontSize || 48;
+  const lines = getTextLines(layer.text || "写点什么...");
+  const lineHeight = getTextLineHeight(fontSize);
+  const textBlockHeight = lineHeight * lines.length;
+  const firstLineY = lines.length > 1 ? -textBlockHeight / 2 + lineHeight / 2 : 0;
+  const textAlign = getTextAlign(style.textAlign);
+  const textX = getTextDrawX(textAlign, layer.width);
   setShadow(ctx, 0, 0, 0, "transparent");
   if (style.background && style.background !== "transparent") {
     setFillStyle(ctx, style.background);
@@ -1702,22 +1727,21 @@ function drawText(ctx, layer) {
     ctx.fill();
   }
   setFillStyle(ctx, style.color || "#111111");
-  const fontSize = style.fontSize || 48;
   setFontSize(ctx, fontSize);
   ctx.font = fontString(style.canvasFontFamily || style.fontFamily, fontSize);
   setTextBaseline(ctx, "middle");
-  setTextAlign(ctx, "center");
+  setTextAlign(ctx, textAlign);
   if (outline) {
     setLineJoin(ctx, "round");
     setLineCap(ctx, "round");
     outline.strokes.forEach((stroke) => {
       setLineWidth(ctx, Math.max(stroke.width, fontSize * 0.1));
       setStrokeStyle(ctx, colorWithOpacity(stroke.color, stroke.opacity));
-      drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width, "stroke");
+      drawStyledTextLines(ctx, lines, style, fontSize, layer.width, lineHeight, firstLineY, textX, textAlign, "stroke");
     });
   }
   setFillStyle(ctx, style.color || "#111111");
-  drawStyledText(ctx, layer.text || "写点什么...", style, fontSize, layer.width, "fill");
+  drawStyledTextLines(ctx, lines, style, fontSize, layer.width, lineHeight, firstLineY, textX, textAlign, "fill");
 }
 
 function fontString(fontFamily, fontSize) {
@@ -1737,31 +1761,58 @@ function isGenericFontFamily(name) {
   return ["serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui"].includes(name);
 }
 
-function drawStyledText(ctx, text, style, fontSize, maxWidth, mode = "fill") {
+function getTextLines(text) {
+  const normalized = String(text == null ? "" : text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalized.split("\n");
+  return lines.length ? lines : [""];
+}
+
+function getTextLineHeight(fontSize) {
+  return Math.max(1, fontSize * 1.22);
+}
+
+function getTextAlign(value) {
+  return ["left", "center", "right"].includes(value) ? value : "center";
+}
+
+function getTextDrawX(textAlign, width) {
+  if (textAlign === "left") return -width / 2;
+  if (textAlign === "right") return width / 2;
+  return 0;
+}
+
+function drawStyledTextLines(ctx, lines, style, fontSize, maxWidth, lineHeight, firstLineY, x, textAlign, mode = "fill") {
+  lines.forEach((line, index) => {
+    if (!line) return;
+    drawStyledText(ctx, line, style, fontSize, maxWidth, mode, firstLineY + index * lineHeight, x, textAlign);
+  });
+}
+
+function drawStyledText(ctx, text, style, fontSize, maxWidth, mode = "fill", y = 0, x = 0, textAlign = "center") {
   const label = style.fontLabel || "系统";
   const customCanvasFont = !!style.canvasFontFamily && !isFallbackOnlyFont(style.canvasFontFamily);
   if (label === "打字机") {
-    drawMonospaceText(ctx, text, fontSize, maxWidth, mode);
+    drawMonospaceText(ctx, text, fontSize, maxWidth, mode, y, textAlign);
     return;
   }
   if (label === "手写") {
     ctx.save();
     ctx.rotate(-3 * Math.PI / 180);
-    paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, x, y, maxWidth, customCanvasFont, mode);
     ctx.restore();
     return;
   }
   if (label === "衬线") {
-    paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
-    paintLayerText(ctx, text, 1.2, 0, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, x, y, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, x + 1.2, y, maxWidth, customCanvasFont, mode);
     return;
   }
   if (label === "圆体") {
-    paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
-    paintLayerText(ctx, text, 0.8, 0.8, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, x, y, maxWidth, customCanvasFont, mode);
+    paintLayerText(ctx, text, x + 0.8, y + 0.8, maxWidth, customCanvasFont, mode);
     return;
   }
-  paintLayerText(ctx, text, 0, 0, maxWidth, customCanvasFont, mode);
+  paintLayerText(ctx, text, x, y, maxWidth, customCanvasFont, mode);
 }
 
 function paintLayerText(ctx, text, x, y, maxWidth, customCanvasFont, mode) {
@@ -1784,18 +1835,27 @@ function isFallbackOnlyFont(fontFamily) {
   return fontFamily.split(",").every((item) => isGenericFontFamily(item.trim()));
 }
 
-function drawMonospaceText(ctx, text, fontSize, maxWidth, mode = "fill") {
+function drawMonospaceText(ctx, text, fontSize, maxWidth, mode = "fill", y = 0, textAlign = "center") {
   const chars = String(text).split("");
   const charWidth = Math.min(fontSize * 0.68, maxWidth / Math.max(chars.length, 1));
   const totalWidth = charWidth * chars.length;
-  const startX = -totalWidth / 2 + charWidth / 2;
+  const startX = getMonospaceStartX(textAlign, maxWidth, totalWidth, charWidth);
+  ctx.save();
+  setTextAlign(ctx, "center");
   chars.forEach((char, index) => {
     if (mode === "stroke") {
-      ctx.strokeText(char, startX + index * charWidth, 0, charWidth);
+      ctx.strokeText(char, startX + index * charWidth, y, charWidth);
     } else {
-      ctx.fillText(char, startX + index * charWidth, 0, charWidth);
+      ctx.fillText(char, startX + index * charWidth, y, charWidth);
     }
   });
+  ctx.restore();
+}
+
+function getMonospaceStartX(textAlign, maxWidth, totalWidth, charWidth) {
+  if (textAlign === "left") return -maxWidth / 2 + charWidth / 2;
+  if (textAlign === "right") return maxWidth / 2 - totalWidth + charWidth / 2;
+  return -totalWidth / 2 + charWidth / 2;
 }
 
 function drawSelection(ctx, layer) {

@@ -92,28 +92,39 @@ Page({
 
   choosePhoto() {
     wx.chooseMedia({
-      count: 1,
+      count: 9,
       mediaType: ["image"],
       sourceType: ["album", "camera"],
       success: (res) => {
-        const file = res.tempFiles && res.tempFiles[0];
-        if (!file || !file.tempFilePath) return;
-        wx.getImageInfo({
-          src: file.tempFilePath,
-          success: (info) => {
-            persistTempFile(file.tempFilePath).then((imageSource) => {
-              const layer = createImageLayer(imageSource || file.tempFilePath, info, this.draft);
-              this.draft.layers.push(layer);
-              this.draft.layers = normalizeLayerOrder(this.draft.layers);
-              this.updateSelectedLayerState(layer.id);
-              this.markDirty();
-              this.render();
-              checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
-            });
-          },
-          fail: () => {
+        const files = (res.tempFiles || []).filter((file) => file && file.tempFilePath);
+        if (!files.length) return;
+        Promise.all(files.map((file) => new Promise((resolve) => {
+          wx.getImageInfo({
+            src: file.tempFilePath,
+            success: (info) => {
+              persistTempFile(file.tempFilePath)
+                .then((imageSource) => resolve({ file, info, imageSource: imageSource || file.tempFilePath }))
+                .catch(() => resolve({ file, info, imageSource: file.tempFilePath }));
+            },
+            fail: () => resolve(null)
+          });
+        }))).then((results) => {
+          const importedImages = results.filter(Boolean);
+          if (!importedImages.length) {
             showError("图片添加失败");
+            return;
           }
+          let lastLayer;
+          importedImages.forEach(({ file, info, imageSource }) => {
+            const layer = createImageLayer(imageSource, info, this.draft);
+            this.draft.layers.push(layer);
+            lastLayer = layer;
+            checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
+          });
+          this.draft.layers = normalizeLayerOrder(this.draft.layers);
+          this.updateSelectedLayerState(lastLayer.id);
+          this.markDirty();
+          this.render();
         });
       }
     });

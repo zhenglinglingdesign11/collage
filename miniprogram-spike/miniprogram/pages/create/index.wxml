@@ -252,7 +252,9 @@
       <image class="emboss-preview-image" src="{{embossImageSrc}}" mode="scaleToFill" style="{{embossImageStyle}}"></image>
       <view class="emboss-dim"></view>
       <view class="emboss-mask" style="{{embossMaskStyle}}">
-        <view class="emboss-mask-shape emboss-mask-{{embossMaskShapeClass}}"></view>
+        <view class="emboss-mask-shape emboss-mask-{{embossMaskShapeClass}}">
+          <view class="emboss-mask-fill emboss-mask-{{embossMaskShapeClass}}"></view>
+        </view>
         <view class="emboss-handle handle-tl"></view>
         <view class="emboss-handle handle-tr"></view>
         <view class="emboss-handle handle-br"></view>
@@ -260,7 +262,7 @@
       </view>
       <view class="crop-hit-area emboss-hit-area" catchtouchstart="onEmbossTouchStart" catchtouchmove="onEmbossTouchMove" catchtouchend="onTouchEnd" catchtouchcancel="onTouchEnd"></view>
       <view class="emboss-bottom">
-        <scroll-view scroll-x class="emboss-shape-row">
+        <scroll-view scroll-x enhanced="{{true}}" show-scrollbar="{{false}}" class="emboss-shape-row">
           <view wx:for="{{embossShapes}}" wx:key="value" class="emboss-shape-option {{embossShape === item.value ? 'active' : ''}}" data-shape="{{item.value}}" bindtap="selectEmbossShape">
             <view class="emboss-option-icon emboss-option-{{item.value}}"></view>
             <view class="emboss-option-label">{{item.label}}</view>
@@ -501,27 +503,36 @@
         </cover-view>
       </cover-view>
 
-      <input
-        wx:if="{{textInputVisible}}"
-        class="keyboard-input-proxy"
-        value="{{textDraft}}"
-        placeholder="输入要放到画布上的文字"
-        focus="{{textInputVisible}}"
-        adjust-position="{{false}}"
-        cursor-spacing="0"
-        hold-keyboard="{{true}}"
-        bindfocus="onTextFocus"
-        bindinput="onTextInput"
-        bindkeyboardheightchange="onTextKeyboardHeightChange"
-        confirm-type="done"
-        bindconfirm="confirmText"
-      />
-
       <view wx:if="{{textInputVisible}}" class="text-editor-panel" style="bottom: {{textPanelBottom}}px;">
         <view class="local-panel-head">
           <view class="local-panel-cancel" bindtap="cancelText">取消</view>
           <view class="local-panel-title">文字</view>
           <view class="local-panel-done" bindtap="confirmText">完成</view>
+        </view>
+        <textarea
+          class="text-input-editor"
+          value="{{textDraft}}"
+          placeholder="输入要放到画布上的文字"
+          focus="{{textInputVisible}}"
+          adjust-position="{{false}}"
+          cursor-spacing="0"
+          hold-keyboard="{{true}}"
+          show-confirm-bar="{{false}}"
+          disable-default-padding="{{true}}"
+          maxlength="-1"
+          fixed="{{true}}"
+          bindfocus="onTextFocus"
+          bindinput="onTextInput"
+          bindkeyboardheightchange="onTextKeyboardHeightChange"
+        ></textarea>
+        <view class="text-style-row">
+          <view class="text-style text-style-0 {{textToolMode === 'font' ? 'active' : ''}}" data-mode="font" bindtap="setTextToolMode"><view class="text-style-icon">B</view><view class="text-style-label">字体</view></view>
+          <view class="text-style text-style-1 {{textToolMode === 'fontVariant' ? 'active' : ''}}" data-mode="fontVariant" bindtap="setTextToolMode"><view class="text-style-icon">Aa</view><view class="text-style-label">样式</view></view>
+          <view class="text-style text-style-2 {{textToolMode === 'color' ? 'active' : ''}}" data-mode="color" bindtap="setTextToolMode"><view class="text-style-icon">●</view><view class="text-style-label">颜色</view></view>
+          <view class="text-style text-style-3 {{textToolMode === 'size' ? 'active' : ''}}" data-mode="size" bindtap="setTextToolMode"><view class="text-style-icon">A</view><view class="text-style-label">大小</view></view>
+          <view class="text-style text-style-4 {{textToolMode === 'align' ? 'active' : ''}}" data-mode="align" bindtap="setTextToolMode"><view class="text-style-icon">≡</view><view class="text-style-label">对齐</view></view>
+          <view class="text-style text-style-5 {{textToolMode === 'background' ? 'active' : ''}}" data-mode="background" bindtap="setTextToolMode"><view class="text-style-icon">□</view><view class="text-style-label">底色</view></view>
+          <view class="text-style text-style-6 {{textToolMode === 'opacity' ? 'active' : ''}}" data-mode="opacity" bindtap="setTextToolMode"><view class="text-style-icon">▦</view><view class="text-style-label">透明</view></view>
         </view>
         <view class="text-option-slot">
           <view wx:if="{{textToolMode === 'font'}}" class="text-option-row font-strip">
@@ -562,6 +573,13 @@
               <view class="{{textSize === 88 ? 'active' : ''}}" data-size="88" bindtap="setTextSize">超大</view>
             </view>
           </view>
+          <view wx:if="{{textToolMode === 'align'}}" class="text-option-row text-control-row">
+            <view class="size-steps">
+              <view class="{{textAlign === 'left' ? 'active' : ''}}" data-align="left" bindtap="setTextAlign">左对齐</view>
+              <view class="{{textAlign === 'center' ? 'active' : ''}}" data-align="center" bindtap="setTextAlign">居中</view>
+              <view class="{{textAlign === 'right' ? 'active' : ''}}" data-align="right" bindtap="setTextAlign">右对齐</view>
+            </view>
+          </view>
           <view wx:if="{{textToolMode === 'background'}}" class="text-option-row background-strip">
             <view wx:for="{{textBackgrounds}}" wx:key="*this" class="{{textBackground === item ? 'active' : ''}}" data-background="{{item}}" bindtap="setTextBackground">{{item}}</view>
           </view>
@@ -572,14 +590,6 @@
               <view class="{{textOpacity === 100 ? 'active' : ''}}" data-opacity="100" bindtap="setTextOpacity">100%</view>
             </view>
           </view>
-        </view>
-        <view class="text-style-row">
-          <view class="text-style text-style-0 {{textToolMode === 'font' ? 'active' : ''}}" data-mode="font" bindtap="setTextToolMode"><view class="text-style-icon">B</view><view class="text-style-label">字体</view></view>
-          <view class="text-style text-style-1 {{textToolMode === 'fontVariant' ? 'active' : ''}}" data-mode="fontVariant" bindtap="setTextToolMode"><view class="text-style-icon">Aa</view><view class="text-style-label">样式</view></view>
-          <view class="text-style text-style-2 {{textToolMode === 'color' ? 'active' : ''}}" data-mode="color" bindtap="setTextToolMode"><view class="text-style-icon">●</view><view class="text-style-label">颜色</view></view>
-          <view class="text-style text-style-3 {{textToolMode === 'size' ? 'active' : ''}}" data-mode="size" bindtap="setTextToolMode"><view class="text-style-icon">A</view><view class="text-style-label">大小</view></view>
-          <view class="text-style text-style-4 {{textToolMode === 'background' ? 'active' : ''}}" data-mode="background" bindtap="setTextToolMode"><view class="text-style-icon">□</view><view class="text-style-label">底色</view></view>
-          <view class="text-style text-style-5 {{textToolMode === 'opacity' ? 'active' : ''}}" data-mode="opacity" bindtap="setTextToolMode"><view class="text-style-icon">▦</view><view class="text-style-label">透明</view></view>
         </view>
       </view>
 
