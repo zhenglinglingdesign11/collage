@@ -193,6 +193,8 @@ const BACKGROUND_OPTIONS = createBackgroundOptions();
 const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
 const HOME_SHOWCASES = createHomeShowcaseGroups(HOME_SHOWCASE_BASE_GROUPS);
 const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
+const POLKA_PAPER_PACK_ID = "polka-paper-materials";
+const ASSET_PANEL_PACKS = createAssetPanelPacks();
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
   {
     from: "cloud://cloudbase-d6g4f30s2b2a1c042.636c-cloudbase-d6g4f30s2b2a1c042-1453943164/hudiejie/",
@@ -304,8 +306,8 @@ Page({
     activePalette: "",
     assetCategories: createAssetPanelCategories(),
     activeAssetCategory: "推荐",
-    assetPacks: decorateAssetPanelPacks(getAssetPacks()),
-    visibleAssetPacks: filterAssetPanelPacks(decorateAssetPanelPacks(getAssetPacks()), "推荐"),
+    assetPacks: decorateAssetPanelPacks(ASSET_PANEL_PACKS),
+    visibleAssetPacks: filterAssetPanelPacks(decorateAssetPanelPacks(ASSET_PANEL_PACKS), "推荐"),
     activeAssetPack: null,
     activeAssetPackItems: [],
     backgroundCategories: BACKGROUND_CATEGORIES,
@@ -334,6 +336,10 @@ Page({
     visiblePatternAssetPacks: filterAssetPanelPacks(decorateAssetPanelPacks(getAssetPacks()), "推荐"),
     activePatternAssetPack: null,
     activePatternAssetPackItems: [],
+    paperPatternAssetPickerVisible: false,
+    polkaPaperCustomizing: false,
+    polkaPaperCustomPreviewStyle: "",
+    polkaPaperCustomPreviewTiles: [],
     selectedOutlineStyle: "none",
     brushDebugEnabled: false,
     brushEditing: false,
@@ -1009,13 +1015,14 @@ Page({
       ? this.draft.layers.map((layer) => layer && layer.source).filter(Boolean)
       : [];
     const effectSources = getLayerEffectSources(this.draft.layers || []);
+    const layerPatternSources = getLayerPatternSources(this.draft.layers || []);
     const brushSources = getBrushStampSources(this.draft.layers || []);
     const brushDraftSources = this.brushSession
       ? getBrushStampSources([{ strokes: (this.brushSession.strokes || []).concat(this.brushStroke ? [this.brushStroke] : []) }])
       : [];
     const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
     const patternImageSource = this.draft.backgroundPatternConfig && this.draft.backgroundPatternConfig.imageSource;
-    const sources = Array.from(new Set([backgroundSource, patternImageSource].concat(layerSources, effectSources, brushSources, brushDraftSources).filter(Boolean)));
+    const sources = Array.from(new Set([backgroundSource, patternImageSource].concat(layerSources, effectSources, layerPatternSources, brushSources, brushDraftSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -2991,15 +2998,17 @@ Page({
       activeAssetPack: null,
       activeAssetPackItems: [],
       patternAssetPickerVisible: false,
+      paperPatternAssetPickerVisible: false,
+      polkaPaperCustomizing: false,
       activePatternAssetPack: null,
       activePatternAssetPackItems: []
     });
   },
 
   getAssetPanelState(category, packId, packs, pack) {
-    const assetPacks = decorateAssetPanelPacks(packs || getAssetPacks());
+    const assetPacks = decorateAssetPanelPacks(createAssetPanelPacks(packs));
     const activeCategory = category || "推荐";
-    const activeAssetPack = packId ? decorateAssetPanelPack(pack || getAssetPack(packId)) : null;
+    const activeAssetPack = packId ? decorateAssetPanelPack(pack || getCreateAssetPack(packId)) : null;
     return {
       assetPacks,
       activeAssetCategory: activeCategory,
@@ -3014,7 +3023,7 @@ Page({
     this.assetPanelRequestId = requestId;
     return Promise.all([
       getResolvedAssetPacks(),
-      packId ? getResolvedAssetPack(packId) : Promise.resolve(null)
+      packId && packId !== POLKA_PAPER_PACK_ID ? getResolvedAssetPack(packId) : Promise.resolve(getCreateAssetPack(packId))
     ]).then(([packs, pack]) => {
       if (this.assetPanelRequestId !== requestId) return;
       this.setData(this.getAssetPanelState(category, packId, packs, pack));
@@ -3038,12 +3047,21 @@ Page({
       category: this.data.activeAssetCategory || "推荐",
       source: "create"
     });
-    this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId));
+    this.setData({
+      ...this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId),
+      paperPatternAssetPickerVisible: false,
+      polkaPaperCustomizing: false,
+      ...getPolkaPaperControlData(this.getSelectedPolkaPaperLayer())
+    });
     this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", packId);
   },
 
   backToAssetPacks() {
-    this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""));
+    this.setData({
+      ...this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""),
+      paperPatternAssetPickerVisible: false,
+      polkaPaperCustomizing: false
+    });
     this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", "");
   },
 
@@ -3190,7 +3208,7 @@ Page({
     this.patternAssetPanelRequestId = requestId;
     return Promise.all([
       getResolvedAssetPacks(),
-      packId ? getResolvedAssetPack(packId) : Promise.resolve(null)
+      packId && packId !== POLKA_PAPER_PACK_ID ? getResolvedAssetPack(packId) : Promise.resolve(getCreateAssetPack(packId))
     ]).then(([packs, pack]) => {
       if (this.patternAssetPanelRequestId !== requestId) return;
       this.setData(this.getPatternAssetPanelState(category, packId, packs, pack));
@@ -3349,11 +3367,11 @@ Page({
   addConfiguredAsset(event) {
     this.enterEditMode();
     const assetId = event.currentTarget.dataset.assetId;
-    const asset = getAssetItem(assetId);
+    const asset = getCreateAssetItem(assetId);
     if (!asset || (!asset.source && !asset.cloudFileId)) {
       if (asset && asset.layer) {
         this.addAssetItemToDraft(asset);
-        this.keepAssetDrawerAfterAddingLayer();
+        this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
         this.markDirty();
         track("asset_add_to_canvas", {
           page: "create",
@@ -3374,7 +3392,7 @@ Page({
         return;
       }
       this.addAssetItemToDraft(resolvedAsset);
-      this.keepAssetDrawerAfterAddingLayer();
+      this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
       this.markDirty();
       track("asset_add_to_canvas", {
         page: "create",
@@ -3385,6 +3403,292 @@ Page({
       });
       this.render();
     });
+  },
+
+  applyPolkaPaperPreset(event) {
+    const assetId = event.currentTarget.dataset.assetId;
+    if (!assetId) return;
+    const asset = getCreateAssetItem(assetId);
+    const layer = this.addAssetItemToDraft(asset);
+    if (!layer) {
+      showError("素材添加失败");
+      return;
+    }
+    this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      ...getPolkaPaperControlData(layer)
+    });
+    this.markDirty();
+    track("polka_paper_add", {
+      page: "create",
+      assetId,
+      packId: asset.packId || POLKA_PAPER_PACK_ID,
+      ...getDraftAnalyticsParams(this.draft)
+    });
+    this.render();
+  },
+
+  beginPolkaPaperCustom() {
+    const preset = normalizePolkaPatternConfig({
+      ...DEFAULT_POLKA_PATTERN_CONFIG,
+      offset: "grid"
+    });
+    const preview = createPolkaPaperCustomPreviewData(POLKA_BACKGROUND_COLORS[0].value, preset);
+    this.setData({
+      polkaPaperCustomizing: true,
+      paperPatternAssetPickerVisible: false,
+      ...getPolkaPaperControlData({
+        type: "paper",
+        style: {
+          color: POLKA_BACKGROUND_COLORS[0].value,
+          patternConfig: preset
+        },
+        patternConfig: preset
+      }),
+      ...preview
+    });
+  },
+
+  closePolkaPaperCustom() {
+    this.setData({
+      polkaPaperCustomizing: false,
+      paperPatternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: []
+    });
+  },
+
+  addCustomPolkaPaper() {
+    const background = this.data.selectedPolkaBackground || POLKA_BACKGROUND_COLORS[0].value;
+    const patternConfig = this.getPolkaPaperCustomConfig();
+    const asset = createPolkaPaperAssetFromConfig({
+      id: `paper-custom-polka-${Date.now()}`,
+      name: "自定义波点",
+      color: background,
+      patternConfig
+    });
+    const layer = this.addAssetItemToDraft(asset);
+    if (!layer) {
+      showError("素材添加失败");
+      return;
+    }
+    this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      polkaPaperCustomizing: false
+    });
+    this.markDirty();
+    track("polka_paper_custom_add", {
+      page: "create",
+      ...getDraftAnalyticsParams(this.draft)
+    });
+    this.render();
+  },
+
+  setPolkaPaperBackgroundColor(event) {
+    this.updatePolkaPaperCustom({ background: event.currentTarget.dataset.color });
+  },
+
+  setPolkaPaperDotColor(event) {
+    this.updatePolkaPaperCustom({ dotColor: event.currentTarget.dataset.color });
+  },
+
+  setPolkaPaperDotSize(event) {
+    this.updatePolkaPaperCustom({ dotRadius: Number(event.currentTarget.dataset.radius) });
+  },
+
+  setPolkaPaperDensity(event) {
+    this.updatePolkaPaperCustom({ gap: Number(event.currentTarget.dataset.gap) });
+  },
+
+  setPolkaPaperStyle(event) {
+    this.updatePolkaPaperCustom({ style: event.currentTarget.dataset.style });
+  },
+
+  setPolkaPaperShape(event) {
+    this.updatePolkaPaperCustom({
+      shape: event.currentTarget.dataset.shape,
+      imageSource: "",
+      imageWidth: 0,
+      imageHeight: 0,
+      imageSourceType: "",
+      assetId: "",
+      packId: ""
+    });
+  },
+
+  setPolkaPaperOpacity(event) {
+    this.updatePolkaPaperCustom({ opacity: Number(event.currentTarget.dataset.opacity) });
+  },
+
+  choosePolkaPaperPatternImage() {
+    if (!wx.chooseMedia) return;
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        const tempFilePath = file && file.tempFilePath;
+        if (!tempFilePath) return;
+        Promise.all([
+          persistTempFile(tempFilePath),
+          getImageInfoAsync(tempFilePath).catch(() => null)
+        ]).then(([savedPath, info]) => {
+          this.updatePolkaPaperCustom({
+            shape: "image",
+            imageSourceType: "upload",
+            imageSource: savedPath || tempFilePath,
+            imageWidth: info && info.width ? info.width : 0,
+            imageHeight: info && info.height ? info.height : 0,
+            assetId: "",
+            packId: ""
+          });
+        });
+      }
+    });
+  },
+
+  openPolkaPaperPatternAssetPicker() {
+    this.setData({
+      paperPatternAssetPickerVisible: true,
+      ...this.getPatternAssetPanelState(this.data.activePatternAssetCategory || "推荐", "")
+    });
+    this.refreshPatternAssetPanel(this.data.activePatternAssetCategory || "推荐", "");
+  },
+
+  closePolkaPaperPatternAssetPicker() {
+    this.setData({
+      paperPatternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: []
+    });
+  },
+
+  applyPolkaPaperPatternAsset(event) {
+    const assetId = event.currentTarget.dataset.assetId;
+    if (!assetId) return;
+    getResolvedAssetItem(assetId).then((asset) => {
+      if (!asset || !asset.source) {
+        showError("素材加载失败");
+        return;
+      }
+      this.updatePolkaPaperCustom({
+        shape: "image",
+        imageSourceType: "asset",
+        imageSource: asset.source,
+        imageWidth: asset.width || 0,
+        imageHeight: asset.height || 0,
+        assetId: asset.id || assetId,
+        packId: asset.packId || ""
+      });
+      this.setData({ paperPatternAssetPickerVisible: false });
+      track("polka_paper_pattern_asset_apply", {
+        page: "create",
+        assetId: asset.id || assetId,
+        packId: asset.packId || "",
+        ...getDraftAnalyticsParams(this.draft)
+      });
+    });
+  },
+
+  getPolkaPaperCustomConfig() {
+    return normalizePolkaPatternConfig({
+      ...DEFAULT_POLKA_PATTERN_CONFIG,
+      dotColor: this.data.selectedPolkaDotColor || DEFAULT_POLKA_PATTERN_CONFIG.dotColor,
+      dotRadius: this.data.selectedPolkaDotRadius || DEFAULT_POLKA_PATTERN_CONFIG.dotRadius,
+      gap: this.data.selectedPolkaGap || DEFAULT_POLKA_PATTERN_CONFIG.gap,
+      opacity: this.data.selectedPolkaOpacity == null ? DEFAULT_POLKA_PATTERN_CONFIG.opacity : this.data.selectedPolkaOpacity,
+      style: this.data.selectedPolkaStyle || DEFAULT_POLKA_PATTERN_CONFIG.style,
+      shape: this.data.selectedPolkaShape || DEFAULT_POLKA_PATTERN_CONFIG.shape,
+      imageSource: this.data.selectedPolkaImageSource || "",
+      imageWidth: this.data.selectedPolkaImageWidth || 0,
+      imageHeight: this.data.selectedPolkaImageHeight || 0,
+      imageSourceType: this.data.selectedPolkaImageSourceType || "",
+      assetId: this.data.selectedPolkaAssetId || "",
+      packId: this.data.selectedPolkaPackId || "",
+      offset: "grid"
+    });
+  },
+
+  updatePolkaPaperCustom(patch = {}) {
+    const currentConfig = this.getPolkaPaperCustomConfig();
+    const nextConfig = normalizePolkaPatternConfig({
+      ...currentConfig,
+      dotColor: patch.dotColor || currentConfig.dotColor,
+      dotRadius: patch.dotRadius == null ? currentConfig.dotRadius : patch.dotRadius,
+      gap: patch.gap == null ? currentConfig.gap : patch.gap,
+      opacity: patch.opacity == null ? currentConfig.opacity : patch.opacity,
+      style: patch.style || currentConfig.style,
+      shape: patch.shape || currentConfig.shape,
+      imageSource: patch.imageSource == null ? currentConfig.imageSource : patch.imageSource,
+      imageWidth: patch.imageWidth == null ? currentConfig.imageWidth : patch.imageWidth,
+      imageHeight: patch.imageHeight == null ? currentConfig.imageHeight : patch.imageHeight,
+      imageSourceType: patch.imageSourceType == null ? currentConfig.imageSourceType : patch.imageSourceType,
+      assetId: patch.assetId == null ? currentConfig.assetId : patch.assetId,
+      packId: patch.packId == null ? currentConfig.packId : patch.packId
+    });
+    const background = patch.background || this.data.selectedPolkaBackground || POLKA_BACKGROUND_COLORS[0].value;
+    this.setData({
+      ...getPolkaPaperControlData({
+        type: "paper",
+        style: {
+          color: background,
+          patternConfig: nextConfig
+        },
+        patternConfig: nextConfig
+      }),
+      ...createPolkaPaperCustomPreviewData(background, nextConfig)
+    });
+  },
+
+  updatePolkaPaper(patch = {}) {
+    this.enterEditMode();
+    let layer = this.getSelectedPolkaPaperLayer();
+    if (!layer) {
+      const defaultOption = getCreateAssetItem("paper-polka-cream-small");
+      layer = this.addAssetItemToDraft(defaultOption);
+      layer = layer && this.getLayerById(layer.id) || layer;
+    }
+    if (!layer) return;
+    const currentConfig = normalizePolkaPatternConfig(layer.patternConfig || layer.style && layer.style.patternConfig || DEFAULT_POLKA_PATTERN_CONFIG);
+    const nextConfig = normalizePolkaPatternConfig({
+      ...currentConfig,
+      dotColor: patch.dotColor || currentConfig.dotColor,
+      dotRadius: patch.dotRadius == null ? currentConfig.dotRadius : patch.dotRadius,
+      gap: patch.gap == null ? currentConfig.gap : patch.gap,
+      opacity: patch.opacity == null ? currentConfig.opacity : patch.opacity,
+      style: patch.style || currentConfig.style,
+      shape: patch.shape || currentConfig.shape,
+      imageSource: patch.imageSource == null ? currentConfig.imageSource : patch.imageSource,
+      imageWidth: patch.imageWidth == null ? currentConfig.imageWidth : patch.imageWidth,
+      imageHeight: patch.imageHeight == null ? currentConfig.imageHeight : patch.imageHeight,
+      imageSourceType: patch.imageSourceType == null ? currentConfig.imageSourceType : patch.imageSourceType,
+      assetId: patch.assetId == null ? currentConfig.assetId : patch.assetId,
+      packId: patch.packId == null ? currentConfig.packId : patch.packId
+    });
+    layer.style = {
+      ...(layer.style || {}),
+      color: patch.background || layer.style && layer.style.color || POLKA_BACKGROUND_COLORS[0].value,
+      patternConfig: nextConfig
+    };
+    layer.patternConfig = nextConfig;
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      ...getPolkaPaperControlData(layer)
+    });
+    this.markDirty();
+    this.render();
+  },
+
+  getSelectedPolkaPaperLayer() {
+    const layer = this.getSelectedLayer && this.getSelectedLayer();
+    if (isPolkaPaperLayer(layer)) return layer;
+    return null;
   },
 
   consumePendingAssets() {
@@ -5257,7 +5561,8 @@ Page({
     });
   },
 
-  keepAssetDrawerAfterAddingLayer() {
+  keepAssetDrawerAfterAddingLayer(pack) {
+    const activeAssetPack = pack || this.data.activeAssetPack || null;
     this.setData({
       selectedLayerId: "",
       selectedLayerType: "",
@@ -5265,6 +5570,8 @@ Page({
       selectedLayerLockStyle: "",
       activeTool: "asset",
       activeDrawer: "asset",
+      activeAssetPack,
+      activeAssetPackItems: activeAssetPack && Array.isArray(activeAssetPack.items) ? activeAssetPack.items : this.data.activeAssetPackItems,
       activePalette: "",
       textInputVisible: false,
       keyboardHeight: 0,
@@ -9012,7 +9319,8 @@ function createLayerFromAsset(asset, draft) {
       ...(spec.style || {}),
       packId: asset.packId || "",
       name: asset.name || ""
-    }
+    },
+    patternConfig: spec.patternConfig || null
   };
 }
 
@@ -9096,6 +9404,16 @@ function getLayerEffectSources(layers) {
     const effect = layer && layer.style && layer.style.handmadeEffect;
     if (effect && effect.type === "lace-center" && effect.frameSource) {
       sources.push(effect.frameSource);
+    }
+    return sources;
+  }, []);
+}
+
+function getLayerPatternSources(layers) {
+  return (layers || []).reduce((sources, layer) => {
+    const patternConfig = layer && (layer.patternConfig || layer.style && layer.style.patternConfig);
+    if (patternConfig && patternConfig.type === "polka" && patternConfig.shape === "image" && patternConfig.imageSource) {
+      sources.push(patternConfig.imageSource);
     }
     return sources;
   }, []);
@@ -9197,7 +9515,7 @@ function getLayerOutlineStyleKey(outline) {
 }
 
 function createAssetPanelCategories() {
-  const categories = getAssetPacks().reduce((items, pack) => {
+  const categories = ASSET_PANEL_PACKS.reduce((items, pack) => {
     if (pack.category && !items.includes(pack.category)) {
       items.push(pack.category);
     }
@@ -9205,6 +9523,94 @@ function createAssetPanelCategories() {
   }, []);
   const ordered = ASSET_PANEL_CATEGORY_ORDER.filter((category) => category === "推荐" || categories.includes(category));
   return ordered.concat(categories.filter((category) => !ordered.includes(category)));
+}
+
+function createAssetPanelPacks(packs) {
+  const basePacks = Array.isArray(packs) ? packs : getAssetPacks();
+  const virtualPack = createPolkaPaperAssetPack();
+  const withoutVirtual = basePacks.filter((pack) => pack && pack.id !== POLKA_PAPER_PACK_ID);
+  return withoutVirtual.concat(virtualPack);
+}
+
+function createPolkaPaperAssetPack() {
+  const items = BACKGROUND_OPTIONS.filter((option) => option && option.category === "波点" && option.pattern === "polka").map((option) => {
+    if (!option || option.pattern !== "polka") return null;
+    return createPolkaPaperAssetFromConfig({
+      id: `paper-${option.id}`,
+      name: option.name,
+      color: option.color || "#ffffff",
+      patternConfig: option.patternConfig,
+      previewStyle: option.previewStyle,
+      previewTiles: option.previewTiles || []
+    });
+  }).filter(Boolean);
+  return {
+    id: POLKA_PAPER_PACK_ID,
+    name: "波点内芯纸",
+    category: "内芯纸",
+    tone: "#ffffff",
+    cover: "",
+    isPolkaPaperPack: true,
+    coverPreviews: items.slice(0, 4).map((item) => ({
+      previewStyle: item.previewStyle,
+      previewTiles: item.previewTiles || []
+    })),
+    items
+  };
+}
+
+function createPolkaPaperAssetFromConfig(options) {
+  const patternConfig = normalizePolkaPatternConfig(options.patternConfig);
+  const preview = createPolkaPaperCustomPreviewData(options.color || "#ffffff", patternConfig);
+  return {
+    id: options.id,
+    type: "paper",
+    name: options.name || "波点内芯纸",
+    width: 580,
+    height: 760,
+    thumb: "",
+    previewStyle: options.previewStyle || preview.polkaPaperCustomPreviewStyle,
+    previewTiles: options.previewTiles || preview.polkaPaperCustomPreviewTiles,
+    layer: {
+      type: "paper",
+      width: 580,
+      height: 760,
+      rotation: -2,
+      radius: 10,
+      shadow: true,
+      style: {
+        color: options.color || "#ffffff",
+        patternConfig
+      },
+      patternConfig
+    }
+  };
+}
+
+function createPolkaPaperCustomPreviewData(background, patternConfig) {
+  const config = normalizePolkaPatternConfig(patternConfig);
+  return {
+    polkaPaperCustomPreviewStyle: createPolkaPreviewStyle(background || "#ffffff", config),
+    polkaPaperCustomPreviewTiles: config.shape === "image" && config.imageSource
+      ? createPolkaImagePreviewTiles(config.imageSource, config, {
+        gapMultiplier: 1.72,
+        offset: "grid",
+        previewWidth: 260,
+        previewHeight: 220
+      })
+      : []
+  };
+}
+
+function getCreateAssetPack(packId) {
+  if (packId === POLKA_PAPER_PACK_ID) return createPolkaPaperAssetPack();
+  return getAssetPack(packId);
+}
+
+function getCreateAssetItem(assetId) {
+  const virtualPack = createPolkaPaperAssetPack();
+  const virtualItem = virtualPack.items.find((item) => item.id === assetId);
+  return virtualItem || getAssetItem(assetId);
 }
 
 function decorateAssetPanelPacks(packs) {
@@ -9215,12 +9621,17 @@ function decorateAssetPanelPack(pack) {
   if (!pack) return null;
   return {
     ...pack,
+    isPolkaPaperPack: !!pack.isPolkaPaperPack,
+    coverStyle: pack.coverStyle || "",
+    coverPreviews: Array.isArray(pack.coverPreviews) ? pack.coverPreviews : [],
     itemCount: Array.isArray(pack.items) ? pack.items.length : 0,
     items: Array.isArray(pack.items)
       ? pack.items.map((item) => ({
         ...item,
         packId: pack.id,
         packName: pack.name,
+        panelPreviewTiles: item.previewTiles || [],
+        panelPatternPreviewStyle: item.previewStyle || "",
         panelPreviewStyle: getAssetPanelPreviewStyle(item)
       }))
       : []
@@ -9234,7 +9645,12 @@ function filterAssetPanelPacks(packs, category) {
 
 function filterRecommendedAssetPanelPacks(packs) {
   const byId = new Map((packs || []).map((pack) => [pack.id, pack]));
-  return recommendedAssetPackIds.map((packId) => byId.get(packId)).filter(Boolean);
+  const recommended = recommendedAssetPackIds.map((packId) => byId.get(packId)).filter(Boolean);
+  const polkaPaperPack = byId.get(POLKA_PAPER_PACK_ID);
+  if (polkaPaperPack) {
+    recommended.splice(Math.max(0, recommended.length - 2), 0, polkaPaperPack);
+  }
+  return recommended;
 }
 
 function getAssetPanelPreviewStyle(item) {
@@ -9661,6 +10077,47 @@ function getPolkaPatternControlData(draft) {
     selectedPolkaOpacity: config.opacity,
     selectedPolkaImageSource: config.imageSource || "",
     selectedPolkaImageSourceType: config.imageSourceType || ""
+  };
+}
+
+function isPolkaPaperLayer(layer) {
+  const patternConfig = layer && (layer.patternConfig || layer.style && layer.style.patternConfig);
+  return !!(layer && layer.type === "paper" && patternConfig && patternConfig.type === "polka");
+}
+
+function getPolkaPaperControlData(layer) {
+  if (!isPolkaPaperLayer(layer)) {
+    return {
+      selectedPolkaBackground: POLKA_BACKGROUND_COLORS[0].value,
+      selectedPolkaDotColor: DEFAULT_POLKA_PATTERN_CONFIG.dotColor,
+      selectedPolkaDotRadius: DEFAULT_POLKA_PATTERN_CONFIG.dotRadius,
+      selectedPolkaGap: DEFAULT_POLKA_PATTERN_CONFIG.gap,
+      selectedPolkaStyle: DEFAULT_POLKA_PATTERN_CONFIG.style,
+      selectedPolkaShape: DEFAULT_POLKA_PATTERN_CONFIG.shape,
+      selectedPolkaOpacity: DEFAULT_POLKA_PATTERN_CONFIG.opacity,
+      selectedPolkaImageSource: "",
+      selectedPolkaImageSourceType: "",
+      selectedPolkaImageWidth: 0,
+      selectedPolkaImageHeight: 0,
+      selectedPolkaAssetId: "",
+      selectedPolkaPackId: ""
+    };
+  }
+  const config = normalizePolkaPatternConfig(layer.patternConfig || layer.style && layer.style.patternConfig);
+  return {
+    selectedPolkaBackground: layer.style && layer.style.color || POLKA_BACKGROUND_COLORS[0].value,
+    selectedPolkaDotColor: config.dotColor,
+    selectedPolkaDotRadius: config.dotRadius,
+    selectedPolkaGap: config.gap,
+    selectedPolkaStyle: config.style,
+    selectedPolkaShape: config.shape,
+    selectedPolkaOpacity: config.opacity,
+    selectedPolkaImageSource: config.imageSource || "",
+    selectedPolkaImageSourceType: config.imageSourceType || "",
+    selectedPolkaImageWidth: config.imageWidth || 0,
+    selectedPolkaImageHeight: config.imageHeight || 0,
+    selectedPolkaAssetId: config.assetId || "",
+    selectedPolkaPackId: config.packId || ""
   };
 }
 

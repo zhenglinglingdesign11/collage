@@ -49,7 +49,7 @@ function drawBackgroundPattern(ctx, draft, options = {}) {
     }
   }
   if (pattern === "polka") {
-    drawPolkaBackgroundPattern(ctx, draft, options);
+    drawPolkaPatternInRect(ctx, draft.width, draft.height, draft && draft.backgroundPatternConfig, options);
   }
   if (pattern === "line") {
     setLineWidth(ctx, 1.4);
@@ -160,7 +160,7 @@ function drawLayer(ctx, layer, options = {}) {
   } else if (layer.type === "tape") {
     drawTape(ctx, layer);
   } else {
-    drawPaper(ctx, layer);
+    drawPaper(ctx, layer, options);
   }
   if (clipShape && layer.type !== "text" && !hasTear) {
     drawEmbossEdge(ctx, clipShape, layer.width, layer.height);
@@ -177,8 +177,8 @@ function drawLayer(ctx, layer, options = {}) {
   ctx.restore();
 }
 
-function drawPolkaBackgroundPattern(ctx, draft, options = {}) {
-  const config = normalizePolkaBackgroundConfig(draft && draft.backgroundPatternConfig);
+function drawPolkaPatternInRect(ctx, width, height, patternConfig, options = {}) {
+  const config = normalizePolkaBackgroundConfig(patternConfig);
   const gap = config.gap;
   const radius = Math.min(config.dotRadius, gap * 0.42);
   const colors = config.dotColors.length ? config.dotColors : [config.dotColor];
@@ -186,10 +186,10 @@ function drawPolkaBackgroundPattern(ctx, draft, options = {}) {
     ? options.imageCache[config.imageSource]
     : null;
   const rowOffset = config.offset === "grid" ? 0 : gap / 2;
-  for (let y = gap / 2; y < draft.height + radius; y += gap) {
+  for (let y = gap / 2; y < height + radius; y += gap) {
     const row = Math.floor(y / gap);
     const startX = gap / 2 + (row % 2 === 1 ? rowOffset : 0);
-    for (let x = startX - gap; x < draft.width + radius; x += gap) {
+    for (let x = startX - gap; x < width + radius; x += gap) {
       const color = colors[Math.abs((row * 31 + Math.floor(x / gap) * 17 + config.seed) % colors.length)];
       drawPolkaDot(ctx, x, y, radius, color, config.opacity, config.style, config.shape, image);
     }
@@ -1005,7 +1005,7 @@ function drawFallbackLaceFrame(ctx, layer, opening) {
   ctx.restore();
 }
 
-function drawPaper(ctx, layer) {
+function drawPaper(ctx, layer, options = {}) {
   const style = layer.style || {};
   setFillStyle(ctx, style.color || "#ffffff");
   const shape = getLayerClipShape(layer);
@@ -1020,6 +1020,7 @@ function drawPaper(ctx, layer) {
   } else {
     ctx.fillRect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
   }
+  drawPaperPattern(ctx, layer, options);
   setShadow(ctx, 0, 0, 0, "transparent");
   setStrokeStyle(ctx, "rgba(17,17,17,0.08)");
   if (shape) {
@@ -1541,6 +1542,29 @@ function addTornSegmentPoints(points, x1, y1, x2, y2, step, amplitude, seed) {
       y: y1 + (y2 - y1) * t + normal.y * jitter + (y2 - y1) / length * alongJitter
     });
   }
+}
+
+function drawPaperPattern(ctx, layer, options = {}) {
+  const style = layer.style || {};
+  const patternConfig = style.patternConfig || layer.patternConfig;
+  if (!patternConfig || patternConfig.type !== "polka") return;
+  const shape = getLayerClipShape(layer);
+  ctx.save();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  if (layer.tear) {
+    drawTearPath(ctx, layer);
+  } else if (shape) {
+    drawShapePath(ctx, shape, -layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  } else if (layer.radius) {
+    roundedRect(ctx, -layer.width / 2, -layer.height / 2, layer.width, layer.height, layer.radius);
+  } else {
+    ctx.beginPath();
+    ctx.rect(-layer.width / 2, -layer.height / 2, layer.width, layer.height);
+  }
+  ctx.clip();
+  ctx.translate(-layer.width / 2, -layer.height / 2);
+  drawPolkaPatternInRect(ctx, layer.width, layer.height, patternConfig, options);
+  ctx.restore();
 }
 
 function sampleShapeOutline(shape, x, y, width, height) {

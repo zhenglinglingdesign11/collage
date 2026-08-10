@@ -116,7 +116,7 @@
     <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
     <cover-view wx:if="{{imageEffectDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="effect-dev-entry" bindtap="beginImageEffectEditing">效果DEV</cover-view>
 
-    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{selectedLayerId && activePalette !== 'effect' && !textInputVisible ? 'layer-editing' : ''}} {{selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline') ? 'layer-palette-editing' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}} {{activePalette === 'effect' ? 'effect-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
+    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{selectedLayerId && !activeDrawer && activePalette !== 'effect' && !textInputVisible ? 'layer-editing' : ''}} {{selectedLayerId && !activeDrawer && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline') ? 'layer-palette-editing' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}} {{activePalette === 'effect' ? 'effect-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
       <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
         <canvas
           type="2d"
@@ -337,7 +337,7 @@
       </view>
     </view>
 
-    <view wx:if="{{selectedLayerId && activePalette !== 'effect' && !textInputVisible && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="layer-toolbar {{activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline' ? 'palette-active' : ''}}">
+    <view wx:if="{{selectedLayerId && !activeDrawer && activePalette !== 'effect' && !textInputVisible && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="layer-toolbar {{activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline' ? 'palette-active' : ''}}">
       <view class="layer-head">
         <view class="layer-title">已选中图层</view>
         <view wx:if="{{selectedLayerType === 'text'}}" class="panel-link" bindtap="editSelectedText">编辑文字</view>
@@ -500,7 +500,7 @@
       </block>
     </view>
 
-    <block wx:if="{{((!selectedLayerId || textInputVisible) || activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline') && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}">
+    <block wx:if="{{(activeDrawer || (!selectedLayerId || textInputVisible) || activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline') && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}">
       <cover-view wx:if="{{activePalette === 'cut'}}" class="tool-palette cut-palette {{selectedLayerId ? 'layer-cut-palette' : ''}}">
         <cover-view class="palette-tool palette-tool-0" data-style="straight" bindtap="selectCutStyle">
           <cover-image class="cut-icon cut-icon-straight" src="/assets/icons/scissors/bolang.png"></cover-image>
@@ -662,12 +662,20 @@
 
       <block wx:if="{{activeDrawer}}">
         <view class="drawer-backdrop {{activeDrawer === 'asset' || activeDrawer === 'background' ? 'transparent' : ''}}" bindtap="closeDrawer"></view>
-        <view class="drawer">
+        <view class="drawer {{activeDrawer === 'asset' ? 'asset-drawer' : ''}} {{polkaPaperCustomizing ? 'polka-paper-custom-drawer' : ''}}">
           <view class="drawer-handle"></view>
 
           <block wx:if="{{activeDrawer === 'asset'}}">
             <view class="drawer-title-row">
-              <view wx:if="{{activeAssetPack}}" class="drawer-return-zone" bindtap="backToAssetPacks">
+              <view wx:if="{{paperPatternAssetPickerVisible}}" class="drawer-return-zone" bindtap="closePolkaPaperPatternAssetPicker">
+                <view class="drawer-back-link">‹</view>
+                <view class="drawer-title with-back">选择图案素材</view>
+              </view>
+              <view wx:elif="{{polkaPaperCustomizing}}" class="drawer-return-zone" bindtap="closePolkaPaperCustom">
+                <view class="drawer-back-link">‹</view>
+                <view class="drawer-title with-back">自定义</view>
+              </view>
+              <view wx:elif="{{activeAssetPack}}" class="drawer-return-zone" bindtap="backToAssetPacks">
                 <view class="drawer-back-link">‹</view>
                 <view class="drawer-title with-back">{{activeAssetPack.name}}</view>
               </view>
@@ -693,9 +701,163 @@
                   data-pack="{{item.id}}"
                   bindtap="openAssetPack"
                 >
-                  <image class="asset-pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
+                  <view wx:if="{{item.isPolkaPaperPack}}" class="asset-pack-cover asset-pack-polka-cover">
+                    <view
+                      wx:for="{{item.coverPreviews}}"
+                      wx:for-item="preview"
+                      wx:for-index="previewIndex"
+                      wx:key="previewIndex"
+                      class="asset-pack-polka-preview"
+                      style="{{preview.previewStyle}}"
+                    >
+                      <image
+                        wx:for="{{preview.previewTiles}}"
+                        wx:for-item="tile"
+                        wx:key="style"
+                        class="asset-pattern-tile"
+                        src="{{tile.src}}"
+                        style="{{tile.style}}"
+                        mode="aspectFit"
+                      ></image>
+                    </view>
+                  </view>
+                  <view wx:elif="{{item.coverStyle}}" class="asset-pack-cover asset-pack-pattern-cover" style="{{item.coverStyle}}"></view>
+                  <image wx:else class="asset-pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
                 </view>
               </scroll-view>
+            </block>
+            <block wx:elif="{{activeAssetPack.isPolkaPaperPack}}">
+              <block wx:if="{{paperPatternAssetPickerVisible}}">
+                <block wx:if="{{!activePatternAssetPack}}">
+                  <scroll-view scroll-x class="chip-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                    <view
+                      wx:for="{{patternAssetCategories}}"
+                      wx:key="*this"
+                      class="chip {{activePatternAssetCategory === item ? 'active' : ''}}"
+                      data-category="{{item}}"
+                      bindtap="selectPatternAssetCategory"
+                    >{{item}}</view>
+                  </scroll-view>
+                  <scroll-view scroll-y class="asset-pack-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                    <view
+                      wx:for="{{visiblePatternAssetPacks}}"
+                      wx:key="id"
+                      class="asset-pack-card"
+                      style="background: {{item.tone}};"
+                      data-pack="{{item.id}}"
+                      bindtap="openPatternAssetPack"
+                    >
+                      <image class="asset-pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
+                    </view>
+                  </scroll-view>
+                </block>
+                <block wx:else>
+                  <scroll-view scroll-y class="asset-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                    <view
+                      wx:for="{{activePatternAssetPackItems}}"
+                      wx:key="id"
+                      class="asset-card"
+                      data-asset-id="{{item.id}}"
+                      bindtap="applyPolkaPaperPatternAsset"
+                    >
+                      <image class="asset-thumb" src="{{item.thumb}}" style="{{item.panelPreviewStyle}}" mode="aspectFit"></image>
+                    </view>
+                  </scroll-view>
+                </block>
+              </block>
+              <block wx:elif="{{polkaPaperCustomizing}}">
+                <view class="polka-paper-custom-panel">
+                  <view class="polka-paper-custom-preview" style="{{polkaPaperCustomPreviewStyle}}">
+                    <image
+                      wx:for="{{polkaPaperCustomPreviewTiles}}"
+                      wx:for-item="tile"
+                      wx:key="style"
+                      class="background-preview-tile"
+                      src="{{tile.src}}"
+                      style="{{tile.style}}"
+                      mode="aspectFit"
+                    ></image>
+                  </view>
+                  <scroll-view scroll-y class="polka-config asset-polka-config" enhanced="{{true}}" show-scrollbar="{{false}}">
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">图形</view>
+                      <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view class="polka-segment upload {{selectedPolkaShape === 'image' && selectedPolkaImageSourceType === 'upload' ? 'active' : ''}}" bindtap="choosePolkaPaperPatternImage">本地</view>
+                        <view class="polka-segment upload {{selectedPolkaShape === 'image' && selectedPolkaImageSourceType === 'asset' ? 'active' : ''}}" bindtap="openPolkaPaperPatternAssetPicker">素材</view>
+                        <view wx:for="{{polkaShapes}}" wx:key="value" class="polka-segment shape {{selectedPolkaShape === item.value ? 'active' : ''}}" data-shape="{{item.value}}" bindtap="setPolkaPaperShape">{{item.label}}</view>
+                      </scroll-view>
+                    </view>
+                    <view class="polka-config-row">
+                      <view class="polka-config-label">底色</view>
+                      <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view wx:for="{{polkaBackgroundColors}}" wx:key="value" class="polka-swatch {{selectedPolkaBackground === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setPolkaPaperBackgroundColor"></view>
+                      </scroll-view>
+                    </view>
+                    <view class="polka-config-row">
+                      <view class="polka-config-label">点色</view>
+                      <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view wx:for="{{polkaDotColors}}" wx:key="value" class="polka-swatch {{selectedPolkaDotColor === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setPolkaPaperDotColor"></view>
+                      </scroll-view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">大小</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{polkaDotSizes}}" wx:key="value" class="polka-segment {{selectedPolkaDotRadius === item.value ? 'active' : ''}}" data-radius="{{item.value}}" bindtap="setPolkaPaperDotSize">{{item.label}}</view>
+                      </view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">密度</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{polkaDensities}}" wx:key="value" class="polka-segment {{selectedPolkaGap === item.value ? 'active' : ''}}" data-gap="{{item.value}}" bindtap="setPolkaPaperDensity">{{item.label}}</view>
+                      </view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">样式</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{polkaStyles}}" wx:key="value" class="polka-segment {{selectedPolkaStyle === item.value ? 'active' : ''}}" data-style="{{item.value}}" bindtap="setPolkaPaperStyle">{{item.label}}</view>
+                      </view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">透明</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{polkaOpacities}}" wx:key="value" class="polka-segment {{selectedPolkaOpacity === item.value ? 'active' : ''}}" data-opacity="{{item.value}}" bindtap="setPolkaPaperOpacity">{{item.label}}</view>
+                      </view>
+                    </view>
+                  </scroll-view>
+                </view>
+                <view class="polka-paper-add-button" bindtap="addCustomPolkaPaper">添加</view>
+              </block>
+              <block wx:else>
+                <scroll-view scroll-y class="asset-scroll polka-paper-asset-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                  <view class="asset-list-grid">
+                    <view class="asset-card polka-paper-custom-entry" bindtap="beginPolkaPaperCustom">
+                      <view class="polka-paper-custom-content">
+                        <view class="polka-paper-custom-plus">+</view>
+                        <view class="polka-paper-custom-label">自定义</view>
+                      </view>
+                    </view>
+                    <view
+                      wx:for="{{activeAssetPackItems}}"
+                      wx:key="id"
+                      class="asset-card"
+                      data-asset-id="{{item.id}}"
+                      bindtap="applyPolkaPaperPreset"
+                    >
+                      <view class="asset-thumb asset-pattern-thumb" style="{{item.panelPatternPreviewStyle}}">
+                        <image
+                          wx:for="{{item.panelPreviewTiles}}"
+                          wx:for-item="tile"
+                          wx:key="style"
+                          class="asset-pattern-tile"
+                          src="{{tile.src}}"
+                          style="{{tile.style}}"
+                          mode="aspectFit"
+                        ></image>
+                      </view>
+                    </view>
+                  </view>
+                </scroll-view>
+              </block>
             </block>
             <block wx:else>
               <scroll-view scroll-y class="asset-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
@@ -706,7 +868,18 @@
                   data-asset-id="{{item.id}}"
                   bindtap="addConfiguredAsset"
                 >
-                  <image class="asset-thumb" src="{{item.thumb}}" style="{{item.panelPreviewStyle}}" mode="aspectFit"></image>
+                  <view wx:if="{{item.panelPatternPreviewStyle}}" class="asset-thumb asset-pattern-thumb" style="{{item.panelPatternPreviewStyle}}">
+                    <image
+                      wx:for="{{item.panelPreviewTiles}}"
+                      wx:for-item="tile"
+                      wx:key="style"
+                      class="asset-pattern-tile"
+                      src="{{tile.src}}"
+                      style="{{tile.style}}"
+                      mode="aspectFit"
+                    ></image>
+                  </view>
+                  <image wx:else class="asset-thumb" src="{{item.thumb}}" style="{{item.panelPreviewStyle}}" mode="aspectFit"></image>
                 </view>
               </scroll-view>
             </block>

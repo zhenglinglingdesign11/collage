@@ -1681,6 +1681,15 @@ button::after {
   z-index: 990;
 }
 
+.drawer.asset-drawer {
+  padding-bottom: 0;
+}
+
+.drawer.asset-drawer.polka-paper-custom-drawer {
+  min-height: calc(820rpx + env(safe-area-inset-bottom));
+  max-height: 88vh;
+}
+
 .drawer-handle {
   width: 76rpx;
   height: 8rpx;
@@ -1786,6 +1795,10 @@ button::after {
   white-space: normal;
 }
 
+.asset-drawer .asset-scroll {
+  height: calc(544rpx + env(safe-area-inset-bottom));
+}
+
 .asset-pack-scroll {
   height: 428rpx;
   box-sizing: border-box;
@@ -1800,6 +1813,10 @@ button::after {
   overflow-x: hidden;
   overflow-y: auto;
   white-space: normal;
+}
+
+.asset-drawer .asset-pack-scroll {
+  height: calc(472rpx + env(safe-area-inset-bottom));
 }
 
 .background-scroll.polka-scroll {
@@ -2021,6 +2038,166 @@ button::after {
   display: block;
 }
 
+.asset-pack-pattern-cover {
+  width: 116rpx;
+  height: 154rpx;
+  margin: 38rpx auto 0;
+  border-radius: 12rpx;
+  box-shadow: 0 10rpx 22rpx rgba(17, 17, 17, 0.10);
+}
+
+.asset-pack-polka-cover {
+  display: grid;
+  width: 154rpx;
+  height: 176rpx;
+  margin: 28rpx auto 0;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8rpx;
+}
+
+.asset-pack-polka-preview {
+  position: relative;
+  border-radius: 8rpx;
+  box-shadow: 0 6rpx 14rpx rgba(17, 17, 17, 0.08);
+  overflow: hidden;
+}
+
+.asset-polka-paper-scroll {
+  height: 154rpx;
+  min-height: 154rpx;
+}
+
+.polka-paper-asset-scroll {
+  height: calc(544rpx + env(safe-area-inset-bottom));
+}
+
+.asset-polka-config {
+  margin-top: 8rpx;
+}
+
+.asset-polka-config {
+  height: 328rpx;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding-bottom: 12rpx;
+}
+
+.asset-polka-config .polka-config-row {
+  min-height: 56rpx;
+  margin-bottom: 12rpx;
+}
+
+.asset-polka-config .polka-config-row.compact {
+  min-height: 50rpx;
+  margin-bottom: 10rpx;
+}
+
+.asset-polka-config .polka-config-label {
+  flex-basis: 70rpx;
+  font-size: 23rpx;
+  line-height: 32rpx;
+}
+
+.asset-polka-config .polka-swatch-row {
+  display: block;
+  overflow-x: auto;
+  overflow-y: visible;
+  box-sizing: border-box;
+  padding-left: 14rpx;
+  padding-top: 8rpx;
+  padding-bottom: 8rpx;
+}
+
+.asset-polka-config .polka-swatch-row::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.asset-polka-config .polka-segment-row {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.asset-polka-config .polka-segment-row::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.asset-polka-config .polka-segment {
+  min-width: 78rpx;
+  height: 46rpx;
+  padding: 0 16rpx;
+  margin-right: 10rpx;
+  font-size: 23rpx;
+  line-height: 46rpx;
+}
+
+.asset-polka-config .polka-swatch {
+  width: 40rpx;
+  height: 40rpx;
+  margin: 8rpx 20rpx 8rpx 6rpx;
+}
+
+.polka-paper-custom-panel {
+  position: relative;
+  height: calc(608rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  padding-bottom: 100rpx;
+  overflow: visible;
+}
+
+.polka-paper-custom-preview {
+  position: relative;
+  width: 420rpx;
+  height: 210rpx;
+  margin: 0 auto 18rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  box-shadow: 0 10rpx 22rpx rgba(17, 17, 17, 0.08);
+  overflow: hidden;
+}
+
+.polka-paper-add-button {
+  position: absolute;
+  left: 40rpx;
+  right: 40rpx;
+  bottom: calc(14rpx + env(safe-area-inset-bottom));
+  height: 68rpx;
+  border-radius: 999rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 28rpx;
+  line-height: 68rpx;
+  text-align: center;
+  font-weight: 700;
+}
+
+.polka-paper-custom-plus {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #111111;
+  font-size: 42rpx;
+  line-height: 48rpx;
+  text-align: center;
+  box-shadow: 0 6rpx 16rpx rgba(17, 17, 17, 0.08);
+}
+
+.polka-paper-custom-label {
+  margin-top: 10rpx;
+  color: #111111;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  font-weight: 700;
+}
+
 .asset-card {
   display: inline-block;
   width: 211rpx;
@@ -2041,6 +2218,39 @@ button::after {
   width: 168rpx;
   height: 168rpx;
   margin: 21rpx auto 0;
+}
+
+.asset-card.polka-paper-custom-entry {
+  position: relative;
+  display: inline-block;
+  text-align: center;
+  background: #f7f7f5;
+}
+
+.polka-paper-custom-content {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+}
+
+.asset-pattern-thumb {
+  position: relative;
+  width: 118rpx;
+  height: 154rpx;
+  margin: 28rpx auto 0;
+  border-radius: 10rpx;
+  box-shadow: 0 8rpx 18rpx rgba(17, 17, 17, 0.08);
+  overflow: hidden;
+}
+
+.asset-pattern-tile {
+  position: absolute;
+  display: block;
 }
 
 .asset-css-thumb {
