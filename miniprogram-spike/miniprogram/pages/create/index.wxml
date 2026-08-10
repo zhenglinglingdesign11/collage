@@ -887,6 +887,11 @@
         </view>
       </block>
 
+      <cover-view wx:if="{{backgroundHintVisible && !activeDrawer && !activePalette && !selectedLayerId && !textInputVisible && !straightCutEditing && !brushEditing && !imageEffectEditing}}" class="background-hint">
+        <cover-view class="background-hint-text">更多波点在这里</cover-view>
+        <cover-view class="background-hint-arrow"></cover-view>
+      </cover-view>
+
       <cover-view wx:if="{{!textInputVisible && !straightCutEditing && !brushEditing && !imageEffectEditing && activeDrawer !== 'asset' && activeDrawer !== 'background' && !(selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline' || activePalette === 'effect'))}}" class="main-toolbar">
         <cover-view class="tool tool-0 {{activeTool === 'image' ? 'active' : ''}}" data-tool="image" bindtap="openToolPanel">
           <cover-image class="tool-icon" src="/assets/icons/img.png"></cover-image>

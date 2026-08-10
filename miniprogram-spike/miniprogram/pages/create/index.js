@@ -107,6 +107,7 @@ const CROSS_STITCH_OUTPUT_CELL = 14;
 const CROSS_STITCH_MAX_OUTPUT_SIZE = 1800;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const FONT_FILE_CACHE_PREFIX = "journal.fontFileCache.v1.";
+const BACKGROUND_HINT_SEEN_KEY = "journal.backgroundHintSeen.v1";
 const TEXT_FONTS = getTextFonts();
 const CUTTABLE_SOURCE_LAYER_TYPES = ["image", "sticker", "paper"];
 const KPOP_HOLO_FOIL_TEXTURE = "/assets/textures/holo-foil-768.webp";
@@ -152,7 +153,12 @@ const POLKA_DOT_COLORS = [
   { value: "#d94a38", label: "红" },
   { value: "#b45d79", label: "粉" },
   { value: "#5f806f", label: "绿" },
-  { value: "#6d9bc3", label: "蓝" }
+  { value: "#6d9bc3", label: "蓝" },
+  { value: "#8fe3cf", label: "薄荷" },
+  { value: "#a9d8ff", label: "冰蓝" },
+  { value: "#c9b7ff", label: "薰衣草" },
+  { value: "#fff08a", label: "奶油黄" },
+  { value: "#ff9fb7", label: "珊瑚粉" }
 ];
 const POLKA_DOT_SIZES = [
   { value: 5, label: "小" },
@@ -241,7 +247,12 @@ Page({
       { value: "#7b5c75", label: "莓紫" },
       { value: "#c97945", label: "陶橙" },
       { value: "#5f806f", label: "松绿" },
-      { value: "#6b4f3f", label: "可可棕" }
+      { value: "#6b4f3f", label: "可可棕" },
+      { value: "#8fe3cf", label: "薄荷绿" },
+      { value: "#a9d8ff", label: "冰蓝" },
+      { value: "#c9b7ff", label: "薰衣草" },
+      { value: "#fff08a", label: "奶油黄" },
+      { value: "#ff9fb7", label: "珊瑚粉" }
     ],
     textBackgrounds: ["无", "纸底", "白底", "黑底", "胶带"],
     textFont: DEFAULT_TEXT_FONT_STYLE.fontId,
@@ -504,6 +515,7 @@ Page({
     ],
     canUndo: false,
     canRedo: false,
+    backgroundHintVisible: false,
     layerActionsOffset: 0,
     layerActionsPage: 0,
     layerActionsDragging: false,
@@ -2403,8 +2415,12 @@ Page({
       backgroundId: option.id,
       backgroundCategory: option.category || ""
     });
+    const shouldShowBackgroundHint = !wx.getStorageSync(BACKGROUND_HINT_SEEN_KEY);
     this.markDirty();
     this.render();
+    if (shouldShowBackgroundHint) {
+      this.setData({ backgroundHintVisible: true });
+    }
     track("home_background_preset_apply", {
       page: "create",
       backgroundId: option.id,
@@ -2652,6 +2668,9 @@ Page({
   },
 
   openToolPanel(event) {
+    if (this.data.backgroundHintVisible) {
+      this.dismissBackgroundHint();
+    }
     const tool = event.currentTarget.dataset.tool || "";
     track("tool_panel_open", {
       page: "create",
@@ -4128,6 +4147,10 @@ Page({
     if (this.data.brushEditing) return;
     if (this.data.imageEffectEditing) return;
     if (this.data.straightCutEditing) return;
+    if (this.data.backgroundHintVisible) {
+      this.dismissBackgroundHint();
+      return;
+    }
     if (this.data.textInputVisible) {
       this.dismissTextEditorFromCanvas();
       return;
@@ -4162,6 +4185,11 @@ Page({
     if (shouldRender) {
       this.render();
     }
+  },
+
+  dismissBackgroundHint() {
+    wx.setStorageSync(BACKGROUND_HINT_SEEN_KEY, true);
+    this.setData({ backgroundHintVisible: false });
   },
 
   noopCanvasTap() {},
@@ -9287,7 +9315,7 @@ function createBackgroundHomeShowcaseGroup() {
   }).filter(Boolean);
   return {
     id: "pattern-background",
-    title: "波点底纸一换就出片",
+    title: "波点控看过来",
     items
   };
 }

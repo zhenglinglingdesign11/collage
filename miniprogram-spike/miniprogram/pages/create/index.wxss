@@ -1176,6 +1176,42 @@ button::after {
 .tool-5 { left: 71.4285%; }
 .tool-6 { left: 85.7142%; }
 
+.background-hint {
+  position: fixed;
+  left: 21.5%;
+  bottom: calc(178rpx + env(safe-area-inset-bottom));
+  z-index: 975;
+  width: 212rpx;
+  height: 76rpx;
+  pointer-events: none;
+}
+
+.background-hint-text {
+  height: 64rpx;
+  box-sizing: border-box;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  background: rgba(17, 17, 17, 0.9);
+  color: #ffffff;
+  font-size: 24rpx;
+  line-height: 64rpx;
+  text-align: center;
+  font-weight: 700;
+  box-shadow: 0 10rpx 28rpx rgba(17, 17, 17, 0.18);
+}
+
+.background-hint-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: 1rpx;
+  width: 0;
+  height: 0;
+  margin-left: -10rpx;
+  border-left: 10rpx solid transparent;
+  border-right: 10rpx solid transparent;
+  border-top: 12rpx solid rgba(17, 17, 17, 0.9);
+}
+
 .tool-label {
   position: absolute;
   left: 0;
