@@ -196,6 +196,7 @@ Page({
     embossEditing: false,
     embossShape: "circle",
     embossImageSrc: "",
+    embossPreviewStyle: "",
     embossImageStyle: "",
     embossMaskStyle: "",
     embossMaskShapeClass: "circle",
@@ -1353,27 +1354,36 @@ Page({
   },
 
   refreshEffectCanvasLayout() {
-    if (this.data.activePalette !== "effect") return;
-    wx.createSelectorQuery()
-      .in(this)
-      .select(".canvas-stage")
-      .boundingClientRect()
-      .select(".effect-editor-panel")
-      .boundingClientRect()
-      .exec((res) => {
-        const stageRect = res && res[0];
-        const panelRect = res && res[1];
-        if (!stageRect || !panelRect || !panelRect.height || this.data.activePalette !== "effect") return;
-        const measuredPanelHeight = Math.ceil(panelRect.height);
-        const measuredStageHeight = Math.max(260, Math.floor(panelRect.top - stageRect.top - EFFECT_PANEL_GAP));
-        const panelChanged = Math.abs(measuredPanelHeight - (this.effectPanelHeight || 0)) >= 2;
-        const stageChanged = Math.abs(measuredStageHeight - (this.effectStageHeight || 0)) >= 2;
-        if (!panelChanged && !stageChanged) return;
-        this.effectPanelHeight = measuredPanelHeight;
-        this.effectStageHeight = measuredStageHeight;
-        this.setData({ canvasStageStyle: this.getEffectCanvasStageStyle() });
-        this.render();
-      });
+    if (this.data.activePalette !== "effect") return Promise.resolve();
+    return new Promise((resolve) => {
+      wx.createSelectorQuery()
+        .in(this)
+        .select(".canvas-stage")
+        .boundingClientRect()
+        .select(".effect-editor-panel")
+        .boundingClientRect()
+        .exec((res) => {
+          const stageRect = res && res[0];
+          const panelRect = res && res[1];
+          if (!stageRect || !panelRect || !panelRect.height || this.data.activePalette !== "effect") {
+            resolve();
+            return;
+          }
+          const measuredPanelHeight = Math.ceil(panelRect.height);
+          const measuredStageHeight = Math.max(260, Math.floor(panelRect.top - stageRect.top - EFFECT_PANEL_GAP));
+          const panelChanged = Math.abs(measuredPanelHeight - (this.effectPanelHeight || 0)) >= 2;
+          const stageChanged = Math.abs(measuredStageHeight - (this.effectStageHeight || 0)) >= 2;
+          if (!panelChanged && !stageChanged) {
+            resolve();
+            return;
+          }
+          this.effectPanelHeight = measuredPanelHeight;
+          this.effectStageHeight = measuredStageHeight;
+          this.setData({ canvasStageStyle: this.getEffectCanvasStageStyle() }, () => {
+            this.render().then(resolve);
+          });
+        });
+    });
   },
 
   async render(retryCount = 0) {
@@ -2238,6 +2248,14 @@ Page({
     this.choosePhotoBySource(source);
   },
 
+  enterBlankCanvas() {
+    if (!this.data.isEmptyMode) return;
+    this.resetToBlankDraftForEmptyEntry();
+    this.trackCreatePageView("blank_canvas", { source: "home_blank_canvas_entry" });
+    this.enterEditMode();
+    setTimeout(() => this.render(), 0);
+  },
+
   choosePhotoForShowcase(event) {
     const dataset = event && event.currentTarget && event.currentTarget.dataset || {};
     this.pendingShowcaseEffect = dataset.effect || getHomeShowcaseEffect(dataset.showcaseId);
@@ -2401,38 +2419,54 @@ Page({
       return;
     }
     const opensEffectEditor = !["emboss-circle", "emboss-stamp"].includes(effect);
+    const applyEffect = () => {
+      if (["screen-print", "matisse-cutout", "pixel-cross-stitch", "vintage-botanical"].includes(effect)) {
+        this.selectTextureEffect({ currentTarget: { dataset: { texture: effect } } });
+        return;
+      }
+      if (effect === "lace-center") {
+        this.selectHandmadeEffect({ currentTarget: { dataset: { effect } } });
+        return;
+      }
+      if (effect === "emboss-circle" || effect === "emboss-stamp") {
+        this.beginEmbossEdit(effect === "emboss-stamp" ? "stamp" : "circle");
+        return;
+      }
+      this.closeAfterAddingLayer();
+      this.render();
+    };
     this.setData({
       selectedLayerId: layer.id,
       selectedLayerType: layer.type,
       selectedCollageSlot: isCollageSlot(layer),
-      activeTool: opensEffectEditor ? "effect" : "",
+      activeTool: "",
       activeDrawer: "",
-      activePalette: opensEffectEditor ? "effect" : "",
+      activePalette: "",
       selectedHandmadeEffect: getHandmadeEffectKey(layer),
       selectedTextureEffect: getTextureEffectKey(layer),
       effectAdjusting: "",
       effectAdjustingLabel: "",
       textInputVisible: false,
       ratioPanelVisible: false,
-      canvasStageStyle: opensEffectEditor ? this.getEffectCanvasStageStyle() : ""
+      canvasStageStyle: ""
     }, () => {
-      if (opensEffectEditor) this.refreshEffectCanvasLayout();
-      // render 会等待图片预加载；完成首帧后再运行效果，避免首帧被生成任务抢占。
+      // 先让原图在常规画布完成首帧，避免面板测量和效果生成抢占首屏显示。
       this.render().then(() => {
-        if (["screen-print", "matisse-cutout", "pixel-cross-stitch", "vintage-botanical"].includes(effect)) {
-          this.selectTextureEffect({ currentTarget: { dataset: { texture: effect } } });
-          return;
-        }
-        if (effect === "lace-center") {
-          this.selectHandmadeEffect({ currentTarget: { dataset: { effect } } });
-          return;
-        }
-        if (effect === "emboss-circle" || effect === "emboss-stamp") {
-          this.beginEmbossEdit(effect === "emboss-stamp" ? "stamp" : "circle");
-          return;
-        }
-        this.closeAfterAddingLayer();
-        this.render();
+        setTimeout(() => {
+          if (!opensEffectEditor) {
+            applyEffect();
+            return;
+          }
+          this.effectStageHeight = 0;
+          this.effectPanelHeight = 0;
+          this.setData({
+            activeTool: "effect",
+            activePalette: "effect",
+            canvasStageStyle: this.getEffectCanvasStageStyle()
+          }, () => {
+            this.refreshEffectCanvasLayout().then(applyEffect);
+          });
+        }, 16);
       });
     });
   },
@@ -3139,8 +3173,7 @@ Page({
   selectCutStyle(event) {
     const style = event.currentTarget.dataset.style || "straight";
     if (style === "subject") {
-      showToast("主体剪即将上线");
-      return;
+      return this.removeSelectedImageBackground();
     }
     if (style === "straight" || style === "wave") {
       const layer = this.getSelectedLayer();
@@ -4265,6 +4298,7 @@ Page({
     this.setData({
       embossEditing: false,
       embossImageSrc: "",
+      embossPreviewStyle: "",
       embossImageStyle: "",
       embossMaskStyle: "",
       embossAspectLocked: false,
@@ -4361,6 +4395,7 @@ Page({
     this.setData({
       embossEditing: false,
       embossImageSrc: "",
+      embossPreviewStyle: "",
       embossImageStyle: "",
       embossMaskStyle: "",
       embossAspectLocked: false,
@@ -4494,8 +4529,17 @@ Page({
     const nextShape = selectedShape === "rect"
       ? "rect"
       : (normalizeEmbossShape(selectedShape) || "circle");
+    // 压花编辑需要展示图层当前可见的裁剪范围。直接把原图铺满预览框会
+    // 忽略 crop，拼图缩放后退出拼图的图片便会在此处被拉伸。
+    const sourceCrop = getLayerSourceCrop(layer);
+    const sourceSize = this.embossSession.sourceSize || {};
+    const cropWidth = Math.max(1, sourceCrop.width);
+    const cropHeight = Math.max(1, sourceCrop.height);
+    const scaleX = preview.width / cropWidth;
+    const scaleY = preview.height / cropHeight;
     this.setData({
-      embossImageStyle: `left:${preview.left}px;top:${preview.top}px;width:${preview.width}px;height:${preview.height}px;`,
+      embossPreviewStyle: `left:${preview.left}px;top:${preview.top}px;width:${preview.width}px;height:${preview.height}px;`,
+      embossImageStyle: `left:${-sourceCrop.x * scaleX}px;top:${-sourceCrop.y * scaleY}px;width:${Math.max(1, sourceSize.width || layer.width) * scaleX}px;height:${Math.max(1, sourceSize.height || layer.height) * scaleY}px;`,
       embossMaskStyle: `left:${preview.left + mask.x * preview.scale}px;top:${preview.top + mask.y * preview.scale}px;width:${mask.width * preview.scale}px;height:${mask.height * preview.scale}px;`,
       embossMaskShapeClass: nextShape
     });
@@ -6090,6 +6134,10 @@ Page({
           ? "主体剪支持 20MB 以内的原图"
         : error && error.message === "rembg_upload_too_large"
           ? "图片细节过多，请先裁剪后再试"
+        : error && error.message === "rembg_daily_limit"
+          ? "今日主体剪次数已达上限"
+        : error && error.message === "rembg_minute_limit"
+          ? "操作过于频繁，请稍后再试"
           : "主体剪失败，请稍后重试";
       this.setData({ saveStatus: "主体剪失败" });
       track("image_bg_remove_fail", {

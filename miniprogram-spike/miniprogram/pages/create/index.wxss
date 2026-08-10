@@ -160,10 +160,15 @@ button::after {
 }
 
 .helper {
-  margin-top: 14rpx;
-  color: #6f6f6f;
+  margin-top: 32rpx;
+  color: #454545;
   font-size: 24rpx;
   line-height: 34rpx;
+}
+
+.blank-canvas-entry {
+  display: inline-block;
+  padding: 6rpx 12rpx;
 }
 
 .material-start {
@@ -2618,10 +2623,16 @@ button::after {
   z-index: 1202;
 }
 
-.emboss-preview-image {
+.emboss-preview-viewport {
   position: fixed;
   display: block;
   z-index: 1202;
+  overflow: hidden;
+}
+
+.emboss-preview-image {
+  position: absolute;
+  display: block;
 }
 
 .emboss-dim {

@@ -1,6 +1,5 @@
 const rembgConfig = require("../config/rembg");
-// Temporary network troubleshooting: bypass the OpenID/HMAC auth chain.
-// const { getRembgAccessToken } = require("./rembg-auth");
+const { getRembgAccessToken } = require("./rembg-auth");
 
 function removeImageBackground(options = {}) {
   const endpoint = options.endpoint || rembgConfig.endpoint;
@@ -8,25 +7,16 @@ function removeImageBackground(options = {}) {
     return Promise.reject(new Error("missing_rembg_endpoint"));
   }
 
-  return uploadToRembg({
+  return getRembgAccessToken().then((token) => uploadToRembg({
     endpoint,
     filePath: options.filePath,
     fileFieldName: options.fileFieldName || rembgConfig.fileFieldName || "file",
     formData: options.formData || rembgConfig.formData || {},
-    headers: options.headers || rembgConfig.headers || {}
-  });
-
-  // Restore this block when OpenID-based access control is enabled again.
-  // return getRembgAccessToken().then((token) => uploadToRembg({
-  //   endpoint,
-  //   filePath: options.filePath,
-  //   fileFieldName: options.fileFieldName || rembgConfig.fileFieldName || "file",
-  //   formData: options.formData || rembgConfig.formData || {},
-  //   headers: {
-  //     ...(options.headers || rembgConfig.headers || {}),
-  //     Authorization: `Bearer ${token}`
-  //   }
-  // }));
+    headers: {
+      ...(options.headers || rembgConfig.headers || {}),
+      Authorization: `Bearer ${token}`
+    }
+  }));
 }
 
 function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers }) {
@@ -46,7 +36,14 @@ function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers })
         console.log("[rembg] response", res.statusCode, res.data);
         const statusCode = Number(res.statusCode || 0);
         if (statusCode < 200 || statusCode >= 300) {
-          reject(new Error(`rembg_http_${statusCode || "error"}`));
+          const payload = parseJson(res.data);
+          const detail = payload && payload.detail;
+          const errorCode = detail === "daily_limit_exceeded"
+            ? "rembg_daily_limit"
+            : detail === "minute_limit_exceeded"
+              ? "rembg_minute_limit"
+              : `rembg_http_${statusCode || "error"}`;
+          reject(new Error(errorCode));
           return;
         }
         handleRembgResponse(res.data)

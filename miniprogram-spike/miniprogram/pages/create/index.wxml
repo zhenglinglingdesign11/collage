@@ -9,7 +9,7 @@
         <view class="upload-content">
           <view class="round-action">+</view>
           <view class="primary-label">添加照片</view>
-          <view class="helper">从相册选择，开始你的拼贴</view>
+          <view class="helper blank-canvas-entry" catchtap="enterBlankCanvas">从空白画布，开始你的拼贴</view>
         </view>
       </button>
 
@@ -291,7 +291,9 @@
         <view class="crop-title">压花</view>
         <view class="crop-done" style="right: {{cropDoneRight}}px;" bindtap="confirmEmbossEdit">完成</view>
       </view>
-      <image class="emboss-preview-image" src="{{embossImageSrc}}" mode="scaleToFill" style="{{embossImageStyle}}"></image>
+      <view class="emboss-preview-viewport" style="{{embossPreviewStyle}}">
+        <image class="emboss-preview-image" src="{{embossImageSrc}}" mode="scaleToFill" style="{{embossImageStyle}}"></image>
+      </view>
       <view class="emboss-dim"></view>
       <view class="emboss-mask" style="{{embossMaskStyle}}">
         <view class="emboss-mask-shape emboss-mask-{{embossMaskShapeClass}}">

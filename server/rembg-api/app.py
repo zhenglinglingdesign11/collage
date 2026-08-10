@@ -4,8 +4,11 @@ import hashlib
 import hmac
 import json
 import os
+import sqlite3
 import time
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +19,10 @@ MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
 MAX_IMAGE_SIDE = int(os.getenv("MAX_IMAGE_SIDE", "1800"))
 MODEL_NAME = os.getenv("REMBG_MODEL", "u2net")
 AUTH_SECRET = os.getenv("REMBG_AUTH_SECRET", "")
+DAILY_REQUEST_LIMIT = max(0, int(os.getenv("DAILY_REQUEST_LIMIT", "5")))
+MINUTE_REQUEST_LIMIT = max(0, int(os.getenv("MINUTE_REQUEST_LIMIT", "2")))
+RATE_LIMIT_DB_PATH = os.getenv("RATE_LIMIT_DB_PATH", "/data/rembg-rate-limit.db")
+CHINA_TIMEZONE = timezone(timedelta(hours=8))
 
 app = FastAPI(title="Journal Collage Rembg API")
 app.add_middleware(
@@ -26,6 +33,94 @@ app.add_middleware(
 )
 
 _session = None
+
+
+def initialize_rate_limit_db():
+    Path(RATE_LIMIT_DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(RATE_LIMIT_DB_PATH) as database:
+        database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS daily_usage (
+                user_id TEXT NOT NULL,
+                usage_day TEXT NOT NULL,
+                request_count INTEGER NOT NULL,
+                PRIMARY KEY (user_id, usage_day)
+            )
+            """
+        )
+        database.execute(
+            """
+            CREATE TABLE IF NOT EXISTS minute_usage (
+                user_id TEXT NOT NULL,
+                usage_minute TEXT NOT NULL,
+                request_count INTEGER NOT NULL,
+                PRIMARY KEY (user_id, usage_minute)
+            )
+            """
+        )
+
+
+def reserve_request_quota(user_id: str):
+    if DAILY_REQUEST_LIMIT == 0 and MINUTE_REQUEST_LIMIT == 0:
+        return
+
+    now = datetime.now(CHINA_TIMEZONE)
+    usage_day = now.strftime("%Y-%m-%d")
+    usage_minute = now.strftime("%Y-%m-%dT%H:%M")
+
+    try:
+        with sqlite3.connect(RATE_LIMIT_DB_PATH, timeout=5) as database:
+            database.execute("PRAGMA busy_timeout = 5000")
+            database.execute("BEGIN IMMEDIATE")
+
+            if DAILY_REQUEST_LIMIT:
+                row = database.execute(
+                    "SELECT request_count FROM daily_usage WHERE user_id = ? AND usage_day = ?",
+                    (user_id, usage_day),
+                ).fetchone()
+                if row and row[0] >= DAILY_REQUEST_LIMIT:
+                    raise HTTPException(status_code=429, detail="daily_limit_exceeded")
+
+            if MINUTE_REQUEST_LIMIT:
+                row = database.execute(
+                    "SELECT request_count FROM minute_usage WHERE user_id = ? AND usage_minute = ?",
+                    (user_id, usage_minute),
+                ).fetchone()
+                if row and row[0] >= MINUTE_REQUEST_LIMIT:
+                    raise HTTPException(status_code=429, detail="minute_limit_exceeded")
+
+            if DAILY_REQUEST_LIMIT:
+                database.execute(
+                    """
+                    INSERT INTO daily_usage (user_id, usage_day, request_count) VALUES (?, ?, 1)
+                    ON CONFLICT(user_id, usage_day)
+                    DO UPDATE SET request_count = request_count + 1
+                    """,
+                    (user_id, usage_day),
+                )
+            if MINUTE_REQUEST_LIMIT:
+                database.execute(
+                    """
+                    INSERT INTO minute_usage (user_id, usage_minute, request_count) VALUES (?, ?, 1)
+                    ON CONFLICT(user_id, usage_minute)
+                    DO UPDATE SET request_count = request_count + 1
+                    """,
+                    (user_id, usage_minute),
+                )
+
+            database.execute(
+                "DELETE FROM daily_usage WHERE usage_day < ?",
+                ((now - timedelta(days=2)).strftime("%Y-%m-%d"),),
+            )
+            database.execute(
+                "DELETE FROM minute_usage WHERE usage_minute < ?",
+                ((now - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M"),),
+            )
+    except sqlite3.Error as error:
+        raise HTTPException(status_code=503, detail="rate_limit_unavailable") from error
+
+
+initialize_rate_limit_db()
 
 
 def get_session():
@@ -99,9 +194,9 @@ def health():
 async def remove_bg(
     file: UploadFile = File(None),
     image: UploadFile = File(None),
-    # Temporary network troubleshooting: accept requests without an OpenID/HMAC token.
-    # user_id: str = Depends(require_user),
+    user_id: str = Depends(require_user),
 ):
+    reserve_request_quota(user_id)
     upload = file or image
     if upload is None:
         raise HTTPException(status_code=400, detail="missing_image_file")
