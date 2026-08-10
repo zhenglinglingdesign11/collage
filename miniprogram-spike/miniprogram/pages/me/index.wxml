@@ -32,5 +32,24 @@
         <image class="settings-icon" src="/assets/icons/layer-actions/delete.png" mode="aspectFit"></image>
       </view>
     </view>
+
+    <view class="section-head">建议反馈</view>
+    <view class="settings-card feedback-card" bindtap="openFeedback" aria-label="打开建议反馈">
+      <view class="settings-copy">
+        <view class="settings-title">告诉我们你的想法</view>
+        <view class="settings-desc">功能建议、使用问题都欢迎反馈</view>
+      </view>
+      <view class="feedback-arrow">›</view>
+    </view>
+  </view>
+
+  <view wx:if="{{feedbackVisible}}" class="feedback-mask" catchtap="closeFeedback">
+    <view class="feedback-dialog" catchtap="stopPropagation">
+      <view class="feedback-title">建议反馈</view>
+      <view class="feedback-desc">请将你的建议或遇到的问题发送至：</view>
+      <view class="feedback-email">2972455713@qq.com</view>
+      <button class="feedback-copy" bindtap="copyFeedbackEmail">复制邮箱</button>
+      <view class="feedback-close" bindtap="closeFeedback">暂不反馈</view>
+    </view>
   </view>
 </view>

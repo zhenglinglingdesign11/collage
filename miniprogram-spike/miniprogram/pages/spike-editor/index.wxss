@@ -151,6 +151,78 @@
   line-height: 72rpx;
 }
 
+.collage-panel {
+  margin-top: 14rpx;
+  padding: 18rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 24rpx;
+  background: #ffffff;
+}
+
+.collage-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.collage-title {
+  font-size: 28rpx;
+  font-weight: 650;
+}
+
+.collage-tip {
+  margin-top: 6rpx;
+  color: #77716a;
+  font-size: 22rpx;
+}
+
+.collage-close {
+  margin: 0;
+  padding: 0 16rpx;
+  height: 52rpx;
+  border-radius: 26rpx;
+  background: #f4f4f2;
+  color: #111111;
+  font-size: 22rpx;
+  line-height: 52rpx;
+}
+
+.collage-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.collage-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  min-width: 0;
+  padding: 12rpx 6rpx;
+  border-radius: 16rpx;
+  background: #f7f7f5;
+  color: #111111;
+  font-size: 22rpx;
+}
+
+.preset-preview {
+  display: grid;
+  width: 84rpx;
+  height: 64rpx;
+  gap: 4rpx;
+}
+
+.preset-preview view {
+  border-radius: 5rpx;
+  background: #c9c4bb;
+}
+
+.preset-preview.horizontal { grid-template-columns: repeat(2, 1fr); }
+.preset-preview.vertical { grid-template-rows: repeat(2, 1fr); }
+.preset-preview.grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+
 .layerbar button.active-effect {
   background: #111111;
   color: #ffffff;

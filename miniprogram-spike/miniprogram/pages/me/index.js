@@ -8,7 +8,8 @@ const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 Page({
   data: {
     recentDrafts: [],
-    hasRecentDrafts: false
+    hasRecentDrafts: false,
+    feedbackVisible: false
   },
 
   onLoad() {
@@ -79,6 +80,28 @@ Page({
     this.refreshRecentDrafts();
     track("cache_clear", { page: "me" });
     showSuccess("缓存已清理");
+  },
+
+  openFeedback() {
+    this.setData({ feedbackVisible: true });
+    track("feedback_open", { page: "me" });
+  },
+
+  closeFeedback() {
+    this.setData({ feedbackVisible: false });
+  },
+
+  stopPropagation() {},
+
+  copyFeedbackEmail() {
+    const email = "2972455713@qq.com";
+    wx.setClipboardData({
+      data: email,
+      success: () => {
+        track("feedback_email_copy", { page: "me" });
+        showSuccess("邮箱已复制");
+      }
+    });
   }
 });
 

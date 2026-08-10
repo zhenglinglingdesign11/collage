@@ -148,6 +148,8 @@ function drawLayer(ctx, layer, options = {}) {
     );
   } else if (layer.source) {
     drawSourceLayer(ctx, layer, options);
+  } else if (isCollageSlot(layer)) {
+    drawCollagePlaceholder(ctx, layer);
   } else if (layer.type === "brush") {
     drawBrushLayer(ctx, layer, options);
   } else if (layer.type === "text") {
@@ -510,7 +512,55 @@ function drawSourceImageAtRect(ctx, layer, source, x, y, width, height) {
     );
     return;
   }
+  if (isCollageSlot(layer)) {
+    drawCollageSourceImage(ctx, layer, source, x, y, width, height);
+    return;
+  }
   ctx.drawImage(source, x, y, width, height);
+}
+
+function isCollageSlot(layer) {
+  return !!(layer && layer.style && layer.style.collageSlot);
+}
+
+function drawCollageSourceImage(ctx, layer, source, x, y, width, height) {
+  const sourceWidth = layer.sourceWidth || source.width || width;
+  const sourceHeight = layer.sourceHeight || source.height || height;
+  const collage = layer.style && layer.style.collageSlot || {};
+  const imageScale = Math.max(1, Math.min(3, collage.imageScale || 1));
+  // 拼图槽位保持整张照片可见；后续缩放和平移只作用于图片内容。
+  const scale = Math.min(width / sourceWidth, height / sourceHeight) * imageScale;
+  const renderedWidth = sourceWidth * scale;
+  const renderedHeight = sourceHeight * scale;
+  const offsetX = clampCollageOffset(collage.imageOffsetX || 0, renderedWidth, width);
+  const offsetY = clampCollageOffset(collage.imageOffsetY || 0, renderedHeight, height);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
+  ctx.drawImage(source, x + (width - renderedWidth) / 2 + offsetX, y + (height - renderedHeight) / 2 + offsetY, renderedWidth, renderedHeight);
+  ctx.restore();
+}
+
+function clampCollageOffset(value, renderedSize, slotSize) {
+  const maximum = Math.abs(renderedSize - slotSize) / 2;
+  return Math.max(-maximum, Math.min(maximum, value));
+}
+
+function drawCollagePlaceholder(ctx, layer) {
+  setStrokeStyle(ctx, "#c9c4bb");
+  setLineWidth(ctx, 3);
+  if (ctx.setLineDash) ctx.setLineDash([10, 8]);
+  ctx.strokeRect(-layer.width / 2 + 2, -layer.height / 2 + 2, layer.width - 4, layer.height - 4);
+  if (ctx.setLineDash) ctx.setLineDash([]);
+  setStrokeStyle(ctx, "#817a70");
+  setLineWidth(ctx, 4);
+  ctx.beginPath();
+  ctx.moveTo(-18, 0);
+  ctx.lineTo(18, 0);
+  ctx.moveTo(0, -18);
+  ctx.lineTo(0, 18);
+  ctx.stroke();
 }
 
 function fillLayerSurfacePath(ctx, layer, outline = {}) {

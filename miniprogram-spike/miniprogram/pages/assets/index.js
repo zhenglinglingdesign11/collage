@@ -165,7 +165,7 @@ Page({
   setAssetCategory(event) {
     const activeCategory = event.currentTarget.dataset.category || "推荐";
     if (activeCategory === this.data.activeCategory) return;
-    track("asset_category_select", { page: "assets", category: activeCategory });
+    track("asset_category_select", { page: "assets", category: activeCategory, source: "assets" });
     this.setData({
       activeCategory,
       visiblePacks: this.filterPacks(this.data.packs, activeCategory)
@@ -180,6 +180,7 @@ Page({
       page: "assets",
       packId: pack.id,
       category: pack.category || "",
+      source: "assets",
       itemCount: Array.isArray(pack.items) ? pack.items.length : 0
     });
     wx.hideTabBar({ animation: false });

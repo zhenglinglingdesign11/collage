@@ -13,6 +13,7 @@
 
   <view class="demo-actions">
     <button bindtap="choosePhoto">选择图片</button>
+    <button bindtap="openCollagePanel">拼图布局</button>
     <button bindtap="addTape">添加胶带</button>
     <button bindtap="saveCurrentDraft">保存草稿</button>
     <button bindtap="restoreDraft">恢复草稿</button>
@@ -40,6 +41,30 @@
     <button wx:if="{{selectedLayerType === 'image' || selectedLayerType === 'sticker' || selectedLayerType === 'paper'}}" class="{{selectedLayerTaped ? 'active-effect' : ''}}" bindtap="toggleTapeAttachment">{{selectedLayerTaped ? '已贴住' : '贴住'}}</button>
     <button bindtap="deleteLayer">删除</button>
     <button bindtap="clearSelection">完成</button>
+  </view>
+
+  <view wx:if="{{collagePanelVisible}}" class="collage-panel">
+    <view class="collage-panel-header">
+      <view>
+        <view class="collage-title">选择拼图布局</view>
+        <view class="collage-tip">选择后，点击画布中的宫格上传或替换图片</view>
+      </view>
+      <button class="collage-close" bindtap="closeCollagePanel">关闭</button>
+    </view>
+    <view class="collage-presets">
+      <button class="collage-preset" data-preset="horizontal" bindtap="applyCollagePreset">
+        <view class="preset-preview horizontal"><view></view><view></view></view>
+        <text>左右 2 格</text>
+      </button>
+      <button class="collage-preset" data-preset="vertical" bindtap="applyCollagePreset">
+        <view class="preset-preview vertical"><view></view><view></view></view>
+        <text>上下 2 格</text>
+      </button>
+      <button class="collage-preset" data-preset="grid" bindtap="applyCollagePreset">
+        <view class="preset-preview grid"><view></view><view></view><view></view><view></view></view>
+        <text>4 宫格</text>
+      </button>
+    </view>
   </view>
 
   <view class="stage">

@@ -31,7 +31,8 @@ button::after {
   min-height: 100vh;
   padding-left: 0;
   padding-right: 0;
-  padding-bottom: calc(34rpx + env(safe-area-inset-bottom));
+  /* 原生 tabBar 已在页面可视区域之外，不能重复预留底部安全区。 */
+  padding-bottom: 0;
 }
 
 .empty-header {
@@ -77,7 +78,7 @@ button::after {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  height: 472rpx;
+  height: 360rpx;
   margin-left: 0;
   margin-right: 0;
   padding: 0;
@@ -92,7 +93,7 @@ button::after {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  height: 472rpx;
+  height: 360rpx;
   margin-left: 0;
   margin-right: 0;
   padding: 0;
@@ -113,8 +114,8 @@ button::after {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 332rpx;
-  height: 236rpx;
+  width: 292rpx;
+  height: 190rpx;
   border-radius: 24rpx;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(253, 253, 251, 0.34));
   transform: translate(-50%, -50%) rotate(-3deg);
@@ -125,7 +126,7 @@ button::after {
   content: "";
   position: absolute;
   left: 50%;
-  top: 116rpx;
+  top: 82rpx;
   width: 148rpx;
   height: 44rpx;
   background: linear-gradient(135deg, rgba(234, 212, 138, 0.58), rgba(234, 212, 138, 0.32));
@@ -136,19 +137,19 @@ button::after {
 .upload-content {
   position: relative;
   z-index: 1;
-  padding-top: 36rpx;
+  padding-top: 16rpx;
   text-align: center;
 }
 
 .round-action {
-  width: 96rpx;
-  height: 96rpx;
-  margin: 0 auto 24rpx;
+  width: 84rpx;
+  height: 84rpx;
+  margin: 0 auto 18rpx;
   border-radius: 50%;
   background: #111111;
   color: #ffffff;
-  font-size: 56rpx;
-  line-height: 90rpx;
+  font-size: 50rpx;
+  line-height: 78rpx;
   box-shadow: 0 20rpx 44rpx rgba(17, 17, 17, 0.16);
 }
 
@@ -261,7 +262,7 @@ button::after {
 
 .draft-row > .draft-thumb {
   flex: 0 0 calc(50% - 12rpx);
-  margin: 0 0 24rpx;
+  margin: 0;
 }
 
 .draft-thumb {
@@ -328,7 +329,7 @@ button::after {
 }
 
 .home-showcase-section {
-  margin-top: 12rpx;
+  margin-top: 32rpx;
 }
 
 .home-showcase-group + .home-showcase-group {
@@ -336,7 +337,7 @@ button::after {
 }
 
 .home-showcase-head {
-  margin-bottom: 20rpx;
+  margin: 0 0 20rpx;
 }
 
 .home-showcase-scroll {
@@ -999,6 +1000,39 @@ button::after {
   position: relative;
 }
 
+.effect-generating-overlay {
+  position: absolute;
+  right: 20rpx;
+  bottom: 20rpx;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(17, 17, 17, 0.76);
+  color: #ffffff;
+  font-size: 22rpx;
+  line-height: 28rpx;
+  box-shadow: 0 6rpx 18rpx rgba(17, 17, 17, 0.2);
+  pointer-events: none;
+}
+
+.effect-generating-spinner {
+  width: 20rpx;
+  height: 20rpx;
+  box-sizing: border-box;
+  border: 3rpx solid rgba(255, 255, 255, 0.36);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: effect-generating-spin 0.8s linear infinite;
+}
+
+@keyframes effect-generating-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .selected-layer-lock {
   position: absolute;
   width: 28px;
@@ -1017,6 +1051,25 @@ button::after {
 }
 
 .selected-layer-lock-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 5px 0 0 5px;
+}
+
+.selected-layer-replace {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  margin-left: -14px;
+  margin-top: -14px;
+  z-index: 6;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.54);
+  box-shadow: 0 4rpx 12rpx rgba(17, 17, 17, 0.10);
+}
+
+.selected-layer-replace-icon {
   display: block;
   width: 18px;
   height: 18px;
@@ -1898,6 +1951,43 @@ button::after {
 .tile-4 { left: 0; top: 152rpx; }
 .tile-5 { left: 172rpx; top: 152rpx; }
 
+.collage-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.collage-layout-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18rpx 8rpx;
+  border-radius: 20rpx;
+}
+
+.collage-preview {
+  display: grid;
+  width: 132rpx;
+  height: 98rpx;
+  gap: 6rpx;
+}
+
+.collage-preview view {
+  border-radius: 7rpx;
+  background: #c9c4bb;
+}
+
+.collage-preview.horizontal { grid-template-columns: repeat(2, 1fr); }
+.collage-preview.vertical { grid-template-rows: repeat(2, 1fr); }
+.collage-preview.grid { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); }
+
+.collage-layout-label {
+  margin-top: 14rpx;
+  font-size: 23rpx;
+  color: #111111;
+}
+
 .asset-piece {
   position: absolute;
   left: 50%;
@@ -2285,19 +2375,22 @@ button::after {
 
 .effect-adjust-trigger {
   position: absolute;
-  top: -20rpx;
-  right: -20rpx;
+  top: 11rpx;
+  left: 36rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52rpx;
-  height: 52rpx;
-  background: transparent;
+  width: 40rpx;
+  height: 34rpx;
+  border-radius: 4rpx;
+  background: rgba(17, 17, 17, 0.42);
+  border: 1rpx solid rgba(255, 255, 255, 0.68);
   box-sizing: border-box;
+  z-index: 3;
 }
 
 .effect-option > view.effect-adjust-trigger {
-  height: 52rpx;
+  height: 34rpx;
   line-height: normal;
 }
 
@@ -2306,26 +2399,25 @@ button::after {
   position: absolute;
   top: 0;
   right: 0;
-  width: 36rpx;
-  height: 36rpx;
+  bottom: 0;
+  left: 0;
   box-sizing: border-box;
-  border-radius: 50%;
-  border: 2rpx solid #111111;
-  background: #ffffff;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .effect-adjust-trigger > view {
   position: absolute;
-  width: 18rpx;
+  width: 20rpx;
   height: 2rpx;
   border-radius: 2rpx;
-  background: #111111;
+  background: #ffffff;
   z-index: 1;
 }
 
-.effect-adjust-trigger > view:nth-child(1) { transform: translate(8rpx, -16rpx); }
-.effect-adjust-trigger > view:nth-child(2) { transform: translate(8rpx, -8rpx); }
-.effect-adjust-trigger > view:nth-child(3) { transform: translate(8rpx, 0); }
+.effect-adjust-trigger > view:nth-child(1) { transform: translateY(-8rpx); }
+.effect-adjust-trigger > view:nth-child(2) { transform: translateY(0); }
+.effect-adjust-trigger > view:nth-child(3) { transform: translateY(8rpx); }
 
 .effect-adjust-trigger > view::after {
   content: "";
@@ -2334,7 +2426,7 @@ button::after {
   width: 6rpx;
   height: 6rpx;
   border-radius: 50%;
-  background: #111111;
+  background: #ffffff;
 }
 
 .effect-adjust-trigger > view:nth-child(1)::after,
@@ -2707,9 +2799,9 @@ button::after {
   right: 0;
   bottom: 0;
   z-index: 1220;
-  height: calc(188rpx + env(safe-area-inset-bottom));
+  height: calc(264rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
-  padding: 18rpx 26rpx calc(24rpx + env(safe-area-inset-bottom));
+  padding: 14rpx 26rpx calc(18rpx + env(safe-area-inset-bottom));
   background: rgba(23, 23, 23, 0.96);
 }
 
@@ -2873,6 +2965,32 @@ button::after {
 
 .layer-action.disabled {
   opacity: 0.46;
+}
+
+.emboss-actions {
+  display: flex;
+  gap: 16rpx;
+  height: 58rpx;
+  margin-top: 8rpx;
+}
+
+.emboss-sub-action {
+  flex: 1;
+  box-sizing: border-box;
+  border: 1rpx solid rgba(255, 255, 255, 0.34);
+  border-radius: 14rpx;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 24rpx;
+  line-height: 56rpx;
+  text-align: center;
+}
+
+.emboss-sub-action.active {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-weight: 650;
 }
 
 .emboss-option-rect {

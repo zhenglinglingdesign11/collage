@@ -8,25 +8,29 @@ module.exports = [
         id: "texture-screen-print",
         title: "丝网印",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-zhigan/01.jpg?v=20260806",
-        tone: "texture"
+        tone: "texture",
+        effect: "screen-print"
       },
       {
         id: "texture-matisse",
         title: "马蒂斯",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-zhigan/02.jpg",
-        tone: "texture"
+        tone: "texture",
+        effect: "matisse-cutout"
       },
       {
         id: "texture-pixel-cross-stitch",
         title: "拼豆像素绣",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-zhigan/03.jpg",
-        tone: "texture"
+        tone: "texture",
+        effect: "pixel-cross-stitch"
       },
       {
         id: "texture-botanical",
         title: "图鉴",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-zhigan/04.jpg",
-        tone: "texture"
+        tone: "texture",
+        effect: "vintage-botanical"
       }
     ]
   },
@@ -38,19 +42,22 @@ module.exports = [
         id: "emboss-swap",
         title: "压花互换",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-yahua/01.jpg",
-        tone: "emboss"
+        tone: "emboss",
+        effect: "emboss-circle"
       },
       {
         id: "emboss-circle",
         title: "圆形压花",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-yahua/02.jpg",
-        tone: "emboss"
+        tone: "emboss",
+        effect: "emboss-circle"
       },
       {
         id: "emboss-stamp",
         title: "邮票压花",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-yahua/03.jpg",
-        tone: "emboss"
+        tone: "emboss",
+        effect: "emboss-stamp"
       }
     ]
   },
@@ -62,7 +69,8 @@ module.exports = [
         id: "lace-circle",
         title: "圆形蕾丝框",
         imageSrc: "https://assets.zllarchi.site/homecase/0806-jiegou/01.jpg",
-        tone: "structure"
+        tone: "structure",
+        effect: "lace-center"
       }
     ]
   }

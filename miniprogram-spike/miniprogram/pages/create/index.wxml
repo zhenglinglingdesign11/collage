@@ -49,7 +49,7 @@
           </view>
           <scroll-view scroll-x enhanced="{{true}}" show-scrollbar="{{false}}" class="home-showcase-scroll">
             <view class="home-showcase-track">
-              <view wx:for="{{group.items}}" wx:key="id" wx:for-item="showcase" class="home-showcase-card" bindtap="choosePhoto" aria-label="选择照片并开始创作">
+              <view wx:for="{{group.items}}" wx:key="id" wx:for-item="showcase" class="home-showcase-card" data-effect="{{showcase.effect}}" data-showcase-id="{{showcase.id}}" bindtap="choosePhotoForShowcase" aria-label="选择照片并应用效果">
                 <image wx:if="{{showcase.imageSrc}}" class="home-showcase-image" src="{{showcase.imageSrc}}" mode="aspectFill"></image>
                 <view wx:else class="home-showcase-placeholder home-showcase-{{showcase.tone}}">
                   <view wx:if="{{showcase.tone === 'structure'}}" class="showcase-structure-art">
@@ -111,6 +111,10 @@
           bindtouchcancel="onTouchEnd"
           catchtap="noopCanvasTap"
         ></canvas>
+        <view wx:if="{{textureEffectBusy}}" class="effect-generating-overlay" aria-live="polite">
+          <view class="effect-generating-spinner"></view>
+          <text>生成中</text>
+        </view>
         <canvas
           wx:if="{{straightCutEditing}}"
           type="2d"
@@ -131,6 +135,13 @@
         >
           <cover-image class="selected-layer-lock-icon" src="{{selectedLayerLocked ? '/assets/icons/layer-actions/lock-outline.png' : '/assets/icons/layer-actions/unlock-outline.png'}}"></cover-image>
         </cover-view>
+        <cover-view
+          wx:if="{{selectedLayerId && selectedLayerReplaceStyle}}"
+          class="selected-layer-replace"
+          style="{{selectedLayerReplaceStyle}}"
+          catchtap="replaceSelectedLayerPhoto"
+          aria-label="替换图片"
+        ><cover-image class="selected-layer-replace-icon" src="/assets/icons/layer-actions/replace.png"></cover-image></cover-view>
       </view>
     </view>
 
@@ -299,6 +310,10 @@
             <view class="emboss-option-label">{{item.label}}</view>
           </view>
         </scroll-view>
+        <view class="emboss-actions">
+          <view class="emboss-sub-action {{embossAspectLocked ? 'active' : ''}}" bindtap="toggleEmbossAspectLock">固定比例</view>
+          <view class="emboss-sub-action" bindtap="resetEmbossMask">恢复初始蒙版</view>
+        </view>
       </view>
     </view>
 
@@ -313,6 +328,7 @@
           <view class="layer-action" data-action="down" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-down.png" mode="aspectFit"></image><view>下移</view></view>
           <view class="layer-action" data-action="copy" bindtap="applyLayerAction"><view class="la-icon la-copy-icon"><view class="copy-back"></view><view class="copy-front"></view></view><view>复制</view></view>
           <view class="layer-action" data-action="delete" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png" mode="aspectFit"></image><view>删除</view></view>
+          <view wx:if="{{selectedCollageSlot}}" class="layer-action" data-action="deleteCollage" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/delete.png" mode="aspectFit"></image><view>删拼图</view></view>
           <view wx:if="{{selectedLayerType === 'image'}}" class="layer-action" data-action="crop" bindtap="applyLayerAction"><view class="la-icon la-crop-icon"><view class="crop-corner crop-corner-a"></view><view class="crop-corner crop-corner-b"></view></view><view>裁切</view></view>
           <view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><view class="la-icon la-shadow-icon"><view class="shadow-back"></view><view class="shadow-front"></view></view><view>阴影</view></view>
           <view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><view class="la-icon la-opacity-icon"><view class="opacity-fill"></view></view><view>透明度</view></view>
@@ -687,6 +703,28 @@
               <view class="asset-tile tile-3" data-color="#1f1f1f" bindtap="addTape"><view class="tape-preview black"></view></view>
               <view class="asset-tile tile-4" data-color="#f1d4c8" bindtap="addTape"><view class="tape-preview pink"></view></view>
               <view class="asset-tile tile-5" data-color="#c4c8ce" bindtap="addTape"><view class="tape-preview gray"></view></view>
+            </view>
+          </block>
+
+          <block wx:if="{{activeDrawer === 'collage'}}">
+            <view class="drawer-title-row">
+              <view>
+                <view class="drawer-title">拼图布局</view>
+              </view>
+            </view>
+            <view class="collage-layout-grid">
+              <view class="collage-layout-card" data-preset="horizontal" bindtap="applyCollagePreset">
+                <view class="collage-preview horizontal"><view></view><view></view></view>
+                <view class="collage-layout-label">左右 2 格</view>
+              </view>
+              <view class="collage-layout-card" data-preset="vertical" bindtap="applyCollagePreset">
+                <view class="collage-preview vertical"><view></view><view></view></view>
+                <view class="collage-layout-label">上下 2 格</view>
+              </view>
+              <view class="collage-layout-card" data-preset="grid" bindtap="applyCollagePreset">
+                <view class="collage-preview grid"><view></view><view></view><view></view><view></view></view>
+                <view class="collage-layout-label">4 宫格</view>
+              </view>
             </view>
           </block>
 

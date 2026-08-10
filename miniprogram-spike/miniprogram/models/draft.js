@@ -53,6 +53,19 @@ function createImageLayer(source, imageInfo, draft) {
   });
 }
 
+function createCollageSlotLayer(rect, layoutId, slotIndex, draft) {
+  return baseLayer(layerTypes.image, {
+    x: rect.x,
+    y: rect.y,
+    width: rect.width,
+    height: rect.height,
+    rotation: 0,
+    zIndex: nextLayerOrder(draft),
+    locked: false,
+    style: { collageSlot: { layoutId, slotIndex } }
+  });
+}
+
 function createAssetLayer(asset, draft) {
   const sourceWidth = asset.width || 300;
   const sourceHeight = asset.height || 300;
@@ -187,6 +200,7 @@ module.exports = {
   ratioSizeMap,
   createDraft,
   createImageLayer,
+  createCollageSlotLayer,
   createAssetLayer,
   createTextLayer,
   createTapeLayer,

@@ -30,6 +30,7 @@ const {
   ratioSizeMap,
   createDraft,
   createImageLayer,
+  createCollageSlotLayer,
   createAssetLayer,
   createTextLayer,
   createTapeLayer,
@@ -142,6 +143,7 @@ Page({
     canvasStageStyle: "",
     selectedLayerId: "",
     selectedLayerType: "",
+    selectedCollageSlot: false,
     selectedHandmadeEffect: "none",
     selectedTextureEffect: "none",
     textureEffectBusy: false,
@@ -197,6 +199,7 @@ Page({
     embossImageStyle: "",
     embossMaskStyle: "",
     embossMaskShapeClass: "circle",
+    embossAspectLocked: false,
     embossShapes: [
       { value: "circle", label: "圆形" },
       { value: "rect", label: "方形" },
@@ -515,11 +518,9 @@ Page({
       recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
       recentDrafts
     });
-    track("create_page_view", {
-      page: "create",
+    this.trackCreatePageView("default", {
       hasRecentDraft: !!latestDraft,
-      recentDraftCount: recentDrafts.length,
-      ...getDraftAnalyticsParams(this.draft)
+      recentDraftCount: recentDrafts.length
     });
     this.loadHomeShowcases();
   },
@@ -740,24 +741,64 @@ Page({
       app.globalData.currentDraftId = "";
     }
     this.openRecentDraft({ currentTarget: { dataset: { id: draftId } } });
+    this.trackCreatePageView("draft", { draftId });
     return true;
+  },
+
+  trackCreatePageView(entrySource = "default", extra = {}) {
+    track("create_page_view", {
+      page: "create",
+      entrySource,
+      ...extra,
+      ...getDraftAnalyticsParams(this.draft)
+    });
   },
 
   loadHomeShowcases() {
     if (!wx.request) return;
+    const manifestUrl = `${HOME_SHOWCASE_MANIFEST_URL}?v=${Date.now()}`;
+    const applyManifest = (data) => {
+      const groups = normalizeHomeShowcaseManifest(data);
+      if (!groups.length) {
+        console.warn("[home-showcases] manifest has no valid groups");
+        return;
+      }
+      this.setData({ homeShowcaseGroups: groups });
+    };
+    const loadByDownload = () => {
+      if (!wx.downloadFile || !wx.getFileSystemManager) return;
+      wx.downloadFile({
+        url: manifestUrl,
+        success: (downloadResult) => {
+          if (downloadResult.statusCode < 200 || downloadResult.statusCode >= 300) {
+            console.warn("[home-showcases] manifest download returned", downloadResult.statusCode);
+            return;
+          }
+          wx.getFileSystemManager().readFile({
+            filePath: downloadResult.tempFilePath,
+            encoding: "utf8",
+            success: (fileResult) => applyManifest(fileResult.data),
+            fail: (error) => console.warn("[home-showcases] manifest file read failed", error)
+          });
+        },
+        fail: (error) => console.warn("[home-showcases] manifest download failed", error)
+      });
+    };
     wx.request({
-      url: HOME_SHOWCASE_MANIFEST_URL,
+      // manifest 很小但更新频繁；时间戳可避开 CDN 对旧 404 的负缓存。
+      url: manifestUrl,
       method: "GET",
       success: (res) => {
-        const groups = normalizeHomeShowcaseManifest(res.data);
-        if (!groups.length) {
-          console.warn("[home-showcases] manifest has no valid groups");
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          console.warn("[home-showcases] manifest request returned", res.statusCode);
+          loadByDownload();
           return;
         }
-        this.setData({ homeShowcaseGroups: groups });
+        applyManifest(res.data);
       },
       fail: (error) => {
-        console.warn("[home-showcases] manifest request failed; using local fallback", error);
+        console.warn("[home-showcases] manifest request failed; retrying with download", error);
+        loadByDownload();
       }
     });
   },
@@ -905,6 +946,7 @@ Page({
     selectedLayerType: "",
     selectedLayerLocked: false,
     selectedLayerLockStyle: "",
+    selectedLayerReplaceStyle: "",
     saveStatus: "未保存",
       textInputVisible: false,
       textDraft: "",
@@ -1369,7 +1411,7 @@ Page({
       || this.data.brushEditing
       || this.data.imageEffectEditing;
     if (shouldHide) {
-      this.updateSelectedLayerLockControl("", false);
+      this.updateSelectedLayerLockControl("", "", false);
       return;
     }
     const style = getLayerLockControlStyle(layer, {
@@ -1377,13 +1419,21 @@ Page({
       canvasHeight: this.data.canvasCssHeight || 1,
       scale: this.renderScale || 1
     });
-    this.updateSelectedLayerLockControl(style, !!layer.locked);
+    const replaceStyle = isReplaceableImageLayer(layer)
+      ? getLayerReplaceControlStyle(layer, {
+        canvasWidth: this.data.canvasCssWidth || 1,
+        canvasHeight: this.data.canvasCssHeight || 1,
+        scale: this.renderScale || 1
+      })
+      : "";
+    this.updateSelectedLayerLockControl(style, replaceStyle, !!layer.locked);
   },
 
-  updateSelectedLayerLockControl(style, locked) {
-    if (this.data.selectedLayerLockStyle === style && this.data.selectedLayerLocked === locked) return;
+  updateSelectedLayerLockControl(style, replaceStyle, locked) {
+    if (this.data.selectedLayerLockStyle === style && this.data.selectedLayerReplaceStyle === replaceStyle && this.data.selectedLayerLocked === locked) return;
     this.setData({
       selectedLayerLockStyle: style,
+      selectedLayerReplaceStyle: replaceStyle,
       selectedLayerLocked: locked
     });
   },
@@ -1519,6 +1569,10 @@ Page({
       this.showLockedLayerToast();
       return;
     }
+    track("cut_tool_start", {
+      cutStyle: "free",
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
     const originalLayer = JSON.parse(JSON.stringify(layer));
     const startScissor = () => {
       this.resetScissorCanvasContext();
@@ -1786,6 +1840,10 @@ Page({
       });
       this.markDirty();
       this.resetCanvasContext();
+      track("cut_tool_confirm", {
+        cutStyle: "free",
+        ...getDraftMinimalAnalyticsParams(this.draft)
+      });
       setTimeout(() => this.render(), 0);
       showSuccess("已分割出新图片");
     } catch (error) {
@@ -2180,18 +2238,34 @@ Page({
     this.choosePhotoBySource(source);
   },
 
+  choosePhotoForShowcase(event) {
+    const dataset = event && event.currentTarget && event.currentTarget.dataset || {};
+    this.pendingShowcaseEffect = dataset.effect || getHomeShowcaseEffect(dataset.showcaseId);
+    this.pendingEntrySource = "home_showcase";
+    this.choosePhotoBySource("album");
+  },
+
   choosePhotoBySource(source = "album") {
     const shouldStartBlank = this.data.isEmptyMode;
     const pendingAfterPhoto = this.pendingAfterPhoto;
+    const pendingShowcaseEffect = this.pendingShowcaseEffect;
+    const entrySource = this.pendingEntrySource || (shouldStartBlank ? "photo_choose" : "");
+    const pendingCollageSlotId = this.pendingCollageSlotId || "";
+    const pendingImageReplaceLayerId = this.pendingImageReplaceLayerId || "";
     // 相册支持批量导入；拍照及需要紧接着进入剪刀编辑的场景只能选择一张。
-    const imageCount = source === "album" && pendingAfterPhoto !== "scissorFree" ? 9 : 1;
+    const imageCount = source === "album" && pendingAfterPhoto !== "scissorFree" && !pendingShowcaseEffect && !pendingCollageSlotId && !pendingImageReplaceLayerId ? 9 : 1;
     track("photo_choose_start", {
       page: "create",
       source,
+      entrySource,
       fromEmpty: shouldStartBlank
     });
     if (shouldStartBlank) {
       this.resetToBlankDraftForEmptyEntry();
+      this.trackCreatePageView(entrySource || "photo_choose", {
+        source,
+        fromEmpty: true
+      });
     }
     this.enterEditMode();
     wx.chooseMedia({
@@ -2200,17 +2274,45 @@ Page({
       sourceType: [source],
       success: (res) => {
         const files = (res.tempFiles || []).filter((file) => file && file.tempFilePath);
-        if (!files.length) {
-          if (pendingAfterPhoto) this.pendingAfterPhoto = "";
+          if (!files.length) {
+            if (pendingAfterPhoto) this.pendingAfterPhoto = "";
+            if (pendingShowcaseEffect) this.pendingShowcaseEffect = "";
+            if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
+            if (pendingCollageSlotId) this.pendingCollageSlotId = "";
+          if (pendingImageReplaceLayerId) this.pendingImageReplaceLayerId = "";
           return;
         }
         Promise.all(files.map((file) => new Promise((resolve) => {
           wx.getImageInfo({
             src: file.tempFilePath,
             success: (info) => {
+              // 临时文件可立即用于画布，不能等待 saveFile 完成后才展示图片。
+              // 持久化在图层入画后后台完成，避免大图导入时出现长时间空白。
+              const importResult = { file, info, imageSource: file.tempFilePath, layer: null, persistedSource: "" };
+              importResult.syncPersistedSource = () => {
+                const layer = importResult.layer;
+                const imageSource = importResult.persistedSource;
+                if (!layer || !imageSource || imageSource === file.tempFilePath) return;
+                layer.persistedSource = imageSource;
+                if (layer.source === file.tempFilePath) {
+                  layer.source = imageSource;
+                  delete this.canvasImageCache[file.tempFilePath];
+                  this.markDirty();
+                  this.render();
+                }
+                if (layer.style && layer.style.textureEffect && layer.style.textureEffect.originalSource === file.tempFilePath) {
+                  layer.style.textureEffect.originalSource = imageSource;
+                  this.markDirty();
+                }
+              };
               persistTempFile(file.tempFilePath)
-                .then((imageSource) => resolve({ file, info, imageSource: imageSource || file.tempFilePath }))
-                .catch(() => resolve({ file, info, imageSource: file.tempFilePath }));
+                .then((imageSource) => ({ imageSource: imageSource || file.tempFilePath }))
+                .catch(() => ({ imageSource: file.tempFilePath }))
+                .then((persistResult) => {
+                  importResult.persistedSource = persistResult.imageSource;
+                  importResult.syncPersistedSource();
+                });
+              resolve(importResult);
             },
             fail: () => resolve(null)
           });
@@ -2218,21 +2320,35 @@ Page({
           const importedImages = results.filter(Boolean);
           if (!importedImages.length) {
             if (pendingAfterPhoto) this.pendingAfterPhoto = "";
+            if (pendingShowcaseEffect) this.pendingShowcaseEffect = "";
             track("photo_choose_fail", {
               page: "create",
               source,
+              entrySource,
               errorCode: "get_image_info_failed"
             });
+            if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
             showError("图片添加失败");
             return;
           }
-          const layers = importedImages.map(({ file, info, imageSource }) => {
-            const layer = createImageLayer(imageSource, info, this.draft);
-            this.draft.layers.push(layer);
+          const layers = importedImages.map((importedImage) => {
+            const { file, info, imageSource } = importedImage;
+            const layer = pendingCollageSlotId
+              ? this.fillCollageSlot(pendingCollageSlotId, imageSource, info)
+              : pendingImageReplaceLayerId
+                ? this.replaceImageLayer(pendingImageReplaceLayerId, imageSource, info)
+                : createImageLayer(imageSource, info, this.draft);
+            if (!layer) return null;
+            // saveFile 的异步结果会回写至这里，确保后续自动草稿不依赖临时路径。
+            layer.persistedSource = imageSource;
+            importedImage.layer = layer;
+            importedImage.syncPersistedSource();
+            if (!pendingCollageSlotId && !pendingImageReplaceLayerId) this.draft.layers.push(layer);
             checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
             track("photo_choose_success", {
               page: "create",
               source,
+              entrySource,
               width: info.width || 0,
               height: info.height || 0,
               fileSize: file.size || 0,
@@ -2240,25 +2356,84 @@ Page({
             });
             return layer;
           });
+          const validLayers = layers.filter(Boolean);
+          if (!validLayers.length) return;
+          this.pendingCollageSlotId = "";
+          this.pendingImageReplaceLayerId = "";
           this.draft.layers = normalizeLayerOrder(this.draft.layers);
           this.markDirty();
           if (pendingAfterPhoto === "scissorFree") {
             this.pendingAfterPhoto = "";
-            setTimeout(() => this.beginScissorCut(layers[0]), 0);
+            setTimeout(() => this.beginScissorCut(validLayers[0]), 0);
             return;
           }
+          if (pendingShowcaseEffect) {
+            this.pendingShowcaseEffect = "";
+            if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
+            this.applyHomeShowcaseEffect(validLayers[0], pendingShowcaseEffect);
+            return;
+          }
+          if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
           this.closeAfterAddingLayer();
           this.render();
         });
       },
       fail: () => {
         if (pendingAfterPhoto) this.pendingAfterPhoto = "";
+        if (pendingShowcaseEffect) this.pendingShowcaseEffect = "";
+        if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
+        if (pendingCollageSlotId) this.pendingCollageSlotId = "";
+        if (pendingImageReplaceLayerId) this.pendingImageReplaceLayerId = "";
         track("photo_choose_fail", {
           page: "create",
           source,
+          entrySource,
           errorCode: "choose_media_failed"
         });
       }
+    });
+  },
+
+  applyHomeShowcaseEffect(layer, effect) {
+    if (!layer || !effect) {
+      this.closeAfterAddingLayer();
+      this.render();
+      return;
+    }
+    const opensEffectEditor = !["emboss-circle", "emboss-stamp"].includes(effect);
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      selectedCollageSlot: isCollageSlot(layer),
+      activeTool: opensEffectEditor ? "effect" : "",
+      activeDrawer: "",
+      activePalette: opensEffectEditor ? "effect" : "",
+      selectedHandmadeEffect: getHandmadeEffectKey(layer),
+      selectedTextureEffect: getTextureEffectKey(layer),
+      effectAdjusting: "",
+      effectAdjustingLabel: "",
+      textInputVisible: false,
+      ratioPanelVisible: false,
+      canvasStageStyle: opensEffectEditor ? this.getEffectCanvasStageStyle() : ""
+    }, () => {
+      if (opensEffectEditor) this.refreshEffectCanvasLayout();
+      // render 会等待图片预加载；完成首帧后再运行效果，避免首帧被生成任务抢占。
+      this.render().then(() => {
+        if (["screen-print", "matisse-cutout", "pixel-cross-stitch", "vintage-botanical"].includes(effect)) {
+          this.selectTextureEffect({ currentTarget: { dataset: { texture: effect } } });
+          return;
+        }
+        if (effect === "lace-center") {
+          this.selectHandmadeEffect({ currentTarget: { dataset: { effect } } });
+          return;
+        }
+        if (effect === "emboss-circle" || effect === "emboss-stamp") {
+          this.beginEmbossEdit(effect === "emboss-stamp" ? "stamp" : "circle");
+          return;
+        }
+        this.closeAfterAddingLayer();
+        this.render();
+      });
     });
   },
 
@@ -2275,7 +2450,7 @@ Page({
       textPanelBottom: 0
     });
     wx.showActionSheet({
-      itemList: ["从相册选择图片", "拍照"],
+      itemList: ["从相册选择图片", "拍照", "拼图布局"],
       success: (res) => {
         if (res.tapIndex === 0) {
           this.choosePhotoBySource("album");
@@ -2283,6 +2458,10 @@ Page({
         }
         if (res.tapIndex === 1) {
           this.choosePhotoBySource("camera");
+          return;
+        }
+        if (res.tapIndex === 2) {
+          this.setData({ activeTool: "collage", activeDrawer: "collage" });
         }
       }
     });
@@ -2290,6 +2469,11 @@ Page({
 
   openToolPanel(event) {
     const tool = event.currentTarget.dataset.tool || "";
+    track("tool_panel_open", {
+      page: "create",
+      tool,
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
     this.pendingStraightCutStyle = "";
@@ -2330,7 +2514,7 @@ Page({
       this.beginEmbossEdit();
       return;
     }
-    const isDrawer = ["asset", "background"].includes(tool);
+    const isDrawer = ["asset", "background", "collage"].includes(tool);
     const isPalette = ["cut", "shape"].includes(tool);
     const nextData = {
       activeTool: tool,
@@ -2377,6 +2561,56 @@ Page({
         this.restoreDefaultCanvasAfterEffectEditor();
       }
     });
+  },
+
+  applyCollagePreset(event) {
+    const slots = getCollageSlots(event.currentTarget.dataset.preset, this.draft);
+    if (!slots.length) return;
+    const layoutId = `collage-${Date.now()}`;
+    this.draft.layers = this.draft.layers.filter((layer) => !isCollageSlot(layer));
+    slots.forEach((rect, index) => this.draft.layers.push(createCollageSlotLayer(rect, layoutId, index, this.draft)));
+    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.markDirty();
+    this.setData({ activeTool: "", activeDrawer: "", selectedLayerId: "", selectedLayerType: "" });
+    this.render();
+  },
+
+  fillCollageSlot(slotId, source, imageInfo) {
+    const layer = this.getLayerById(slotId);
+    if (!isCollageSlot(layer)) return null;
+    layer.source = source;
+    layer.sourceWidth = imageInfo.width;
+    layer.sourceHeight = imageInfo.height;
+    layer.style = {
+      ...(layer.style || {}),
+      collageSlot: {
+        ...(layer.style && layer.style.collageSlot || {}),
+        imageScale: 1,
+        imageOffsetX: 0,
+        imageOffsetY: 0
+      }
+    };
+    return layer;
+  },
+
+  replaceImageLayer(layerId, source, imageInfo) {
+    const layer = this.getLayerById(layerId);
+    if (!isReplaceableImageLayer(layer)) return null;
+    if (!this.pendingImageReplacementSnapshots) this.pendingImageReplacementSnapshots = new Map();
+    this.pendingImageReplacementSnapshots.set(layer.id, JSON.parse(JSON.stringify(layer)));
+    const defaultLayer = createImageLayer(source, imageInfo, this.draft);
+    layer.x = defaultLayer.x;
+    layer.y = defaultLayer.y;
+    layer.width = defaultLayer.width;
+    layer.height = defaultLayer.height;
+    layer.rotation = defaultLayer.rotation;
+    layer.scale = defaultLayer.scale;
+    layer.opacity = defaultLayer.opacity;
+    layer.source = defaultLayer.source;
+    layer.sourceWidth = defaultLayer.sourceWidth;
+    layer.sourceHeight = defaultLayer.sourceHeight;
+    delete layer.crop;
+    return layer;
   },
 
   collapsePanelsToMainToolbar() {
@@ -2581,7 +2815,7 @@ Page({
   selectAssetCategory(event) {
     const category = event.currentTarget.dataset.category || "推荐";
     if (category === this.data.activeAssetCategory && !this.data.activeAssetPack) return;
-    track("asset_category_select", { page: "create", category });
+    track("asset_category_select", { page: "create", category, source: "create" });
     this.setData(this.getAssetPanelState(category, ""));
     this.refreshAssetPanel(category, "");
   },
@@ -2592,7 +2826,8 @@ Page({
     track("asset_pack_open", {
       page: "create",
       packId,
-      category: this.data.activeAssetCategory || "推荐"
+      category: this.data.activeAssetCategory || "推荐",
+      source: "create"
     });
     this.setData(this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId));
     this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", packId);
@@ -2633,6 +2868,12 @@ Page({
       visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, option.category)
     });
     this.markDirty();
+    track("background_apply", {
+      page: "create",
+      backgroundId: option.id,
+      backgroundCategory: option.category || "",
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.render();
   },
 
@@ -2756,6 +2997,10 @@ Page({
     if (!transferMode.preserveDraft) {
       this.resetToBlankDraftForEmptyEntry();
     }
+    this.trackCreatePageView("asset_transfer", {
+      source: transferMode.source || "assetsTab",
+      selectedCount: assetIds.length
+    });
     this.enterEditMode();
     let added = 0;
     Promise.all(assetIds.map(getResolvedAssetItem)).then((assets) => {
@@ -2946,6 +3191,10 @@ Page({
       return;
     }
     const cutStyle = style === "wave" ? "wave" : "straight";
+    track("cut_tool_start", {
+      cutStyle,
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
     const originalLayer = JSON.parse(JSON.stringify(layer));
     const visibleBounds = getLayerVisibleLocalBounds(layer);
     const start = layerLocalPointToDraft({
@@ -3050,6 +3299,10 @@ Page({
       });
       this.markDirty();
       this.render();
+      track("cut_tool_confirm", {
+        cutStyle: session.style === "wave" ? "wave" : "straight",
+        ...getDraftMinimalAnalyticsParams(this.draft)
+      });
       showSuccess("已剪成两片");
     } catch (error) {
       console.warn("[straight-cut] normalize pieces failed", error);
@@ -3553,6 +3806,11 @@ Page({
 
     if (touches.length === 1) {
       const target = hitTest(points[0].x, points[0].y, this.draft.layers);
+      if (isCollageSlot(target) && !target.source) {
+        this.pendingCollageSlotId = target.id;
+        this.choosePhotoBySource("album");
+        return;
+      }
       if (!target && this.data.selectedLayerId && this.data.activePalette) {
         this.pendingLayerTap = null;
         this.gesture = null;
@@ -3639,7 +3897,12 @@ Page({
         }
       }
       this.gesture = target && !this.isLayerLocked(target)
-        ? { mode: "drag", layerId: target.id, start: points[0], origin: { x: target.x, y: target.y } }
+        ? {
+          mode: "drag",
+          layerId: target.id,
+          start: points[0],
+          origin: { x: target.x, y: target.y, collage: getCollageImageTransform(target) }
+        }
         : null;
       this.render();
       return;
@@ -3677,6 +3940,7 @@ Page({
           width: layer.width,
           height: layer.height,
           rotation: layer.rotation,
+          collage: getCollageImageTransform(layer),
           clipPolygon: cloneClipPolygon(layer.clipPolygon),
           clipPolygons: cloneClipPolygons(layer.clipPolygons)
         }
@@ -3718,9 +3982,17 @@ Page({
         this.pendingLayerTap.moved = moveDistance > 6;
       }
       this.rotationGuideState = null;
-      layer.x = this.gesture.origin.x + points[0].x - this.gesture.start.x;
-      layer.y = this.gesture.origin.y + points[0].y - this.gesture.start.y;
-      this.alignmentGuides = this.getStableAlignmentGuides(this.getAlignmentGuides(layer));
+      if (isFilledCollageSlot(layer)) {
+        setCollageImageTransform(layer, {
+          imageScale: this.gesture.origin.collage.imageScale,
+          imageOffsetX: this.gesture.origin.collage.imageOffsetX + points[0].x - this.gesture.start.x,
+          imageOffsetY: this.gesture.origin.collage.imageOffsetY + points[0].y - this.gesture.start.y
+        });
+      } else {
+        layer.x = this.gesture.origin.x + points[0].x - this.gesture.start.x;
+        layer.y = this.gesture.origin.y + points[0].y - this.gesture.start.y;
+        this.alignmentGuides = this.getStableAlignmentGuides(this.getAlignmentGuides(layer));
+      }
     }
 
     if (this.gesture.mode === "pinch" && points.length >= 2) {
@@ -3731,16 +4003,24 @@ Page({
       const nextDistance = distance(points[0], points[1]);
       const nextAngle = angle(points[0], points[1]);
       const scale = Math.max(0.25, Math.min(3, nextDistance / this.gesture.distance));
-      layer.width = this.gesture.origin.width * scale;
-      layer.height = this.gesture.origin.height * scale;
-      if (this.gesture.origin.clipPolygon) {
-        layer.clipPolygon = scaleClipPolygon(this.gesture.origin.clipPolygon, scale, scale);
+      if (isFilledCollageSlot(layer)) {
+        setCollageImageTransform(layer, {
+          imageScale: Math.max(1, Math.min(3, this.gesture.origin.collage.imageScale * scale)),
+          imageOffsetX: this.gesture.origin.collage.imageOffsetX,
+          imageOffsetY: this.gesture.origin.collage.imageOffsetY
+        });
+      } else {
+        layer.width = this.gesture.origin.width * scale;
+        layer.height = this.gesture.origin.height * scale;
+        if (this.gesture.origin.clipPolygon) {
+          layer.clipPolygon = scaleClipPolygon(this.gesture.origin.clipPolygon, scale, scale);
+        }
+        if (this.gesture.origin.clipPolygons) {
+          layer.clipPolygons = scaleClipPolygons(this.gesture.origin.clipPolygons, scale, scale);
+        }
+        layer.rotation = this.gesture.origin.rotation + nextAngle - this.gesture.angle;
+        this.alignmentGuides = this.getStableRotationGuides(this.getRotationAlignmentGuides(layer));
       }
-      if (this.gesture.origin.clipPolygons) {
-        layer.clipPolygons = scaleClipPolygons(this.gesture.origin.clipPolygons, scale, scale);
-      }
-      layer.rotation = this.gesture.origin.rotation + nextAngle - this.gesture.angle;
-      this.alignmentGuides = this.getStableRotationGuides(this.getRotationAlignmentGuides(layer));
     }
 
     this.render();
@@ -3887,7 +4167,7 @@ Page({
     this.embossGesture = null;
   },
 
-  beginEmbossEdit() {
+  beginEmbossEdit(preferredShape = "") {
     this.embossPickPending = false;
     const layer = this.getSelectedLayer();
     if (!layer) {
@@ -3902,9 +4182,13 @@ Page({
       this.showLockedLayerToast();
       return;
     }
+    track("emboss_start", {
+      embossShape: preferredShape || normalizeEmbossShape((layer.style || {}).clipShape || layer.clipShape || "circle") || "circle",
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
     const originalLayer = JSON.parse(JSON.stringify(layer));
     const startEmboss = () => {
-      const currentShape = normalizeEmbossShape((layer.style || {}).clipShape || layer.clipShape || "circle") || "circle";
+      const currentShape = preferredShape || normalizeEmbossShape((layer.style || {}).clipShape || layer.clipShape || "circle") || "circle";
       const sourceSize = {
         width: layer.sourceWidth || layer.width,
         height: layer.sourceHeight || layer.height
@@ -3920,7 +4204,9 @@ Page({
         originalLayer,
         sourceSize,
         preview,
-        mask: defaultMask
+        mask: defaultMask,
+        initialMask: { ...defaultMask },
+        aspectRatio: defaultMask.width / Math.max(1, defaultMask.height)
       };
       this.embossGesture = null;
       this.updateEmbossPreviewData(currentShape);
@@ -3928,6 +4214,7 @@ Page({
       this.setData({
         embossEditing: true,
         embossShape: currentShape,
+        embossAspectLocked: false,
         embossImageSrc: layer.source,
         activeTool: "shape",
         activeDrawer: "",
@@ -3980,6 +4267,7 @@ Page({
       embossImageSrc: "",
       embossImageStyle: "",
       embossMaskStyle: "",
+      embossAspectLocked: false,
       activeTool: "",
       activePalette: ""
     });
@@ -4075,12 +4363,17 @@ Page({
       embossImageSrc: "",
       embossImageStyle: "",
       embossMaskStyle: "",
+      embossAspectLocked: false,
       selectedLayerId: cutLayer.id,
       selectedLayerType: cutLayer.type,
       activeTool: "",
       activePalette: ""
     });
     this.markDirty();
+    track("emboss_confirm", {
+      embossShape: shape,
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
     setTimeout(() => this.render(), 0);
   },
 
@@ -4089,6 +4382,24 @@ Page({
     this.updateEmbossPreviewData(selectedShape);
     // “rect” 在绘制时会被标准化为空形状（即矩形路径），但需保留其值以高亮当前选项。
     this.setData({ embossShape: selectedShape });
+  },
+
+  toggleEmbossAspectLock() {
+    if (!this.embossSession) return;
+    const isLocked = !this.data.embossAspectLocked;
+    if (isLocked) {
+      const mask = this.embossSession.mask;
+      this.embossSession.aspectRatio = mask.width / Math.max(1, mask.height);
+    }
+    this.setData({ embossAspectLocked: isLocked });
+  },
+
+  resetEmbossMask() {
+    if (!this.embossSession) return;
+    this.embossSession.mask = { ...this.embossSession.initialMask };
+    this.embossSession.aspectRatio = this.embossSession.mask.width / Math.max(1, this.embossSession.mask.height);
+    // 仅恢复蒙版位置和尺寸，不改变用户当前选择的形状。
+    this.updateEmbossPreviewData();
   },
 
   onEmbossTouchStart(event) {
@@ -4139,8 +4450,9 @@ Page({
       const currentSpan = getPointSpan(points[0], points[1]);
       const scaleX = Math.max(0.25, Math.min(4, currentSpan.width / Math.max(1, startSpan.width)));
       const scaleY = Math.max(0.25, Math.min(4, currentSpan.height / Math.max(1, startSpan.height)));
-      const width = origin.width * scaleX;
-      const height = origin.height * scaleY;
+      const scale = this.data.embossAspectLocked ? Math.max(scaleX, scaleY) : null;
+      const width = origin.width * (scale || scaleX);
+      const height = origin.height * (scale || scaleY);
       const center = this.embossGesture.center;
       this.embossSession.mask = clampEmbossMask({
         x: center.x - width / 2,
@@ -4156,7 +4468,7 @@ Page({
     const dy = point.y - this.embossGesture.start.y;
     const nextMask = this.embossGesture.mode === "move"
       ? moveCropBox(this.embossGesture.origin, dx, dy, { width: layer.width, height: layer.height })
-      : resizeEmbossMask(this.embossGesture.origin, dx, dy, this.embossGesture.handle, layer);
+      : resizeEmbossMask(this.embossGesture.origin, dx, dy, this.embossGesture.handle, layer, this.data.embossAspectLocked ? this.embossSession.aspectRatio : 0);
     this.embossSession.mask = nextMask;
     this.updateEmbossPreviewData();
   },
@@ -4431,6 +4743,17 @@ Page({
     this.render();
   },
 
+  replaceSelectedLayerPhoto() {
+    const layer = this.getSelectedLayer();
+    if (!isReplaceableImageLayer(layer)) return;
+    if (isFilledCollageSlot(layer)) {
+      this.pendingCollageSlotId = layer.id;
+    } else {
+      this.pendingImageReplaceLayerId = layer.id;
+    }
+    this.choosePhotoBySource("album");
+  },
+
   getGestureLayer(points) {
     if (!points || points.length < 2) return this.getSelectedLayer();
     const midpoint = {
@@ -4449,6 +4772,7 @@ Page({
       selectedLayerId: layer.id,
       selectedLayerType: layer.type,
       selectedLayerLocked: !!layer.locked,
+      selectedCollageSlot: isCollageSlot(layer),
       selectedLayerLockStyle: "",
       selectedHandmadeEffect: getHandmadeEffectKey(layer),
       selectedTextureEffect: getTextureEffectKey(layer),
@@ -4549,6 +4873,7 @@ Page({
     const nextVariant = variants.find((item) => item.id === currentStyle.fontId) || variants[0] || { id: groupId };
     const fontStyle = createTextFontStyle(nextVariant.id);
     this.updateEditingTextStyle(fontStyle);
+    this.trackTextStyleApply("font", fontStyle.fontId);
     this.ensureTextFontLoaded(fontStyle.fontId).then(() => this.render());
     this.setData({
       textFont: fontStyle.fontId,
@@ -4563,6 +4888,7 @@ Page({
     const fontId = event.currentTarget.dataset.fontId || (this.data.textFontVariants[index] && this.data.textFontVariants[index].id) || this.data.textFont || "system";
     const fontStyle = createTextFontStyle(fontId);
     this.updateEditingTextStyle(fontStyle);
+    this.trackTextStyleApply("font_variant", fontStyle.fontId);
     this.ensureTextFontLoaded(fontStyle.fontId).then(() => this.render());
     this.setData({
       textFont: fontStyle.fontId,
@@ -4576,18 +4902,21 @@ Page({
     const index = Number(event.currentTarget.dataset.index || 0);
     const color = event.currentTarget.dataset.color || (this.data.textColors[index] && this.data.textColors[index].value) || "#111111";
     this.updateEditingTextStyle({ color });
+    this.trackTextStyleApply("color", color);
     this.setData({ textColor: color });
   },
 
   setTextSize(event) {
     const size = Number(event.currentTarget.dataset.size || 54);
     this.updateEditingTextStyle({ fontSize: size });
+    this.trackTextStyleApply("size", String(size));
     this.setData({ textSize: size });
   },
 
   setTextAlign(event) {
     const align = normalizeTextAlign(event.currentTarget.dataset.align);
     this.updateEditingTextStyle({ textAlign: align });
+    this.trackTextStyleApply("align", align);
     this.setData({ textAlign: align });
   },
 
@@ -4597,6 +4926,7 @@ Page({
       backgroundLabel: background,
       background: backgroundColorForLabel(background)
     });
+    this.trackTextStyleApply("background", background);
     this.setData({ textBackground: background });
   },
 
@@ -4605,6 +4935,7 @@ Page({
     const layer = this.getSelectedLayer();
     if (!layer || layer.type !== "text") return;
     layer.opacity = opacity / 100;
+    this.trackTextStyleApply("opacity", String(opacity));
     this.setData({ textOpacity: opacity });
     if (!this.data.textInputVisible) {
       this.markDirty();
@@ -4613,6 +4944,14 @@ Page({
     if (this.data.textInputVisible) {
       this.scheduleTextCanvasOffsetRefresh();
     }
+  },
+
+  trackTextStyleApply(styleType, styleValue) {
+    track("text_style_apply", {
+      styleType,
+      styleValue,
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
   },
 
   updateEditingTextStyle(nextStyle) {
@@ -4639,24 +4978,18 @@ Page({
     const action = event.currentTarget.dataset.action;
     const layer = this.getSelectedLayer();
     if (action === "lock") return this.toggleSelectedLayerLock();
-    const allowedWhenLocked = ["copy", "delete", "up", "down"];
+    const allowedWhenLocked = ["copy", "delete", "deleteCollage", "up", "down"];
     if (this.isLayerLocked(layer) && !allowedWhenLocked.includes(action)) {
       this.showLockedLayerToast();
       return;
     }
     if (action === "shape") {
+      if (isFilledCollageSlot(layer)) return this.confirmDetachCollageLayer(layer, "shape");
       return this.beginEmbossEdit();
     }
     if (action === "cut") {
-      const isOpen = this.data.activePalette === "cut";
-      this.setData({
-        activeTool: isOpen ? "" : "cut",
-        activePalette: isOpen ? "" : "cut",
-        activeDrawer: "",
-        textInputVisible: false,
-        ratioPanelVisible: false
-      });
-      return;
+      if (isFilledCollageSlot(layer)) return this.confirmDetachCollageLayer(layer, "cut");
+      return this.openCutPalette();
     }
     if (action === "outline") {
       const isOpen = this.data.activePalette === "outline";
@@ -4696,6 +5029,7 @@ Page({
     if (action === "crop") return this.beginImageCrop();
     if (action === "copy") return this.duplicateLayer();
     if (action === "delete") return this.deleteLayer();
+    if (action === "deleteCollage") return this.deleteCollage();
     if (action === "up") return this.moveLayerUp();
     if (action === "down") return this.moveLayerDown();
 
@@ -4703,6 +5037,67 @@ Page({
     if (action === "shadow") layer.shadow = !layer.shadow;
     if (action === "opacity") layer.opacity = layer.opacity === 0.58 ? 1 : 0.58;
     if (action === "corner") layer.radius = layer.radius ? 0 : 36;
+    this.markDirty();
+    this.render();
+  },
+
+  openCutPalette() {
+    const isOpen = this.data.activePalette === "cut";
+    this.setData({
+      activeTool: isOpen ? "" : "cut",
+      activePalette: isOpen ? "" : "cut",
+      activeDrawer: "",
+      textInputVisible: false,
+      ratioPanelVisible: false
+    });
+  },
+
+  confirmDetachCollageLayer(layer, action) {
+    const actionName = action === "shape" ? "压花" : "剪刀";
+    showModal(
+      "退出拼图",
+      `使用${actionName}会将此图片变成普通图层，无法再随原拼图布局调整。原宫格将移除，但当前展示范围会保留。`,
+      { confirmText: "确认继续" }
+    ).then((result) => {
+      if (!result.confirm) return;
+      this.detachCollageLayer(layer);
+      if (action === "shape") {
+        this.beginEmbossEdit();
+      } else {
+        this.openCutPalette();
+      }
+    });
+  },
+
+  detachCollageLayer(layer) {
+    const transform = getCollageImageTransform(layer);
+    const sourceWidth = layer.sourceWidth || layer.width;
+    const sourceHeight = layer.sourceHeight || layer.height;
+    const fit = Math.min(layer.width / sourceWidth, layer.height / sourceHeight) * transform.imageScale;
+    const renderedWidth = sourceWidth * fit;
+    const renderedHeight = sourceHeight * fit;
+    const imageX = layer.x + (layer.width - renderedWidth) / 2 + transform.imageOffsetX;
+    const imageY = layer.y + (layer.height - renderedHeight) / 2 + transform.imageOffsetY;
+    const visible = intersectRects(
+      { x: layer.x, y: layer.y, width: layer.width, height: layer.height },
+      { x: imageX, y: imageY, width: renderedWidth, height: renderedHeight }
+    );
+    if (!visible.width || !visible.height) return;
+    const existingStyle = { ...(layer.style || {}) };
+    delete existingStyle.collageSlot;
+    layer.x = visible.x;
+    layer.y = visible.y;
+    layer.width = visible.width;
+    layer.height = visible.height;
+    layer.crop = {
+      x: (visible.x - imageX) / fit,
+      y: (visible.y - imageY) / fit,
+      width: visible.width / fit,
+      height: visible.height / fit
+    };
+    layer.locked = false;
+    layer.style = existingStyle;
+    this.setData({ selectedCollageSlot: false, selectedLayerLocked: false, selectedLayerReplaceStyle: "" });
     this.markDirty();
     this.render();
   },
@@ -4758,6 +5153,11 @@ Page({
     layer.style = style;
     this.setData({ selectedHandmadeEffect: effect });
     this.markDirty();
+    track("handmade_effect_apply", {
+      page: "create",
+      effect,
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.render();
   },
 
@@ -4990,12 +5390,27 @@ Page({
     if (!textureConfig) return;
     const layerId = layer.id;
     const busySetting = event.currentTarget.dataset.setting || "";
-    this.setData({ textureEffectBusy: true, textureEffectBusyType: texture, textureEffectBusySetting: busySetting, saveStatus: `${textureConfig.label}生成中...` });
+    track("texture_effect_start", {
+      page: "create",
+      texture,
+      ...getDraftAnalyticsParams(this.draft)
+    });
+    await new Promise((resolve) => {
+      this.setData({
+        textureEffectBusy: true,
+        textureEffectBusyType: texture,
+        textureEffectBusySetting: busySetting,
+        saveStatus: `${textureConfig.label}生成中...`
+      }, resolve);
+    });
+    // 先把原图和“生成中”反馈绘制出来，再进入可能耗时的效果生成。
+    await this.render();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     try {
       const original = current && current.originalSource
         ? current
         : {
-          originalSource: layer.source,
+          originalSource: layer.persistedSource || layer.source,
           originalSourceWidth: layer.sourceWidth,
           originalSourceHeight: layer.sourceHeight,
           originalCrop: layer.crop ? { ...layer.crop } : null
@@ -5016,6 +5431,7 @@ Page({
       layer.crop = null;
       style.textureEffect = {
         ...original,
+        originalSource: layer.persistedSource || original.originalSource,
         type: texture,
         settings: getTextureEffectSettings(texture, this.data),
         generatedSource: result.path,
@@ -5089,11 +5505,19 @@ Page({
       selectedOutlineStyle: getLayerOutlineStyleKey(layer.outline)
     });
     this.markDirty();
+    track("outline_style_apply", {
+      outlineStyle: getLayerOutlineStyleKey(layer.outline),
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
     this.render();
   },
 
   beginBrushDrawing() {
     this.enterEditMode();
+    track("brush_tool_start", {
+      brushType: this.data.brushType || "line",
+      ...getDraftMinimalAnalyticsParams(this.draft)
+    });
     this.brushSession = {
       strokes: []
     };
@@ -5629,6 +6053,11 @@ Page({
       this.showLockedLayerToast();
       return;
     }
+    const startedAt = Date.now();
+    track("image_bg_remove_start", {
+      page: "create",
+      ...getDraftAnalyticsParams(this.draft)
+    });
     this.setData({
       backgroundRemoving: true,
       saveStatus: "主体剪中..."
@@ -5648,6 +6077,11 @@ Page({
       layer.sourceHeight = info.height || layer.sourceHeight || layer.height;
       this.markDirty();
       this.render();
+      track("image_bg_remove_success", {
+        page: "create",
+        durationMs: Date.now() - startedAt,
+        ...getDraftAnalyticsParams(this.draft)
+      });
       showSuccess("主体剪完成");
     } catch (error) {
       const message = error && error.message === "missing_rembg_endpoint"
@@ -5658,6 +6092,12 @@ Page({
           ? "图片细节过多，请先裁剪后再试"
           : "主体剪失败，请稍后重试";
       this.setData({ saveStatus: "主体剪失败" });
+      track("image_bg_remove_fail", {
+        page: "create",
+        durationMs: Date.now() - startedAt,
+        errorCode: error && error.message || "unknown",
+        ...getDraftAnalyticsParams(this.draft)
+      });
       showError(message);
     } finally {
       this.setData({ backgroundRemoving: false });
@@ -5904,6 +6344,22 @@ Page({
   deleteLayer() {
     const id = this.data.selectedLayerId;
     if (!id) return;
+    const collageSlot = this.getLayerById(id);
+    if (isCollageSlot(collageSlot)) {
+      collageSlot.source = "";
+      collageSlot.sourceWidth = 0;
+      collageSlot.sourceHeight = 0;
+      collageSlot.persistedSource = "";
+      const collage = { ...(collageSlot.style && collageSlot.style.collageSlot || {}) };
+      delete collage.imageScale;
+      delete collage.imageOffsetX;
+      delete collage.imageOffsetY;
+      collageSlot.style = { ...(collageSlot.style || {}), collageSlot: collage };
+      this.setData({ selectedLayerId: "", selectedLayerType: "", selectedLayerLocked: false, selectedLayerLockStyle: "", selectedLayerReplaceStyle: "" });
+      this.markDirty();
+      this.render();
+      return;
+    }
     this.draft.layers = this.draft.layers.filter((layer) => layer.id !== id);
     this.draft.layers = normalizeLayerOrder(this.draft.layers);
     this.setData({ selectedLayerId: "", selectedLayerType: "", selectedLayerLocked: false, selectedLayerLockStyle: "" });
@@ -5926,6 +6382,33 @@ Page({
       } else {
         this.render();
       }
+    });
+  },
+
+  deleteCollage() {
+    const layer = this.getSelectedLayer();
+    const collage = layer && layer.style && layer.style.collageSlot;
+    if (!collage || !collage.layoutId) return;
+    const layoutId = collage.layoutId;
+    const count = this.draft.layers.filter((item) => item && item.style && item.style.collageSlot && item.style.collageSlot.layoutId === layoutId).length;
+    showModal("删除拼图", `将移除全部 ${count} 个宫格及其中图片，此操作可撤销。`, {
+      confirmText: "删除拼图"
+    }).then((result) => {
+      if (!result.confirm) return;
+      this.draft.layers = this.draft.layers.filter((item) => !(
+        item && item.style && item.style.collageSlot && item.style.collageSlot.layoutId === layoutId
+      ));
+      this.draft.layers = normalizeLayerOrder(this.draft.layers);
+      this.setData({
+        selectedLayerId: "",
+        selectedLayerType: "",
+        selectedCollageSlot: false,
+        selectedLayerLocked: false,
+        selectedLayerLockStyle: "",
+        selectedLayerReplaceStyle: ""
+      });
+      this.markDirty();
+      this.render();
     });
   },
 
@@ -6103,6 +6586,20 @@ Page({
   }
 });
 
+function getHomeShowcaseEffect(id) {
+  const effects = {
+    "texture-screen-print": "screen-print",
+    "texture-matisse": "matisse-cutout",
+    "texture-pixel-cross-stitch": "pixel-cross-stitch",
+    "texture-botanical": "vintage-botanical",
+    "emboss-swap": "emboss-circle",
+    "emboss-circle": "emboss-circle",
+    "emboss-stamp": "emboss-stamp",
+    "lace-circle": "lace-center"
+  };
+  return effects[id] || "";
+}
+
 function normalizeHomeShowcaseManifest(payload) {
   let data = payload;
   if (typeof data === "string") {
@@ -6121,7 +6618,8 @@ function normalizeHomeShowcaseManifest(payload) {
       id: String(item && item.id || `${group && group.id || groupIndex}-${itemIndex}`),
       title: String(item && item.title || "创作灵感"),
       imageSrc: typeof (item && item.imageSrc) === "string" ? item.imageSrc : "",
-      tone: typeof (item && item.tone) === "string" ? item.tone : "structure"
+      tone: typeof (item && item.tone) === "string" ? item.tone : "structure",
+      effect: typeof (item && item.effect) === "string" ? item.effect : getHomeShowcaseEffect(item && item.id)
     })).filter((item) => item.imageSrc);
     return {
       id: String(group && group.id || groupIndex),
@@ -6140,6 +6638,14 @@ function getDraftAnalyticsParams(draft) {
     imageLayerCount: layers.filter((layer) => layer && layer.type === "image").length,
     assetLayerCount: layers.filter((layer) => layer && ["sticker", "paper", "tape"].includes(layer.type)).length,
     textLayerCount: layers.filter((layer) => layer && layer.type === "text").length
+  };
+}
+
+function getDraftMinimalAnalyticsParams(draft) {
+  return {
+    __analyticsFieldMode: "minimal",
+    draftId: draft && draft.id || "",
+    ratio: draft && draft.ratio || ""
   };
 }
 
@@ -6229,6 +6735,7 @@ function checkImportedImageContent(page, filePath, size, layerId) {
   const checkPromise = checkImageContent(filePath, { size })
     .then((checkResult) => {
       console.info("[content-security] mediaCheckAsync submitted", checkResult.traceId);
+      if (page.pendingImageReplacementSnapshots) page.pendingImageReplacementSnapshots.delete(layerId);
       return true;
     })
     .catch((error) => {
@@ -6249,6 +6756,26 @@ function checkImportedImageContent(page, filePath, size, layerId) {
 
 function removeImportedImageLayer(page, layerId) {
   if (!page || !page.draft || !layerId) return false;
+  const replacementSnapshot = page.pendingImageReplacementSnapshots && page.pendingImageReplacementSnapshots.get(layerId);
+  if (replacementSnapshot) {
+    const index = page.draft.layers.findIndex((layer) => layer.id === layerId);
+    if (index < 0) return false;
+    page.draft.layers[index] = replacementSnapshot;
+    page.pendingImageReplacementSnapshots.delete(layerId);
+    page.markDirty();
+    page.render();
+    return true;
+  }
+  const collageSlot = page.getLayerById(layerId);
+  if (isCollageSlot(collageSlot)) {
+    collageSlot.source = "";
+    collageSlot.sourceWidth = 0;
+    collageSlot.sourceHeight = 0;
+    page.setData({ selectedLayerId: "", selectedLayerType: "" });
+    page.markDirty();
+    page.render();
+    return true;
+  }
   const beforeCount = page.draft.layers.length;
   page.draft.layers = page.draft.layers.filter((layer) => layer.id !== layerId);
   if (page.draft.layers.length === beforeCount) return false;
@@ -6437,6 +6964,18 @@ function getLayerLockControlStyle(layer, options) {
   const bounds = getLayerScreenBounds(layer, { left: 0, top: 0 }, scale);
   const inset = 14;
   const offset = 10;
+  const left = clamp(Math.round(bounds.left - offset), inset, canvasWidth - inset);
+  const top = clamp(Math.round(bounds.top - offset), inset, canvasHeight - inset);
+  return `left:${left}px;top:${top}px;`;
+}
+
+function getLayerReplaceControlStyle(layer, options) {
+  const scale = options.scale || 1;
+  const canvasWidth = Math.max(1, options.canvasWidth || 1);
+  const canvasHeight = Math.max(1, options.canvasHeight || 1);
+  const bounds = getLayerScreenBounds(layer, { left: 0, top: 0 }, scale);
+  const inset = 16;
+  const offset = 12;
   const left = clamp(Math.round(bounds.right + offset), inset, canvasWidth - inset);
   const top = clamp(Math.round(bounds.top - offset), inset, canvasHeight - inset);
   return `left:${left}px;top:${top}px;`;
@@ -6993,7 +7532,7 @@ function getEmbossMaskHandle(point, box, threshold) {
   return getCropHandle(point, box, threshold);
 }
 
-function resizeEmbossMask(origin, dx, dy, handle, layer) {
+function resizeEmbossMask(origin, dx, dy, handle, layer, aspectRatio = 0) {
   const left = handle.indexOf("l") >= 0 ? origin.x + dx : origin.x;
   const right = handle.indexOf("r") >= 0 ? origin.x + origin.width + dx : origin.x + origin.width;
   const top = handle.indexOf("t") >= 0 ? origin.y + dy : origin.y;
@@ -7004,7 +7543,28 @@ function resizeEmbossMask(origin, dx, dy, handle, layer) {
     width: Math.max(EMBOSS_MIN_SIZE, Math.abs(right - left)),
     height: Math.max(EMBOSS_MIN_SIZE, Math.abs(bottom - top))
   };
-  return clampEmbossMask(next, layer);
+  if (!aspectRatio) return clampEmbossMask(next, layer);
+  const isLeft = handle.indexOf("l") >= 0;
+  const isTop = handle.indexOf("t") >= 0;
+  const useWidth = Math.abs(dx) >= Math.abs(dy);
+  let width = useWidth ? next.width : next.height * aspectRatio;
+  let height = useWidth ? next.width / aspectRatio : next.height;
+  if (width > layer.width) {
+    width = layer.width;
+    height = width / aspectRatio;
+  }
+  if (height > layer.height) {
+    height = layer.height;
+    width = height * aspectRatio;
+  }
+  const anchorX = isLeft ? origin.x + origin.width : origin.x;
+  const anchorY = isTop ? origin.y + origin.height : origin.y;
+  return clampEmbossMask({
+    x: isLeft ? anchorX - width : anchorX,
+    y: isTop ? anchorY - height : anchorY,
+    width,
+    height
+  }, layer);
 }
 
 function clampEmbossMask(mask, layer) {
@@ -9557,4 +10117,88 @@ function blendRisoInk(base, ink, coverage) {
 
 function risoValueNoise(x, y, salt) {
   return blueprintValueNoise(x, y, salt);
+}
+
+function isCollageSlot(layer) {
+  return !!(layer && layer.style && layer.style.collageSlot);
+}
+
+function isFilledCollageSlot(layer) {
+  return isCollageSlot(layer) && !!layer.source;
+}
+
+function isReplaceableImageLayer(layer) {
+  return !!(layer && layer.type === "image" && layer.source);
+}
+
+function getCollageImageTransform(layer) {
+  const collage = layer && layer.style && layer.style.collageSlot || {};
+  return {
+    imageScale: Math.max(1, Math.min(3, collage.imageScale || 1)),
+    imageOffsetX: collage.imageOffsetX || 0,
+    imageOffsetY: collage.imageOffsetY || 0
+  };
+}
+
+function setCollageImageTransform(layer, transform) {
+  if (!isFilledCollageSlot(layer)) return;
+  const style = { ...(layer.style || {}) };
+  const collage = { ...(style.collageSlot || {}) };
+  const sourceWidth = layer.sourceWidth || layer.width;
+  const sourceHeight = layer.sourceHeight || layer.height;
+  const imageScale = Math.max(1, Math.min(3, transform.imageScale || 1));
+  const fit = Math.min(layer.width / sourceWidth, layer.height / sourceHeight) * imageScale;
+  const renderedWidth = sourceWidth * fit;
+  const renderedHeight = sourceHeight * fit;
+  collage.imageScale = imageScale;
+  collage.imageOffsetX = clampCollageImageOffset(transform.imageOffsetX || 0, renderedWidth, layer.width);
+  collage.imageOffsetY = clampCollageImageOffset(transform.imageOffsetY || 0, renderedHeight, layer.height);
+  style.collageSlot = collage;
+  layer.style = style;
+}
+
+function clampCollageImageOffset(value, renderedSize, slotSize) {
+  const maximum = Math.abs(renderedSize - slotSize) / 2;
+  return Math.max(-maximum, Math.min(maximum, value));
+}
+
+function intersectRects(first, second) {
+  const left = Math.max(first.x, second.x);
+  const top = Math.max(first.y, second.y);
+  const right = Math.min(first.x + first.width, second.x + second.width);
+  const bottom = Math.min(first.y + first.height, second.y + second.height);
+  return {
+    x: left,
+    y: top,
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top)
+  };
+}
+
+function getCollageSlots(preset, draft) {
+  const gap = 0;
+  const inset = 0;
+  const x = inset;
+  const y = inset;
+  const width = draft.width - inset * 2;
+  const height = draft.height - inset * 2;
+  if (preset === "horizontal") {
+    const slotWidth = (width - gap) / 2;
+    return [{ x, y, width: slotWidth, height }, { x: x + slotWidth + gap, y, width: slotWidth, height }];
+  }
+  if (preset === "vertical") {
+    const slotHeight = (height - gap) / 2;
+    return [{ x, y, width, height: slotHeight }, { x, y: y + slotHeight + gap, width, height: slotHeight }];
+  }
+  if (preset === "grid") {
+    const slotWidth = (width - gap) / 2;
+    const slotHeight = (height - gap) / 2;
+    return [
+      { x, y, width: slotWidth, height: slotHeight },
+      { x: x + slotWidth + gap, y, width: slotWidth, height: slotHeight },
+      { x, y: y + slotHeight + gap, width: slotWidth, height: slotHeight },
+      { x: x + slotWidth + gap, y: y + slotHeight + gap, width: slotWidth, height: slotHeight }
+    ];
+  }
+  return [];
 }

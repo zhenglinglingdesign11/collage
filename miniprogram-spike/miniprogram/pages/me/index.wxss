@@ -163,3 +163,78 @@
   height: 36rpx;
   display: block;
 }
+
+.feedback-card {
+  margin-bottom: 36rpx;
+}
+
+.feedback-arrow {
+  color: #9a9a9a;
+  font-size: 44rpx;
+  line-height: 1;
+}
+
+.feedback-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  box-sizing: border-box;
+  background: rgba(17, 17, 17, 0.42);
+}
+
+.feedback-dialog {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 48rpx 40rpx 36rpx;
+  border-radius: 28rpx;
+  background: #ffffff;
+  text-align: center;
+  box-shadow: 0 20rpx 60rpx rgba(17, 17, 17, 0.2);
+}
+
+.feedback-title {
+  color: #111111;
+  font-size: 36rpx;
+  font-weight: 650;
+  line-height: 48rpx;
+}
+
+.feedback-desc {
+  margin-top: 24rpx;
+  color: #6f6f6f;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}
+
+.feedback-email {
+  margin-top: 16rpx;
+  color: #111111;
+  font-size: 30rpx;
+  font-weight: 650;
+  line-height: 42rpx;
+}
+
+.feedback-copy {
+  margin-top: 36rpx;
+  border: 0;
+  border-radius: 999rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 28rpx;
+  line-height: 84rpx;
+}
+
+.feedback-copy::after {
+  border: 0;
+}
+
+.feedback-close {
+  margin-top: 26rpx;
+  color: #6f6f6f;
+  font-size: 26rpx;
+  line-height: 38rpx;
+}

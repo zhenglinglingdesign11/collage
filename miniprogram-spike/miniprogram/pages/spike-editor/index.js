@@ -7,6 +7,7 @@ const {
   ratioSizeMap,
   createDraft,
   createImageLayer,
+  createCollageSlotLayer,
   createTextLayer,
   createTapeLayer,
   normalizeLayerOrder
@@ -28,7 +29,8 @@ Page({
     saveStatus: "未保存",
     exporting: false,
     textInputVisible: false,
-    textDraft: ""
+    textDraft: "",
+    collagePanelVisible: false
   },
 
   onLoad() {
@@ -91,8 +93,12 @@ Page({
   },
 
   choosePhoto() {
+    this.choosePhotoForSlot("");
+  },
+
+  choosePhotoForSlot(slotId) {
     wx.chooseMedia({
-      count: 9,
+      count: slotId ? 1 : 9,
       mediaType: ["image"],
       sourceType: ["album", "camera"],
       success: (res) => {
@@ -116,11 +122,15 @@ Page({
           }
           let lastLayer;
           importedImages.forEach(({ file, info, imageSource }) => {
-            const layer = createImageLayer(imageSource, info, this.draft);
-            this.draft.layers.push(layer);
+            const layer = slotId
+              ? this.fillCollageSlot(slotId, imageSource, info)
+              : createImageLayer(imageSource, info, this.draft);
+            if (!layer) return;
+            if (!slotId) this.draft.layers.push(layer);
             lastLayer = layer;
             checkImportedImageContent(this, file.tempFilePath, file.size, layer.id);
           });
+          if (!lastLayer) return;
           this.draft.layers = normalizeLayerOrder(this.draft.layers);
           this.updateSelectedLayerState(lastLayer.id);
           this.markDirty();
@@ -128,6 +138,35 @@ Page({
         });
       }
     });
+  },
+
+  openCollagePanel() {
+    this.setData({ collagePanelVisible: true });
+  },
+
+  closeCollagePanel() {
+    this.setData({ collagePanelVisible: false });
+  },
+
+  applyCollagePreset(event) {
+    const slots = getCollageSlots(event.currentTarget.dataset.preset, this.draft);
+    if (!slots.length) return;
+    const layoutId = `collage-${Date.now()}`;
+    this.draft.layers = this.draft.layers.filter((layer) => !isCollageSlot(layer));
+    slots.forEach((rect, index) => this.draft.layers.push(createCollageSlotLayer(rect, layoutId, index, this.draft)));
+    this.draft.layers = normalizeLayerOrder(this.draft.layers);
+    this.updateSelectedLayerState("", { collagePanelVisible: false });
+    this.markDirty();
+    this.render();
+  },
+
+  fillCollageSlot(slotId, source, imageInfo) {
+    const layer = this.getLayerById(slotId);
+    if (!isCollageSlot(layer)) return null;
+    layer.source = source;
+    layer.sourceWidth = imageInfo.width;
+    layer.sourceHeight = imageInfo.height;
+    return layer;
   },
 
   addTape() {
@@ -188,6 +227,10 @@ Page({
 
     if (touches.length === 1) {
       const target = hitTest(points[0].x, points[0].y, this.draft.layers);
+      if (isCollageSlot(target)) {
+        this.choosePhotoForSlot(target.id);
+        return;
+      }
       this.updateSelectedLayerState(target ? target.id : "");
       this.gesture = target
         ? { mode: "drag", layerId: target.id, start: points[0], origin: { x: target.x, y: target.y } }
@@ -499,6 +542,16 @@ function checkImportedImageContent(page, filePath, size, layerId) {
 
 function removeImportedImageLayer(page, layerId) {
   if (!page || !page.draft || !layerId) return false;
+  const collageSlot = page.getLayerById(layerId);
+  if (isCollageSlot(collageSlot)) {
+    collageSlot.source = "";
+    collageSlot.sourceWidth = 0;
+    collageSlot.sourceHeight = 0;
+    page.updateSelectedLayerState("");
+    page.markDirty();
+    page.render();
+    return true;
+  }
   const beforeCount = page.draft.layers.length;
   page.draft.layers = page.draft.layers.filter((layer) => layer.id !== layerId);
   if (page.draft.layers.length === beforeCount) return false;
@@ -535,4 +588,36 @@ function angle(a, b) {
 
 function supportsTapeAttachment(layer) {
   return !!layer && ["image", "sticker", "paper"].includes(layer.type);
+}
+
+function isCollageSlot(layer) {
+  return !!(layer && layer.style && layer.style.collageSlot);
+}
+
+function getCollageSlots(preset, draft) {
+  const gap = 0;
+  const inset = Math.round(Math.min(draft.width, draft.height) * 0.055);
+  const x = inset;
+  const y = inset;
+  const width = draft.width - inset * 2;
+  const height = draft.height - inset * 2;
+  if (preset === "horizontal") {
+    const slotWidth = (width - gap) / 2;
+    return [{ x, y, width: slotWidth, height }, { x: x + slotWidth + gap, y, width: slotWidth, height }];
+  }
+  if (preset === "vertical") {
+    const slotHeight = (height - gap) / 2;
+    return [{ x, y, width, height: slotHeight }, { x, y: y + slotHeight + gap, width, height: slotHeight }];
+  }
+  if (preset === "grid") {
+    const slotWidth = (width - gap) / 2;
+    const slotHeight = (height - gap) / 2;
+    return [
+      { x, y, width: slotWidth, height: slotHeight },
+      { x: x + slotWidth + gap, y, width: slotWidth, height: slotHeight },
+      { x, y: y + slotHeight + gap, width: slotWidth, height: slotHeight },
+      { x: x + slotWidth + gap, y: y + slotHeight + gap, width: slotWidth, height: slotHeight }
+    ];
+  }
+  return [];
 }

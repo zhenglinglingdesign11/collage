@@ -33,6 +33,7 @@ function track(event, params = {}) {
     device_id: analyticsState.deviceId || getOrCreateDeviceId(),
     draft_id: params.draftId || "",
     timestamp: Date.now(),
+    field_mode: params.__analyticsFieldMode || "default",
     params: sanitizeParams(params)
   };
   if (app && app.globalData && app.globalData.analyticsDebug !== false) {
@@ -50,19 +51,32 @@ function track(event, params = {}) {
 }
 
 function reportToWeAnalytics(payload, app) {
-  if (!wx.reportAnalytics) return;
   if (app && app.globalData && app.globalData.analyticsWeDataEnabled === false) return;
-  try {
-    wx.reportAnalytics(payload.event, {
+  const data = payload.field_mode === "minimal"
+    ? {
+      session_id: payload.session_id,
+      device_id: payload.device_id,
+      draft_id: payload.draft_id,
+      ...(payload.params || {})
+    }
+    : {
       page: payload.page,
       session_id: payload.session_id,
       device_id: payload.device_id,
       draft_id: payload.draft_id,
       timestamp: payload.timestamp,
       ...(payload.params || {})
-    });
+    };
+  try {
+    if (wx.reportEvent) {
+      wx.reportEvent(payload.event, data);
+      return;
+    }
+    if (wx.reportAnalytics) {
+      wx.reportAnalytics(payload.event, data);
+    }
   } catch (error) {
-    console.warn("[analytics] reportAnalytics failed", payload.event, error);
+    console.warn("[analytics] WeData upload failed", payload.event, error);
   }
 }
 
@@ -95,6 +109,7 @@ function trackShare(page, channel, params = {}) {
 function sanitizeParams(params) {
   const result = {};
   Object.keys(params || {}).forEach((key) => {
+    if (key.startsWith("__")) return;
     if (key === "page" || key === "draftId") return;
     const value = params[key];
     if (value == null) return;
