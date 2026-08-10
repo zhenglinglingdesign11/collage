@@ -49,8 +49,26 @@
           </view>
           <scroll-view scroll-x enhanced="{{true}}" show-scrollbar="{{false}}" class="home-showcase-scroll">
             <view class="home-showcase-track">
-              <view wx:for="{{group.items}}" wx:key="id" wx:for-item="showcase" class="home-showcase-card" data-effect="{{showcase.effect}}" data-showcase-id="{{showcase.id}}" bindtap="choosePhotoForShowcase" aria-label="选择照片并应用效果">
+              <view wx:for="{{group.items}}" wx:key="id" wx:for-item="showcase" class="home-showcase-card" data-effect="{{showcase.effect}}" data-showcase-id="{{showcase.id}}" data-background-preset-id="{{showcase.backgroundPresetId}}" bindtap="choosePhotoForShowcase" aria-label="选择照片并应用效果">
                 <image wx:if="{{showcase.imageSrc}}" class="home-showcase-image" src="{{showcase.imageSrc}}" mode="aspectFill"></image>
+                <view wx:elif="{{showcase.previewStyle}}" class="home-showcase-placeholder home-showcase-pattern" style="{{showcase.previewStyle}}">
+                  <block wx:if="{{showcase.previewTiles}}">
+                    <block wx:for="{{showcase.previewTiles}}" wx:for-item="tile" wx:for-index="tileIndex" wx:key="tileIndex">
+                      <image
+                        wx:if="{{tile.src}}"
+                        class="pattern-preview-tile"
+                        src="{{tile.src}}"
+                        style="{{tile.style}}"
+                        mode="aspectFit"
+                      ></image>
+                      <view
+                        wx:else
+                        class="pattern-preview-tile"
+                        style="{{tile.style}}"
+                      ></view>
+                    </block>
+                  </block>
+                </view>
                 <view wx:else class="home-showcase-placeholder home-showcase-{{showcase.tone}}">
                   <view wx:if="{{showcase.tone === 'structure'}}" class="showcase-structure-art">
                   <view class="showcase-paper showcase-paper-back"></view>
@@ -643,7 +661,7 @@
       </view>
 
       <block wx:if="{{activeDrawer}}">
-        <view class="drawer-backdrop" bindtap="closeDrawer"></view>
+        <view class="drawer-backdrop {{activeDrawer === 'asset' || activeDrawer === 'background' ? 'transparent' : ''}}" bindtap="closeDrawer"></view>
         <view class="drawer">
           <view class="drawer-handle"></view>
 
@@ -732,29 +750,138 @@
 
           <block wx:if="{{activeDrawer === 'background'}}">
             <view class="drawer-title-row">
-              <view class="drawer-title">背景</view>
-            </view>
-            <view class="chip-row">
-              <view
-                wx:for="{{backgroundCategories}}"
-                wx:key="*this"
-                class="chip {{activeBackgroundCategory === item ? 'active' : ''}}"
-                data-category="{{item}}"
-                bindtap="selectBackgroundCategory"
-              >{{item}}</view>
-            </view>
-            <scroll-view scroll-y class="background-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
-              <view
-                wx:for="{{visibleBackgrounds}}"
-                wx:key="id"
-                class="background-card {{item.source ? 'image-bg' : ''}} {{item.patternClass}}"
-                style="background-color: {{item.color}};"
-                data-background-id="{{item.id}}"
-                bindtap="applyBackground"
-              >
-                <image wx:if="{{item.thumb}}" class="background-thumb" src="{{item.thumb}}" mode="aspectFill"></image>
+              <view wx:if="{{patternAssetPickerVisible}}" class="drawer-return-zone" bindtap="closePolkaPatternAssetPicker">
+                <view class="drawer-back-link">‹</view>
+                <view class="drawer-title with-back">选择图案素材</view>
               </view>
-            </scroll-view>
+              <view wx:else class="drawer-title">背景</view>
+            </view>
+            <block wx:if="{{patternAssetPickerVisible}}">
+              <block wx:if="{{!activePatternAssetPack}}">
+                <scroll-view scroll-x class="chip-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                  <view
+                    wx:for="{{patternAssetCategories}}"
+                    wx:key="*this"
+                    class="chip {{activePatternAssetCategory === item ? 'active' : ''}}"
+                    data-category="{{item}}"
+                    bindtap="selectPatternAssetCategory"
+                  >{{item}}</view>
+                </scroll-view>
+                <scroll-view scroll-y class="asset-pack-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                  <view
+                    wx:for="{{visiblePatternAssetPacks}}"
+                    wx:key="id"
+                    class="asset-pack-card"
+                    style="background: {{item.tone}};"
+                    data-pack="{{item.id}}"
+                    bindtap="openPatternAssetPack"
+                  >
+                    <image class="asset-pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
+                  </view>
+                </scroll-view>
+              </block>
+              <block wx:else>
+                <view class="pattern-asset-subhead" bindtap="backToPatternAssetPacks">‹ {{activePatternAssetPack.name}}</view>
+                <scroll-view scroll-y class="asset-scroll pattern-asset-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                  <view
+                    wx:for="{{activePatternAssetPackItems}}"
+                    wx:key="id"
+                    class="asset-card"
+                    data-asset-id="{{item.id}}"
+                    bindtap="applyPatternAsset"
+                  >
+                    <image class="asset-thumb" src="{{item.thumb}}" style="{{item.panelPreviewStyle}}" mode="aspectFit"></image>
+                  </view>
+                </scroll-view>
+              </block>
+            </block>
+            <block wx:else>
+              <view class="chip-row">
+                <view
+                  wx:for="{{backgroundCategories}}"
+                  wx:key="*this"
+                  class="chip {{activeBackgroundCategory === item ? 'active' : ''}}"
+                  data-category="{{item}}"
+                  bindtap="selectBackgroundCategory"
+                >{{item}}</view>
+              </view>
+              <scroll-view scroll-y class="background-scroll {{activeBackgroundCategory === '波点' ? 'polka-scroll' : ''}}" enhanced="{{true}}" show-scrollbar="{{false}}">
+                <view class="background-grid {{activeBackgroundCategory === '波点' ? 'polka-grid' : ''}}">
+                  <view
+                    wx:for="{{visibleBackgrounds}}"
+                    wx:key="id"
+                    class="background-card {{item.source ? 'image-bg' : ''}} {{item.patternClass}}"
+                    style="background-color: {{item.color}}; {{item.previewStyle}}"
+                    data-background-id="{{item.id}}"
+                    bindtap="applyBackground"
+                  >
+                    <image wx:if="{{item.thumb}}" class="background-thumb" src="{{item.thumb}}" mode="aspectFill"></image>
+                    <block wx:if="{{item.previewTiles}}">
+                      <block wx:for="{{item.previewTiles}}" wx:for-index="tileIndex" wx:key="tileIndex">
+                        <image
+                          wx:if="{{item.src}}"
+                          class="pattern-preview-tile"
+                          src="{{item.src}}"
+                          style="{{item.style}}"
+                          mode="aspectFit"
+                        ></image>
+                        <view
+                          wx:else
+                          class="pattern-preview-tile"
+                          style="{{item.style}}"
+                        ></view>
+                      </block>
+                    </block>
+                  </view>
+                </view>
+              </scroll-view>
+              <view wx:if="{{activeBackgroundCategory === '波点'}}" class="polka-config">
+                <view class="polka-config-row compact">
+                  <view class="polka-config-label">图形</view>
+                  <view class="polka-segment-row">
+                    <view class="polka-segment upload {{selectedPolkaShape === 'image' && selectedPolkaImageSourceType === 'upload' ? 'active' : ''}}" bindtap="choosePolkaPatternImage">本地</view>
+                    <view class="polka-segment upload {{selectedPolkaShape === 'image' && selectedPolkaImageSourceType === 'asset' ? 'active' : ''}}" bindtap="openPolkaPatternAssetPicker">素材</view>
+                    <view wx:for="{{polkaShapes}}" wx:key="value" class="polka-segment shape {{selectedPolkaShape === item.value ? 'active' : ''}}" data-shape="{{item.value}}" bindtap="setPolkaShape">{{item.label}}</view>
+                  </view>
+                </view>
+                <view class="polka-config-row">
+                  <view class="polka-config-label">底色</view>
+                  <view class="polka-swatch-row">
+                    <view wx:for="{{polkaBackgroundColors}}" wx:key="value" class="polka-swatch {{selectedPolkaBackground === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setPolkaBackgroundColor"></view>
+                  </view>
+                </view>
+                <view class="polka-config-row">
+                  <view class="polka-config-label">点色</view>
+                  <view class="polka-swatch-row">
+                    <view wx:for="{{polkaDotColors}}" wx:key="value" class="polka-swatch {{selectedPolkaDotColor === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setPolkaDotColor"></view>
+                  </view>
+                </view>
+                <view class="polka-config-row compact">
+                  <view class="polka-config-label">大小</view>
+                  <view class="polka-segment-row">
+                    <view wx:for="{{polkaDotSizes}}" wx:key="value" class="polka-segment {{selectedPolkaDotRadius === item.value ? 'active' : ''}}" data-radius="{{item.value}}" bindtap="setPolkaDotSize">{{item.label}}</view>
+                  </view>
+                </view>
+                <view class="polka-config-row compact">
+                  <view class="polka-config-label">密度</view>
+                  <view class="polka-segment-row">
+                    <view wx:for="{{polkaDensities}}" wx:key="value" class="polka-segment {{selectedPolkaGap === item.value ? 'active' : ''}}" data-gap="{{item.value}}" bindtap="setPolkaDensity">{{item.label}}</view>
+                  </view>
+                </view>
+                <view class="polka-config-row compact">
+                  <view class="polka-config-label">样式</view>
+                  <view class="polka-segment-row">
+                    <view wx:for="{{polkaStyles}}" wx:key="value" class="polka-segment {{selectedPolkaStyle === item.value ? 'active' : ''}}" data-style="{{item.value}}" bindtap="setPolkaStyle">{{item.label}}</view>
+                  </view>
+                </view>
+                <view class="polka-config-row compact">
+                  <view class="polka-config-label">透明</view>
+                  <view class="polka-segment-row">
+                    <view wx:for="{{polkaOpacities}}" wx:key="value" class="polka-segment {{selectedPolkaOpacity === item.value ? 'active' : ''}}" data-opacity="{{item.value}}" bindtap="setPolkaOpacity">{{item.label}}</view>
+                  </view>
+                </view>
+              </view>
+            </block>
           </block>
 
         </view>

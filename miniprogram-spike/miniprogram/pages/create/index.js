@@ -49,7 +49,7 @@ const paper02Pack = require("../../config/assets/packs/paper-02");
 const paper03Pack = require("../../config/assets/packs/paper-03");
 const paper04Pack = require("../../config/assets/packs/paper-04");
 const paper05Pack = require("../../config/assets/packs/paper-05");
-const HOME_SHOWCASES = require("../../config/home-showcases");
+const HOME_SHOWCASE_BASE_GROUPS = require("../../config/home-showcases");
 const HOME_SHOWCASE_MANIFEST_URL = "https://assets.zllarchi.site/homecase/manifest.json";
 
 const LAYER_ACTIONS_PAGE_OFFSET = 560;
@@ -119,9 +119,73 @@ const PAPER_BACKGROUND_PACKS = [
   { pack: paper04Pack, category: "格纹" },
   { pack: paper05Pack, category: "纸感" }
 ];
-const BACKGROUND_CATEGORY_ORDER = ["纯色", "格纹", "纸感", "图案"];
+const DEFAULT_POLKA_PATTERN_CONFIG = {
+  type: "polka",
+  dotColor: "#b79b75",
+  dotColors: [],
+  dotRadius: 6,
+  gap: 46,
+  opacity: 0.58,
+  style: "solid",
+  shape: "circle",
+  imageSource: "",
+  imageWidth: 0,
+  imageHeight: 0,
+  imageSourceType: "",
+  assetId: "",
+  packId: "",
+  offset: "staggered",
+  seed: 1
+};
+const POLKA_BACKGROUND_COLORS = [
+  { value: "#fdf7ec", label: "奶油" },
+  { value: "#ffffff", label: "白" },
+  { value: "#f5dfd8", label: "粉" },
+  { value: "#d7dbc9", label: "绿" },
+  { value: "#eaf1f6", label: "蓝" },
+  { value: "#f7f7f5", label: "灰" }
+];
+const POLKA_DOT_COLORS = [
+  { value: "#b79b75", label: "焦糖" },
+  { value: "#111111", label: "黑" },
+  { value: "#ffffff", label: "白" },
+  { value: "#d94a38", label: "红" },
+  { value: "#b45d79", label: "粉" },
+  { value: "#5f806f", label: "绿" },
+  { value: "#6d9bc3", label: "蓝" }
+];
+const POLKA_DOT_SIZES = [
+  { value: 5, label: "小" },
+  { value: 9, label: "中" },
+  { value: 15, label: "大" }
+];
+const POLKA_DENSITIES = [
+  { value: 72, label: "稀" },
+  { value: 48, label: "中" },
+  { value: 32, label: "密" }
+];
+const POLKA_STYLES = [
+  { value: "solid", label: "实心" },
+  { value: "soft", label: "软点" },
+  { value: "outline", label: "空心" }
+];
+const POLKA_SHAPES = [
+  { value: "circle", label: "圆" },
+  { value: "square", label: "方" },
+  { value: "diamond", label: "菱" },
+  { value: "heart", label: "心" },
+  { value: "star", label: "星" },
+  { value: "cross", label: "十" }
+];
+const POLKA_OPACITIES = [
+  { value: 0.38, label: "弱" },
+  { value: 0.64, label: "中" },
+  { value: 1, label: "强" }
+];
+const BACKGROUND_CATEGORY_ORDER = ["纯色", "波点", "格纹", "纸感", "图案"];
 const BACKGROUND_OPTIONS = createBackgroundOptions();
 const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
+const HOME_SHOWCASES = createHomeShowcaseGroups(HOME_SHOWCASE_BASE_GROUPS);
 const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
   {
@@ -236,6 +300,29 @@ Page({
     backgroundCategories: BACKGROUND_CATEGORIES,
     activeBackgroundCategory: "纸感",
     visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "纸感"),
+    polkaBackgroundColors: POLKA_BACKGROUND_COLORS,
+    polkaDotColors: POLKA_DOT_COLORS,
+    polkaDotSizes: POLKA_DOT_SIZES,
+    polkaDensities: POLKA_DENSITIES,
+    polkaStyles: POLKA_STYLES,
+    polkaShapes: POLKA_SHAPES,
+    polkaOpacities: POLKA_OPACITIES,
+    selectedPolkaBackground: POLKA_BACKGROUND_COLORS[0].value,
+    selectedPolkaDotColor: DEFAULT_POLKA_PATTERN_CONFIG.dotColor,
+    selectedPolkaDotRadius: DEFAULT_POLKA_PATTERN_CONFIG.dotRadius,
+    selectedPolkaGap: DEFAULT_POLKA_PATTERN_CONFIG.gap,
+    selectedPolkaStyle: DEFAULT_POLKA_PATTERN_CONFIG.style,
+    selectedPolkaShape: DEFAULT_POLKA_PATTERN_CONFIG.shape,
+    selectedPolkaOpacity: DEFAULT_POLKA_PATTERN_CONFIG.opacity,
+    selectedPolkaImageSource: "",
+    selectedPolkaImageSourceType: "",
+    patternAssetPickerVisible: false,
+    patternAssetCategories: createAssetPanelCategories(),
+    activePatternAssetCategory: "推荐",
+    patternAssetPacks: decorateAssetPanelPacks(getAssetPacks()),
+    visiblePatternAssetPacks: filterAssetPanelPacks(decorateAssetPanelPacks(getAssetPacks()), "推荐"),
+    activePatternAssetPack: null,
+    activePatternAssetPackItems: [],
     selectedOutlineStyle: "none",
     brushDebugEnabled: false,
     brushEditing: false,
@@ -519,7 +606,8 @@ Page({
       scissorBrushSize: SCISSOR_BRUSH_SIZE,
       hasRecentDraft: !!latestDraft,
       recentDraftThumb: latestDraft && latestDraft.thumbnailPath ? latestDraft.thumbnailPath : "",
-      recentDrafts
+      recentDrafts,
+      ...getPolkaPatternControlData(this.draft)
     });
     this.trackCreatePageView("default", {
       hasRecentDraft: !!latestDraft,
@@ -766,7 +854,7 @@ Page({
         console.warn("[home-showcases] manifest has no valid groups");
         return;
       }
-      this.setData({ homeShowcaseGroups: groups });
+      this.setData({ homeShowcaseGroups: createHomeShowcaseGroups(groups) });
     };
     const loadByDownload = () => {
       if (!wx.downloadFile || !wx.getFileSystemManager) return;
@@ -914,7 +1002,8 @@ Page({
       ? getBrushStampSources([{ strokes: (this.brushSession.strokes || []).concat(this.brushStroke ? [this.brushStroke] : []) }])
       : [];
     const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
-    const sources = Array.from(new Set([backgroundSource].concat(layerSources, effectSources, brushSources, brushDraftSources).filter(Boolean)));
+    const patternImageSource = this.draft.backgroundPatternConfig && this.draft.backgroundPatternConfig.imageSource;
+    const sources = Array.from(new Set([backgroundSource, patternImageSource].concat(layerSources, effectSources, brushSources, brushDraftSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -968,7 +1057,11 @@ Page({
       straightCutStartHandleStyle: "",
       straightCutEndHandleStyle: "",
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      patternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: [],
+      ...getPolkaPatternControlData(this.draft)
     });
     this.setEditorMode(true);
     setTimeout(() => this.render(), 0);
@@ -1007,7 +1100,11 @@ Page({
       straightCutStartHandleStyle: "",
       straightCutEndHandleStyle: "",
       keyboardHeight: 0,
-      textPanelBottom: 0
+      textPanelBottom: 0,
+      patternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: [],
+      ...getPolkaPatternControlData(this.draft)
     });
   },
 
@@ -2260,9 +2357,60 @@ Page({
 
   choosePhotoForShowcase(event) {
     const dataset = event && event.currentTarget && event.currentTarget.dataset || {};
+    if (dataset.backgroundPresetId) {
+      this.applyHomeBackgroundPreset(dataset.backgroundPresetId);
+      return;
+    }
     this.pendingShowcaseEffect = dataset.effect || getHomeShowcaseEffect(dataset.showcaseId);
     this.pendingEntrySource = "home_showcase";
     this.choosePhotoBySource("album");
+  },
+
+  applyHomeBackgroundPreset(backgroundId) {
+    const option = BACKGROUND_OPTIONS.find((item) => item.id === backgroundId);
+    if (!option) {
+      showError("背景应用失败");
+      return;
+    }
+    if (this.data.isEmptyMode) {
+      this.resetToBlankDraftForEmptyEntry();
+    }
+    this.enterEditMode();
+    this.draft.background = option.color || "#fdfdfb";
+    this.draft.backgroundImage = option.source
+      ? {
+        id: option.id,
+        name: option.name,
+        source: option.source,
+        width: option.width,
+        height: option.height,
+        fillMode: "cover"
+      }
+      : null;
+    this.draft.backgroundPattern = option.pattern || "";
+    this.draft.backgroundPatternConfig = option.patternConfig
+      ? normalizePolkaPatternConfig(option.patternConfig)
+      : null;
+    this.setData({
+      activeTool: "",
+      activeDrawer: "",
+      activePalette: "",
+      activeBackgroundCategory: option.category || "波点",
+      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, option.category || "波点"),
+      ...getPolkaPatternControlData(this.draft)
+    });
+    this.trackCreatePageView("home_background_preset", {
+      backgroundId: option.id,
+      backgroundCategory: option.category || ""
+    });
+    this.markDirty();
+    this.render();
+    track("home_background_preset_apply", {
+      page: "create",
+      backgroundId: option.id,
+      backgroundCategory: option.category || "",
+      ...getDraftAnalyticsParams(this.draft)
+    });
   },
 
   choosePhotoBySource(source = "album") {
@@ -2822,7 +2970,10 @@ Page({
       activeTool: "",
       activeDrawer: "",
       activeAssetPack: null,
-      activeAssetPackItems: []
+      activeAssetPackItems: [],
+      patternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: []
     });
   },
 
@@ -2881,7 +3032,9 @@ Page({
     const category = event.currentTarget.dataset.category || "纸感";
     this.setData({
       activeBackgroundCategory: category,
-      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, category)
+      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, category),
+      patternAssetPickerVisible: false,
+      ...getPolkaPatternControlData(this.draft)
     });
   },
 
@@ -2902,9 +3055,13 @@ Page({
       }
       : null;
     this.draft.backgroundPattern = option.pattern || "";
+    this.draft.backgroundPatternConfig = option.patternConfig
+      ? normalizePolkaPatternConfig(option.patternConfig)
+      : null;
     this.setData({
       activeBackgroundCategory: option.category,
-      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, option.category)
+      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, option.category),
+      ...getPolkaPatternControlData(this.draft)
     });
     this.markDirty();
     track("background_apply", {
@@ -2913,6 +3070,189 @@ Page({
       backgroundCategory: option.category || "",
       ...getDraftAnalyticsParams(this.draft)
     });
+    this.render();
+  },
+
+  setPolkaBackgroundColor(event) {
+    this.updatePolkaBackground({ background: event.currentTarget.dataset.color });
+  },
+
+  setPolkaDotColor(event) {
+    this.updatePolkaBackground({ dotColor: event.currentTarget.dataset.color });
+  },
+
+  setPolkaDotSize(event) {
+    this.updatePolkaBackground({ dotRadius: Number(event.currentTarget.dataset.radius) });
+  },
+
+  setPolkaDensity(event) {
+    this.updatePolkaBackground({ gap: Number(event.currentTarget.dataset.gap) });
+  },
+
+  setPolkaStyle(event) {
+    this.updatePolkaBackground({ style: event.currentTarget.dataset.style });
+  },
+
+  setPolkaShape(event) {
+    this.updatePolkaBackground({
+      shape: event.currentTarget.dataset.shape,
+      imageSource: "",
+      imageWidth: 0,
+      imageHeight: 0,
+      imageSourceType: "",
+      assetId: "",
+      packId: ""
+    });
+  },
+
+  setPolkaOpacity(event) {
+    this.updatePolkaBackground({ opacity: Number(event.currentTarget.dataset.opacity) });
+  },
+
+  choosePolkaPatternImage() {
+    if (!wx.chooseMedia) return;
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ["image"],
+      sourceType: ["album", "camera"],
+      success: (res) => {
+        const file = res.tempFiles && res.tempFiles[0];
+        const tempFilePath = file && file.tempFilePath;
+        if (!tempFilePath) return;
+        Promise.all([
+          persistTempFile(tempFilePath),
+          getImageInfoAsync(tempFilePath).catch(() => null)
+        ]).then(([savedPath, info]) => {
+          this.updatePolkaBackground({
+            shape: "image",
+            imageSourceType: "upload",
+            imageSource: savedPath || tempFilePath,
+            imageWidth: info && info.width ? info.width : 0,
+            imageHeight: info && info.height ? info.height : 0,
+            assetId: "",
+            packId: ""
+          });
+        });
+      }
+    });
+  },
+
+  openPolkaPatternAssetPicker() {
+    this.setData({
+      patternAssetPickerVisible: true,
+      ...this.getPatternAssetPanelState(this.data.activePatternAssetCategory || "推荐", "")
+    });
+    this.refreshPatternAssetPanel(this.data.activePatternAssetCategory || "推荐", "");
+  },
+
+  closePolkaPatternAssetPicker() {
+    this.setData({
+      patternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: []
+    });
+  },
+
+  getPatternAssetPanelState(category, packId, packs, pack) {
+    const patternAssetPacks = decorateAssetPanelPacks(packs || getAssetPacks());
+    const activeCategory = category || "推荐";
+    const activePatternAssetPack = packId ? decorateAssetPanelPack(pack || getAssetPack(packId)) : null;
+    return {
+      patternAssetPacks,
+      activePatternAssetCategory: activeCategory,
+      visiblePatternAssetPacks: filterAssetPanelPacks(patternAssetPacks, activeCategory),
+      activePatternAssetPack,
+      activePatternAssetPackItems: activePatternAssetPack ? activePatternAssetPack.items : []
+    };
+  },
+
+  refreshPatternAssetPanel(category = this.data.activePatternAssetCategory || "推荐", packId = this.data.activePatternAssetPack && this.data.activePatternAssetPack.id || "") {
+    const requestId = Date.now();
+    this.patternAssetPanelRequestId = requestId;
+    return Promise.all([
+      getResolvedAssetPacks(),
+      packId ? getResolvedAssetPack(packId) : Promise.resolve(null)
+    ]).then(([packs, pack]) => {
+      if (this.patternAssetPanelRequestId !== requestId) return;
+      this.setData(this.getPatternAssetPanelState(category, packId, packs, pack));
+    });
+  },
+
+  selectPatternAssetCategory(event) {
+    const category = event.currentTarget.dataset.category || "推荐";
+    this.setData(this.getPatternAssetPanelState(category, ""));
+    this.refreshPatternAssetPanel(category, "");
+  },
+
+  openPatternAssetPack(event) {
+    const packId = event.currentTarget.dataset.pack;
+    if (!packId) return;
+    this.setData(this.getPatternAssetPanelState(this.data.activePatternAssetCategory || "推荐", packId));
+    this.refreshPatternAssetPanel(this.data.activePatternAssetCategory || "推荐", packId);
+  },
+
+  backToPatternAssetPacks() {
+    this.setData(this.getPatternAssetPanelState(this.data.activePatternAssetCategory || "推荐", ""));
+    this.refreshPatternAssetPanel(this.data.activePatternAssetCategory || "推荐", "");
+  },
+
+  applyPatternAsset(event) {
+    const assetId = event.currentTarget.dataset.assetId;
+    if (!assetId) return;
+    getResolvedAssetItem(assetId).then((asset) => {
+      if (!asset || !asset.source) {
+        showError("素材加载失败");
+        return;
+      }
+      this.updatePolkaBackground({
+        shape: "image",
+        imageSourceType: "asset",
+        imageSource: asset.source,
+        imageWidth: asset.width || 0,
+        imageHeight: asset.height || 0,
+        assetId: asset.id || assetId,
+        packId: asset.packId || ""
+      });
+      this.setData({ patternAssetPickerVisible: false });
+      track("background_pattern_asset_apply", {
+        page: "create",
+        assetId: asset.id || assetId,
+        packId: asset.packId || "",
+        ...getDraftAnalyticsParams(this.draft)
+      });
+    });
+  },
+
+  updatePolkaBackground(patch = {}) {
+    this.enterEditMode();
+    const currentConfig = this.draft.backgroundPattern === "polka"
+      ? normalizePolkaPatternConfig(this.draft.backgroundPatternConfig)
+      : normalizePolkaPatternConfig(DEFAULT_POLKA_PATTERN_CONFIG);
+    const nextConfig = normalizePolkaPatternConfig({
+      ...currentConfig,
+      dotColor: patch.dotColor || currentConfig.dotColor,
+      dotRadius: patch.dotRadius == null ? currentConfig.dotRadius : patch.dotRadius,
+      gap: patch.gap == null ? currentConfig.gap : patch.gap,
+      opacity: patch.opacity == null ? currentConfig.opacity : patch.opacity,
+      style: patch.style || currentConfig.style,
+      shape: patch.shape || currentConfig.shape,
+      imageSource: patch.imageSource == null ? currentConfig.imageSource : patch.imageSource,
+      imageWidth: patch.imageWidth == null ? currentConfig.imageWidth : patch.imageWidth,
+      imageHeight: patch.imageHeight == null ? currentConfig.imageHeight : patch.imageHeight,
+      imageSourceType: patch.imageSourceType == null ? currentConfig.imageSourceType : patch.imageSourceType,
+      assetId: patch.assetId == null ? currentConfig.assetId : patch.assetId,
+      packId: patch.packId == null ? currentConfig.packId : patch.packId
+    });
+    this.draft.background = patch.background || this.draft.background || POLKA_BACKGROUND_COLORS[0].value;
+    this.draft.backgroundImage = null;
+    this.draft.backgroundPattern = "polka";
+    this.draft.backgroundPatternConfig = nextConfig;
+    this.setData({
+      activeBackgroundCategory: "波点",
+      visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "波点"),
+      ...getPolkaPatternControlData(this.draft)
+    });
+    this.markDirty();
     this.render();
   },
 
@@ -6625,7 +6965,11 @@ Page({
       straightCutEditing: false,
       straightCutLineStyle: "",
       straightCutStartHandleStyle: "",
-      straightCutEndHandleStyle: ""
+      straightCutEndHandleStyle: "",
+      patternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: [],
+      ...getPolkaPatternControlData(this.draft)
     });
     setTimeout(() => this.render(), 0);
   },
@@ -8906,6 +9250,59 @@ function filterBackgroundOptions(options, category) {
   return options.filter((option) => option.category === category);
 }
 
+function createHomeShowcaseGroups(groups) {
+  const baseGroups = Array.isArray(groups) ? groups : [];
+  const backgroundGroup = createBackgroundHomeShowcaseGroup();
+  if (!backgroundGroup.items.length) return baseGroups;
+  const textureIndex = baseGroups.findIndex((group) => group && group.id === "texture");
+  const embossIndex = baseGroups.findIndex((group) => group && group.id === "emboss");
+  const insertIndex = textureIndex >= 0 ? textureIndex + 1 : embossIndex >= 0 ? embossIndex : 1;
+  return baseGroups.slice(0, insertIndex)
+    .concat(backgroundGroup)
+    .concat(baseGroups.slice(insertIndex));
+}
+
+function createBackgroundHomeShowcaseGroup() {
+  const showcaseMap = [
+    ["polka-cream-small", "奶油波点感"],
+    ["polka-pink-heart", "爱心甜妹感"],
+    ["polka-ink-fine", "黑白细波点"],
+    ["polka-cream-star", "星星氛围感"],
+    ["polka-red-cross", "红色十字感"],
+    ["pattern-local-24", "图案波点感"]
+  ];
+  const items = showcaseMap.map(([backgroundId, title]) => {
+    const option = BACKGROUND_OPTIONS.find((item) => item.id === backgroundId);
+    if (!option) return null;
+    return {
+      id: `home-${backgroundId}`,
+      title,
+      imageSrc: "",
+      tone: "pattern",
+      effect: "",
+      backgroundPresetId: backgroundId,
+      previewStyle: option.previewStyle || `background-color:${option.color || "#ffffff"};`,
+      previewTiles: createHomeShowcaseBackgroundTiles(option)
+    };
+  }).filter(Boolean);
+  return {
+    id: "pattern-background",
+    title: "波点底纸一换就出片",
+    items
+  };
+}
+
+function createHomeShowcaseBackgroundTiles(option) {
+  const config = option && option.patternConfig;
+  if (!config || config.shape !== "image" || !config.imageSource) return option && option.previewTiles || [];
+  return createPolkaImagePreviewTiles(config.imageSource, config, {
+    gapMultiplier: 1.72,
+    offset: "grid",
+    previewWidth: 246,
+    previewHeight: 300
+  });
+}
+
 function createPaperBackgroundOptions() {
   return PAPER_BACKGROUND_PACKS.reduce((items, entry) => {
     const pack = entry.pack || {};
@@ -8947,6 +9344,7 @@ function createBackgroundOptions() {
     category: "纯色",
     color
   }));
+  const polkas = createPolkaBackgroundOptions();
   const paperBackgrounds = createPaperBackgroundOptions();
   const grids = [
     ["grid-dot", "点阵", "#fdfdfb", "dot"],
@@ -8960,7 +9358,291 @@ function createBackgroundOptions() {
     pattern,
     patternClass: `pattern-${pattern}`
   }));
-  return colors.concat(paperBackgrounds, grids);
+  return colors.concat(polkas, paperBackgrounds, grids);
+}
+
+function createPolkaBackgroundOptions() {
+  const shapePresets = [
+    ["polka-cream-small", "奶油小圆", "#fdf7ec", "#b79b75", 5, 48, 0.64, "solid", "circle"],
+    ["polka-pink-heart", "粉白爱心", "#f5dfd8", "#ffffff", 9, 48, 1, "solid", "heart"],
+    ["polka-ink-fine", "胶片小点", "#ffffff", "#111111", 5, 48, 0.64, "solid", "circle"],
+    ["polka-sage-square", "鼠尾草方格", "#d7dbc9", "#5f806f", 5, 48, 0.38, "solid", "square"],
+    ["polka-blue-diamond", "雾蓝菱形", "#eaf1f6", "#6d9bc3", 9, 48, 0.64, "outline", "diamond"],
+    ["polka-cream-star", "奶油星星", "#fdf7ec", "#111111", 9, 48, 0.64, "solid", "star"],
+    ["polka-red-cross", "印章十字", "#ffffff", "#d94a38", 9, 48, 0.64, "solid", "cross"]
+  ].map(([id, name, color, dotColor, dotRadius, gap, opacity, style, shape], index) => {
+    const patternConfig = normalizePolkaPatternConfig({
+      ...DEFAULT_POLKA_PATTERN_CONFIG,
+      dotColor,
+      dotRadius,
+      gap,
+      opacity,
+      style,
+      shape,
+      offset: "grid",
+      seed: index + 1
+    });
+    return {
+      id,
+      name,
+      category: "波点",
+      color,
+      pattern: "polka",
+      patternConfig,
+      patternClass: "pattern-polka",
+      previewStyle: createPolkaPreviewStyle(color, patternConfig)
+    };
+  });
+  const assetPresets = [
+    createPolkaLocalImageBackgroundOption({
+      id: "pattern-local-24",
+      name: "素材 24",
+      color: "#ffffff",
+      source: "/assets/packs/24.png",
+      imageWidth: 177,
+      imageHeight: 209,
+      dotRadius: 9,
+      gap: 48,
+      opacity: 0.64,
+      seed: 31
+    }),
+    createPolkaLocalImageBackgroundOption({
+      id: "pattern-local-7",
+      name: "素材 7",
+      color: "#ffffff",
+      source: "/assets/packs/7.png",
+      imageWidth: 299,
+      imageHeight: 169,
+      dotRadius: 9,
+      gap: 48,
+      opacity: 0.64,
+      seed: 43
+    }),
+    createPolkaLocalImageBackgroundOption({
+      id: "pattern-local-1",
+      name: "素材 1",
+      color: "#ffffff",
+      source: "/assets/packs/1.png",
+      imageWidth: 215,
+      imageHeight: 217,
+      dotRadius: 9,
+      gap: 48,
+      opacity: 0.64,
+      seed: 59
+    })
+  ].filter(Boolean);
+  return shapePresets.concat(assetPresets);
+}
+
+function createPolkaLocalImageBackgroundOption(options) {
+  const patternConfig = normalizePolkaPatternConfig({
+    ...DEFAULT_POLKA_PATTERN_CONFIG,
+    shape: "image",
+    imageSourceType: "asset",
+    imageSource: options.source,
+    imageWidth: options.imageWidth || 0,
+    imageHeight: options.imageHeight || 0,
+    assetId: options.id,
+    packId: "local-patterns",
+    dotRadius: options.dotRadius,
+    gap: options.gap,
+    opacity: options.opacity,
+    offset: "grid",
+    seed: options.seed
+  });
+  return {
+    id: options.id,
+    name: options.name,
+    category: "波点",
+    color: options.color,
+    pattern: "polka",
+    patternConfig,
+    patternClass: "pattern-polka",
+    previewTiles: createPolkaImagePreviewTiles(options.source, patternConfig, { gapMultiplier: 1.72, offset: "grid" }),
+    previewStyle: `background-color:${options.color};`
+  };
+}
+
+function createPolkaAssetBackgroundOption(options) {
+  const asset = getAssetItem(options.assetId);
+  if (!asset || !asset.source) return null;
+  const patternConfig = normalizePolkaPatternConfig({
+    ...DEFAULT_POLKA_PATTERN_CONFIG,
+    shape: "image",
+    imageSourceType: "asset",
+    imageSource: asset.source,
+    imageWidth: asset.width || 0,
+    imageHeight: asset.height || 0,
+    assetId: asset.id || options.assetId,
+    packId: asset.packId || "",
+    dotRadius: options.dotRadius,
+    gap: options.gap,
+    opacity: options.opacity,
+    offset: "grid",
+    seed: options.seed
+  });
+  return {
+    id: options.id,
+    name: options.name,
+    category: "波点",
+    color: options.color,
+    pattern: "polka",
+    patternConfig,
+    patternClass: "pattern-polka",
+    previewStyle: createPolkaPreviewStyle(options.color, patternConfig)
+  };
+}
+
+function createPolkaPreviewStyle(color, config) {
+  const opacity = Math.max(0, Math.min(1, Number(config.opacity) || DEFAULT_POLKA_PATTERN_CONFIG.opacity));
+  const alphaColor = hexToRgba(config.dotColor || DEFAULT_POLKA_PATTERN_CONFIG.dotColor, opacity);
+  const previewScale = 240 / 900;
+  const radius = Math.max(10, Math.round((Number(config.dotRadius) || DEFAULT_POLKA_PATTERN_CONFIG.dotRadius) * previewScale * 5.6));
+  const gap = Math.max(12, Math.round((Number(config.gap) || DEFAULT_POLKA_PATTERN_CONFIG.gap) * previewScale));
+  if (config.shape === "image" && config.imageSource) {
+    return `background-color:${color};background-image:url(${config.imageSource});background-size:${gap}rpx ${gap}rpx;background-position:center;background-repeat:repeat;`;
+  }
+  return `background-color:${color};background-image:url("${createPolkaPreviewSvgDataUri(config.shape || "circle", alphaColor, radius, config.style)}");background-size:${gap}rpx ${gap}rpx;background-repeat:repeat;`;
+}
+
+function createPolkaImagePreviewTiles(source, config, options = {}) {
+  const previewScale = 240 / 900;
+  const previewWidth = options.previewWidth || 124;
+  const previewHeight = options.previewHeight || 136;
+  const gap = Math.max(12, Math.round((Number(config.gap) || DEFAULT_POLKA_PATTERN_CONFIG.gap) * previewScale * (options.gapMultiplier || 1)));
+  const size = Math.max(12, Math.round(gap * 0.68));
+  return createStaggeredPreviewTiles({
+    previewWidth,
+    previewHeight,
+    gap,
+    size,
+    offset: options.offset || config.offset,
+    styleForTile: (left, top) => `left:${left}rpx;top:${top}rpx;width:${size}rpx;height:${size}rpx;`
+  }).map((tile) => ({
+    ...tile,
+    src: source
+  }));
+}
+
+function createStaggeredPreviewTiles({ previewWidth, previewHeight, gap, size, offset, styleForTile }) {
+  const tiles = [];
+  for (let centerY = gap / 2; centerY < previewHeight + size / 2; centerY += gap) {
+    const row = Math.floor(centerY / gap);
+    const rowOffset = offset === "grid" ? 0 : row % 2 === 1 ? gap / 2 : 0;
+    for (let centerX = gap / 2 + rowOffset - gap; centerX < previewWidth + size / 2; centerX += gap) {
+      const left = Math.round(centerX - size / 2);
+      const top = Math.round(centerY - size / 2);
+      tiles.push({
+        style: styleForTile(left, top)
+      });
+    }
+  }
+  return tiles;
+}
+
+function createPolkaPreviewSvgDataUri(shape, color, radius, style) {
+  const size = Math.max(24, Math.round(radius * 4 + 16));
+  const center = size / 2;
+  const paint = style === "outline"
+    ? `fill="none" stroke="${color}" stroke-width="${Math.max(1.2, radius * 0.35)}" stroke-linejoin="round" stroke-linecap="round"`
+    : `fill="${color}"`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${createPolkaPreviewSvgShape(shape, center, radius, paint)}</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function createPolkaPreviewSvgShape(shape, center, radius, paint) {
+  if (shape === "square") {
+    return `<rect x="${center - radius}" y="${center - radius}" width="${radius * 2}" height="${radius * 2}" ${paint}/>`;
+  }
+  if (shape === "diamond") {
+    const r = radius * 1.18;
+    return `<path d="M ${center} ${center - r} L ${center + r} ${center} L ${center} ${center + r} L ${center - r} ${center} Z" ${paint}/>`;
+  }
+  if (shape === "heart") {
+    const r = radius;
+    return `<path d="M ${center} ${center + r * 0.86} C ${center - r * 1.18} ${center + r * 0.08}, ${center - r * 0.92} ${center - r * 0.86}, ${center - r * 0.24} ${center - r * 0.54} C ${center - r * 0.04} ${center - r * 0.44}, ${center} ${center - r * 0.18}, ${center} ${center - r * 0.02} C ${center} ${center - r * 0.18}, ${center + r * 0.04} ${center - r * 0.44}, ${center + r * 0.24} ${center - r * 0.54} C ${center + r * 0.92} ${center - r * 0.86}, ${center + r * 1.18} ${center + r * 0.08}, ${center} ${center + r * 0.86} Z" ${paint}/>`;
+  }
+  if (shape === "star") {
+    const points = [];
+    for (let i = 0; i < 10; i += 1) {
+      const pointRadius = i % 2 === 0 ? radius * 1.18 : radius * 0.5;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      points.push(`${center + Math.cos(angle) * pointRadius},${center + Math.sin(angle) * pointRadius}`);
+    }
+    return `<polygon points="${points.join(" ")}" ${paint}/>`;
+  }
+  if (shape === "cross") {
+    const arm = radius * 0.42;
+    return `<path d="M ${center - arm} ${center - radius} H ${center + arm} V ${center - arm} H ${center + radius} V ${center + arm} H ${center + arm} V ${center + radius} H ${center - arm} V ${center + arm} H ${center - radius} V ${center - arm} H ${center - arm} Z" ${paint}/>`;
+  }
+  return `<circle cx="${center}" cy="${center}" r="${radius}" ${paint}/>`;
+}
+
+function normalizePolkaPatternConfig(config = {}) {
+  const dotRadius = Number(config.dotRadius);
+  const gap = Number(config.gap);
+  const opacity = Number(config.opacity);
+  const style = ["solid", "soft", "outline"].includes(config.style) ? config.style : DEFAULT_POLKA_PATTERN_CONFIG.style;
+  const shape = ["circle", "square", "diamond", "heart", "star", "cross", "image"].includes(config.shape) ? config.shape : DEFAULT_POLKA_PATTERN_CONFIG.shape;
+  const dotColors = Array.isArray(config.dotColors) ? config.dotColors.filter(Boolean).slice(0, 6) : [];
+  const imageWidth = Number(config.imageWidth);
+  const imageHeight = Number(config.imageHeight);
+  return {
+    type: "polka",
+    dotColor: config.dotColor || DEFAULT_POLKA_PATTERN_CONFIG.dotColor,
+    dotColors,
+    dotRadius: Number.isFinite(dotRadius) ? Math.max(2, Math.min(28, dotRadius)) : DEFAULT_POLKA_PATTERN_CONFIG.dotRadius,
+    gap: Number.isFinite(gap) ? Math.max(18, Math.min(120, gap)) : DEFAULT_POLKA_PATTERN_CONFIG.gap,
+    opacity: Number.isFinite(opacity) ? Math.max(0.12, Math.min(1, opacity)) : DEFAULT_POLKA_PATTERN_CONFIG.opacity,
+    style,
+    shape,
+    imageSource: config.imageSource || "",
+    imageWidth: Number.isFinite(imageWidth) ? Math.max(0, imageWidth) : 0,
+    imageHeight: Number.isFinite(imageHeight) ? Math.max(0, imageHeight) : 0,
+    imageSourceType: ["upload", "asset"].includes(config.imageSourceType) ? config.imageSourceType : "",
+    assetId: config.assetId || "",
+    packId: config.packId || "",
+    offset: config.offset === "grid" ? "grid" : "staggered",
+    seed: Number.isFinite(Number(config.seed)) ? Number(config.seed) : DEFAULT_POLKA_PATTERN_CONFIG.seed
+  };
+}
+
+function getPolkaPatternControlData(draft) {
+  const isPolkaBackground = !!(draft && draft.backgroundPattern === "polka");
+  if (!isPolkaBackground) {
+    return {
+      selectedPolkaBackground: "",
+      selectedPolkaDotColor: "",
+      selectedPolkaDotRadius: "",
+      selectedPolkaGap: "",
+      selectedPolkaStyle: "",
+      selectedPolkaShape: "",
+      selectedPolkaOpacity: "",
+      selectedPolkaImageSource: "",
+      selectedPolkaImageSourceType: ""
+    };
+  }
+  const config = normalizePolkaPatternConfig(draft.backgroundPatternConfig);
+  return {
+    selectedPolkaBackground: draft.background || POLKA_BACKGROUND_COLORS[0].value,
+    selectedPolkaDotColor: config.dotColor,
+    selectedPolkaDotRadius: config.dotRadius,
+    selectedPolkaGap: config.gap,
+    selectedPolkaStyle: config.style,
+    selectedPolkaShape: config.shape,
+    selectedPolkaOpacity: config.opacity,
+    selectedPolkaImageSource: config.imageSource || "",
+    selectedPolkaImageSourceType: config.imageSourceType || ""
+  };
+}
+
+function hexToRgba(hex, alpha) {
+  const normalized = String(hex || "").replace("#", "");
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return hex || "#111111";
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function normalizeEmbossShape(shape) {

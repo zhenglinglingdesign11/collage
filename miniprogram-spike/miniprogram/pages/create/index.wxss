@@ -1627,6 +1627,10 @@ button::after {
   z-index: 980;
 }
 
+.drawer-backdrop.transparent {
+  background: transparent;
+}
+
 .drawer {
   left: 0;
   right: 0;
@@ -1634,7 +1638,7 @@ button::after {
   min-height: calc(704rpx + env(safe-area-inset-bottom));
   max-height: 78vh;
   box-sizing: border-box;
-  padding: 20rpx 40rpx calc(56rpx + env(safe-area-inset-bottom));
+  padding: 20rpx 40rpx calc(28rpx + env(safe-area-inset-bottom));
   border-radius: 44rpx 44rpx 0 0;
   background: #ffffff;
   box-shadow: 0 -18rpx 60rpx rgba(17, 17, 17, 0.14);
@@ -1762,6 +1766,37 @@ button::after {
   white-space: normal;
 }
 
+.background-scroll.polka-scroll {
+  height: 156rpx;
+  margin-bottom: 18rpx;
+  padding: 0;
+}
+
+.background-grid.polka-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12rpx;
+}
+
+.background-scroll.polka-scroll .background-card {
+  width: 100%;
+  height: 136rpx;
+  margin: 0 0 16rpx;
+  border-radius: 18rpx;
+}
+
+.background-scroll.polka-scroll .background-card:nth-child(3n) {
+  margin-right: 0;
+}
+
+.background-scroll.polka-scroll .background-card:nth-child(5n) {
+  margin-right: 0;
+}
+
+.background-scroll.polka-scroll .background-card {
+  flex: 0 0 calc((100% - 48rpx) / 5);
+}
+
 .background-card {
   position: relative;
   display: inline-block;
@@ -1806,6 +1841,119 @@ button::after {
 .pattern-dot {
   background-image: radial-gradient(rgba(17, 17, 17, 0.16) 2rpx, transparent 2rpx);
   background-size: 24rpx 24rpx;
+}
+
+.pattern-polka::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+}
+
+.pattern-preview-tile {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.pattern-asset-subhead {
+  height: 56rpx;
+  margin: -6rpx 0 16rpx;
+  color: #111111;
+  font-size: 28rpx;
+  line-height: 56rpx;
+  font-weight: 700;
+}
+
+.pattern-asset-scroll {
+  height: 414rpx;
+}
+
+.polka-config {
+  box-sizing: border-box;
+  max-height: 338rpx;
+  overflow-y: auto;
+  padding: 2rpx 0 0;
+}
+
+.polka-config-row {
+  display: flex;
+  align-items: center;
+  min-height: 60rpx;
+  margin-bottom: 14rpx;
+}
+
+.polka-config-row.compact {
+  min-height: 52rpx;
+  margin-bottom: 12rpx;
+}
+
+.polka-config-label {
+  flex: 0 0 72rpx;
+  color: #111111;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 700;
+}
+
+.polka-swatch-row,
+.polka-segment-row {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.polka-swatch-row {
+  overflow: visible;
+}
+
+.polka-segment-row {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.polka-segment-row::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.polka-swatch {
+  display: inline-block;
+  width: 42rpx;
+  height: 42rpx;
+  margin: 8rpx 20rpx 8rpx 0;
+  box-sizing: border-box;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 50%;
+  vertical-align: top;
+}
+
+.polka-swatch.active {
+  outline: 3rpx solid #111111;
+  outline-offset: 4rpx;
+}
+
+.polka-segment {
+  display: inline-block;
+  min-width: 82rpx;
+  height: 48rpx;
+  padding: 0 18rpx;
+  margin-right: 12rpx;
+  border-radius: 999rpx;
+  background: #f7f7f5;
+  color: #6f6f6f;
+  font-size: 23rpx;
+  line-height: 48rpx;
+  text-align: center;
+  vertical-align: top;
+}
+
+.polka-segment.active {
+  background: #111111;
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .pattern-line {

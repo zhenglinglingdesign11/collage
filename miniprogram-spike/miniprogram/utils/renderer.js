@@ -9,7 +9,7 @@ function drawDraft(ctx, draft, selectedLayerId, options = {}) {
   ctx.clearRect(0, 0, draft.width, draft.height);
   setFillStyle(ctx, draft.background || "#fdfdfb");
   ctx.fillRect(0, 0, draft.width, draft.height);
-  drawBackgroundPattern(ctx, draft);
+  drawBackgroundPattern(ctx, draft, options);
   drawBackgroundImage(ctx, draft, options);
 
   getVisibleLayers(draft.layers, options.isolatedLayerId)
@@ -31,7 +31,7 @@ function getVisibleLayers(layers, isolatedLayerId) {
   return orderedLayers.filter((layer) => layer.id === isolatedLayerId);
 }
 
-function drawBackgroundPattern(ctx, draft) {
+function drawBackgroundPattern(ctx, draft, options = {}) {
   const pattern = draft && draft.backgroundPattern;
   if (!pattern) return;
   ctx.save();
@@ -47,6 +47,9 @@ function drawBackgroundPattern(ctx, draft) {
         ctx.fill();
       }
     }
+  }
+  if (pattern === "polka") {
+    drawPolkaBackgroundPattern(ctx, draft, options);
   }
   if (pattern === "line") {
     setLineWidth(ctx, 1.4);
@@ -172,6 +175,170 @@ function drawLayer(ctx, layer, options = {}) {
   drawFloatingEdge(ctx, layer, options);
   drawTapeAttachment(ctx, layer);
   ctx.restore();
+}
+
+function drawPolkaBackgroundPattern(ctx, draft, options = {}) {
+  const config = normalizePolkaBackgroundConfig(draft && draft.backgroundPatternConfig);
+  const gap = config.gap;
+  const radius = Math.min(config.dotRadius, gap * 0.42);
+  const colors = config.dotColors.length ? config.dotColors : [config.dotColor];
+  const image = config.shape === "image" && config.imageSource && options.imageCache
+    ? options.imageCache[config.imageSource]
+    : null;
+  const rowOffset = config.offset === "grid" ? 0 : gap / 2;
+  for (let y = gap / 2; y < draft.height + radius; y += gap) {
+    const row = Math.floor(y / gap);
+    const startX = gap / 2 + (row % 2 === 1 ? rowOffset : 0);
+    for (let x = startX - gap; x < draft.width + radius; x += gap) {
+      const color = colors[Math.abs((row * 31 + Math.floor(x / gap) * 17 + config.seed) % colors.length)];
+      drawPolkaDot(ctx, x, y, radius, color, config.opacity, config.style, config.shape, image);
+    }
+  }
+}
+
+function drawPolkaDot(ctx, x, y, radius, color, opacity, style, shape = "circle", image = null) {
+  if (shape === "image" && image && typeof image !== "string") {
+    ctx.save();
+    setGlobalAlpha(ctx, opacity);
+    const size = radius * 2.5;
+    ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
+    ctx.restore();
+    return;
+  }
+  const paintColor = colorWithAlpha(color, opacity);
+  if (shape !== "circle") {
+    drawPolkaShape(ctx, x, y, radius, paintColor, style, shape);
+    return;
+  }
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  if (style === "outline") {
+    setLineWidth(ctx, Math.max(1.2, radius * 0.28));
+    setStrokeStyle(ctx, paintColor);
+    ctx.stroke();
+    return;
+  }
+  if (style === "soft" && ctx.createRadialGradient) {
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius * 1.12);
+    gradient.addColorStop(0, colorWithAlpha(color, opacity));
+    gradient.addColorStop(0.86, colorWithAlpha(color, opacity * 0.82));
+    gradient.addColorStop(1, colorWithAlpha(color, 0));
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 1.12, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+  setFillStyle(ctx, paintColor);
+  ctx.fill();
+}
+
+function drawPolkaShape(ctx, x, y, radius, color, style, shape) {
+  ctx.save();
+  ctx.translate(x, y);
+  buildPolkaShapePath(ctx, radius, shape);
+  if (style === "outline") {
+    setLineWidth(ctx, Math.max(1.2, radius * 0.24));
+    setStrokeStyle(ctx, color);
+    ctx.stroke();
+  } else {
+    setFillStyle(ctx, color);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function buildPolkaShapePath(ctx, radius, shape) {
+  if (shape === "square") {
+    ctx.beginPath();
+    ctx.rect(-radius, -radius, radius * 2, radius * 2);
+    return;
+  }
+  if (shape === "diamond") {
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 1.18);
+    ctx.lineTo(radius * 1.18, 0);
+    ctx.lineTo(0, radius * 1.18);
+    ctx.lineTo(-radius * 1.18, 0);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "heart") {
+    ctx.beginPath();
+    ctx.moveTo(0, radius * 0.86);
+    ctx.bezierCurveTo(-radius * 1.18, radius * 0.08, -radius * 0.92, -radius * 0.86, -radius * 0.24, -radius * 0.54);
+    ctx.bezierCurveTo(-radius * 0.04, -radius * 0.44, 0, -radius * 0.18, 0, -radius * 0.02);
+    ctx.bezierCurveTo(0, -radius * 0.18, radius * 0.04, -radius * 0.44, radius * 0.24, -radius * 0.54);
+    ctx.bezierCurveTo(radius * 0.92, -radius * 0.86, radius * 1.18, radius * 0.08, 0, radius * 0.86);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "star") {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i += 1) {
+      const pointRadius = i % 2 === 0 ? radius * 1.18 : radius * 0.5;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      const px = Math.cos(angle) * pointRadius;
+      const py = Math.sin(angle) * pointRadius;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    return;
+  }
+  if (shape === "cross") {
+    const arm = radius * 0.42;
+    ctx.beginPath();
+    ctx.rect(-arm, -radius, arm * 2, radius * 2);
+    ctx.rect(-radius, -arm, radius * 2, arm * 2);
+    return;
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+}
+
+function normalizePolkaBackgroundConfig(config = {}) {
+  const dotRadius = Number(config.dotRadius);
+  const gap = Number(config.gap);
+  const opacity = Number(config.opacity);
+  const style = ["solid", "soft", "outline"].includes(config.style) ? config.style : "solid";
+  const shape = ["circle", "square", "diamond", "heart", "star", "cross", "image"].includes(config.shape) ? config.shape : "circle";
+  const dotColors = Array.isArray(config.dotColors) ? config.dotColors.filter(Boolean).slice(0, 6) : [];
+  const imageWidth = Number(config.imageWidth);
+  const imageHeight = Number(config.imageHeight);
+  return {
+    dotColor: config.dotColor || "rgba(17,17,17,0.18)",
+    dotColors,
+    dotRadius: Number.isFinite(dotRadius) ? Math.max(2, Math.min(28, dotRadius)) : 6,
+    gap: Number.isFinite(gap) ? Math.max(18, Math.min(120, gap)) : 46,
+    opacity: Number.isFinite(opacity) ? Math.max(0.12, Math.min(1, opacity)) : 0.58,
+    style,
+    shape,
+    imageSource: config.imageSource || "",
+    imageWidth: Number.isFinite(imageWidth) ? Math.max(0, imageWidth) : 0,
+    imageHeight: Number.isFinite(imageHeight) ? Math.max(0, imageHeight) : 0,
+    imageSourceType: ["upload", "asset"].includes(config.imageSourceType) ? config.imageSourceType : "",
+    assetId: config.assetId || "",
+    packId: config.packId || "",
+    offset: config.offset === "grid" ? "grid" : "staggered",
+    seed: Number.isFinite(Number(config.seed)) ? Number(config.seed) : 1
+  };
+}
+
+function colorWithAlpha(color, alpha) {
+  const normalized = String(color || "").trim();
+  const clampedAlpha = Math.max(0, Math.min(1, Number(alpha) || 0));
+  const hex = normalized.replace("#", "");
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${clampedAlpha})`;
+  }
+  if (normalized.indexOf("rgb(") === 0) {
+    return normalized.replace("rgb(", "rgba(").replace(")", `, ${clampedAlpha})`);
+  }
+  return normalized || `rgba(17, 17, 17, ${clampedAlpha})`;
 }
 
 function hasTapeAttachment(layer) {
