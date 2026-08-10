@@ -20,6 +20,34 @@ HTTP `429`。可通过 Docker 环境变量调整：
 
 计数保存在 `/data/rembg-rate-limit.db`，因此必须挂载持久化数据卷。
 
+## IP 限流与处理队列
+
+Nginx 按源 IP 对 `/remove-bg` 限制为每分钟 `10` 次，允许短时突发 `3` 次；同一 IP 最多保持
+`2` 个连接。Python 服务默认只同时处理 `1` 个模型任务，另允许 `2` 个请求排队等待；队列满时返回
+HTTP `429`，等待超过 `110` 秒时返回 HTTP `503`。
+
+Docker 环境变量：
+
+- `PROCESSING_CONCURRENCY`：同时运行的模型任务数，默认 `1`。
+- `MAX_QUEUE_SIZE`：额外排队任务数，默认 `2`。
+- `QUEUE_WAIT_TIMEOUT_SECONDS`：最长排队等待秒数，默认 `110`。
+
+将 `nginx/rate-limit.conf` 上传到服务器后，执行：
+
+```bash
+sudo cp ~/journal-collage/server/rembg-api/nginx/rate-limit.conf /etc/nginx/conf.d/rembg-rate-limit.conf
+```
+
+将 `nginx/api.mixmade.xyz.conf` 上传并覆盖到 `/etc/nginx/conf.d/api.mixmade.xyz.conf`。此模板包含
+现有 HTTPS 反代以及 `/remove-bg` 的 IP 限流配置。
+
+最后验证并重载：
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
 ## 本地构建
 
 ```bash
@@ -53,6 +81,9 @@ docker run -d --name journal-rembg-api --restart always -p 127.0.0.1:8000:8000 -
   -e REMBG_AUTH_SECRET='your-secret' \
   -e DAILY_REQUEST_LIMIT=5 \
   -e MINUTE_REQUEST_LIMIT=2 \
+  -e PROCESSING_CONCURRENCY=1 \
+  -e MAX_QUEUE_SIZE=2 \
+  -e QUEUE_WAIT_TIMEOUT_SECONDS=110 \
   journal-rembg-api
 ```
 

@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import binascii
 import hashlib
@@ -22,6 +23,9 @@ AUTH_SECRET = os.getenv("REMBG_AUTH_SECRET", "")
 DAILY_REQUEST_LIMIT = max(0, int(os.getenv("DAILY_REQUEST_LIMIT", "5")))
 MINUTE_REQUEST_LIMIT = max(0, int(os.getenv("MINUTE_REQUEST_LIMIT", "2")))
 RATE_LIMIT_DB_PATH = os.getenv("RATE_LIMIT_DB_PATH", "/data/rembg-rate-limit.db")
+PROCESSING_CONCURRENCY = max(1, int(os.getenv("PROCESSING_CONCURRENCY", "1")))
+MAX_QUEUE_SIZE = max(0, int(os.getenv("MAX_QUEUE_SIZE", "2")))
+QUEUE_WAIT_TIMEOUT_SECONDS = max(1, int(os.getenv("QUEUE_WAIT_TIMEOUT_SECONDS", "110")))
 CHINA_TIMEZONE = timezone(timedelta(hours=8))
 
 app = FastAPI(title="Journal Collage Rembg API")
@@ -33,6 +37,29 @@ app.add_middleware(
 )
 
 _session = None
+_admission_slots = asyncio.BoundedSemaphore(PROCESSING_CONCURRENCY + MAX_QUEUE_SIZE)
+_processing_slots = asyncio.BoundedSemaphore(PROCESSING_CONCURRENCY)
+
+
+async def acquire_processing_slot():
+    try:
+        await asyncio.wait_for(_admission_slots.acquire(), timeout=0.05)
+    except TimeoutError:
+        raise HTTPException(status_code=429, detail="queue_full") from None
+
+    try:
+        await asyncio.wait_for(
+            _processing_slots.acquire(),
+            timeout=QUEUE_WAIT_TIMEOUT_SECONDS,
+        )
+    except TimeoutError:
+        _admission_slots.release()
+        raise HTTPException(status_code=503, detail="queue_wait_timeout") from None
+
+
+def release_processing_slot():
+    _processing_slots.release()
+    _admission_slots.release()
 
 
 def initialize_rate_limit_db():
@@ -185,6 +212,22 @@ def normalize_image(source: bytes) -> bytes:
     return output.getvalue()
 
 
+def remove_background(normalized: bytes) -> bytes:
+    from rembg import remove
+
+    return remove(
+        normalized,
+        session=get_session(),
+        force_return_bytes=True,
+        # Recompute mixed white-background edge pixels for clean transparent PNGs.
+        alpha_matting=True,
+        alpha_matting_foreground_threshold=240,
+        alpha_matting_background_threshold=10,
+        alpha_matting_erode_size=8,
+        post_process_mask=True,
+    )
+
+
 @app.get("/health")
 def health():
     return {"ok": True, "model": MODEL_NAME}
@@ -208,20 +251,14 @@ async def remove_bg(
     normalized = normalize_image(source)
 
     try:
-        from rembg import remove
-
-        result = remove(
-            normalized,
-            session=get_session(),
-            force_return_bytes=True,
-            # Recompute mixed white-background edge pixels for clean transparent PNGs.
-            alpha_matting=True,
-            alpha_matting_foreground_threshold=240,
-            alpha_matting_background_threshold=10,
-            alpha_matting_erode_size=8,
-            post_process_mask=True,
-        )
+        await acquire_processing_slot()
+        try:
+            result = await asyncio.to_thread(remove_background, normalized)
+        finally:
+            release_processing_slot()
     except Exception as error:
+        if isinstance(error, HTTPException):
+            raise error
         raise HTTPException(status_code=500, detail="remove_bg_failed") from error
 
     encoded = base64.b64encode(result).decode("ascii")

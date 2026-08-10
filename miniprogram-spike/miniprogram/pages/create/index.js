@@ -6136,8 +6136,10 @@ Page({
           ? "图片细节过多，请先裁剪后再试"
         : error && error.message === "rembg_daily_limit"
           ? "今日主体剪次数已达上限"
-        : error && error.message === "rembg_minute_limit"
+        : error && (error.message === "rembg_minute_limit" || error.message === "rembg_http_429")
           ? "操作过于频繁，请稍后再试"
+        : error && error.message === "rembg_busy"
+          ? "当前处理任务较多，请稍后再试"
           : "主体剪失败，请稍后重试";
       this.setData({ saveStatus: "主体剪失败" });
       track("image_bg_remove_fail", {

@@ -42,6 +42,8 @@ function uploadToRembg({ endpoint, filePath, fileFieldName, formData, headers })
             ? "rembg_daily_limit"
             : detail === "minute_limit_exceeded"
               ? "rembg_minute_limit"
+              : detail === "queue_full" || detail === "queue_wait_timeout"
+                ? "rembg_busy"
               : `rembg_http_${statusCode || "error"}`;
           reject(new Error(errorCode));
           return;
