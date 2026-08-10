@@ -420,6 +420,8 @@ Page({
     layerActionsOffset: 0,
     layerActionsPage: 0,
     layerActionsDragging: false,
+    layerActionsScrollLeft: 0,
+    layerActionsScrollIntoView: "",
     ratioPanelVisible: false,
     keyboardHeight: 0,
     textPanelBottom: 0,
@@ -2510,6 +2512,7 @@ Page({
     });
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
+    this.subjectCutPickPending = false;
     this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     this.enterEditMode();
@@ -2578,6 +2581,7 @@ Page({
     const closesEffectEditor = this.data.activePalette === "effect";
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
+    this.subjectCutPickPending = false;
     this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     this.setData({
@@ -2651,6 +2655,7 @@ Page({
     const closesEffectEditor = this.data.activePalette === "effect";
     this.scissorPickPending = false;
     this.straightCutPickPending = false;
+    this.subjectCutPickPending = false;
     this.pendingStraightCutStyle = "";
     this.embossPickPending = false;
     if (closesEffectEditor) {
@@ -2914,7 +2919,8 @@ Page({
   closePalette() {
     this.setData({
       activeTool: "",
-      activePalette: ""
+      activePalette: "",
+      layerActionsScrollLeft: 0
     });
   },
 
@@ -3173,6 +3179,19 @@ Page({
   selectCutStyle(event) {
     const style = event.currentTarget.dataset.style || "straight";
     if (style === "subject") {
+      const layer = this.getSelectedLayer();
+      if (!layer || layer.type !== "image" || !layer.source) {
+        this.subjectCutPickPending = true;
+        this.setData({
+          activeTool: "cut",
+          activePalette: "",
+          activeDrawer: "",
+          selectedLayerId: "",
+          selectedLayerType: ""
+        });
+        showToast("请在画布上选择图片图层", { icon: "none" });
+        return;
+      }
       return this.removeSelectedImageBackground();
     }
     if (style === "straight" || style === "wave") {
@@ -3794,6 +3813,7 @@ Page({
       patch.activePalette = "";
       this.scissorPickPending = false;
       this.straightCutPickPending = false;
+      this.subjectCutPickPending = false;
       this.pendingStraightCutStyle = "";
       this.embossPickPending = false;
     }
@@ -3884,6 +3904,22 @@ Page({
           return;
         }
         showToast("请选择图片或素材图层", { icon: "none" });
+        return;
+      }
+      if (this.subjectCutPickPending) {
+        if (target && target.type === "image" && target.source) {
+          this.subjectCutPickPending = false;
+          this.setData({
+            selectedLayerId: target.id,
+            selectedLayerType: target.type,
+            activeTool: "cut",
+            activePalette: "cut",
+            layerActionsPage: 0,
+            layerActionsOffset: 0
+          }, () => this.removeSelectedImageBackground(target));
+          return;
+        }
+        showToast("请选择图片图层", { icon: "none" });
         return;
       }
       if (this.embossPickPending) {
@@ -5027,6 +5063,17 @@ Page({
       this.showLockedLayerToast();
       return;
     }
+    const activeLayerPalette = ["cut", "outline"].includes(this.data.activePalette)
+      ? this.data.activePalette
+      : "";
+    if (activeLayerPalette && action !== activeLayerPalette) {
+      this.setData({
+        activeTool: "",
+        activePalette: "",
+        layerActionsScrollLeft: 0,
+        layerActionsScrollIntoView: ""
+      });
+    }
     if (action === "shape") {
       if (isFilledCollageSlot(layer)) return this.confirmDetachCollageLayer(layer, "shape");
       return this.beginEmbossEdit();
@@ -5043,7 +5090,11 @@ Page({
         activeDrawer: "",
         selectedOutlineStyle: layer ? getLayerOutlineStyleKey(layer.outline) : "none",
         textInputVisible: false,
-        ratioPanelVisible: false
+        ratioPanelVisible: false,
+        layerActionsScrollLeft: 0,
+        layerActionsScrollIntoView: ""
+      }, () => {
+        if (!isOpen) this.scrollLayerActionsIntoView("layer-action-outline");
       });
       return;
     }
@@ -5092,8 +5143,19 @@ Page({
       activePalette: isOpen ? "" : "cut",
       activeDrawer: "",
       textInputVisible: false,
-      ratioPanelVisible: false
+      ratioPanelVisible: false,
+      layerActionsScrollLeft: 0,
+      layerActionsScrollIntoView: ""
+    }, () => {
+      if (!isOpen) this.scrollLayerActionsIntoView("layer-action-cut");
     });
+  },
+
+  scrollLayerActionsIntoView(targetId) {
+    setTimeout(() => {
+      if (!["cut", "outline"].includes(this.data.activePalette)) return;
+      this.setData({ layerActionsScrollIntoView: targetId });
+    }, 0);
   },
 
   confirmDetachCollageLayer(layer, action) {
@@ -6089,10 +6151,13 @@ Page({
     });
   },
 
-  async removeSelectedImageBackground() {
+  async removeSelectedImageBackground(targetLayer) {
     if (this.data.backgroundRemoving) return;
-    const layer = this.getSelectedLayer();
-    if (!layer || layer.type !== "image" || !layer.source) return;
+    const layer = targetLayer || this.getSelectedLayer();
+    if (!layer || layer.type !== "image" || !layer.source) {
+      showToast("请先选中图片图层", { icon: "none" });
+      return;
+    }
     if (this.isLayerLocked(layer)) {
       this.showLockedLayerToast();
       return;
@@ -6150,7 +6215,10 @@ Page({
       });
       showError(message);
     } finally {
-      this.setData({ backgroundRemoving: false });
+      const panelPatch = { backgroundRemoving: false };
+      if (this.data.activeTool === "cut") panelPatch.activeTool = "";
+      if (this.data.activePalette === "cut") panelPatch.activePalette = "";
+      this.setData(panelPatch);
     }
   },
 

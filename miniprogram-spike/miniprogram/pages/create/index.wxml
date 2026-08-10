@@ -98,7 +98,7 @@
     <cover-view wx:if="{{brushDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="brush-dev-entry" bindtap="beginBrushDrawing">画笔DEV</cover-view>
     <cover-view wx:if="{{imageEffectDebugEnabled && !brushEditing && !imageEffectEditing && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="effect-dev-entry" bindtap="beginImageEffectEditing">效果DEV</cover-view>
 
-    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{selectedLayerId && activePalette !== 'effect' && !textInputVisible ? 'layer-editing' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}} {{activePalette === 'effect' ? 'effect-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
+    <view wx:if="{{!cropEditing && !scissorEditing && !embossEditing}}" class="canvas-stage {{activeDrawer || activePalette || selectedLayerId || textInputVisible || straightCutEditing ? 'panel-active' : ''}} {{selectedLayerId && activePalette !== 'effect' && !textInputVisible ? 'layer-editing' : ''}} {{selectedLayerId && (activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline') ? 'layer-palette-editing' : ''}} {{textInputVisible ? 'text-editing' : ''}} {{brushEditing ? 'brush-editing' : ''}} {{activePalette === 'effect' ? 'effect-editing' : ''}}" style="{{canvasStageStyle}}" bindtap="dismissFloatingPanels">
       <view class="canvas-shell" style="width: {{canvasCssWidth}}px; height: {{canvasCssHeight}}px;">
         <canvas
           type="2d"
@@ -319,13 +319,13 @@
       </view>
     </view>
 
-    <view wx:if="{{selectedLayerId && activePalette !== 'effect' && !textInputVisible && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="layer-toolbar">
+    <view wx:if="{{selectedLayerId && activePalette !== 'effect' && !textInputVisible && !cropEditing && !scissorEditing && !embossEditing && !straightCutEditing}}" class="layer-toolbar {{activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline' ? 'palette-active' : ''}}">
       <view class="layer-head">
         <view class="layer-title">已选中图层</view>
         <view wx:if="{{selectedLayerType === 'text'}}" class="panel-link" bindtap="editSelectedText">编辑文字</view>
       </view>
-      <scroll-view scroll-x class="layer-actions-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
-        <view class="layer-actions-track">
+      <scroll-view scroll-x="{{activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline'}}" scroll-left="{{layerActionsScrollLeft}}" scroll-into-view="{{layerActionsScrollIntoView}}" enhanced="{{true}}" show-scrollbar="{{false}}" class="layer-actions-grid {{activePalette === 'cut' || activePalette === 'shape' || activePalette === 'outline' ? 'single-row' : ''}}">
+        <view class="layer-actions-content">
           <view class="layer-action" data-action="up" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-up.png" mode="aspectFit"></image><view>上移</view></view>
           <view class="layer-action" data-action="down" bindtap="applyLayerAction"><image class="la-icon la-icon-img" src="/assets/icons/layer-actions/move-down.png" mode="aspectFit"></image><view>下移</view></view>
           <view class="layer-action" data-action="copy" bindtap="applyLayerAction"><view class="la-icon la-copy-icon"><view class="copy-back"></view><view class="copy-front"></view></view><view>复制</view></view>
@@ -335,9 +335,9 @@
           <view class="layer-action" data-action="shadow" bindtap="applyLayerAction"><view class="la-icon la-shadow-icon"><view class="shadow-back"></view><view class="shadow-front"></view></view><view>阴影</view></view>
           <view class="layer-action" data-action="opacity" bindtap="applyLayerAction"><view class="la-icon la-opacity-icon"><view class="opacity-fill"></view></view><view>透明度</view></view>
           <view class="layer-action" data-action="corner" bindtap="applyLayerAction"><view class="la-icon la-corner-icon"></view><view>圆角</view></view>
-          <view class="layer-action" data-action="outline" bindtap="applyLayerAction"><view class="la-icon la-outline-icon"><view class="outline-back"></view><view class="outline-front"></view></view><view>描边</view></view>
+          <view id="layer-action-outline" class="layer-action" data-action="outline" bindtap="applyLayerAction"><view class="la-icon la-outline-icon"><view class="outline-back"></view><view class="outline-front"></view></view><view>描边</view></view>
           <view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="effect" bindtap="applyLayerAction"><view class="la-icon la-effect-icon"><view class="effect-paper"></view><view class="effect-tape"></view></view><view>效果</view></view>
-          <view wx:if="{{selectedLayerType === 'image' || selectedLayerType === 'sticker' || selectedLayerType === 'paper'}}" class="layer-action" data-action="cut" bindtap="applyLayerAction"><view class="la-icon la-scissors-line-icon"><view class="scissors-ring scissors-ring-a"></view><view class="scissors-ring scissors-ring-b"></view><view class="scissors-blade scissors-blade-a"></view><view class="scissors-blade scissors-blade-b"></view><view class="scissors-joint"></view></view><view>剪刀</view></view>
+          <view wx:if="{{selectedLayerType === 'image' || selectedLayerType === 'sticker' || selectedLayerType === 'paper'}}" id="layer-action-cut" class="layer-action" data-action="cut" bindtap="applyLayerAction"><view class="la-icon la-scissors-line-icon"><view class="scissors-ring scissors-ring-a"></view><view class="scissors-ring scissors-ring-b"></view><view class="scissors-blade scissors-blade-a"></view><view class="scissors-blade scissors-blade-b"></view><view class="scissors-joint"></view></view><view>剪刀</view></view>
           <view wx:if="{{selectedLayerType !== 'text'}}" class="layer-action" data-action="shape" bindtap="applyLayerAction"><view class="la-icon la-emboss-icon"><view class="emboss-frame"></view><view class="emboss-star"><view class="emboss-star-inner"></view></view></view><view>压花</view></view>
         </view>
       </scroll-view>
@@ -657,7 +657,7 @@
               <view class="link-button" bindtap="openAssetsTab">查看全部</view>
             </view>
             <block wx:if="{{!activeAssetPack}}">
-              <view class="chip-row">
+              <scroll-view scroll-x class="chip-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                 <view
                   wx:for="{{assetCategories}}"
                   wx:key="*this"
@@ -665,7 +665,7 @@
                   data-category="{{item}}"
                   bindtap="selectAssetCategory"
                 >{{item}}</view>
-              </view>
+              </scroll-view>
               <scroll-view scroll-y class="asset-pack-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
                 <view
                   wx:for="{{visibleAssetPacks}}"

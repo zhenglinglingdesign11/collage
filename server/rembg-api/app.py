@@ -26,14 +26,24 @@ RATE_LIMIT_DB_PATH = os.getenv("RATE_LIMIT_DB_PATH", "/data/rembg-rate-limit.db"
 PROCESSING_CONCURRENCY = max(1, int(os.getenv("PROCESSING_CONCURRENCY", "1")))
 MAX_QUEUE_SIZE = max(0, int(os.getenv("MAX_QUEUE_SIZE", "2")))
 QUEUE_WAIT_TIMEOUT_SECONDS = max(1, int(os.getenv("QUEUE_WAIT_TIMEOUT_SECONDS", "110")))
+CORS_ALLOW_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "CORS_ALLOW_ORIGINS",
+        "https://mixmade.xyz,https://www.mixmade.xyz",
+    ).split(",")
+    if origin.strip()
+]
 CHINA_TIMEZONE = timezone(timedelta(hours=8))
 
 app = FastAPI(title="Journal Collage Rembg API")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOW_ORIGINS,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
+    allow_credentials=False,
+    max_age=600,
 )
 
 _session = None

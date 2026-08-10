@@ -10,6 +10,17 @@
 不要将该密钥写入小程序代码、镜像或仓库。部署时在 CloudBase 云函数环境变量和 Docker
 容器环境变量中分别设置同一个随机值。
 
+## CORS 白名单
+
+浏览器网页仅允许从 `https://mixmade.xyz` 和 `https://www.mixmade.xyz` 调用接口。可通过
+`CORS_ALLOW_ORIGINS` 以英文逗号分隔的完整 Origin 列表覆盖默认值，例如开发环境可设置为：
+
+```text
+CORS_ALLOW_ORIGINS=https://mixmade.xyz,https://www.mixmade.xyz,http://localhost:5173
+```
+
+微信小程序不使用浏览器 CORS 机制，因此不受此配置影响。
+
 ## 用量限制
 
 服务按 OpenID 限制已受理的抠图请求，默认每人每天 `5` 次、每分钟 `2` 次。达到限制会返回
