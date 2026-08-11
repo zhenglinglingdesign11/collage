@@ -385,6 +385,7 @@
         <scroll-view scroll-x class="effect-options-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
           <view class="effect-options-track">
             <view class="effect-option {{selectedHandmadeEffect === 'none' ? 'active' : ''}}" data-effect="none" bindtap="selectHandmadeEffect"><view class="texture-swatch texture-swatch-none"></view><view>无结构</view></view>
+            <view class="effect-option effect-option-adjustable effect-option-limited {{selectedTextureEffect === 'creative-tear-paper' ? 'active' : ''}} {{selectedLayerType === 'image' && !textureEffectBusy ? '' : 'disabled'}}" bindtap="confirmCreativeTearPaperExperience"><view class="texture-swatch texture-swatch-creative-tear"></view><view>{{textureEffectBusyType === 'creative-tear-paper' ? '生成中' : '创意撕纸'}}</view><view class="effect-limited-badge">限时体验</view><view wx:if="{{selectedTextureEffect === 'creative-tear-paper'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="creative-tear-paper"><view></view><view></view><view></view></view></view>
             <view class="effect-option {{selectedHandmadeEffect === 'tear' ? 'active' : ''}}" data-effect="tear" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-tear"><view></view></view><view>撕边</view></view>
             <view class="effect-option effect-option-adjustable {{selectedHandmadeEffect === 'taped' ? 'active' : ''}}" data-effect="taped" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-taped"><view></view><view></view></view><view>贴住</view><view wx:if="{{selectedHandmadeEffect === 'taped'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="taped" aria-label="调整贴住效果"><view></view><view></view><view></view></view></view>
             <view class="effect-option {{selectedHandmadeEffect === 'floating' ? 'active' : ''}}" data-effect="floating" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-floating"><view></view></view><view>浮起</view></view>
@@ -477,6 +478,10 @@
           <view wx:if="{{effectAdjusting === 'kpop-card'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">标识</view>
             <view class="effect-adjustment-options"><view wx:for="{{kpopCardTextOptions}}" wx:key="value" class="effect-adjustment-option {{kpopCardText === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setKpopCardText">{{textureEffectBusySetting === 'kpopCardText:' + item.value ? '生成中' : item.label}}</view></view>
+          </view>
+          <view wx:if="{{effectAdjusting === 'creative-tear-paper'}}" class="effect-adjustment-section">
+            <view class="effect-adjustment-label">风格</view>
+            <view class="effect-adjustment-options"><view wx:for="{{creativeTearPaperStyles}}" wx:key="value" class="effect-adjustment-option {{creativeTearPaperStyle === item.value ? 'active' : ''}}" data-value="{{item.value}}" bindtap="setCreativeTearPaperStyle">{{textureEffectBusySetting === 'creativeTearPaperStyle:' + item.value ? '生成中' : item.label}}</view></view>
           </view>
           <view wx:if="{{effectAdjusting === 'taped'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">贴住位置</view>

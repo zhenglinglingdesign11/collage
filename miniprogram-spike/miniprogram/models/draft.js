@@ -1,12 +1,13 @@
 const SCHEMA_VERSION = 1;
 const { createTextFontStyle } = require("../config/fonts");
 
-const DRAFT_RATIOS = ["3:4", "1:1", "9:16"];
+const DRAFT_RATIOS = ["3:4", "1:1", "9:16", "16:9"];
 
 const ratioSizeMap = {
   "3:4": { width: 900, height: 1200 },
   "1:1": { width: 1000, height: 1000 },
-  "9:16": { width: 900, height: 1600 }
+  "9:16": { width: 900, height: 1600 },
+  "16:9": { width: 1600, height: 900 }
 };
 
 const layerTypes = {

@@ -4,6 +4,7 @@ const { checkImageContent, checkTextContent } = require("../../utils/content-sec
 const { shareCreate } = require("../../utils/share");
 const { persistTempFile } = require("../../utils/local-file");
 const { removeImageBackground } = require("../../utils/rembg-api");
+const { generateSeedreamImage } = require("../../utils/seedream-api");
 const { track, trackPageShow, trackPageHide, trackShare } = require("../../utils/analytics");
 const {
   ASSET_TRANSFER_STORAGE_KEY,
@@ -71,6 +72,9 @@ const REMBG_SOURCE_MAX_BYTES = 20 * 1024 * 1024;
 const REMBG_UPLOAD_MAX_SIDE = 1600;
 const REMBG_UPLOAD_MAX_BYTES = 8 * 1024 * 1024;
 const REMBG_UPLOAD_QUALITIES = [0.88, 0.76, 0.66];
+const SEEDREAM_UPLOAD_MAX_SIDE = 1600;
+const SEEDREAM_INPUT_MIN_ASPECT = 1 / 3;
+const SEEDREAM_INPUT_MAX_ASPECT = 3;
 const LACE_CENTER_FRAME_OPTIONS = [
   {
     id: "wide-hole",
@@ -108,10 +112,16 @@ const CROSS_STITCH_MAX_OUTPUT_SIZE = 1800;
 const PENDING_DRAFT_OPEN_KEY = "journal.pendingDraftOpen.v1";
 const FONT_FILE_CACHE_PREFIX = "journal.fontFileCache.v1.";
 const BACKGROUND_HINT_SEEN_KEY = "journal.backgroundHintSeen.v1";
+const CREATIVE_TEAR_PAPER_DAILY_KEY_PREFIX = "journal.creativeTearPaper.daily.v1.";
 const TEXT_FONTS = getTextFonts();
 const CUTTABLE_SOURCE_LAYER_TYPES = ["image", "sticker", "paper"];
 const KPOP_HOLO_FOIL_TEXTURE = "/assets/textures/holo-foil-768.webp";
 const TORN_PAPER_EDGE_ATLAS = "/assets/textures/torn-paper-edge-atlas.png";
+const TORN_PAPER_FIBER_FRINGE_ATLAS = "/assets/textures/torn-paper-fiber-fringe.png";
+const DEFAULT_CREATIVE_TEAR_PAPER_STYLE = "watercolor-zine-reveal";
+const CREATIVE_TEAR_PAPER_STYLES = [
+  { value: "watercolor-zine-reveal", label: "水彩杂志" }
+];
 const TEXT_FONT_OPTIONS = getTextFontOptions();
 const DEFAULT_TEXT_FONT_STYLE = createTextFontStyle("system");
 const PAPER_BACKGROUND_PACKS = [
@@ -209,7 +219,7 @@ const LEGACY_ASSET_SOURCE_MIGRATIONS = [
 
 Page({
   data: {
-    ratios: ["3:4", "1:1", "9:16"],
+    ratios: ["3:4", "1:1", "9:16", "16:9"],
     ratio: "3:4",
     canvasCssWidth: 300,
     canvasCssHeight: 400,
@@ -219,6 +229,8 @@ Page({
     selectedCollageSlot: false,
     selectedHandmadeEffect: "none",
     selectedTextureEffect: "none",
+    creativeTearPaperStyle: DEFAULT_CREATIVE_TEAR_PAPER_STYLE,
+    creativeTearPaperStyles: CREATIVE_TEAR_PAPER_STYLES,
     textureEffectBusy: false,
     textureEffectBusyType: "",
     textureEffectBusySetting: "",
@@ -1023,7 +1035,7 @@ Page({
       : [];
     const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
     const patternImageSource = this.draft.backgroundPatternConfig && this.draft.backgroundPatternConfig.imageSource;
-    const sources = Array.from(new Set([backgroundSource, patternImageSource, TORN_PAPER_EDGE_ATLAS].concat(layerSources, effectSources, layerPatternSources, brushSources, brushDraftSources).filter(Boolean)));
+    const sources = Array.from(new Set([backgroundSource, patternImageSource, TORN_PAPER_EDGE_ATLAS, TORN_PAPER_FIBER_FRINGE_ATLAS].concat(layerSources, effectSources, layerPatternSources, brushSources, brushDraftSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -2385,13 +2397,19 @@ Page({
     setTimeout(() => this.render(), 0);
   },
 
-  choosePhotoForShowcase(event) {
+  async choosePhotoForShowcase(event) {
     const dataset = event && event.currentTarget && event.currentTarget.dataset || {};
     if (dataset.backgroundPresetId) {
       this.applyHomeBackgroundPreset(dataset.backgroundPresetId);
       return;
     }
-    this.pendingShowcaseEffect = dataset.effect || getHomeShowcaseEffect(dataset.showcaseId);
+    const effect = dataset.effect || getHomeShowcaseEffect(dataset.showcaseId);
+    if (effect === "creative-tear-paper") {
+      const confirmed = await this.confirmCreativeTearPaperDailyLimit();
+      if (!confirmed) return;
+      this.pendingCreativeTearPaperConfirmed = true;
+    }
+    this.pendingShowcaseEffect = effect;
     this.pendingEntrySource = "home_showcase";
     this.choosePhotoBySource("album");
   },
@@ -2479,6 +2497,7 @@ Page({
           if (!files.length) {
             if (pendingAfterPhoto) this.pendingAfterPhoto = "";
             if (pendingShowcaseEffect) this.pendingShowcaseEffect = "";
+            if (pendingShowcaseEffect === "creative-tear-paper") this.pendingCreativeTearPaperConfirmed = false;
             if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
             if (pendingCollageSlotId) this.pendingCollageSlotId = "";
           if (pendingImageReplaceLayerId) this.pendingImageReplaceLayerId = "";
@@ -2583,6 +2602,7 @@ Page({
       fail: () => {
         if (pendingAfterPhoto) this.pendingAfterPhoto = "";
         if (pendingShowcaseEffect) this.pendingShowcaseEffect = "";
+        if (pendingShowcaseEffect === "creative-tear-paper") this.pendingCreativeTearPaperConfirmed = false;
         if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
         if (pendingCollageSlotId) this.pendingCollageSlotId = "";
         if (pendingImageReplaceLayerId) this.pendingImageReplaceLayerId = "";
@@ -2604,6 +2624,11 @@ Page({
     }
     const opensEffectEditor = !["emboss-circle", "emboss-stamp"].includes(effect);
     const applyEffect = () => {
+      if (effect === "creative-tear-paper") {
+        this.startCreativeTearPaperGeneration(layer, { skipConfirm: this.pendingCreativeTearPaperConfirmed });
+        this.pendingCreativeTearPaperConfirmed = false;
+        return;
+      }
       if (["screen-print", "matisse-cutout", "pixel-cross-stitch", "vintage-botanical"].includes(effect)) {
         this.selectTextureEffect({ currentTarget: { dataset: { texture: effect } } });
         return;
@@ -5962,7 +5987,7 @@ Page({
       return;
     }
 
-    if (effect === "blueprint-print" || effect === "screen-print" || effect === "riso-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout" || effect === "kpop-card") {
+    if (effect === "blueprint-print" || effect === "screen-print" || effect === "riso-print" || effect === "vintage-botanical" || effect === "pixel-cross-stitch" || effect === "matisse-cutout" || effect === "kpop-card" || effect === "creative-tear-paper") {
       const saved = layer.style.textureEffect && layer.style.textureEffect.settings || {};
       const label = getTextureEffectConfig(effect, this.data).label;
       const values = effect === "blueprint-print"
@@ -5993,7 +6018,9 @@ Page({
                 ? { crossStitchGrid: saved.crossStitchGrid || 72, crossStitchColors: saved.crossStitchColors || 8 }
                 : effect === "matisse-cutout"
                   ? { matisseDetail: saved.matisseDetail || 64, matissePalette: saved.matissePalette || "vivid" }
-                  : { kpopCardText: saved.kpopCardText || "subtle" };
+                  : effect === "kpop-card"
+                    ? { kpopCardText: saved.kpopCardText || "subtle" }
+                    : { creativeTearPaperStyle: saved.styleId || saved.creativeTearPaperStyle || DEFAULT_CREATIVE_TEAR_PAPER_STYLE };
       this.setData({ effectAdjusting: effect, effectAdjustingLabel: label, ...values });
       return;
     }
@@ -6242,6 +6269,9 @@ Page({
       if (!force) showSuccess(`${textureConfig.label}已应用`);
     } catch (error) {
       console.warn("[texture-effect] failed", texture, error);
+      if (texture === "creative-tear-paper") {
+        console.warn("[seedream] generation failed detail", error && (error.detail || error.errMsg || error.message || error));
+      }
       this.setData({
         selectedTextureEffect: this.data.selectedLayerId === layerId ? getTextureEffectKey(layer) : this.data.selectedTextureEffect,
         textureEffectBusy: false,
@@ -6250,8 +6280,57 @@ Page({
         saveStatus: `${textureConfig.label}生成失败`
       });
       this.render();
-      showError(`${textureConfig.label}生成失败`);
+      showError(getTextureEffectErrorMessage(texture, textureConfig.label, error));
     }
+  },
+
+  async confirmCreativeTearPaperExperience() {
+    const layer = this.getSelectedLayer();
+    if (!layer || layer.type !== "image" || !layer.source) {
+      showToast("请先选中图片图层", { icon: "none" });
+      return;
+    }
+    this.startCreativeTearPaperGeneration(layer);
+  },
+
+  async startCreativeTearPaperGeneration(layer, options = {}) {
+    const texture = "creative-tear-paper";
+    if (!layer || layer.type !== "image" || !layer.source) {
+      showToast("请先选中图片图层", { icon: "none" });
+      return;
+    }
+    if (this.data.textureEffectBusy) {
+      showToast("效果生成中，请稍候", { icon: "none" });
+      return;
+    }
+    if (this.isLayerLocked(layer)) {
+      this.showLockedLayerToast();
+      return;
+    }
+    if (!options.skipConfirm) {
+      const confirmed = await this.confirmCreativeTearPaperDailyLimit();
+      if (!confirmed) return;
+    }
+    markCreativeTearPaperUsedToday();
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      selectedCollageSlot: isCollageSlot(layer)
+    });
+    this.selectTextureEffect({ currentTarget: { dataset: { texture } } });
+  },
+
+  async confirmCreativeTearPaperDailyLimit() {
+    if (hasUsedCreativeTearPaperToday()) {
+      showToast("今日已体验，明天再来试试", { icon: "none" });
+      return false;
+    }
+    const result = await showModal(
+      "限时体验",
+      "创意撕纸每个用户每天只能体验一次。确认后将立即开始生成。",
+      { confirmText: "确认生成" }
+    );
+    return !!result.confirm;
   },
 
   closeEffectEditor() {
@@ -6501,6 +6580,11 @@ Page({
   setKpopCardText(event) {
     const value = event.currentTarget.dataset.value || "subtle";
     this.setData({ kpopCardText: value }, () => this.scheduleTextureEffectPreview("kpop-card", `kpopCardText:${value}`));
+  },
+
+  setCreativeTearPaperStyle(event) {
+    const value = event.currentTarget.dataset.value || DEFAULT_CREATIVE_TEAR_PAPER_STYLE;
+    this.setData({ creativeTearPaperStyle: value }, () => this.scheduleTextureEffectPreview("creative-tear-paper", `creativeTearPaperStyle:${value}`));
   },
 
   setBlueprintTone(event) {
@@ -7073,6 +7157,62 @@ Page({
     });
   },
 
+  async createCreativeTearPaperImage(layer) {
+    const uploadPath = await this.createSeedreamUploadImage(layer);
+    const resultPath = await generateSeedreamImage({
+      filePath: uploadPath,
+      styleId: this.data.creativeTearPaperStyle || DEFAULT_CREATIVE_TEAR_PAPER_STYLE
+    });
+    const info = await getImageInfoAsync(resultPath);
+    return {
+      path: resultPath,
+      width: info.width || layer.sourceWidth || layer.width,
+      height: info.height || layer.sourceHeight || layer.height,
+      resizeLayer: true
+    };
+  },
+
+  async createSeedreamUploadImage(layer) {
+    await this.ensureCanvasContext();
+    if (!this.canvasNode || !this.ctx) throw new Error("canvas_not_ready");
+    const image = await this.loadCanvasImage(layer.source);
+    if (!image) throw new Error("seedream_input_image_unavailable");
+    const sourceWidth = Math.max(1, Math.round(layer.sourceWidth || image.width || layer.width));
+    const sourceHeight = Math.max(1, Math.round(layer.sourceHeight || image.height || layer.height));
+    const crop = normalizeSourceCrop(layer.crop, sourceWidth, sourceHeight);
+    const scale = Math.min(1, SEEDREAM_UPLOAD_MAX_SIDE / Math.max(crop.width, crop.height));
+    const imageWidth = Math.max(15, Math.round(crop.width * scale));
+    const imageHeight = Math.max(15, Math.round(crop.height * scale));
+    const canvasSize = getSeedreamUploadCanvasSize(imageWidth, imageHeight);
+    const width = canvasSize.width;
+    const height = canvasSize.height;
+    const drawX = Math.round((width - imageWidth) / 2);
+    const drawY = Math.round((height - imageHeight) / 2);
+
+    this.configureCanvasBitmapSize(width, height);
+    this.ctx.fillStyle = "#ffffff";
+    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.drawImage(image, crop.x, crop.y, crop.width, crop.height, drawX, drawY, imageWidth, imageHeight);
+
+    try {
+      return await new Promise((resolve, reject) => {
+        wx.canvasToTempFilePath({
+          canvas: this.canvasNode,
+          width,
+          height,
+          destWidth: width,
+          destHeight: height,
+          fileType: "png",
+          success: (res) => resolve(res.tempFilePath),
+          fail: reject
+        }, this);
+      });
+    } finally {
+      this.configureCanvasBitmap();
+      this.render();
+    }
+  },
+
   async createBackgroundRemovalUploadImage(layer) {
     await this.ensureCanvasContext();
     const image = await this.loadCanvasImage(layer.source);
@@ -7400,6 +7540,10 @@ function getHomeShowcaseEffect(id) {
     "texture-matisse": "matisse-cutout",
     "texture-pixel-cross-stitch": "pixel-cross-stitch",
     "texture-botanical": "vintage-botanical",
+    "creative-tear-paper-01": "creative-tear-paper",
+    "creative-tear-paper-02": "creative-tear-paper",
+    "creative-tear-paper-03": "creative-tear-paper",
+    "creative-tear-paper-04": "creative-tear-paper",
     "emboss-swap": "emboss-circle",
     "emboss-circle": "emboss-circle",
     "emboss-stamp": "emboss-stamp",
@@ -7489,6 +7633,52 @@ function getTextSecurityErrorMessage(error) {
   if (error && error.message === "text_check_failed") return "文字处理失败，请稍后重试";
   if (error && error.message === "cloud_unavailable") return "检测服务暂时不可用，请稍后重试";
   return "文字处理失败，请稍后重试";
+}
+
+function getTextureEffectErrorMessage(texture, label, error) {
+  if (texture === "creative-tear-paper" && error && error.message === "seedream_input_image_unavailable") {
+    return "原图文件已失效，请替换图片后再生成";
+  }
+  if (texture === "creative-tear-paper" && error && error.message === "ark_api_key_not_configured") {
+    return "Seedream 密钥未配置";
+  }
+  if (texture === "creative-tear-paper" && error && error.message === "daily_limit_exceeded") {
+    return "今日已体验，明天再来试试";
+  }
+  const detail = error && (error.errMsg || error.message || error.detail || "");
+  if (texture === "creative-tear-paper" && /time(?:d)? out|超时|TIME_LIMIT_EXCEEDED|-504003/i.test(String(detail))) {
+    return "云函数超时，请调长后重试";
+  }
+  return `${label || "效果"}生成失败`;
+}
+
+function hasUsedCreativeTearPaperToday() {
+  if (!wx.getStorageSync) return false;
+  return wx.getStorageSync(getCreativeTearPaperDailyKey()) === true;
+}
+
+function markCreativeTearPaperUsedToday() {
+  if (!wx.setStorageSync) return;
+  wx.setStorageSync(getCreativeTearPaperDailyKey(), true);
+}
+
+function getCreativeTearPaperDailyKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${CREATIVE_TEAR_PAPER_DAILY_KEY_PREFIX}${year}-${month}-${day}`;
+}
+
+function getSeedreamUploadCanvasSize(imageWidth, imageHeight) {
+  let width = Math.max(15, Math.round(imageWidth || 15));
+  let height = Math.max(15, Math.round(imageHeight || 15));
+  const aspect = width / Math.max(1, height);
+  if (aspect > SEEDREAM_INPUT_MAX_ASPECT) {
+    height = Math.max(height, Math.ceil(width / SEEDREAM_INPUT_MAX_ASPECT));
+  } else if (aspect < SEEDREAM_INPUT_MIN_ASPECT) {
+    width = Math.max(width, Math.ceil(height * SEEDREAM_INPUT_MIN_ASPECT));
+  }
+  return { width, height };
 }
 
 function isCuttableSourceLayer(layer) {
@@ -10672,6 +10862,10 @@ function getTextureEffectConfig(type, settings = {}) {
       create: (page, layer) => page.createKpopCardImage(layer, {
         text: settings.kpopCardText || "subtle"
       })
+    },
+    "creative-tear-paper": {
+      label: "创意撕纸",
+      create: (page, layer) => page.createCreativeTearPaperImage(layer)
     }
   };
   return config[type] || null;
@@ -10707,6 +10901,7 @@ function getTextureEffectSettings(type, settings = {}) {
   if (type === "pixel-cross-stitch") return { crossStitchGrid: settings.crossStitchGrid || 72, crossStitchColors: settings.crossStitchColors || 8 };
   if (type === "matisse-cutout") return { matisseDetail: settings.matisseDetail || 64, matissePalette: settings.matissePalette || "vivid" };
   if (type === "kpop-card") return { template: "pearl", kpopCardText: settings.kpopCardText || "subtle" };
+  if (type === "creative-tear-paper") return { model: "doubao-seedream-4-0-250828", styleId: settings.creativeTearPaperStyle || DEFAULT_CREATIVE_TEAR_PAPER_STYLE, sequential_image_generation: "disabled" };
   return {};
 }
 

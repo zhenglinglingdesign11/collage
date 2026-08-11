@@ -19,7 +19,7 @@ const {
 
 Page({
   data: {
-    ratios: ["3:4", "1:1", "9:16"],
+    ratios: ["3:4", "1:1", "9:16", "16:9"],
     ratio: "3:4",
     canvasCssWidth: 300,
     canvasCssHeight: 400,

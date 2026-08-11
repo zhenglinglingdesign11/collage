@@ -1,5 +1,6 @@
 const { getOrderedLayers } = require("../models/draft");
 const TORN_PAPER_EDGE_ATLAS = "/assets/textures/torn-paper-edge-atlas.png";
+const TORN_PAPER_FIBER_FRINGE_ATLAS = "/assets/textures/torn-paper-fiber-fringe.png";
 const floatingAlphaShadowCache = {};
 const tornSourceRenderCache = {};
 
@@ -431,7 +432,7 @@ function getTornSourceRender(layer, outline = {}, options = {}) {
     Math.round(layer.height),
     getCropCacheKey(layer.crop),
     getTearSeed(layer),
-    "core-v6",
+    "core-v10",
     getTearOutlineCacheKey(outline),
     width,
     height
@@ -483,13 +484,15 @@ function drawTornEdgeMaterial(ctx, layer, outline = {}, margin = 0, options = {}
   const coreWidth = getTearCoreWidth(layer);
   const innerPoints = getInsetTearPoints(points, layer, coreWidth);
   const texture = options.imageCache && options.imageCache[TORN_PAPER_EDGE_ATLAS] || null;
+  const fiberTexture = options.imageCache && options.imageCache[TORN_PAPER_FIBER_FRINGE_ATLAS] || null;
   setShadow(ctx, 0, 0, 0, "transparent");
   setLineJoin(ctx, "round");
   setLineCap(ctx, "round");
   drawTearCoreBand(ctx, points, innerPoints, layer, seed);
   drawTearTexturePatches(ctx, texture, points, innerPoints, layer, seed + 271);
-  drawTearOuterFringe(ctx, points, innerPoints, layer, seed + 193, { opacity: 0.42 });
-  drawTearLooseFlakes(ctx, points, innerPoints, layer, seed + 1231, { opacity: 0.46 });
+  drawTearFiberFringePatches(ctx, fiberTexture, points, innerPoints, layer, seed + 617);
+  drawTearOuterFringe(ctx, points, innerPoints, layer, seed + 193, { opacity: 0.09 });
+  drawTearLooseFlakes(ctx, points, innerPoints, layer, seed + 1231, { opacity: 0.14 });
   ctx.restore();
 }
 
@@ -585,6 +588,74 @@ function getTornAtlasPatchRects(texture) {
     { x: 804, y: 622, width: 268, height: 118 },
     { x: 1134, y: 634, width: 272, height: 116 },
     { x: 1412, y: 626, width: 340, height: 128 }
+  ].map((rect) => ({
+    x: Math.max(0, Math.round(rect.x * scaleX)),
+    y: Math.max(0, Math.round(rect.y * scaleY)),
+    width: Math.max(1, Math.round(rect.width * scaleX)),
+    height: Math.max(1, Math.round(rect.height * scaleY))
+  })).filter((rect) => rect.x < width && rect.y < height);
+}
+
+function drawTearFiberFringePatches(ctx, texture, outerPoints, innerPoints, layer, seed) {
+  if (!texture || typeof texture === "string" || !outerPoints.length || !innerPoints.length) return;
+  const sourcePatches = getFiberFringeAtlasPatchRects(texture);
+  if (!sourcePatches.length) return;
+  const perimeter = getClosedPathLength(outerPoints);
+  const count = Math.max(14, Math.min(52, Math.round(perimeter / 30)));
+  const scale = Math.max(0.46, Math.min(0.92, Math.min(layer.width || 1, layer.height || 1) / 410));
+  ctx.save();
+  setGlobalAlpha(ctx, 0.54);
+  for (let index = 0; index < count; index += 1) {
+    if (seededUnit(seed + index * 43) < 0.24) continue;
+    const pathIndex = Math.floor(seededUnit(seed + index * 59) * outerPoints.length) % outerPoints.length;
+    const outer = outerPoints[pathIndex];
+    const inner = innerPoints[pathIndex] || outer;
+    const radial = normalizeVector({ x: outer.x - inner.x, y: outer.y - inner.y }) || getApproximateOuterNormal(outerPoints, pathIndex);
+    if (!radial) continue;
+    const tangent = getPathTangent(outerPoints, pathIndex);
+    const patch = sourcePatches[Math.floor(seededUnit(seed + index * 71) * sourcePatches.length) % sourcePatches.length];
+    const cropWidth = Math.max(24, Math.min(patch.width, 32 + seededUnit(seed + index * 83) * 58));
+    const cropHeight = Math.max(7, Math.min(patch.height, 7 + seededUnit(seed + index * 97) * 13));
+    const sx = patch.x + seededUnit(seed + index * 109) * Math.max(1, patch.width - cropWidth);
+    const sy = patch.y + seededUnit(seed + index * 127) * Math.max(1, patch.height - cropHeight);
+    const drawWidth = cropWidth * scale * (0.66 + seededUnit(seed + index * 139) * 0.58);
+    const drawHeight = Math.max(2.8, Math.min(getTearCoreWidth(layer) * 0.34, cropHeight * scale * (0.46 + seededUnit(seed + index * 151) * 0.42)));
+    const alongShift = (seededUnit(seed + index * 163) - 0.5) * 2.2 * scale;
+    const radialShift = getTearCoreWidth(layer) * (-0.04 + seededUnit(seed + index * 181) * 0.16);
+    const angle = Math.atan2(tangent.y, tangent.x) + (seededUnit(seed + index * 193) - 0.5) * 0.34;
+    ctx.save();
+    ctx.translate(
+      outer.x + tangent.x * alongShift + radial.x * radialShift,
+      outer.y + tangent.y * alongShift + radial.y * radialShift
+    );
+    ctx.rotate(angle);
+    if (radial.y < 0) ctx.scale(1, -1);
+    ctx.drawImage(texture, sx, sy, cropWidth, cropHeight, -drawWidth / 2, -drawHeight * 0.58, drawWidth, drawHeight);
+    ctx.restore();
+  }
+  setGlobalAlpha(ctx, 1);
+  ctx.restore();
+}
+
+function getFiberFringeAtlasPatchRects(texture) {
+  const width = texture.width || 640;
+  const height = texture.height || 320;
+  const scaleX = width / 640;
+  const scaleY = height / 320;
+  return [
+    { x: 12, y: 18, width: 300, height: 38 },
+    { x: 12, y: 74, width: 300, height: 40 },
+    { x: 12, y: 126, width: 300, height: 38 },
+    { x: 12, y: 180, width: 300, height: 42 },
+    { x: 12, y: 238, width: 300, height: 38 },
+    { x: 324, y: 14, width: 118, height: 64 },
+    { x: 448, y: 26, width: 126, height: 56 },
+    { x: 322, y: 92, width: 118, height: 58 },
+    { x: 448, y: 98, width: 122, height: 58 },
+    { x: 326, y: 168, width: 118, height: 58 },
+    { x: 450, y: 182, width: 116, height: 54 },
+    { x: 322, y: 242, width: 120, height: 58 },
+    { x: 450, y: 246, width: 122, height: 52 }
   ].map((rect) => ({
     x: Math.max(0, Math.round(rect.x * scaleX)),
     y: Math.max(0, Math.round(rect.y * scaleY)),

@@ -1,6 +1,40 @@
 // 首页效果展示图配置。将 imageSrc 替换为已备案图片域名下的 HTTPS 地址即可启用云端图片。
 module.exports = [
   {
+    id: "creative-tear-paper",
+    title: "限时体验创意撕纸",
+    items: [
+      {
+        id: "creative-tear-paper-01",
+        title: "创意撕纸",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/01.jpg",
+        tone: "structure",
+        effect: "creative-tear-paper"
+      },
+      {
+        id: "creative-tear-paper-02",
+        title: "水彩延展",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/02.jpg",
+        tone: "structure",
+        effect: "creative-tear-paper"
+      },
+      {
+        id: "creative-tear-paper-03",
+        title: "手作纸感",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/03.jpg",
+        tone: "structure",
+        effect: "creative-tear-paper"
+      },
+      {
+        id: "creative-tear-paper-04",
+        title: "杂志拼贴",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/04.jpg",
+        tone: "structure",
+        effect: "creative-tear-paper"
+      }
+    ]
+  },
+  {
     id: "texture",
     title: "颗粒一加，氛围到位",
     items: [

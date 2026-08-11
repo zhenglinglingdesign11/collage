@@ -2881,6 +2881,22 @@ button::after {
   opacity: 0.35;
 }
 
+.effect-limited-badge {
+  position: absolute;
+  right: 5rpx;
+  top: 5rpx;
+  height: 24rpx;
+  padding: 0 7rpx;
+  border-radius: 999rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 16rpx;
+  font-weight: 650;
+  line-height: 24rpx;
+  z-index: 4;
+  pointer-events: none;
+}
+
 .effect-editor-panel .effect-swatch,
 .texture-swatch {
   position: relative;
@@ -2971,6 +2987,26 @@ button::after {
     radial-gradient(circle at 72% 28%, rgba(255,255,255,0.92) 0 8%, transparent 9%),
     linear-gradient(135deg, rgba(255,255,255,0.68) 0 18%, transparent 19% 52%, rgba(255,255,255,0.45) 53% 61%, transparent 62%),
     linear-gradient(135deg, #f9bed6 0%, #c8dcff 48%, #f7f1b8 100%);
+}
+
+.texture-swatch-creative-tear {
+  border-color: #7a8a90;
+  background:
+    linear-gradient(135deg, transparent 0 36%, rgba(255,255,255,0.92) 37% 47%, transparent 48%),
+    radial-gradient(circle at 68% 30%, rgba(128, 210, 224, 0.78) 0 16%, transparent 17%),
+    linear-gradient(135deg, #f4f1ea 0 48%, #b8dbe2 49% 100%);
+}
+
+.texture-swatch-creative-tear::after {
+  content: "";
+  position: absolute;
+  left: 15rpx;
+  top: -3rpx;
+  width: 6rpx;
+  height: 40rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.76);
+  transform: rotate(24deg);
 }
 
 .texture-swatch-stamp {
