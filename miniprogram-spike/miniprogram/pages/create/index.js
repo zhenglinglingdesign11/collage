@@ -7544,6 +7544,10 @@ function getHomeShowcaseEffect(id) {
     "creative-tear-paper-02": "creative-tear-paper",
     "creative-tear-paper-03": "creative-tear-paper",
     "creative-tear-paper-04": "creative-tear-paper",
+    "creative-tear-paper-05": "creative-tear-paper",
+    "creative-tear-paper-06": "creative-tear-paper",
+    "creative-tear-paper-07": "creative-tear-paper",
+    "creative-tear-paper-08": "creative-tear-paper",
     "emboss-swap": "emboss-circle",
     "emboss-circle": "emboss-circle",
     "emboss-stamp": "emboss-stamp",
@@ -7571,7 +7575,8 @@ function normalizeHomeShowcaseManifest(payload) {
       title: String(item && item.title || "创作灵感"),
       imageSrc: typeof (item && item.imageSrc) === "string" ? item.imageSrc : "",
       tone: typeof (item && item.tone) === "string" ? item.tone : "structure",
-      effect: typeof (item && item.effect) === "string" ? item.effect : getHomeShowcaseEffect(item && item.id)
+      effect: typeof (item && item.effect) === "string" ? item.effect : getHomeShowcaseEffect(item && item.id),
+      hideTitle: item && item.hideTitle === true
     })).filter((item) => item.imageSrc);
     return {
       id: String(group && group.id || groupIndex),

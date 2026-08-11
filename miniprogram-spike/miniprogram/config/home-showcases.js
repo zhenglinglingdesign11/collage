@@ -7,30 +7,66 @@ module.exports = [
       {
         id: "creative-tear-paper-01",
         title: "创意撕纸",
-        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/01.jpg",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/01.jpg?v=20260811d",
         tone: "structure",
-        effect: "creative-tear-paper"
+        effect: "creative-tear-paper",
+        hideTitle: true
       },
       {
         id: "creative-tear-paper-02",
         title: "水彩延展",
-        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/02.jpg",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/02.jpg?v=20260811d",
         tone: "structure",
-        effect: "creative-tear-paper"
+        effect: "creative-tear-paper",
+        hideTitle: true
+      },
+      {
+        id: "creative-tear-paper-06",
+        title: "纸感延展",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/06.jpg?v=20260811d",
+        tone: "structure",
+        effect: "creative-tear-paper",
+        hideTitle: true
+      },
+      {
+        id: "creative-tear-paper-07",
+        title: "自然撕边",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/07.jpg?v=20260811d",
+        tone: "structure",
+        effect: "creative-tear-paper",
+        hideTitle: true
+      },
+      {
+        id: "creative-tear-paper-08",
+        title: "水彩留白",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/08.jpg?v=20260811d",
+        tone: "structure",
+        effect: "creative-tear-paper",
+        hideTitle: true
       },
       {
         id: "creative-tear-paper-03",
         title: "手作纸感",
-        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/03.jpg",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/03.jpg?v=20260811d",
         tone: "structure",
-        effect: "creative-tear-paper"
+        effect: "creative-tear-paper",
+        hideTitle: true
       },
       {
         id: "creative-tear-paper-04",
         title: "杂志拼贴",
-        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/04.jpg",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/04.jpg?v=20260811d",
         tone: "structure",
-        effect: "creative-tear-paper"
+        effect: "creative-tear-paper",
+        hideTitle: true
+      },
+      {
+        id: "creative-tear-paper-05",
+        title: "纸上风景",
+        imageSrc: "https://assets.zllarchi.site/homecase/0811-sizhi/05.jpg?v=20260811d",
+        tone: "structure",
+        effect: "creative-tear-paper",
+        hideTitle: true
       }
     ]
   },

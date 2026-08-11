@@ -93,7 +93,7 @@
                   <view class="showcase-emboss-heart"></view>
                   </view>
                 </view>
-                <view class="home-showcase-title">{{showcase.title}}</view>
+                <view wx:if="{{!showcase.hideTitle}}" class="home-showcase-title">{{showcase.title}}</view>
               </view>
             </view>
           </scroll-view>
