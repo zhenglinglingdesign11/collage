@@ -9,20 +9,29 @@
         <view class="upload-content">
           <view class="round-action">+</view>
           <view class="primary-label">添加照片</view>
-          <view class="helper blank-canvas-entry" catchtap="enterBlankCanvas">从空白画布，开始你的拼贴</view>
         </view>
       </button>
 
-      <button class="material-start" bindtap="openAssetsTab">
-        <view class="quick-icon">
-          <view class="quick-paper back"></view>
-          <view class="quick-paper front"></view>
-        </view>
-        <view class="material-copy">
-          <view>从素材包开始</view>
-        </view>
-        <view class="material-arrow">›</view>
-      </button>
+      <view class="start-entry-row">
+        <button class="start-entry-card blank-start" bindtap="enterBlankCanvas">
+          <view class="quick-icon blank-icon">
+            <view class="blank-page-icon"></view>
+          </view>
+          <view class="material-copy">
+            <view>从空白画布开始</view>
+          </view>
+        </button>
+
+        <button class="start-entry-card material-start" bindtap="openAssetsTab">
+          <view class="quick-icon">
+            <view class="quick-paper back"></view>
+            <view class="quick-paper front"></view>
+          </view>
+          <view class="material-copy">
+            <view>从素材包开始</view>
+          </view>
+        </button>
+      </view>
 
       <block wx:if="{{hasRecentDraft}}">
         <view class="section-head">
@@ -1011,47 +1020,47 @@
               <view wx:if="{{activeBackgroundCategory === '波点'}}" class="polka-config">
                 <view class="polka-config-row compact">
                   <view class="polka-config-label">图形</view>
-                  <view class="polka-segment-row">
+                  <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view class="polka-segment upload {{selectedPolkaShape === 'image' && selectedPolkaImageSourceType === 'upload' ? 'active' : ''}}" bindtap="choosePolkaPatternImage">本地</view>
                     <view class="polka-segment upload {{selectedPolkaShape === 'image' && selectedPolkaImageSourceType === 'asset' ? 'active' : ''}}" bindtap="openPolkaPatternAssetPicker">素材</view>
                     <view wx:for="{{polkaShapes}}" wx:key="value" class="polka-segment shape {{selectedPolkaShape === item.value ? 'active' : ''}}" data-shape="{{item.value}}" bindtap="setPolkaShape">{{item.label}}</view>
-                  </view>
+                  </scroll-view>
                 </view>
                 <view class="polka-config-row">
                   <view class="polka-config-label">底色</view>
-                  <view class="polka-swatch-row">
+                  <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view wx:for="{{polkaBackgroundColors}}" wx:key="value" class="polka-swatch {{selectedPolkaBackground === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setPolkaBackgroundColor"></view>
-                  </view>
+                  </scroll-view>
                 </view>
                 <view class="polka-config-row">
                   <view class="polka-config-label">点色</view>
-                  <view class="polka-swatch-row">
+                  <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view wx:for="{{polkaDotColors}}" wx:key="value" class="polka-swatch {{selectedPolkaDotColor === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setPolkaDotColor"></view>
-                  </view>
+                  </scroll-view>
                 </view>
                 <view class="polka-config-row compact">
                   <view class="polka-config-label">大小</view>
-                  <view class="polka-segment-row">
+                  <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view wx:for="{{polkaDotSizes}}" wx:key="value" class="polka-segment {{selectedPolkaDotRadius === item.value ? 'active' : ''}}" data-radius="{{item.value}}" bindtap="setPolkaDotSize">{{item.label}}</view>
-                  </view>
+                  </scroll-view>
                 </view>
                 <view class="polka-config-row compact">
                   <view class="polka-config-label">密度</view>
-                  <view class="polka-segment-row">
+                  <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view wx:for="{{polkaDensities}}" wx:key="value" class="polka-segment {{selectedPolkaGap === item.value ? 'active' : ''}}" data-gap="{{item.value}}" bindtap="setPolkaDensity">{{item.label}}</view>
-                  </view>
+                  </scroll-view>
                 </view>
                 <view class="polka-config-row compact">
                   <view class="polka-config-label">样式</view>
-                  <view class="polka-segment-row">
+                  <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view wx:for="{{polkaStyles}}" wx:key="value" class="polka-segment {{selectedPolkaStyle === item.value ? 'active' : ''}}" data-style="{{item.value}}" bindtap="setPolkaStyle">{{item.label}}</view>
-                  </view>
+                  </scroll-view>
                 </view>
                 <view class="polka-config-row compact">
                   <view class="polka-config-label">透明</view>
-                  <view class="polka-segment-row">
+                  <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                     <view wx:for="{{polkaOpacities}}" wx:key="value" class="polka-segment {{selectedPolkaOpacity === item.value ? 'active' : ''}}" data-opacity="{{item.value}}" bindtap="setPolkaOpacity">{{item.label}}</view>
-                  </view>
+                  </scroll-view>
                 </view>
               </view>
             </block>

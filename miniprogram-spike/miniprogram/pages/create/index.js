@@ -111,6 +111,7 @@ const BACKGROUND_HINT_SEEN_KEY = "journal.backgroundHintSeen.v1";
 const TEXT_FONTS = getTextFonts();
 const CUTTABLE_SOURCE_LAYER_TYPES = ["image", "sticker", "paper"];
 const KPOP_HOLO_FOIL_TEXTURE = "/assets/textures/holo-foil-768.webp";
+const TORN_PAPER_EDGE_ATLAS = "/assets/textures/torn-paper-edge-atlas.png";
 const TEXT_FONT_OPTIONS = getTextFontOptions();
 const DEFAULT_TEXT_FONT_STYLE = createTextFontStyle("system");
 const PAPER_BACKGROUND_PACKS = [
@@ -192,7 +193,7 @@ const BACKGROUND_CATEGORY_ORDER = ["纯色", "波点", "格纹", "纸感", "图�
 const BACKGROUND_OPTIONS = createBackgroundOptions();
 const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
 const HOME_SHOWCASES = createHomeShowcaseGroups(HOME_SHOWCASE_BASE_GROUPS);
-const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框", "内芯纸"];
+const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框"];
 const POLKA_PAPER_PACK_ID = "polka-paper-materials";
 const ASSET_PANEL_PACKS = createAssetPanelPacks();
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
@@ -1022,7 +1023,7 @@ Page({
       : [];
     const backgroundSource = this.draft.backgroundImage && this.draft.backgroundImage.source;
     const patternImageSource = this.draft.backgroundPatternConfig && this.draft.backgroundPatternConfig.imageSource;
-    const sources = Array.from(new Set([backgroundSource, patternImageSource].concat(layerSources, effectSources, layerPatternSources, brushSources, brushDraftSources).filter(Boolean)));
+    const sources = Array.from(new Set([backgroundSource, patternImageSource, TORN_PAPER_EDGE_ATLAS].concat(layerSources, effectSources, layerPatternSources, brushSources, brushDraftSources).filter(Boolean)));
     return Promise.all(sources.map((src) => this.loadCanvasImage(src))).then(() => undefined);
   },
 
@@ -2224,17 +2225,27 @@ Page({
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
     const polygons = getLayerClipPolygonsForNextCut(layer);
     ctx.fillStyle = "#000000";
-    if (polygons.length && !options.skipPolygons) {
+    if (layer.tear) {
+      ctx.globalCompositeOperation = "destination-in";
+      if (polygons.length) {
+        polygons.forEach((polygon) => {
+          drawTornClipPolygonMaskPath(ctx, layer, polygon, outputScale, localBounds);
+          ctx.fill();
+        });
+      } else if (clipShape) {
+        drawTornShapeMaskPath(ctx, layer, clipShape, outputWidth, outputHeight);
+        ctx.fill();
+      } else {
+        drawTearMaskPath(ctx, outputWidth, outputHeight);
+        ctx.fill();
+      }
+    } else if (polygons.length && !options.skipPolygons) {
       polygons.forEach((polygon) => {
         applyPolygonAlphaMask(ctx, outputWidth, outputHeight, polygon, outputScale, localBounds);
       });
     } else if (clipShape) {
       ctx.globalCompositeOperation = "destination-in";
       drawEmbossMaskPath(ctx, clipShape, 0, 0, outputWidth, outputHeight);
-      ctx.fill();
-    } else if (layer.tear) {
-      ctx.globalCompositeOperation = "destination-in";
-      drawTearMaskPath(ctx, outputWidth, outputHeight);
       ctx.fill();
     } else if (layer.radius) {
       ctx.globalCompositeOperation = "destination-in";
@@ -9516,8 +9527,9 @@ function getLayerOutlineStyleKey(outline) {
 
 function createAssetPanelCategories() {
   const categories = ASSET_PANEL_PACKS.reduce((items, pack) => {
-    if (pack.category && !items.includes(pack.category)) {
-      items.push(pack.category);
+    const category = normalizeCreateAssetCategory(pack.category);
+    if (category && !items.includes(category)) {
+      items.push(category);
     }
     return items;
   }, []);
@@ -9547,7 +9559,7 @@ function createPolkaPaperAssetPack() {
   return {
     id: POLKA_PAPER_PACK_ID,
     name: "波点内芯纸",
-    category: "内芯纸",
+    category: "便签",
     tone: "#ffffff",
     cover: "",
     isPolkaPaperPack: true,
@@ -9621,6 +9633,7 @@ function decorateAssetPanelPack(pack) {
   if (!pack) return null;
   return {
     ...pack,
+    category: normalizeCreateAssetCategory(pack.category),
     isPolkaPaperPack: !!pack.isPolkaPaperPack,
     coverStyle: pack.coverStyle || "",
     coverPreviews: Array.isArray(pack.coverPreviews) ? pack.coverPreviews : [],
@@ -9640,7 +9653,11 @@ function decorateAssetPanelPack(pack) {
 
 function filterAssetPanelPacks(packs, category) {
   if (!category || category === "推荐") return filterRecommendedAssetPanelPacks(packs);
-  return packs.filter((pack) => pack.category === category);
+  return packs.filter((pack) => normalizeCreateAssetCategory(pack.category) === category);
+}
+
+function normalizeCreateAssetCategory(category) {
+  return category === "内芯纸" ? "便签" : category;
 }
 
 function filterRecommendedAssetPanelPacks(packs) {
@@ -10253,6 +10270,213 @@ function drawTearMaskPath(ctx, width, height) {
     ctx.lineTo(amplitude * (0.5 + ((Math.round(y / stepY) % 3) * 0.24)), y);
   }
   ctx.closePath();
+}
+
+function drawTornClipPolygonMaskPath(ctx, layer, polygon, scale, localBounds = { x: 0, y: 0 }) {
+  const points = getTornClipPolygonMaskPoints(layer, polygon, scale, localBounds);
+  drawPointMaskPath(ctx, points);
+}
+
+function drawTornShapeMaskPath(ctx, layer, shape, width, height) {
+  const points = getTornShapeMaskPoints(layer, shape, width, height);
+  drawPointMaskPath(ctx, points);
+}
+
+function drawPointMaskPath(ctx, points) {
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.closePath();
+}
+
+function getTornClipPolygonMaskPoints(layer, polygon, scale, localBounds = { x: 0, y: 0 }) {
+  const width = Math.max(1, layer.width || 1);
+  const height = Math.max(1, layer.height || 1);
+  const outputWidth = Math.max(1, Math.round((localBounds.width || width) * scale));
+  const outputHeight = Math.max(1, Math.round((localBounds.height || height) * scale));
+  const seed = getLayerTearSeed(layer);
+  const amplitude = Math.max(6, Math.min(24, Math.min(outputWidth, outputHeight) * 0.038));
+  const step = Math.max(18, Math.min(38, Math.min(outputWidth, outputHeight) / 8));
+  const points = [];
+  polygon.forEach((point, index) => {
+    const next = polygon[(index + 1) % polygon.length];
+    addTornMaskSegmentPoints(
+      points,
+      (point.x - (localBounds.x || 0)) * scale,
+      (point.y - (localBounds.y || 0)) * scale,
+      (next.x - (localBounds.x || 0)) * scale,
+      (next.y - (localBounds.y || 0)) * scale,
+      step,
+      amplitude,
+      seed + index * 53
+    );
+  });
+  return points;
+}
+
+function getTornShapeMaskPoints(layer, shape, width, height) {
+  const samples = sampleTearMaskShapeOutline(shape, 0, 0, width, height);
+  if (!samples.length) return [];
+  const seed = getLayerTearSeed(layer);
+  const center = { x: width / 2, y: height / 2 };
+  const amplitude = Math.max(6, Math.min(20, Math.min(width, height) * 0.034));
+  return samples.map((point, index) => {
+    const normal = normalizeMaskVector({ x: point.x - center.x, y: point.y - center.y }) || { x: 0, y: -1 };
+    const jitter = getTearMaskJitter(seed + index * 41, index, amplitude);
+    return {
+      x: point.x + normal.x * jitter,
+      y: point.y + normal.y * jitter
+    };
+  });
+}
+
+function addTornMaskSegmentPoints(points, x1, y1, x2, y2, step, amplitude, seed) {
+  const length = Math.max(1, Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2));
+  const count = Math.max(2, Math.ceil(length / step));
+  const normal = getMaskSegmentNormal(x1, y1, x2, y2);
+  for (let index = 0; index <= count; index += 1) {
+    if (points.length && index === 0) continue;
+    const t = index / count;
+    const jitter = getTearMaskJitter(seed, index, amplitude);
+    const alongJitter = (seededMaskUnit(seed + index * 173) - 0.5) * Math.min(step * 0.34, amplitude * 0.9);
+    points.push({
+      x: x1 + (x2 - x1) * t + normal.x * jitter + (x2 - x1) / length * alongJitter,
+      y: y1 + (y2 - y1) * t + normal.y * jitter + (y2 - y1) / length * alongJitter
+    });
+  }
+}
+
+function sampleTearMaskShapeOutline(shape, x, y, width, height) {
+  if (shape === "circle") return sampleTearMaskEllipse(x, y, width, height, 48);
+  if (shape === "heart") return sampleTearMaskHeart(x, y, width, height, 64);
+  if (shape === "star") return sampleTearMaskStar(x, y, width, height);
+  if (shape === "tag") return sampleTearMaskTag(x, y, width, height);
+  if (shape === "stamp") return sampleTearMaskStamp(x, y, width, height);
+  return [];
+}
+
+function sampleTearMaskEllipse(x, y, width, height, count) {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  return Array.from({ length: count }, (_, index) => {
+    const angle = -Math.PI / 2 + index / count * Math.PI * 2;
+    return {
+      x: cx + Math.cos(angle) * width / 2,
+      y: cy + Math.sin(angle) * height / 2
+    };
+  });
+}
+
+function sampleTearMaskHeart(x, y, width, height, count) {
+  const result = [];
+  for (let index = 0; index < count; index += 1) {
+    const t = index / count * Math.PI * 2;
+    const hx = 16 * Math.sin(t) ** 3;
+    const hy = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+    result.push({
+      x: x + width / 2 + hx / 34 * width,
+      y: y + height * 0.52 - hy / 34 * height
+    });
+  }
+  return result;
+}
+
+function sampleTearMaskStar(x, y, width, height) {
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const outer = Math.min(width, height) * 0.48;
+  const inner = outer * 0.46;
+  const points = [];
+  for (let index = 0; index < 10; index += 1) {
+    const radius = index % 2 === 0 ? outer : inner;
+    const angle = -Math.PI / 2 + index * Math.PI / 5;
+    points.push({ x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius });
+  }
+  return densifyTearMaskClosedPoints(points, Math.max(18, Math.min(width, height) / 8));
+}
+
+function sampleTearMaskTag(x, y, width, height) {
+  const cut = Math.min(width, height) * 0.18;
+  return densifyTearMaskClosedPoints([
+    { x, y },
+    { x: x + width - cut, y },
+    { x: x + width, y: y + cut },
+    { x: x + width, y: y + height },
+    { x, y: y + height }
+  ], Math.max(18, Math.min(width, height) / 8));
+}
+
+function sampleTearMaskStamp(x, y, width, height) {
+  const points = [];
+  const notch = Math.max(5, Math.min(width, height) * 0.045);
+  const step = notch * 2.2;
+  for (let px = x + notch; px < x + width - notch; px += step) points.push({ x: px, y: y + (points.length % 2 ? notch : 0) });
+  for (let py = y + notch; py < y + height - notch; py += step) points.push({ x: x + width - (points.length % 2 ? notch : 0), y: py });
+  for (let px = x + width - notch; px > x + notch; px -= step) points.push({ x: px, y: y + height - (points.length % 2 ? notch : 0) });
+  for (let py = y + height - notch; py > y + notch; py -= step) points.push({ x: x + (points.length % 2 ? notch : 0), y: py });
+  return points;
+}
+
+function densifyTearMaskClosedPoints(points, step) {
+  const result = [];
+  points.forEach((point, index) => {
+    const next = points[(index + 1) % points.length];
+    const length = Math.max(1, Math.sqrt((next.x - point.x) ** 2 + (next.y - point.y) ** 2));
+    const count = Math.max(1, Math.ceil(length / step));
+    for (let i = 0; i < count; i += 1) {
+      const t = i / count;
+      result.push({
+        x: point.x + (next.x - point.x) * t,
+        y: point.y + (next.y - point.y) * t
+      });
+    }
+  });
+  return result;
+}
+
+function getMaskSegmentNormal(x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.sqrt(dx * dx + dy * dy) || 1;
+  return { x: dy / length, y: -dx / length };
+}
+
+function normalizeMaskVector(vector) {
+  const length = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
+  if (!length) return null;
+  return {
+    x: vector.x / length,
+    y: vector.y / length
+  };
+}
+
+function getTearMaskJitter(seed, index, amplitude) {
+  const raw = seededMaskUnit(seed + index * 97);
+  const chip = seededMaskUnit(seed + index * 211);
+  const wave = Math.sin((seed % 31 + index) * 1.37) * 0.24 + 0.74;
+  const micro = (seededMaskUnit(seed + index * 157) - 0.5) * amplitude * 0.34;
+  const notch = chip > 0.86 ? amplitude * (0.42 + seededMaskUnit(seed + index * 223) * 0.5) : 0;
+  return Math.max(1, raw * amplitude * wave + micro + notch);
+}
+
+function getLayerTearSeed(layer) {
+  if (layer && layer.tearSeed != null) return Number(layer.tearSeed) || 1;
+  const id = String(layer && layer.id || "tear");
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i += 1) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash);
+}
+
+function seededMaskUnit(seed) {
+  let value = Math.imul(seed ^ 0x6d2b79f5, 0x45d9f3b);
+  value = Math.imul(value ^ (value >>> 16), 0x45d9f3b);
+  value ^= value >>> 16;
+  return ((value >>> 0) % 10000) / 10000;
 }
 
 function drawRoundedMaskPath(ctx, x, y, width, height, radius) {

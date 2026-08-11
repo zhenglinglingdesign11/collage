@@ -54,7 +54,7 @@ button::after {
 }
 
 .empty-workspace > .starter-panel,
-.empty-workspace > .material-start,
+.empty-workspace > .start-entry-row,
 .empty-workspace > .section-head,
 .empty-workspace > .draft-row,
 .empty-workspace > .empty-drafts {
@@ -78,7 +78,7 @@ button::after {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  height: 360rpx;
+  height: 288rpx;
   margin-left: 0;
   margin-right: 0;
   padding: 0;
@@ -93,7 +93,7 @@ button::after {
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  height: 360rpx;
+  height: 288rpx;
   margin-left: 0;
   margin-right: 0;
   padding: 0;
@@ -114,8 +114,8 @@ button::after {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 292rpx;
-  height: 190rpx;
+  width: 264rpx;
+  height: 158rpx;
   border-radius: 24rpx;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(253, 253, 251, 0.34));
   transform: translate(-50%, -50%) rotate(-3deg);
@@ -126,7 +126,7 @@ button::after {
   content: "";
   position: absolute;
   left: 50%;
-  top: 82rpx;
+  top: 58rpx;
   width: 148rpx;
   height: 44rpx;
   background: linear-gradient(135deg, rgba(234, 212, 138, 0.58), rgba(234, 212, 138, 0.32));
@@ -137,14 +137,14 @@ button::after {
 .upload-content {
   position: relative;
   z-index: 1;
-  padding-top: 16rpx;
+  padding-top: 8rpx;
   text-align: center;
 }
 
 .round-action {
   width: 84rpx;
   height: 84rpx;
-  margin: 0 auto 18rpx;
+  margin: 0 auto 16rpx;
   border-radius: 50%;
   background: #111111;
   color: #ffffff;
@@ -171,22 +171,33 @@ button::after {
   padding: 6rpx 12rpx;
 }
 
-.material-start {
-  align-self: stretch;
+.start-entry-row {
+  display: flex;
+  gap: 20rpx;
   box-sizing: border-box;
   width: 100%;
   max-width: 100%;
-  height: 108rpx;
   margin: 24rpx 0 0;
+}
+
+.start-entry-card {
+  flex: 1;
+  min-width: 0;
+  height: 126rpx;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 24rpx;
-  padding: 0 28rpx;
+  gap: 18rpx;
+  padding: 0 22rpx;
   border: 1rpx solid #e8e6e1;
   border-radius: 28rpx;
   background: #ffffff;
   box-shadow: 0 2rpx 16rpx rgba(17, 17, 17, 0.06);
   text-align: left;
+}
+
+.blank-start {
+  background: linear-gradient(180deg, #ffffff, #f8f8f5);
 }
 
 .quick-icon {
@@ -195,6 +206,20 @@ button::after {
   height: 64rpx;
   flex: 0 0 auto;
   color: #111111;
+}
+
+.blank-page-icon {
+  position: absolute;
+  left: 13rpx;
+  top: 8rpx;
+  width: 38rpx;
+  height: 48rpx;
+  border: 2rpx solid rgba(17, 17, 17, 0.16);
+  border-radius: 8rpx;
+  background:
+    linear-gradient(rgba(17, 17, 17, 0.10) 1rpx, transparent 1rpx) 0 14rpx / 100% 12rpx,
+    #ffffff;
+  box-shadow: 0 8rpx 18rpx rgba(17, 17, 17, 0.08);
 }
 
 .quick-paper {
@@ -228,10 +253,10 @@ button::after {
 }
 
 .material-copy view {
-  font-size: 28rpx;
+  font-size: 26rpx;
   font-weight: 650;
-  line-height: 36rpx;
-  white-space: nowrap;
+  line-height: 34rpx;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1958,10 +1983,19 @@ button::after {
 }
 
 .polka-swatch-row {
-  overflow: visible;
+  display: block;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.polka-swatch-row::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .polka-segment-row {
+  display: block;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -2022,7 +2056,7 @@ button::after {
 
 .asset-pack-card {
   display: inline-block;
-  width: 196rpx;
+  width: calc((100% - 40rpx) / 3);
   height: 232rpx;
   margin: 0 20rpx 20rpx 0;
   border: 1rpx solid #e8e6e1;
@@ -2032,9 +2066,13 @@ button::after {
   vertical-align: top;
 }
 
+.asset-pack-card:nth-child(3n) {
+  margin-right: 0;
+}
+
 .asset-pack-cover {
-  width: 196rpx;
-  height: 232rpx;
+  width: 100%;
+  height: 100%;
   display: block;
 }
 
