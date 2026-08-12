@@ -868,12 +868,23 @@ Page({
   },
 
   trackCreatePageView(entrySource = "default", extra = {}) {
+    this.applyDraftAnalyticsEntry(entrySource, extra);
     track("create_page_view", {
       page: "create",
       entrySource,
       ...extra,
       ...getDraftAnalyticsParams(this.draft)
     });
+  },
+
+  applyDraftAnalyticsEntry(entrySource, extra = {}) {
+    if (!this.draft) return;
+    const analytics = {
+      ...(this.draft.analytics || {}),
+      entrySource: entrySource || "default"
+    };
+    if (extra.showcaseEffect) analytics.showcaseEffect = extra.showcaseEffect;
+    this.draft.analytics = analytics;
   },
 
   loadHomeShowcases() {
@@ -2448,6 +2459,7 @@ Page({
       ...getPolkaPatternControlData(this.draft)
     });
     this.trackCreatePageView("home_background_preset", {
+      showcaseEffect: "background_preset",
       backgroundId: option.id,
       backgroundCategory: option.category || ""
     });
@@ -2478,13 +2490,15 @@ Page({
       page: "create",
       source,
       entrySource,
+      showcaseEffect: entrySource === "home_showcase" ? pendingShowcaseEffect : "",
       fromEmpty: shouldStartBlank
     });
     if (shouldStartBlank) {
       this.resetToBlankDraftForEmptyEntry();
       this.trackCreatePageView(entrySource || "photo_choose", {
         source,
-        fromEmpty: true
+        fromEmpty: true,
+        showcaseEffect: entrySource === "home_showcase" ? pendingShowcaseEffect : ""
       });
     }
     this.enterEditMode();
@@ -2546,6 +2560,7 @@ Page({
               page: "create",
               source,
               entrySource,
+              showcaseEffect: entrySource === "home_showcase" ? pendingShowcaseEffect : "",
               errorCode: "get_image_info_failed"
             });
             if (this.pendingEntrySource === entrySource) this.pendingEntrySource = "";
@@ -2570,6 +2585,7 @@ Page({
               page: "create",
               source,
               entrySource,
+              showcaseEffect: entrySource === "home_showcase" ? pendingShowcaseEffect : "",
               width: info.width || 0,
               height: info.height || 0,
               fileSize: file.size || 0,
@@ -2610,6 +2626,7 @@ Page({
           page: "create",
           source,
           entrySource,
+          showcaseEffect: entrySource === "home_showcase" ? pendingShowcaseEffect : "",
           errorCode: "choose_media_failed"
         });
       }
@@ -6327,8 +6344,8 @@ Page({
     }
     const result = await showModal(
       "限时体验",
-      "创意撕纸每个用户每天只能体验一次。确认后将立即开始生成。",
-      { confirmText: "确认生成" }
+      "创意撕纸每个用户每天只能体验一次，确认后选择图片将立即开始生成",
+      { confirmText: "选择图片" }
     );
     return !!result.confirm;
   },
@@ -7480,7 +7497,8 @@ Page({
     track("export_start", {
       page: "create",
       pendingContentChecks: hasPendingContentChecks(this),
-      ...getDraftAnalyticsParams(this.draft)
+      ...getDraftAnalyticsParams(this.draft),
+      ...getDraftExportUsageAnalytics(this.draft)
     });
     const pendingChecks = hasPendingContentChecks(this);
     if (pendingChecks) {
@@ -7596,6 +7614,71 @@ function getDraftAnalyticsParams(draft) {
     assetLayerCount: layers.filter((layer) => layer && ["sticker", "paper", "tape"].includes(layer.type)).length,
     textLayerCount: layers.filter((layer) => layer && layer.type === "text").length
   };
+}
+
+function getDraftExportUsageAnalytics(draft) {
+  const layers = draft && Array.isArray(draft.layers) ? draft.layers : [];
+  const assetPackIds = new Set();
+  const assetCategories = new Set();
+  const cutStyles = new Set();
+  const embossShapes = new Set();
+  const textureEffects = new Set();
+  const handmadeEffects = new Set();
+  const outlineStyles = new Set();
+  const brushTypes = new Set();
+
+  (layers || []).forEach((layer) => {
+    if (!layer) return;
+    const style = layer.style || {};
+    const packId = style.packId || layer.packId || "";
+    if (packId) assetPackIds.add(packId);
+    const category = style.category || layer.category || getAssetCategoryByPackId(packId);
+    if (category) assetCategories.add(category);
+    if (layer.cutStyle) cutStyles.add(layer.cutStyle);
+    if (layer.cutPiece && !layer.cutStyle) cutStyles.add("unknown");
+
+    const texture = style.textureEffect && style.textureEffect.type;
+    if (texture) textureEffects.add(texture);
+
+    if (layer.tear) handmadeEffects.add("tear");
+    const handmadeEffect = style.handmadeEffect && style.handmadeEffect.type;
+    if (handmadeEffect) handmadeEffects.add(handmadeEffect);
+
+    const outlineStyle = getLayerOutlineStyleKey(layer.outline);
+    if (outlineStyle && outlineStyle !== "none") outlineStyles.add(outlineStyle);
+
+    const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
+    if (clipShape && (style.embossEdge || layer.type === "image")) embossShapes.add(clipShape);
+
+    if (layer.type === "brush") {
+      (layer.strokes || []).forEach((stroke) => {
+        if (stroke && stroke.type) brushTypes.add(stroke.type);
+      });
+    }
+  });
+
+  const analytics = draft && draft.analytics || {};
+  return {
+    showcaseEffect: analytics.showcaseEffect || "",
+    assetPackIds: joinAnalyticsValues(assetPackIds),
+    assetCategories: joinAnalyticsValues(assetCategories),
+    cutStyles: joinAnalyticsValues(cutStyles),
+    embossShapes: joinAnalyticsValues(embossShapes),
+    textureEffects: joinAnalyticsValues(textureEffects),
+    handmadeEffects: joinAnalyticsValues(handmadeEffects),
+    outlineStyles: joinAnalyticsValues(outlineStyles),
+    brushTypes: joinAnalyticsValues(brushTypes)
+  };
+}
+
+function joinAnalyticsValues(values) {
+  return Array.from(values || []).filter(Boolean).sort().join(",");
+}
+
+function getAssetCategoryByPackId(packId) {
+  if (!packId) return "";
+  const pack = getCreateAssetPack(packId) || getAssetPack(packId);
+  return pack && normalizeCreateAssetCategory(pack.category || "") || "";
 }
 
 function getDraftMinimalAnalyticsParams(draft) {
