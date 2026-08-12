@@ -105,6 +105,26 @@ module.exports = [
     ]
   },
   {
+    id: "lace",
+    title: "一键拥有精致边框",
+    items: [
+      {
+        id: "lace-circle",
+        title: "圆形蕾丝框",
+        imageSrc: "https://assets.zllarchi.site/homecase/0806-jiegou/01.jpg",
+        tone: "structure",
+        effect: "lace-center"
+      },
+      {
+        id: "foil-crumpled",
+        title: "圆形锡纸框",
+        imageSrc: "https://assets.zllarchi.site/homecase/0806-jiegou/02.jpg",
+        tone: "structure",
+        effect: "foil-center"
+      }
+    ]
+  },
+  {
     id: "emboss",
     title: "压花让照片更特别",
     items: [
@@ -128,19 +148,6 @@ module.exports = [
         imageSrc: "https://assets.zllarchi.site/homecase/0806-yahua/03.jpg",
         tone: "emboss",
         effect: "emboss-stamp"
-      }
-    ]
-  },
-  {
-    id: "lace",
-    title: "一键拥有精致蕾丝边框",
-    items: [
-      {
-        id: "lace-circle",
-        title: "圆形蕾丝框",
-        imageSrc: "https://assets.zllarchi.site/homecase/0806-jiegou/01.jpg",
-        tone: "structure",
-        effect: "lace-center"
       }
     ]
   }

@@ -56,7 +56,7 @@ button::after {
 .empty-workspace > .starter-panel,
 .empty-workspace > .start-entry-row,
 .empty-workspace > .section-head,
-.empty-workspace > .draft-row,
+.empty-workspace > .draft-scroll,
 .empty-workspace > .empty-drafts {
   width: 100%;
   min-width: 0;
@@ -281,24 +281,32 @@ button::after {
   font-weight: 650;
 }
 
-.draft-row {
+.draft-scroll {
   width: 100%;
+  height: 236rpx;
+  white-space: nowrap;
+}
+
+.draft-row {
   box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 24rpx;
   align-items: flex-start;
-  justify-content: space-between;
+  width: max-content;
+  min-width: 100%;
+  padding-right: 2rpx;
 }
 
 .draft-row > .draft-thumb {
-  flex: 0 0 calc(50% - 12rpx);
+  flex: 0 0 188rpx;
   margin: 0;
 }
 
 .draft-thumb {
   margin: 0;
-  width: calc(50% - 12rpx);
-  height: 356rpx;
+  width: 188rpx;
+  height: 236rpx;
   padding: 8rpx;
   border-radius: 14rpx;
   background: #ffffff;
@@ -337,25 +345,26 @@ button::after {
   position: absolute;
   left: 44rpx;
   top: 28rpx;
-  width: 96rpx;
+  width: 94rpx;
   height: 24rpx;
-  background: #e9d28a;
+  border-radius: 999rpx;
+  background: rgba(233, 210, 138, 0.86);
   transform: rotate(-8deg);
 }
 
 .draft-line {
   position: absolute;
-  left: 42rpx;
-  bottom: 46rpx;
-  width: 104rpx;
-  height: 6rpx;
+  left: 40rpx;
+  right: 40rpx;
+  bottom: 82rpx;
+  height: 8rpx;
   border-radius: 999rpx;
-  background: #111111;
+  background: #d8d2c7;
 }
 
 .draft-line.short {
-  bottom: 64rpx;
-  width: 70rpx;
+  right: 92rpx;
+  bottom: 108rpx;
 }
 
 .home-showcase-section {
@@ -1492,36 +1501,24 @@ button::after {
   z-index: -1;
 }
 
-.effect-swatch-lace-center {
+.effect-swatch-frame-image {
+  position: absolute;
+  left: 50%;
+  bottom: 58rpx;
   width: 54rpx;
   height: 54rpx;
   margin-left: -27rpx;
-  bottom: 53rpx;
   box-sizing: border-box;
-  border: 5rpx double #efe3c9;
   border-radius: 50%;
-  background: #fffaf0;
-  box-shadow:
-    inset 0 0 0 8rpx #ffffff,
-    inset 0 0 0 13rpx rgba(239, 227, 201, 0.9);
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1rpx rgba(17, 17, 17, 0.08);
+  overflow: visible;
 }
 
-.effect-swatch-lace-center view:first-child {
-  position: absolute;
-  left: 11rpx;
-  top: 11rpx;
-  width: 28rpx;
-  height: 28rpx;
-  border-radius: 50%;
-  background: #d8d5ce;
-  box-shadow: inset 0 0 0 4rpx #ffffff;
-}
-
-.effect-swatch-lace-center view:last-child {
-  position: absolute;
-  inset: 3rpx;
-  border: 2rpx dotted rgba(86, 65, 44, 0.28);
-  border-radius: 50%;
+.effect-swatch-frame-image image {
+  display: block;
+  width: 54rpx;
+  height: 54rpx;
 }
 
 .cut-palette .palette-label {
@@ -2199,6 +2196,31 @@ button::after {
   box-sizing: border-box;
   box-shadow: 0 10rpx 22rpx rgba(17, 17, 17, 0.08);
   overflow: hidden;
+}
+
+.solid-paper-custom-preview {
+  width: 360rpx;
+  height: 470rpx;
+  margin: 0 auto 20rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  box-shadow: 0 18rpx 42rpx rgba(17, 17, 17, 0.10);
+}
+
+.solid-paper-config {
+  height: 112rpx;
+}
+
+.solid-paper-config .polka-swatch-row {
+  box-sizing: border-box;
+  padding: 10rpx 18rpx 10rpx 20rpx;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.solid-paper-config .polka-swatch {
+  margin: 8rpx 18rpx 8rpx 6rpx;
 }
 
 .polka-paper-add-button {
@@ -2907,6 +2929,11 @@ button::after {
   width: 40rpx;
   height: 34rpx;
   margin: 0;
+}
+
+.effect-editor-panel .effect-swatch-frame-image image {
+  width: 40rpx;
+  height: 34rpx;
 }
 
 .texture-swatch {

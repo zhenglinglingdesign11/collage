@@ -1059,7 +1059,7 @@ function drawAttachmentTapeStrip(ctx, x, y, width, height, rotation, color) {
 }
 
 function drawSourceLayer(ctx, layer, options = {}) {
-  if (hasLaceCenterEffect(layer)) {
+  if (hasCenterFrameEffect(layer)) {
     drawLaceCenterLayer(ctx, layer, options);
     return;
   }
@@ -1075,6 +1075,11 @@ function drawSourceLayer(ctx, layer, options = {}) {
 function hasLaceCenterEffect(layer) {
   const effect = layer && layer.style && layer.style.handmadeEffect;
   return !!effect && effect.type === "lace-center";
+}
+
+function hasCenterFrameEffect(layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  return !!effect && (effect.type === "lace-center" || effect.type === "foil-center");
 }
 
 function drawLaceCenterLayer(ctx, layer, options = {}) {
@@ -1100,12 +1105,13 @@ function drawLaceCenterLayer(ctx, layer, options = {}) {
   }
 
   if (frame && typeof frame !== "string") {
+    const isFoilFrame = effect.type === "foil-center";
     ctx.save();
     setShadow(
       ctx,
       effect.shadowOffsetX == null ? 0 : effect.shadowOffsetX,
-      effect.shadowOffsetY == null ? 10 : effect.shadowOffsetY,
-      effect.shadowBlur == null ? 22 : effect.shadowBlur,
+      effect.shadowOffsetY == null ? (isFoilFrame ? 0 : 10) : effect.shadowOffsetY,
+      effect.shadowBlur == null ? (isFoilFrame ? 0 : 22) : effect.shadowBlur,
       effect.shadowColor || "rgba(35, 27, 20, 0.20)"
     );
     setGlobalAlpha(ctx, effect.frameOpacity == null ? 1 : effect.frameOpacity);
@@ -1182,6 +1188,9 @@ function getLaceCenterOpeningScale(effect = {}) {
 }
 
 function getLaceCenterFramePreset(effect = {}) {
+  if (effect.type === "foil-center" || effect.frameId === "foil-crumpled" || /foil-frame-02-compress\.png(?:$|\?)/.test(effect.frameSource || "")) {
+    return { openingWidthRatio: 0.72, openingHeightRatio: 0.72 };
+  }
   if (effect.frameId === "wide-hole" || /lace-center-01\.png(?:$|\?)/.test(effect.frameSource || "")) {
     return { openingWidthRatio: 0.73, openingHeightRatio: 0.73 };
   }
@@ -1798,7 +1807,8 @@ function addTornSegmentPoints(points, x1, y1, x2, y2, step, amplitude, seed) {
 function drawPaperPattern(ctx, layer, options = {}) {
   const style = layer.style || {};
   const patternConfig = style.patternConfig || layer.patternConfig;
-  if (!patternConfig || patternConfig.type !== "polka") return;
+  const pattern = style.pattern || layer.pattern || "";
+  if ((!patternConfig || patternConfig.type !== "polka") && !["dot", "line", "square"].includes(pattern)) return;
   const shape = getLayerClipShape(layer);
   ctx.save();
   setShadow(ctx, 0, 0, 0, "transparent");
@@ -1814,8 +1824,53 @@ function drawPaperPattern(ctx, layer, options = {}) {
   }
   ctx.clip();
   ctx.translate(-layer.width / 2, -layer.height / 2);
-  drawPolkaPatternInRect(ctx, layer.width, layer.height, patternConfig, options);
+  if (patternConfig && patternConfig.type === "polka") {
+    drawPolkaPatternInRect(ctx, layer.width, layer.height, patternConfig, options);
+  } else {
+    drawBasicPaperPatternInRect(ctx, layer.width, layer.height, pattern);
+  }
   ctx.restore();
+}
+
+function drawBasicPaperPatternInRect(ctx, width, height, pattern) {
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setStrokeStyle(ctx, "rgba(17,17,17,0.10)");
+  setFillStyle(ctx, "rgba(17,17,17,0.13)");
+  if (pattern === "dot") {
+    const gap = 36;
+    for (let y = gap / 2; y < height; y += gap) {
+      for (let x = gap / 2; x < width; x += gap) {
+        ctx.beginPath();
+        ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  if (pattern === "line") {
+    setLineWidth(ctx, 1.4);
+    for (let y = 52; y < height; y += 52) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+  if (pattern === "square") {
+    setLineWidth(ctx, 1.1);
+    const gap = 48;
+    for (let x = gap; x < width; x += gap) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    for (let y = gap; y < height; y += gap) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
 }
 
 function sampleShapeOutline(shape, x, y, width, height) {

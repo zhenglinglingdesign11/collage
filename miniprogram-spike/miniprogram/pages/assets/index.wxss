@@ -53,6 +53,33 @@ button::after {
   line-height: 56rpx;
 }
 
+.sheet-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+}
+
+.return-create-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 148rpx;
+  height: 60rpx;
+  margin-bottom: 2rpx;
+  padding: 0 26rpx;
+  border-radius: 999rpx;
+  background: #111111;
+  color: #ffffff;
+  font-size: 24rpx;
+  font-weight: 650;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
 .category-tabs {
   width: 100%;
   height: 64rpx;
@@ -131,6 +158,30 @@ button::after {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.pack-cover-css {
+  background: #ffffff;
+}
+
+.pack-preview-cover {
+  display: grid;
+  width: 206rpx;
+  height: 236rpx;
+  margin: 54rpx auto 0;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12rpx;
+  background: transparent;
+}
+
+.pack-preview-item {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 12rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 18rpx rgba(17, 17, 17, 0.09);
+  overflow: hidden;
 }
 
 .pack-favorite-mark {
@@ -256,6 +307,52 @@ button::after {
   display: block;
 }
 
+.detail-thumb-css {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12rpx;
+  background: #ffffff;
+}
+
+.detail-pattern-tile {
+  position: absolute;
+  display: block;
+}
+
+.custom-polka-entry {
+  border: 2rpx dashed #d8d5cc;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16rpx 40rpx rgba(17, 17, 17, 0.06);
+}
+
+.custom-polka-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #111111;
+}
+
+.custom-polka-plus {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid #111111;
+  font-size: 38rpx;
+  line-height: 48rpx;
+  text-align: center;
+}
+
+.custom-polka-label {
+  margin-top: 14rpx;
+  font-size: 24rpx;
+  font-weight: 650;
+  line-height: 32rpx;
+}
+
 .detail-action-bar {
   position: absolute;
   left: 0;
@@ -305,6 +402,11 @@ button::after {
   height: 48rpx;
   background: transparent;
   display: block;
+}
+
+.selected-asset-css {
+  width: 48rpx;
+  height: 48rpx;
 }
 
 .selected-asset-chip button {

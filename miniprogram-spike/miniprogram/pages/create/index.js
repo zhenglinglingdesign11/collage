@@ -51,7 +51,7 @@ const paper03Pack = require("../../config/assets/packs/paper-03");
 const paper04Pack = require("../../config/assets/packs/paper-04");
 const paper05Pack = require("../../config/assets/packs/paper-05");
 const HOME_SHOWCASE_BASE_GROUPS = require("../../config/home-showcases");
-const HOME_SHOWCASE_MANIFEST_URL = "https://assets.zllarchi.site/homecase/manifest.json";
+const HOME_SHOWCASE_MANIFEST_URL = "https://assets.zllarchi.site/homecase/manifest.json?v=20260812-frame";
 
 const LAYER_ACTIONS_PAGE_OFFSET = 560;
 const LAYER_ACTIONS_TOUCH_SLOP = 6;
@@ -92,6 +92,16 @@ const LACE_CENTER_FRAME_OPTIONS = [
   }
 ];
 const DEFAULT_LACE_CENTER_FRAME = LACE_CENTER_FRAME_OPTIONS[0];
+const FOIL_CENTER_FRAME_OPTIONS = [
+  {
+    id: "foil-crumpled",
+    label: "揉皱锡纸",
+    source: "https://assets.zllarchi.site/effects/foil-frame-02-compress.png",
+    openingWidthRatio: 0.72,
+    openingHeightRatio: 0.72
+  }
+];
+const DEFAULT_FOIL_CENTER_FRAME = FOIL_CENTER_FRAME_OPTIONS[0];
 const LACE_CONTENT_RANGE_MIN = 0.65;
 const LACE_CONTENT_RANGE_MAX = 1.8;
 const WAVE_CUT_AMPLITUDE = 22;
@@ -157,6 +167,24 @@ const POLKA_BACKGROUND_COLORS = [
   { value: "#eaf1f6", label: "蓝" },
   { value: "#f7f7f5", label: "灰" }
 ];
+const SOLID_PAPER_COLORS = [
+  { value: "#fffaf2", label: "奶杏" },
+  { value: "#f6ead8", label: "燕麦" },
+  { value: "#efe2cb", label: "亚麻" },
+  { value: "#f8e7e4", label: "雾桃" },
+  { value: "#f2d9df", label: "豆沙" },
+  { value: "#eadcf8", label: "芋紫" },
+  { value: "#dfe8ff", label: "雾霜蓝" },
+  { value: "#d7f0ed", label: "薄荷冰" },
+  { value: "#dfeedd", label: "抹茶奶" },
+  { value: "#fff2b8", label: "黄油" },
+  { value: "#ffd9bf", label: "杏橘" },
+  { value: "#eceff3", label: "云灰" },
+  { value: "#d8d1c5", label: "石灰米" },
+  { value: "#c8d7cc", label: "鼠尾草" },
+  { value: "#b8d8d6", label: "海盐" },
+  { value: "#f4b8c4", label: "玫瑰粉" }
+];
 const POLKA_DOT_COLORS = [
   { value: "#b79b75", label: "焦糖" },
   { value: "#111111", label: "黑" },
@@ -205,6 +233,8 @@ const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
 const HOME_SHOWCASES = createHomeShowcaseGroups(HOME_SHOWCASE_BASE_GROUPS);
 const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框"];
 const POLKA_PAPER_PACK_ID = "polka-paper-materials";
+const LOCAL_BACKGROUND_PAPER_PACK_ID = "local-background-paper-materials";
+const PENDING_CREATE_ACTION_STORAGE_KEY = "journal.pendingCreateAction";
 const ASSET_PANEL_PACKS = createAssetPanelPacks();
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
   {
@@ -327,6 +357,7 @@ Page({
     activeBackgroundCategory: "纸感",
     visibleBackgrounds: filterBackgroundOptions(BACKGROUND_OPTIONS, "纸感"),
     polkaBackgroundColors: POLKA_BACKGROUND_COLORS,
+    solidPaperColors: SOLID_PAPER_COLORS,
     polkaDotColors: POLKA_DOT_COLORS,
     polkaDotSizes: POLKA_DOT_SIZES,
     polkaDensities: POLKA_DENSITIES,
@@ -350,6 +381,9 @@ Page({
     activePatternAssetPack: null,
     activePatternAssetPackItems: [],
     paperPatternAssetPickerVisible: false,
+    solidPaperCustomizing: false,
+    selectedSolidPaperColor: SOLID_PAPER_COLORS[0].value,
+    solidPaperCustomPreviewStyle: "",
     polkaPaperCustomizing: false,
     polkaPaperCustomPreviewStyle: "",
     polkaPaperCustomPreviewTiles: [],
@@ -844,11 +878,17 @@ Page({
     trackPageShow(this, "create");
     this.consumePendingAssets();
     if (this.consumePendingDraftOpen()) {
+      this.syncCreateTabBarVisibility();
+      return;
+    }
+    if (this.consumePendingCreateAction()) {
+      this.syncCreateTabBarVisibility();
       return;
     }
     if (this.data.isEmptyMode) {
       this.refreshRecentDraftState();
     }
+    this.syncCreateTabBarVisibility();
   },
 
   consumePendingDraftOpen() {
@@ -865,6 +905,77 @@ Page({
     this.openRecentDraft({ currentTarget: { dataset: { id: draftId } } });
     this.trackCreatePageView("draft", { draftId });
     return true;
+  },
+
+  consumePendingCreateAction() {
+    const action = wx.getStorageSync(PENDING_CREATE_ACTION_STORAGE_KEY);
+    if (action) {
+      wx.removeStorageSync(PENDING_CREATE_ACTION_STORAGE_KEY);
+    }
+    if (!action) return false;
+    if (action.action === "openPolkaPaperCustom") {
+      this.openPolkaPaperCustomFromExternal(action);
+      return true;
+    }
+    if (action.action === "openSolidPaperCustom") {
+      this.openSolidPaperCustomFromExternal(action);
+      return true;
+    }
+    return false;
+  },
+
+  openPolkaPaperCustomFromExternal(action = {}) {
+    if (action.newDraft) {
+      this.resetToBlankDraftForEmptyEntry();
+    }
+    this.enterEditMode();
+    const category = "便签";
+    const packId = POLKA_PAPER_PACK_ID;
+    this.setData({
+      activeTool: "asset",
+      activeDrawer: "asset",
+      selectedLayerId: "",
+      selectedLayerType: "",
+      activePalette: "",
+      textInputVisible: false,
+      ...this.getAssetPanelState(category, packId)
+    });
+    this.refreshAssetPanel(category, packId).then(() => {
+      this.beginPolkaPaperCustom();
+    });
+    track("polka_paper_custom_open", {
+      page: "create",
+      source: action.source || "assetsTab",
+      newDraft: !!action.newDraft,
+      ...getDraftAnalyticsParams(this.draft)
+    });
+  },
+
+  openSolidPaperCustomFromExternal(action = {}) {
+    if (action.newDraft) {
+      this.resetToBlankDraftForEmptyEntry();
+    }
+    this.enterEditMode();
+    const category = "便签";
+    const packId = LOCAL_BACKGROUND_PAPER_PACK_ID;
+    this.setData({
+      activeTool: "asset",
+      activeDrawer: "asset",
+      selectedLayerId: "",
+      selectedLayerType: "",
+      activePalette: "",
+      textInputVisible: false,
+      ...this.getAssetPanelState(category, packId)
+    });
+    this.refreshAssetPanel(category, packId).then(() => {
+      this.beginSolidPaperCustom();
+    });
+    track("solid_paper_custom_open", {
+      page: "create",
+      source: action.source || "assetsTab",
+      newDraft: !!action.newDraft,
+      ...getDraftAnalyticsParams(this.draft)
+    });
   },
 
   trackCreatePageView(entrySource = "default", extra = {}) {
@@ -889,7 +1000,7 @@ Page({
 
   loadHomeShowcases() {
     if (!wx.request) return;
-    const manifestUrl = `${HOME_SHOWCASE_MANIFEST_URL}?v=${Date.now()}`;
+    const manifestUrl = `${HOME_SHOWCASE_MANIFEST_URL}&t=${Date.now()}`;
     const applyManifest = (data) => {
       const groups = normalizeHomeShowcaseManifest(data);
       if (!groups.length) {
@@ -1060,6 +1171,14 @@ Page({
       isEditMode: isEditing
     });
     if (isEditing) {
+      wx.hideTabBar({ animation: false });
+      return;
+    }
+    wx.showTabBar({ animation: false });
+  },
+
+  syncCreateTabBarVisibility() {
+    if (this.data.isEditMode || !this.data.isEmptyMode) {
       wx.hideTabBar({ animation: false });
       return;
     }
@@ -2650,7 +2769,7 @@ Page({
         this.selectTextureEffect({ currentTarget: { dataset: { texture: effect } } });
         return;
       }
-      if (effect === "lace-center") {
+      if (effect === "lace-center" || effect === "foil-center") {
         this.selectHandmadeEffect({ currentTarget: { dataset: { effect } } });
         return;
       }
@@ -2864,17 +2983,21 @@ Page({
     if (!this.pendingImageReplacementSnapshots) this.pendingImageReplacementSnapshots = new Map();
     this.pendingImageReplacementSnapshots.set(layer.id, JSON.parse(JSON.stringify(layer)));
     const defaultLayer = createImageLayer(source, imageInfo, this.draft);
-    layer.x = defaultLayer.x;
-    layer.y = defaultLayer.y;
-    layer.width = defaultLayer.width;
-    layer.height = defaultLayer.height;
-    layer.rotation = defaultLayer.rotation;
-    layer.scale = defaultLayer.scale;
-    layer.opacity = defaultLayer.opacity;
+    const keepsCenterFrameBox = hasCenterFrameHandmadeEffect(layer);
+    if (!keepsCenterFrameBox) {
+      layer.x = defaultLayer.x;
+      layer.y = defaultLayer.y;
+      layer.width = defaultLayer.width;
+      layer.height = defaultLayer.height;
+      layer.rotation = defaultLayer.rotation;
+      layer.scale = defaultLayer.scale;
+      layer.opacity = defaultLayer.opacity;
+    }
     layer.source = defaultLayer.source;
     layer.sourceWidth = defaultLayer.sourceWidth;
     layer.sourceHeight = defaultLayer.sourceHeight;
     delete layer.crop;
+    if (keepsCenterFrameBox) makeLayerSquareAroundCenter(layer);
     return layer;
   },
 
@@ -3052,6 +3175,7 @@ Page({
       activeAssetPackItems: [],
       patternAssetPickerVisible: false,
       paperPatternAssetPickerVisible: false,
+      solidPaperCustomizing: false,
       polkaPaperCustomizing: false,
       activePatternAssetPack: null,
       activePatternAssetPackItems: []
@@ -3061,7 +3185,7 @@ Page({
   getAssetPanelState(category, packId, packs, pack) {
     const assetPacks = decorateAssetPanelPacks(createAssetPanelPacks(packs));
     const activeCategory = category || "推荐";
-    const activeAssetPack = packId ? decorateAssetPanelPack(pack || getCreateAssetPack(packId)) : null;
+    const activeAssetPack = packId ? decorateAssetPanelPack(prepareCreateAssetPack(pack || getCreateAssetPack(packId))) : null;
     return {
       assetPacks,
       activeAssetCategory: activeCategory,
@@ -3076,7 +3200,9 @@ Page({
     this.assetPanelRequestId = requestId;
     return Promise.all([
       getResolvedAssetPacks(),
-      packId && packId !== POLKA_PAPER_PACK_ID ? getResolvedAssetPack(packId) : Promise.resolve(getCreateAssetPack(packId))
+      packId && ![POLKA_PAPER_PACK_ID, LOCAL_BACKGROUND_PAPER_PACK_ID].includes(packId)
+        ? getResolvedAssetPack(packId)
+        : Promise.resolve(getCreateAssetPack(packId))
     ]).then(([packs, pack]) => {
       if (this.assetPanelRequestId !== requestId) return;
       this.setData(this.getAssetPanelState(category, packId, packs, pack));
@@ -3103,6 +3229,7 @@ Page({
     this.setData({
       ...this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId),
       paperPatternAssetPickerVisible: false,
+      solidPaperCustomizing: false,
       polkaPaperCustomizing: false,
       ...getPolkaPaperControlData(this.getSelectedPolkaPaperLayer())
     });
@@ -3113,6 +3240,7 @@ Page({
     this.setData({
       ...this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""),
       paperPatternAssetPickerVisible: false,
+      solidPaperCustomizing: false,
       polkaPaperCustomizing: false
     });
     this.refreshAssetPanel(this.data.activeAssetCategory || "推荐", "");
@@ -3483,6 +3611,56 @@ Page({
     this.render();
   },
 
+  beginSolidPaperCustom() {
+    const color = this.data.selectedSolidPaperColor || SOLID_PAPER_COLORS[0].value;
+    this.setData({
+      solidPaperCustomizing: true,
+      polkaPaperCustomizing: false,
+      paperPatternAssetPickerVisible: false,
+      selectedSolidPaperColor: color,
+      solidPaperCustomPreviewStyle: createSolidPaperCustomPreviewStyle(color)
+    });
+  },
+
+  closeSolidPaperCustom() {
+    this.setData({
+      solidPaperCustomizing: false,
+      paperPatternAssetPickerVisible: false,
+      activePatternAssetPack: null,
+      activePatternAssetPackItems: []
+    });
+  },
+
+  setSolidPaperColor(event) {
+    const color = event.currentTarget.dataset.color || SOLID_PAPER_COLORS[0].value;
+    this.setData({
+      selectedSolidPaperColor: color,
+      solidPaperCustomPreviewStyle: createSolidPaperCustomPreviewStyle(color)
+    });
+  },
+
+  addCustomSolidPaper() {
+    const color = this.data.selectedSolidPaperColor || SOLID_PAPER_COLORS[0].value;
+    const asset = createSolidPaperAssetFromColor(color);
+    const layer = this.addAssetItemToDraft(asset);
+    if (!layer) {
+      showError("素材添加失败");
+      return;
+    }
+    this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      solidPaperCustomizing: false
+    });
+    this.markDirty();
+    track("solid_paper_custom_add", {
+      page: "create",
+      ...getDraftAnalyticsParams(this.draft)
+    });
+    this.render();
+  },
+
   beginPolkaPaperCustom() {
     const preset = normalizePolkaPatternConfig({
       ...DEFAULT_POLKA_PATTERN_CONFIG,
@@ -3759,7 +3937,7 @@ Page({
     });
     this.enterEditMode();
     let added = 0;
-    Promise.all(assetIds.map(getResolvedAssetItem)).then((assets) => {
+    Promise.all(assetIds.map(resolveCreateTransferAsset)).then((assets) => {
       assets.forEach((asset) => {
         if (!asset) return;
         if (this.addAssetItemToDraft(asset)) {
@@ -5964,21 +6142,22 @@ Page({
         type: "floating",
         elevation: 1
       };
-    } else if (effect === "lace-center") {
+    } else if (effect === "lace-center" || effect === "foil-center") {
+      const frame = effect === "foil-center" ? DEFAULT_FOIL_CENTER_FRAME : DEFAULT_LACE_CENTER_FRAME;
       style.handmadeEffect = {
-        type: "lace-center",
-        frameId: DEFAULT_LACE_CENTER_FRAME.id,
-        frameLabel: DEFAULT_LACE_CENTER_FRAME.label,
-        frameSource: DEFAULT_LACE_CENTER_FRAME.source,
-        openingWidthRatio: DEFAULT_LACE_CENTER_FRAME.openingWidthRatio,
-        openingHeightRatio: DEFAULT_LACE_CENTER_FRAME.openingHeightRatio,
+        type: effect,
+        frameId: frame.id,
+        frameLabel: frame.label,
+        frameSource: frame.source,
+        openingWidthRatio: frame.openingWidthRatio,
+        openingHeightRatio: frame.openingHeightRatio,
         openingScale: 1,
         contentScale: 1,
         contentOffsetX: 0,
         contentOffsetY: 0,
         frameOpacity: 1,
-        shadowOffsetY: 10,
-        shadowBlur: 22
+        shadowOffsetY: effect === "foil-center" ? 0 : 10,
+        shadowBlur: effect === "foil-center" ? 0 : 22
       };
       makeLayerSquareAroundCenter(layer);
     } else {
@@ -6042,13 +6221,15 @@ Page({
       return;
     }
 
-    if (effect === "lace-center" && layer.style.handmadeEffect) {
+    if ((effect === "lace-center" || effect === "foil-center") && layer.style.handmadeEffect) {
+      const frameOptions = getCenterFrameOptions(effect);
       this.setData({
-        effectAdjusting: "lace-center",
-        effectAdjustingLabel: "蕾丝框裁",
+        effectAdjusting: effect,
+        effectAdjustingLabel: effect === "foil-center" ? "锡纸框裁" : "蕾丝框裁",
+        laceFrameOptions: frameOptions,
         laceContentScale: laceContentScaleToSliderValue(layer.style.handmadeEffect.contentScale),
         laceOpeningScale: Math.round((layer.style.handmadeEffect.openingScale || 1) * 100),
-        selectedLaceFrameId: getLaceCenterFrameId(layer.style.handmadeEffect)
+        selectedLaceFrameId: getCenterFrameId(layer.style.handmadeEffect, frameOptions)
       });
       return;
     }
@@ -6079,9 +6260,10 @@ Page({
   },
 
   setLaceFrameOption(event) {
-    const frameId = event.currentTarget.dataset.frameId || DEFAULT_LACE_CENTER_FRAME.id;
-    const frame = getLaceCenterFrameOption(frameId);
     const layer = this.getSelectedLayer();
+    const frameOptions = getCenterFrameOptions(layer && layer.style && layer.style.handmadeEffect && layer.style.handmadeEffect.type);
+    const frameId = event.currentTarget.dataset.frameId || (frameOptions[0] || DEFAULT_LACE_CENTER_FRAME).id;
+    const frame = getCenterFrameOption(frameId, frameOptions);
     if (!frame || !layer || !layer.style || !layer.style.handmadeEffect) return;
     if (this.isLayerLocked(layer)) {
       this.showLockedLayerToast();
@@ -6091,7 +6273,7 @@ Page({
       ...layer.style,
       handmadeEffect: {
         ...layer.style.handmadeEffect,
-        type: "lace-center",
+        type: layer.style.handmadeEffect.type === "foil-center" ? "foil-center" : "lace-center",
         frameId: frame.id,
         frameLabel: frame.label,
         frameSource: frame.source,
@@ -6117,7 +6299,7 @@ Page({
       ...layer.style,
       handmadeEffect: {
         ...layer.style.handmadeEffect,
-        type: "lace-center",
+        type: layer.style.handmadeEffect.type === "foil-center" ? "foil-center" : "lace-center",
         openingScale: scale
       }
     };
@@ -6140,7 +6322,7 @@ Page({
       ...layer.style,
       handmadeEffect: {
         ...layer.style.handmadeEffect,
-        type: "lace-center",
+        type: layer.style.handmadeEffect.type === "foil-center" ? "foil-center" : "lace-center",
         contentScale: scale
       }
     };
@@ -6160,7 +6342,7 @@ Page({
     if (!texture) return;
     clearTimeout(this.effectAdjustmentTimer);
     this.effectAdjustmentToken = (this.effectAdjustmentToken || 0) + 1;
-    if (texture === "taped" || texture === "lace-center") {
+    if (texture === "taped" || texture === "lace-center" || texture === "foil-center") {
       this.closeEffectAdjustment();
       return;
     }
@@ -6344,7 +6526,7 @@ Page({
     }
     const result = await showModal(
       "限时体验",
-      "创意撕纸每个用户每天只能体验一次，确认后选择图片将立即开始生成",
+      "创意撕纸每个用户每天只能体验一次，选择图片后将立即开始生成",
       { confirmText: "选择图片" }
     );
     return !!result.confirm;
@@ -7569,7 +7751,9 @@ function getHomeShowcaseEffect(id) {
     "emboss-swap": "emboss-circle",
     "emboss-circle": "emboss-circle",
     "emboss-stamp": "emboss-stamp",
-    "lace-circle": "lace-center"
+    "lace-circle": "lace-center",
+    "foil-frame-01": "foil-center",
+    "foil-crumpled": "foil-center"
   };
   return effects[id] || "";
 }
@@ -9609,6 +9793,7 @@ function createLayerFromAsset(asset, draft) {
       packId: asset.packId || "",
       name: asset.name || ""
     },
+    pattern: spec.pattern || "",
     patternConfig: spec.patternConfig || null
   };
 }
@@ -9691,7 +9876,7 @@ function getBrushStampSources(layers) {
 function getLayerEffectSources(layers) {
   return (layers || []).reduce((sources, layer) => {
     const effect = layer && layer.style && layer.style.handmadeEffect;
-    if (effect && effect.type === "lace-center" && effect.frameSource) {
+    if (effect && (effect.type === "lace-center" || effect.type === "foil-center") && effect.frameSource) {
       sources.push(effect.frameSource);
     }
     return sources;
@@ -9720,8 +9905,29 @@ function getLaceCenterFrameId(effect) {
   return match ? match.id : DEFAULT_LACE_CENTER_FRAME.id;
 }
 
+function hasCenterFrameHandmadeEffect(layer) {
+  const effect = layer && layer.style && layer.style.handmadeEffect;
+  return !!effect && (effect.type === "lace-center" || effect.type === "foil-center");
+}
+
+function getCenterFrameOptions(type) {
+  return type === "foil-center" ? FOIL_CENTER_FRAME_OPTIONS : LACE_CENTER_FRAME_OPTIONS;
+}
+
+function getCenterFrameOption(frameId, options = LACE_CENTER_FRAME_OPTIONS) {
+  return options.find((option) => option.id === frameId) || options[0] || DEFAULT_LACE_CENTER_FRAME;
+}
+
+function getCenterFrameId(effect, options = LACE_CENTER_FRAME_OPTIONS) {
+  if (!effect) return (options[0] || DEFAULT_LACE_CENTER_FRAME).id;
+  const idMatch = options.find((option) => option.id === effect.frameId);
+  if (idMatch) return idMatch.id;
+  const match = options.find((option) => option.source === effect.frameSource);
+  return match ? match.id : (options[0] || DEFAULT_LACE_CENTER_FRAME).id;
+}
+
 function isLaceCenterFrameSource(src) {
-  return LACE_CENTER_FRAME_OPTIONS.some((option) => option.source === src);
+  return LACE_CENTER_FRAME_OPTIONS.concat(FOIL_CENTER_FRAME_OPTIONS).some((option) => option.source === src);
 }
 
 function laceContentSliderValueToScale(value) {
@@ -9816,10 +10022,130 @@ function createAssetPanelCategories() {
 }
 
 function createAssetPanelPacks(packs) {
-  const basePacks = Array.isArray(packs) ? packs : getAssetPacks();
-  const virtualPack = createPolkaPaperAssetPack();
-  const withoutVirtual = basePacks.filter((pack) => pack && pack.id !== POLKA_PAPER_PACK_ID);
-  return withoutVirtual.concat(virtualPack);
+  const basePacks = appendLocalGridBackgroundsToPaper04(Array.isArray(packs) ? packs : getAssetPacks());
+  const virtualPacks = [
+    createLocalBackgroundPaperAssetPack(),
+    createPolkaPaperAssetPack()
+  ];
+  const virtualIds = virtualPacks.map((pack) => pack.id);
+  const withoutVirtual = basePacks.filter((pack) => pack && !virtualIds.includes(pack.id));
+  return withoutVirtual.concat(virtualPacks);
+}
+
+function createLocalBackgroundPaperAssetPack() {
+  const items = BACKGROUND_OPTIONS
+    .filter((option) => option && !option.source && option.category === "纯色")
+    .map((option) => createLocalBackgroundPaperAsset(option));
+  return {
+    id: LOCAL_BACKGROUND_PAPER_PACK_ID,
+    name: "基础底纸",
+    category: "便签",
+    tone: "#f7f7f5",
+    cover: "",
+    coverStyle: "background:linear-gradient(135deg,#ffffff 0 48%,#f4efe5 48% 72%,#d7dbc9 72%);",
+    isSolidPaperPack: true,
+    coverPreviews: items.slice(0, 4).map((item) => ({
+      previewStyle: item.previewStyle,
+      previewTiles: []
+    })),
+    items
+  };
+}
+
+function appendLocalGridBackgroundsToPaper04(packs) {
+  const gridItems = createLocalGridBackgroundPaperAssets();
+  if (!gridItems.length) return packs;
+  return (packs || []).map((pack) => {
+    if (!pack || pack.id !== "paper-04") return pack;
+    const existingItems = Array.isArray(pack.items) ? pack.items : [];
+    const existingIds = new Set(existingItems.map((item) => item && item.id).filter(Boolean));
+    const nextGridItems = gridItems.filter((item) => !existingIds.has(item.id));
+    return {
+      ...pack,
+      items: existingItems.concat(nextGridItems)
+    };
+  });
+}
+
+function prepareCreateAssetPack(pack) {
+  if (!pack || pack.id !== "paper-04") return pack;
+  return appendLocalGridBackgroundsToPaper04([pack])[0] || pack;
+}
+
+function createLocalGridBackgroundPaperAssets() {
+  return BACKGROUND_OPTIONS
+    .filter((option) => option && !option.source && option.category === "格纹")
+    .map((option) => createLocalBackgroundPaperAsset(option));
+}
+
+function createLocalBackgroundPaperAsset(option) {
+  const color = option.color || "#ffffff";
+  const pattern = option.pattern || "";
+  return {
+    id: `paper-${option.id}`,
+    type: "paper",
+    name: option.name,
+    width: 580,
+    height: 760,
+    thumb: "",
+    previewStyle: createLocalBackgroundPaperPreviewStyle(color, pattern),
+    layer: {
+      type: "paper",
+      width: 580,
+      height: 760,
+      rotation: -2,
+      radius: 10,
+      shadow: true,
+      pattern,
+      style: {
+        color,
+        pattern
+      }
+    }
+  };
+}
+
+function createLocalBackgroundPaperPreviewStyle(color, pattern) {
+  if (pattern === "dot") {
+    return `background-color:${color};background-image:radial-gradient(rgba(17,17,17,0.16) 2rpx, transparent 2rpx);background-size:24rpx 24rpx;`;
+  }
+  if (pattern === "line") {
+    return `background-color:${color};background-image:repeating-linear-gradient(180deg, transparent 0 28rpx, rgba(17,17,17,0.12) 29rpx 30rpx);`;
+  }
+  if (pattern === "square") {
+    return `background-color:${color};background-image:linear-gradient(rgba(17,17,17,0.10) 1rpx, transparent 1rpx),linear-gradient(90deg, rgba(17,17,17,0.10) 1rpx, transparent 1rpx);background-size:30rpx 30rpx;`;
+  }
+  return `background-color:${color};`;
+}
+
+function createSolidPaperCustomPreviewStyle(color) {
+  return `background-color:${color || "#ffffff"};`;
+}
+
+function createSolidPaperAssetFromColor(color) {
+  const paperColor = color || "#ffffff";
+  return {
+    id: `paper-custom-solid-${Date.now()}`,
+    type: "paper",
+    name: "自定义纯色纸",
+    width: 580,
+    height: 760,
+    thumb: "",
+    previewStyle: createSolidPaperCustomPreviewStyle(paperColor),
+    layer: {
+      type: "paper",
+      width: 580,
+      height: 760,
+      rotation: -2,
+      radius: 10,
+      shadow: true,
+      pattern: "",
+      style: {
+        color: paperColor,
+        pattern: ""
+      }
+    }
+  };
 }
 
 function createPolkaPaperAssetPack() {
@@ -9893,14 +10219,22 @@ function createPolkaPaperCustomPreviewData(background, patternConfig) {
 }
 
 function getCreateAssetPack(packId) {
+  if (packId === LOCAL_BACKGROUND_PAPER_PACK_ID) return createLocalBackgroundPaperAssetPack();
   if (packId === POLKA_PAPER_PACK_ID) return createPolkaPaperAssetPack();
   return getAssetPack(packId);
 }
 
 function getCreateAssetItem(assetId) {
-  const virtualPack = createPolkaPaperAssetPack();
-  const virtualItem = virtualPack.items.find((item) => item.id === assetId);
+  const virtualItem = [createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
+    .reduce((match, pack) => match || pack.items.find((item) => item.id === assetId), null);
   return virtualItem || getAssetItem(assetId);
+}
+
+function resolveCreateTransferAsset(assetId) {
+  const virtualItem = [createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
+    .reduce((match, pack) => match || pack.items.find((item) => item.id === assetId), null);
+  if (virtualItem) return Promise.resolve(virtualItem);
+  return getResolvedAssetItem(assetId);
 }
 
 function decorateAssetPanelPacks(packs) {
@@ -9909,10 +10243,13 @@ function decorateAssetPanelPacks(packs) {
 
 function decorateAssetPanelPack(pack) {
   if (!pack) return null;
+  const displayName = getCreateAssetPackDisplayName(pack);
   return {
     ...pack,
+    name: displayName,
     category: normalizeCreateAssetCategory(pack.category),
     isPolkaPaperPack: !!pack.isPolkaPaperPack,
+    isSolidPaperPack: !!pack.isSolidPaperPack,
     coverStyle: pack.coverStyle || "",
     coverPreviews: Array.isArray(pack.coverPreviews) ? pack.coverPreviews : [],
     itemCount: Array.isArray(pack.items) ? pack.items.length : 0,
@@ -9920,7 +10257,7 @@ function decorateAssetPanelPack(pack) {
       ? pack.items.map((item) => ({
         ...item,
         packId: pack.id,
-        packName: pack.name,
+        packName: displayName,
         panelPreviewTiles: item.previewTiles || [],
         panelPatternPreviewStyle: item.previewStyle || "",
         panelPreviewStyle: getAssetPanelPreviewStyle(item)
@@ -9931,7 +10268,8 @@ function decorateAssetPanelPack(pack) {
 
 function filterAssetPanelPacks(packs, category) {
   if (!category || category === "推荐") return filterRecommendedAssetPanelPacks(packs);
-  return packs.filter((pack) => normalizeCreateAssetCategory(pack.category) === category);
+  const filtered = packs.filter((pack) => normalizeCreateAssetCategory(pack.category) === category);
+  return category === "便签" ? sortStickyNoteAssetPacks(filtered) : filtered;
 }
 
 function normalizeCreateAssetCategory(category) {
@@ -9946,6 +10284,23 @@ function filterRecommendedAssetPanelPacks(packs) {
     recommended.splice(Math.max(0, recommended.length - 2), 0, polkaPaperPack);
   }
   return recommended;
+}
+
+function sortStickyNoteAssetPacks(packs) {
+  const priority = {
+    [LOCAL_BACKGROUND_PAPER_PACK_ID]: 0,
+    [POLKA_PAPER_PACK_ID]: 1,
+    "biantie-01": 2
+  };
+  return (packs || [])
+    .map((pack, index) => ({ pack, index }))
+    .sort((a, b) => {
+      const priorityA = Object.prototype.hasOwnProperty.call(priority, a.pack.id) ? priority[a.pack.id] : 99;
+      const priorityB = Object.prototype.hasOwnProperty.call(priority, b.pack.id) ? priority[b.pack.id] : 99;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.pack);
 }
 
 function getAssetPanelPreviewStyle(item) {
@@ -10029,6 +10384,18 @@ function createBackgroundHomeShowcaseGroup() {
     title: "波点控看过来",
     items
   };
+}
+
+function getCreateAssetPackDisplayName(pack) {
+  const nameMap = {
+    "paper-01": "图案",
+    "paper-02": "格纹",
+    "paper-03": "图案",
+    "paper-04": "格纹",
+    "paper-05": "纸感",
+    "biantie-01": "硫酸纸"
+  };
+  return nameMap[pack.id] || pack.name || "";
 }
 
 function createHomeShowcaseBackgroundTiles(option) {
@@ -10883,7 +11250,7 @@ function getHandmadeEffectKey(layer) {
   if (layer.tear) return "tear";
   const effect = layer.style && layer.style.handmadeEffect;
   if (!effect) return "none";
-  if (effect.type === "taped" || effect.type === "floating" || effect.type === "lace-center") return effect.type;
+  if (effect.type === "taped" || effect.type === "floating" || effect.type === "lace-center" || effect.type === "foil-center") return effect.type;
   return "none";
 }
 

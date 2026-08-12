@@ -38,17 +38,19 @@
           <text>最近草稿</text>
         </view>
 
-        <view class="draft-row">
-          <button wx:for="{{recentDrafts}}" wx:key="id" class="draft-thumb" data-id="{{item.id}}" bindtap="openRecentDraft">
-            <image wx:if="{{item.thumbnailPath}}" class="draft-preview" src="{{item.thumbnailPath}}" mode="aspectFill"></image>
-            <view wx:else class="draft-art">
-              <view class="draft-paper"></view>
-              <view class="draft-tape"></view>
-              <view class="draft-line short"></view>
-              <view class="draft-line"></view>
-            </view>
-          </button>
-        </view>
+        <scroll-view scroll-x class="draft-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+          <view class="draft-row">
+            <button wx:for="{{recentDrafts}}" wx:key="id" class="draft-thumb" data-id="{{item.id}}" bindtap="openRecentDraft">
+              <image wx:if="{{item.thumbnailPath}}" class="draft-preview" src="{{item.thumbnailPath}}" mode="aspectFill"></image>
+              <view wx:else class="draft-art">
+                <view class="draft-paper"></view>
+                <view class="draft-tape"></view>
+                <view class="draft-line short"></view>
+                <view class="draft-line"></view>
+              </view>
+            </button>
+          </view>
+        </scroll-view>
       </block>
 
       <view class="home-showcase-section">
@@ -389,7 +391,8 @@
             <view class="effect-option {{selectedHandmadeEffect === 'tear' ? 'active' : ''}}" data-effect="tear" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-tear"><view></view></view><view>撕边</view></view>
             <view class="effect-option effect-option-adjustable {{selectedHandmadeEffect === 'taped' ? 'active' : ''}}" data-effect="taped" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-taped"><view></view><view></view></view><view>贴住</view><view wx:if="{{selectedHandmadeEffect === 'taped'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="taped" aria-label="调整贴住效果"><view></view><view></view><view></view></view></view>
             <view class="effect-option {{selectedHandmadeEffect === 'floating' ? 'active' : ''}}" data-effect="floating" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-floating"><view></view></view><view>浮起</view></view>
-            <view class="effect-option effect-option-adjustable {{selectedHandmadeEffect === 'lace-center' ? 'active' : ''}}" data-effect="lace-center" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-lace-center"><view></view><view></view></view><view>蕾丝框裁</view><view wx:if="{{selectedHandmadeEffect === 'lace-center'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="lace-center" aria-label="调整蕾丝框裁"><view></view><view></view><view></view></view></view>
+            <view class="effect-option effect-option-adjustable {{selectedHandmadeEffect === 'lace-center' ? 'active' : ''}}" data-effect="lace-center" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-frame-image"><image src="/assets/effects/icons/lace-center-icon.png" mode="aspectFit"></image></view><view>蕾丝框裁</view><view wx:if="{{selectedHandmadeEffect === 'lace-center'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="lace-center" aria-label="调整蕾丝框裁"><view></view><view></view><view></view></view></view>
+            <view class="effect-option effect-option-adjustable {{selectedHandmadeEffect === 'foil-center' ? 'active' : ''}}" data-effect="foil-center" bindtap="selectHandmadeEffect"><view class="effect-swatch effect-swatch-frame-image"><image src="/assets/effects/icons/foil-center-icon.png" mode="aspectFit"></image></view><view>锡纸框裁</view><view wx:if="{{selectedHandmadeEffect === 'foil-center'}}" class="effect-adjust-trigger" catchtap="openEffectAdjustment" data-effect="foil-center" aria-label="调整锡纸框裁"><view></view><view></view><view></view></view></view>
           </view>
         </scroll-view>
       </view>
@@ -487,7 +490,7 @@
             <view class="effect-adjustment-label">贴住位置</view>
             <view class="effect-adjustment-options"><view class="effect-adjustment-option {{selectedTapePlacement === 'double-corners' ? 'active' : ''}}" data-value="double-corners" bindtap="setTapePlacement">双角</view><view class="effect-adjustment-option {{selectedTapePlacement === 'top-left' ? 'active' : ''}}" data-value="top-left" bindtap="setTapePlacement">左上</view><view class="effect-adjustment-option {{selectedTapePlacement === 'top-right' ? 'active' : ''}}" data-value="top-right" bindtap="setTapePlacement">右上</view></view>
           </view>
-          <view wx:if="{{effectAdjusting === 'lace-center'}}" class="effect-adjustment-section">
+          <view wx:if="{{effectAdjusting === 'lace-center' || effectAdjusting === 'foil-center'}}" class="effect-adjustment-section">
             <view class="effect-adjustment-label">边框样式</view>
             <scroll-view scroll-x class="lace-frame-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
               <view class="lace-frame-track">
@@ -676,7 +679,7 @@
 
       <block wx:if="{{activeDrawer}}">
         <view class="drawer-backdrop {{activeDrawer === 'asset' || activeDrawer === 'background' ? 'transparent' : ''}}" bindtap="closeDrawer"></view>
-        <view class="drawer {{activeDrawer === 'asset' ? 'asset-drawer' : ''}} {{polkaPaperCustomizing ? 'polka-paper-custom-drawer' : ''}}">
+        <view class="drawer {{activeDrawer === 'asset' ? 'asset-drawer' : ''}} {{polkaPaperCustomizing || solidPaperCustomizing ? 'polka-paper-custom-drawer' : ''}}">
           <view class="drawer-handle"></view>
 
           <block wx:if="{{activeDrawer === 'asset'}}">
@@ -684,6 +687,10 @@
               <view wx:if="{{paperPatternAssetPickerVisible}}" class="drawer-return-zone" bindtap="closePolkaPaperPatternAssetPicker">
                 <view class="drawer-back-link">‹</view>
                 <view class="drawer-title with-back">选择图案素材</view>
+              </view>
+              <view wx:elif="{{solidPaperCustomizing}}" class="drawer-return-zone" bindtap="closeSolidPaperCustom">
+                <view class="drawer-back-link">‹</view>
+                <view class="drawer-title with-back">自定义纯色纸</view>
               </view>
               <view wx:elif="{{polkaPaperCustomizing}}" class="drawer-return-zone" bindtap="closePolkaPaperCustom">
                 <view class="drawer-back-link">‹</view>
@@ -715,7 +722,7 @@
                   data-pack="{{item.id}}"
                   bindtap="openAssetPack"
                 >
-                  <view wx:if="{{item.isPolkaPaperPack}}" class="asset-pack-cover asset-pack-polka-cover">
+                  <view wx:if="{{item.coverPreviews.length}}" class="asset-pack-cover asset-pack-polka-cover">
                     <view
                       wx:for="{{item.coverPreviews}}"
                       wx:for-item="preview"
@@ -739,6 +746,43 @@
                   <image wx:else class="asset-pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
                 </view>
               </scroll-view>
+            </block>
+            <block wx:elif="{{activeAssetPack.isSolidPaperPack}}">
+              <block wx:if="{{solidPaperCustomizing}}">
+                <view class="polka-paper-custom-panel solid-paper-custom-panel">
+                  <view class="solid-paper-custom-preview" style="{{solidPaperCustomPreviewStyle}}"></view>
+                  <scroll-view scroll-y class="polka-config solid-paper-config" enhanced="{{true}}" show-scrollbar="{{false}}">
+                    <view class="polka-config-row">
+                      <view class="polka-config-label">颜色</view>
+                      <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view wx:for="{{solidPaperColors}}" wx:key="value" class="polka-swatch {{selectedSolidPaperColor === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setSolidPaperColor"></view>
+                      </scroll-view>
+                    </view>
+                  </scroll-view>
+                </view>
+                <view class="polka-paper-add-button" bindtap="addCustomSolidPaper">添加</view>
+              </block>
+              <block wx:else>
+                <scroll-view scroll-y class="asset-scroll polka-paper-asset-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                  <view class="asset-list-grid">
+                    <view class="asset-card polka-paper-custom-entry" bindtap="beginSolidPaperCustom">
+                      <view class="polka-paper-custom-content">
+                        <view class="polka-paper-custom-plus">+</view>
+                        <view class="polka-paper-custom-label">自定义</view>
+                      </view>
+                    </view>
+                    <view
+                      wx:for="{{activeAssetPackItems}}"
+                      wx:key="id"
+                      class="asset-card"
+                      data-asset-id="{{item.id}}"
+                      bindtap="addConfiguredAsset"
+                    >
+                      <view class="asset-thumb asset-pattern-thumb" style="{{item.panelPatternPreviewStyle}}"></view>
+                    </view>
+                  </view>
+                </scroll-view>
+              </block>
             </block>
             <block wx:elif="{{activeAssetPack.isPolkaPaperPack}}">
               <block wx:if="{{paperPatternAssetPickerVisible}}">

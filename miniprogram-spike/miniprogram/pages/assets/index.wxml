@@ -2,7 +2,10 @@
   <block wx:if="{{!detailPack}}">
     <view class="list-safe" style="height: {{navBarHeight}}px;"></view>
     <view class="sheet-header">
-      <view class="list-page-title">素材包</view>
+      <view class="sheet-title-row">
+        <view class="list-page-title">素材包</view>
+        <view wx:if="{{assetSelectionMode}}" class="return-create-button" bindtap="returnToCreateFromAssets">返回创作</view>
+      </view>
       <scroll-view scroll-x class="category-tabs" show-scrollbar="{{false}}" enhanced="{{true}}">
         <view class="category-track">
           <view
@@ -27,7 +30,28 @@
             aria-label="{{item.name}}"
           >
             <view wx:if="{{item.isFavorite}}" class="pack-favorite-mark">★</view>
-            <image class="pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
+            <view wx:if="{{item.coverPreviews.length}}" class="pack-cover pack-preview-cover">
+              <view
+                wx:for="{{item.coverPreviews}}"
+                wx:for-item="preview"
+                wx:for-index="previewIndex"
+                wx:key="previewIndex"
+                class="pack-preview-item"
+                style="{{preview.previewStyle}}"
+              >
+                <image
+                  wx:for="{{preview.previewTiles}}"
+                  wx:for-item="tile"
+                  wx:key="style"
+                  class="detail-pattern-tile"
+                  src="{{tile.src}}"
+                  style="{{tile.style}}"
+                  mode="aspectFit"
+                ></image>
+              </view>
+            </view>
+            <image wx:elif="{{item.cover}}" class="pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
+            <view wx:else class="pack-cover pack-cover-css" style="{{item.coverStyle}}"></view>
           </view>
         </view>
         <view wx:else class="empty-note">还没有收藏的素材包</view>
@@ -58,13 +82,32 @@
         <view
           wx:for="{{detailPack.items}}"
           wx:key="id"
-          class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}}"
+          class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}} {{item.isCustomPolkaEntry || item.isCustomSolidEntry ? 'custom-polka-entry' : ''}}"
           style="{{item.detailStyle}}"
           data-asset-id="{{item.id}}"
           bindtap="selectDetailAsset"
           aria-label="选择{{item.name}}"
         >
-          <image class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
+          <block wx:if="{{item.isCustomPolkaEntry || item.isCustomSolidEntry}}">
+            <view class="custom-polka-content">
+              <view class="custom-polka-plus">+</view>
+              <view class="custom-polka-label">自定义</view>
+            </view>
+          </block>
+          <block wx:elif="{{item.thumb}}">
+            <image class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
+          </block>
+          <view wx:else class="detail-thumb detail-thumb-css" style="{{item.previewStyle}}">
+            <image
+              wx:for="{{item.previewTiles}}"
+              wx:for-item="tile"
+              wx:key="style"
+              class="detail-pattern-tile"
+              src="{{tile.src}}"
+              style="{{tile.style}}"
+              mode="aspectFit"
+            ></image>
+          </view>
         </view>
       </view>
     </scroll-view>
@@ -77,7 +120,8 @@
           class="selected-asset-chip"
         >
           <view class="selected-asset-preview">
-            <image src="{{item.thumb}}" mode="aspectFit"></image>
+            <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFit"></image>
+            <view wx:else class="selected-asset-css" style="{{item.previewStyle}}"></view>
           </view>
           <button data-asset-id="{{item.id}}" catchtap="removeDetailAsset" aria-label="移除{{item.name}}">×</button>
         </view>
