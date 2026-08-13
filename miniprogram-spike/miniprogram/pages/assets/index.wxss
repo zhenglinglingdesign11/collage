@@ -184,6 +184,15 @@ button::after {
   overflow: hidden;
 }
 
+.basic-shape-pack-cover {
+  gap: 4rpx;
+}
+
+.basic-shape-preview-item {
+  background: transparent;
+  box-shadow: none;
+}
+
 .pack-favorite-mark {
   position: absolute;
   right: 20rpx;
@@ -312,6 +321,10 @@ button::after {
   overflow: hidden;
   border-radius: 12rpx;
   background: #ffffff;
+}
+
+.basic-shape-detail-thumb {
+  background: transparent;
 }
 
 .detail-pattern-tile {

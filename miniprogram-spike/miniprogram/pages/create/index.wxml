@@ -309,7 +309,13 @@
       <view class="crop-hit-area scissor-hit-area" catchtouchstart="onScissorTouchStart" catchtouchmove="onScissorTouchMove" catchtouchend="onScissorTouchEnd" catchtouchcancel="onScissorTouchEnd"></view>
       <view class="scissor-bottom">
         <view class="scissor-actions">
-          <view class="scissor-action {{scissorHasMask && !scissorBusy ? '' : 'disabled'}}" bindtap="clearScissorMask">清空</view>
+          <view class="scissor-action {{scissorHasMask && !scissorBusy ? '' : 'disabled'}}" bindtap="clearScissorMask">清空涂抹</view>
+          <view class="scissor-option-row">
+            <view class="scissor-option-label">镂空原图</view>
+            <view class="scissor-hollow-switch {{scissorHollowOriginal ? 'active' : ''}}" bindtap="toggleScissorHollowOriginal" aria-label="切换是否镂空原图">
+              <view class="scissor-hollow-switch-knob"></view>
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -679,7 +685,7 @@
 
       <block wx:if="{{activeDrawer}}">
         <view class="drawer-backdrop {{activeDrawer === 'asset' || activeDrawer === 'background' ? 'transparent' : ''}}" bindtap="closeDrawer"></view>
-        <view class="drawer {{activeDrawer === 'asset' ? 'asset-drawer' : ''}} {{polkaPaperCustomizing || solidPaperCustomizing ? 'polka-paper-custom-drawer' : ''}}">
+        <view class="drawer {{activeDrawer === 'asset' ? 'asset-drawer' : ''}} {{polkaPaperCustomizing || solidPaperCustomizing || basicShapeCustomizing ? 'polka-paper-custom-drawer' : ''}}">
           <view class="drawer-handle"></view>
 
           <block wx:if="{{activeDrawer === 'asset'}}">
@@ -691,6 +697,10 @@
               <view wx:elif="{{solidPaperCustomizing}}" class="drawer-return-zone" bindtap="closeSolidPaperCustom">
                 <view class="drawer-back-link">‹</view>
                 <view class="drawer-title with-back">自定义纯色纸</view>
+              </view>
+              <view wx:elif="{{basicShapeCustomizing}}" class="drawer-return-zone" bindtap="closeBasicShapeCustom">
+                <view class="drawer-back-link">‹</view>
+                <view class="drawer-title with-back">自定义图形</view>
               </view>
               <view wx:elif="{{polkaPaperCustomizing}}" class="drawer-return-zone" bindtap="closePolkaPaperCustom">
                 <view class="drawer-back-link">‹</view>
@@ -718,7 +728,6 @@
                   wx:for="{{visibleAssetPacks}}"
                   wx:key="id"
                   class="asset-pack-card"
-                  style="background: {{item.tone}};"
                   data-pack="{{item.id}}"
                   bindtap="openAssetPack"
                 >
@@ -746,6 +755,82 @@
                   <image wx:else class="asset-pack-cover" src="{{item.cover}}" mode="aspectFit"></image>
                 </view>
               </scroll-view>
+            </block>
+            <block wx:elif="{{activeAssetPack.isBasicShapePack}}">
+              <block wx:if="{{basicShapeCustomizing}}">
+                <view class="polka-paper-custom-panel basic-shape-custom-panel">
+                  <view class="basic-shape-custom-preview" style="{{basicShapeCustomPreviewStyle}}"></view>
+                  <scroll-view scroll-y class="polka-config asset-polka-config basic-shape-config" enhanced="{{true}}" show-scrollbar="{{false}}">
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">图形</view>
+                      <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view wx:for="{{basicShapeTypes}}" wx:key="value" class="polka-segment {{selectedBasicShapeType === item.value ? 'active' : ''}}" data-shape="{{item.value}}" bindtap="setBasicShapeType">{{item.label}}</view>
+                      </scroll-view>
+                    </view>
+                    <view class="polka-config-row">
+                      <view class="polka-config-label">填充</view>
+                      <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view wx:for="{{basicShapeFillColors}}" wx:key="value" class="polka-swatch {{selectedBasicShapeFill === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setBasicShapeFill"></view>
+                      </scroll-view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">描边</view>
+                      <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <view wx:for="{{basicShapeStrokeColors}}" wx:key="value" class="polka-segment basic-shape-stroke {{selectedBasicShapeStroke === item.value ? 'active' : ''}}" data-color="{{item.value}}" bindtap="setBasicShapeStroke">
+                          <view wx:if="{{item.value}}" class="basic-shape-stroke-dot" style="background-color: {{item.value}};"></view>
+                          <text wx:else>无</text>
+                        </view>
+                      </scroll-view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">粗细</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{basicShapeStrokeWidths}}" wx:key="value" class="polka-segment {{selectedBasicShapeStrokeWidth == item.value ? 'active' : ''}}" data-width="{{item.value}}" bindtap="setBasicShapeStrokeWidth">{{item.label}}</view>
+                      </view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">透明</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{basicShapeOpacities}}" wx:key="value" class="polka-segment {{selectedBasicShapeOpacity == item.value ? 'active' : ''}}" data-opacity="{{item.value}}" bindtap="setBasicShapeOpacity">{{item.label}}</view>
+                      </view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">数量</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{basicShapeCounts}}" wx:key="value" class="polka-segment {{selectedBasicShapeCount == item.value ? 'active' : ''}}" data-count="{{item.value}}" bindtap="setBasicShapeCount">{{item.label}}</view>
+                      </view>
+                    </view>
+                    <view class="polka-config-row compact">
+                      <view class="polka-config-label">排布</view>
+                      <view class="polka-segment-row">
+                        <view wx:for="{{basicShapeLayouts}}" wx:key="value" class="polka-segment {{selectedBasicShapeLayout === item.value ? 'active' : ''}}" data-layout="{{item.value}}" bindtap="setBasicShapeLayout">{{item.label}}</view>
+                      </view>
+                    </view>
+                  </scroll-view>
+                </view>
+                <view class="polka-paper-add-button" bindtap="addCustomBasicShape">添加</view>
+              </block>
+              <block wx:else>
+                <scroll-view scroll-y class="asset-scroll polka-paper-asset-scroll" enhanced="{{true}}" show-scrollbar="{{false}}">
+                  <view class="asset-list-grid">
+                    <view class="asset-card polka-paper-custom-entry" bindtap="beginBasicShapeCustom">
+                      <view class="polka-paper-custom-content">
+                        <view class="polka-paper-custom-plus">+</view>
+                        <view class="polka-paper-custom-label">自定义</view>
+                      </view>
+                    </view>
+                    <view
+                      wx:for="{{activeAssetPackItems}}"
+                      wx:key="id"
+                      class="asset-card basic-shape-card"
+                      data-asset-id="{{item.id}}"
+                      bindtap="applyBasicShapePreset"
+                    >
+                      <view class="asset-thumb asset-pattern-thumb basic-shape-thumb" style="{{item.panelPatternPreviewStyle}}"></view>
+                    </view>
+                  </view>
+                </scroll-view>
+              </block>
             </block>
             <block wx:elif="{{activeAssetPack.isSolidPaperPack}}">
               <block wx:if="{{solidPaperCustomizing}}">
@@ -801,7 +886,6 @@
                       wx:for="{{visiblePatternAssetPacks}}"
                       wx:key="id"
                       class="asset-pack-card"
-                      style="background: {{item.tone}};"
                       data-pack="{{item.id}}"
                       bindtap="openPatternAssetPack"
                     >
@@ -860,13 +944,13 @@
                     <view class="polka-config-row compact">
                       <view class="polka-config-label">大小</view>
                       <view class="polka-segment-row">
-                        <view wx:for="{{polkaDotSizes}}" wx:key="value" class="polka-segment {{selectedPolkaDotRadius === item.value ? 'active' : ''}}" data-radius="{{item.value}}" bindtap="setPolkaPaperDotSize">{{item.label}}</view>
+                        <view wx:for="{{polkaDotSizes}}" wx:key="value" class="polka-segment {{selectedPolkaDotRadius == item.value ? 'active' : ''}}" data-radius="{{item.value}}" bindtap="setPolkaPaperDotSize">{{item.label}}</view>
                       </view>
                     </view>
                     <view class="polka-config-row compact">
                       <view class="polka-config-label">密度</view>
                       <view class="polka-segment-row">
-                        <view wx:for="{{polkaDensities}}" wx:key="value" class="polka-segment {{selectedPolkaGap === item.value ? 'active' : ''}}" data-gap="{{item.value}}" bindtap="setPolkaPaperDensity">{{item.label}}</view>
+                        <view wx:for="{{polkaDensities}}" wx:key="value" class="polka-segment {{selectedPolkaGap == item.value ? 'active' : ''}}" data-gap="{{item.value}}" bindtap="setPolkaPaperDensity">{{item.label}}</view>
                       </view>
                     </view>
                     <view class="polka-config-row compact">
@@ -878,7 +962,7 @@
                     <view class="polka-config-row compact">
                       <view class="polka-config-label">透明</view>
                       <view class="polka-segment-row">
-                        <view wx:for="{{polkaOpacities}}" wx:key="value" class="polka-segment {{selectedPolkaOpacity === item.value ? 'active' : ''}}" data-opacity="{{item.value}}" bindtap="setPolkaPaperOpacity">{{item.label}}</view>
+                        <view wx:for="{{polkaOpacities}}" wx:key="value" class="polka-segment {{selectedPolkaOpacity == item.value ? 'active' : ''}}" data-opacity="{{item.value}}" bindtap="setPolkaPaperOpacity">{{item.label}}</view>
                       </view>
                     </view>
                   </scroll-view>
@@ -1003,7 +1087,6 @@
                     wx:for="{{visiblePatternAssetPacks}}"
                     wx:key="id"
                     class="asset-pack-card"
-                    style="background: {{item.tone}};"
                     data-pack="{{item.id}}"
                     bindtap="openPatternAssetPack"
                   >

@@ -52,7 +52,20 @@ function getTextFontOptions() {
       previewImage: getFontPreviewImage(font)
       });
     });
-  return groups;
+  return sortTextFontGroups(groups);
+}
+
+function sortTextFontGroups(groups) {
+  return groups.slice().sort((a, b) => fontGroupOrder(a) - fontGroupOrder(b));
+}
+
+function fontGroupOrder(font) {
+  if (!font || font.groupId === SYSTEM_FONT_ID || font.id === SYSTEM_FONT_ID) return 0;
+  return hasCjkText(font.label) ? 1 : 2;
+}
+
+function hasCjkText(text) {
+  return /[\u3400-\u9fff]/.test(text || "");
 }
 
 function getTextFontVariantOptions(groupId) {

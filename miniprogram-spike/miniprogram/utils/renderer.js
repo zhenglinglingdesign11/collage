@@ -117,7 +117,7 @@ function drawLayer(ctx, layer, options = {}) {
   if (floating) {
     drawFloatingPaperShadow(ctx, layer, { clipShape, clipPolygon, hasTear }, options);
   }
-  if (layer.type === "brush" || floating) {
+  if (options.disableLayerShadow || layer.type === "brush" || floating) {
     setShadow(ctx, 0, 0, 0, "transparent");
   } else if (hasTapeAttachment(layer)) {
     setShadow(ctx, 0, 10, 20, "rgba(17, 17, 17, 0.14)");
@@ -153,6 +153,8 @@ function drawLayer(ctx, layer, options = {}) {
     );
   } else if (layer.source) {
     drawSourceLayer(ctx, layer, options);
+  } else if (isBasicShapeLayer(layer)) {
+    drawBasicShapeLayer(ctx, layer);
   } else if (isCollageSlot(layer)) {
     drawCollagePlaceholder(ctx, layer);
   } else if (layer.type === "brush") {
@@ -1873,6 +1875,257 @@ function drawBasicPaperPatternInRect(ctx, width, height, pattern) {
   }
 }
 
+function isBasicShapeLayer(layer) {
+  const style = layer && layer.style || {};
+  const config = layer && (layer.shapeConfig || style.shapeConfig);
+  return !!(config && config.type === "basic-shape");
+}
+
+function normalizeBasicShapeLayerConfig(config = {}) {
+  const shape = ["circle", "square", "rounded", "diamond", "triangle", "star", "sparkle", "heart", "raindrop", "snowflake", "flower", "cross", "tag"].includes(config.shape)
+    ? config.shape
+    : "circle";
+  const strokeWidth = Math.max(0, Math.min(16, Number(config.strokeWidth) || 0));
+  const opacity = Math.max(0.12, Math.min(1, Number(config.opacity) || 1));
+  const countValue = Number(config.count) || 1;
+  const count = [1, 3, 6, 9].includes(countValue) ? countValue : 1;
+  const layout = ["single", "row", "grid", "scatter"].includes(config.layout) ? config.layout : "single";
+  return {
+    shape,
+    fillColor: config.fillColor || "#f4b8c4",
+    strokeColor: config.strokeColor || "",
+    strokeWidth,
+    opacity,
+    count,
+    layout
+  };
+}
+
+function drawBasicShapeLayer(ctx, layer) {
+  const style = layer.style || {};
+  const config = normalizeBasicShapeLayerConfig(layer.shapeConfig || style.shapeConfig || {});
+  const placements = getBasicShapeLayerPlacements(config.count, config.layout, layer.width, layer.height);
+  ctx.save();
+  setShadow(ctx, 0, 0, 0, "transparent");
+  setGlobalAlpha(ctx, (ctx.globalAlpha == null ? 1 : ctx.globalAlpha) * config.opacity);
+  setFillStyle(ctx, config.fillColor);
+  setStrokeStyle(ctx, config.strokeColor || "transparent");
+  setLineWidth(ctx, config.strokeWidth);
+  setLineCap(ctx, "round");
+  setLineJoin(ctx, "round");
+  placements.forEach((place) => {
+    ctx.save();
+    ctx.translate(place.x - layer.width / 2, place.y - layer.height / 2);
+    ctx.rotate((place.rotate || 0) * Math.PI / 180);
+    if (config.shape === "snowflake") {
+      drawBasicSnowflakeShape(ctx, place.size, config);
+      ctx.restore();
+      return;
+    }
+    drawBasicShapePath(ctx, config.shape, place.size);
+    ctx.fill();
+    if (config.strokeColor && config.strokeWidth > 0) ctx.stroke();
+    if (config.shape === "tag") {
+      setShadow(ctx, 0, 0, 0, "transparent");
+      setFillStyle(ctx, "rgba(255,255,255,0.72)");
+      ctx.beginPath();
+      ctx.arc(-place.size * 0.33, 0, Math.max(2, place.size * 0.06), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (config.shape === "flower") {
+      setShadow(ctx, 0, 0, 0, "transparent");
+      setFillStyle(ctx, "rgba(255,255,255,0.72)");
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(2, place.size * 0.07), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+function getBasicShapeLayerPlacements(count, layout, width, height) {
+  const minSide = Math.max(1, Math.min(width, height));
+  if (count <= 1 || layout === "single") {
+    return [{ x: width / 2, y: height / 2, size: minSide * 0.66, rotate: 0 }];
+  }
+  if (layout === "row") {
+    const size = Math.min(minSide * 0.42, width / Math.max(3.2, count + 0.8));
+    return Array.from({ length: count }, (_, index) => ({
+      x: width * 0.18 + index * (width * 0.64 / Math.max(1, count - 1)),
+      y: height / 2,
+      size,
+      rotate: 0
+    }));
+  }
+  if (layout === "grid") {
+    const cols = count <= 3 ? count : 3;
+    const rows = Math.ceil(count / cols);
+    const size = Math.min(width / (cols + 1.6), height / (rows + 1.6));
+    return Array.from({ length: count }, (_, index) => ({
+      x: width * 0.24 + index % cols * (width * 0.52 / Math.max(1, cols - 1)),
+      y: height * 0.24 + Math.floor(index / cols) * (height * 0.52 / Math.max(1, rows - 1)),
+      size,
+      rotate: 0
+    }));
+  }
+  return Array.from({ length: count }, (_, index) => ({
+    x: width * (0.18 + seededUnit(9000 + index * 59) * 0.64),
+    y: height * (0.18 + seededUnit(12000 + index * 83) * 0.64),
+    size: minSide * (0.14 + seededUnit(15000 + index * 37) * 0.08),
+    rotate: -22 + seededUnit(18000 + index * 71) * 44
+  }));
+}
+
+function drawBasicShapePath(ctx, shape, size) {
+  const half = size / 2;
+  ctx.beginPath();
+  if (shape === "square") {
+    ctx.rect(-half, -half, size, size);
+    return;
+  }
+  if (shape === "rounded") {
+    roundedRect(ctx, -half, -half, size, size, size * 0.18);
+    return;
+  }
+  if (shape === "diamond") {
+    ctx.moveTo(0, -half);
+    ctx.lineTo(half, 0);
+    ctx.lineTo(0, half);
+    ctx.lineTo(-half, 0);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "triangle") {
+    ctx.moveTo(0, -half);
+    ctx.lineTo(half, half);
+    ctx.lineTo(-half, half);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "star") {
+    for (let i = 0; i < 10; i += 1) {
+      const radius = i % 2 === 0 ? half : half * 0.45;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    return;
+  }
+  if (shape === "sparkle") {
+    ctx.moveTo(0, -half);
+    ctx.bezierCurveTo(half * 0.12, -half * 0.12, half * 0.12, -half * 0.12, half, 0);
+    ctx.bezierCurveTo(half * 0.12, half * 0.12, half * 0.12, half * 0.12, 0, half);
+    ctx.bezierCurveTo(-half * 0.12, half * 0.12, -half * 0.12, half * 0.12, -half, 0);
+    ctx.bezierCurveTo(-half * 0.12, -half * 0.12, -half * 0.12, -half * 0.12, 0, -half);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "heart") {
+    const r = half;
+    ctx.moveTo(0, r * 0.66);
+    ctx.bezierCurveTo(-r * 0.96, r * 0.02, -r * 1.04, -r * 0.62, -r * 0.46, -r * 0.66);
+    ctx.bezierCurveTo(-r * 0.2, -r * 0.68, -r * 0.05, -r * 0.52, 0, -r * 0.34);
+    ctx.bezierCurveTo(r * 0.05, -r * 0.52, r * 0.2, -r * 0.68, r * 0.46, -r * 0.66);
+    ctx.bezierCurveTo(r * 1.04, -r * 0.62, r * 0.96, r * 0.02, 0, r * 0.66);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "raindrop") {
+    const r = half;
+    ctx.moveTo(0, r);
+    ctx.bezierCurveTo(-r * 0.86, r * 0.18, -r * 0.76, -r * 0.66, 0, -r * 0.72);
+    ctx.bezierCurveTo(r * 0.76, -r * 0.66, r * 0.86, r * 0.18, 0, r);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "flower") {
+    const points = 72;
+    for (let index = 0; index <= points; index += 1) {
+      const angle = -Math.PI / 2 + index / points * Math.PI * 2;
+      const radius = half * (0.56 + 0.32 * Math.cos(4 * angle));
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    return;
+  }
+  if (shape === "cross") {
+    const arm = half * 0.38;
+    ctx.moveTo(-arm, -half);
+    ctx.lineTo(arm, -half);
+    ctx.lineTo(arm, -arm);
+    ctx.lineTo(half, -arm);
+    ctx.lineTo(half, arm);
+    ctx.lineTo(arm, arm);
+    ctx.lineTo(arm, half);
+    ctx.lineTo(-arm, half);
+    ctx.lineTo(-arm, arm);
+    ctx.lineTo(-half, arm);
+    ctx.lineTo(-half, -arm);
+    ctx.lineTo(-arm, -arm);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "tag") {
+    const width = size * 1.18;
+    const height = size * 0.78;
+    const notch = height * 0.28;
+    ctx.moveTo(-width / 2, -height / 2);
+    ctx.lineTo(width / 2 - notch, -height / 2);
+    ctx.lineTo(width / 2, 0);
+    ctx.lineTo(width / 2 - notch, height / 2);
+    ctx.lineTo(-width / 2, height / 2);
+    ctx.closePath();
+    return;
+  }
+  ctx.arc(0, 0, half, 0, Math.PI * 2);
+  ctx.closePath();
+}
+
+function drawBasicSnowflakeShape(ctx, size, config) {
+  setLineCap(ctx, "round");
+  setLineJoin(ctx, "round");
+  if (config.strokeColor && config.strokeWidth > 0) {
+    setStrokeStyle(ctx, config.strokeColor);
+    setLineWidth(ctx, Math.max(config.strokeWidth, size * 0.12));
+    drawBasicSnowflakeLines(ctx, size);
+    ctx.stroke();
+  }
+  setStrokeStyle(ctx, config.fillColor);
+  setLineWidth(ctx, Math.max(2, size * 0.08));
+  drawBasicSnowflakeLines(ctx, size);
+  ctx.stroke();
+}
+
+function drawBasicSnowflakeLines(ctx, size) {
+  const half = size / 2;
+  const branch = half * 0.22;
+  ctx.beginPath();
+  [0, Math.PI / 3, Math.PI * 2 / 3].forEach((angle) => {
+    const dx = Math.cos(angle) * half;
+    const dy = Math.sin(angle) * half;
+    ctx.moveTo(-dx, -dy);
+    ctx.lineTo(dx, dy);
+    addSnowflakeBranch(ctx, dx * 0.58, dy * 0.58, angle, branch, -1);
+    addSnowflakeBranch(ctx, -dx * 0.58, -dy * 0.58, angle + Math.PI, branch, -1);
+  });
+}
+
+function addSnowflakeBranch(ctx, x, y, angle, length, direction) {
+  const angleA = angle + direction * Math.PI / 4;
+  const angleB = angle - direction * Math.PI / 4;
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - Math.cos(angleA) * length, y - Math.sin(angleA) * length);
+  ctx.moveTo(x, y);
+  ctx.lineTo(x - Math.cos(angleB) * length, y - Math.sin(angleB) * length);
+}
+
 function sampleShapeOutline(shape, x, y, width, height) {
   if (shape === "circle") return sampleEllipse(x, y, width, height, 48);
   if (shape === "heart") return sampleHeart(x, y, width, height, 64);
@@ -2619,5 +2872,6 @@ function pointInPolygon(point, polygon) {
 
 module.exports = {
   drawDraft,
+  drawLayer,
   hitTest
 };

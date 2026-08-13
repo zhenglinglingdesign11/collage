@@ -39,6 +39,7 @@ const {
 } = require("../../models/draft");
 const {
   drawDraft,
+  drawLayer,
   hitTest
 } = require("../../utils/renderer");
 const {
@@ -227,6 +228,63 @@ const POLKA_OPACITIES = [
   { value: 0.64, label: "中" },
   { value: 1, label: "强" }
 ];
+const BASIC_SHAPE_TYPES = [
+  { value: "circle", label: "圆" },
+  { value: "square", label: "方" },
+  { value: "triangle", label: "三角" },
+  { value: "heart", label: "心" },
+  { value: "star", label: "星" },
+  { value: "sparkle", label: "四角星" },
+  { value: "flower", label: "四瓣花" },
+  { value: "raindrop", label: "雨滴" },
+  { value: "diamond", label: "菱" },
+  { value: "rounded", label: "圆角" },
+  { value: "snowflake", label: "雪花" },
+  { value: "cross", label: "+" },
+  { value: "tag", label: "标签" }
+];
+const BASIC_SHAPE_FILL_COLORS = [
+  { value: "#f4b8c4", label: "玫瑰" },
+  { value: "#ffd9bf", label: "杏橘" },
+  { value: "#fff2b8", label: "黄油" },
+  { value: "#d7f0ed", label: "薄荷" },
+  { value: "#dfe8ff", label: "雾蓝" },
+  { value: "#eadcf8", label: "芋紫" },
+  { value: "#ffffff", label: "白" },
+  { value: "#111111", label: "黑" }
+];
+const BASIC_SHAPE_STROKE_COLORS = [
+  { value: "", label: "无" },
+  { value: "#111111", label: "黑" },
+  { value: "#ffffff", label: "白" },
+  { value: "#d94a38", label: "红" },
+  { value: "#5f806f", label: "绿" },
+  { value: "#6d9bc3", label: "蓝" }
+];
+const BASIC_SHAPE_STROKE_WIDTHS = [
+  { value: 0, label: "无" },
+  { value: 3, label: "细" },
+  { value: 6, label: "中" },
+  { value: 10, label: "粗" }
+];
+const BASIC_SHAPE_OPACITIES = [
+  { value: 0.38, label: "弱" },
+  { value: 0.64, label: "中" },
+  { value: 0.82, label: "柔" },
+  { value: 1, label: "实" }
+];
+const BASIC_SHAPE_COUNTS = [
+  { value: 1, label: "1" },
+  { value: 3, label: "3" },
+  { value: 6, label: "6" },
+  { value: 9, label: "9" }
+];
+const BASIC_SHAPE_LAYOUTS = [
+  { value: "single", label: "单个" },
+  { value: "row", label: "横排" },
+  { value: "grid", label: "网格" },
+  { value: "scatter", label: "散落" }
+];
 const BACKGROUND_CATEGORY_ORDER = ["纯色", "波点", "格纹", "纸感", "图案"];
 const BACKGROUND_OPTIONS = createBackgroundOptions();
 const BACKGROUND_CATEGORIES = createBackgroundCategories(BACKGROUND_OPTIONS);
@@ -234,6 +292,7 @@ const HOME_SHOWCASES = createHomeShowcaseGroups(HOME_SHOWCASE_BASE_GROUPS);
 const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主题混装", "相框"];
 const POLKA_PAPER_PACK_ID = "polka-paper-materials";
 const LOCAL_BACKGROUND_PAPER_PACK_ID = "local-background-paper-materials";
+const BASIC_SHAPE_PACK_ID = "basic-shape-materials";
 const PENDING_CREATE_ACTION_STORAGE_KEY = "journal.pendingCreateAction";
 const ASSET_PANEL_PACKS = createAssetPanelPacks();
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
@@ -364,6 +423,13 @@ Page({
     polkaStyles: POLKA_STYLES,
     polkaShapes: POLKA_SHAPES,
     polkaOpacities: POLKA_OPACITIES,
+    basicShapeTypes: BASIC_SHAPE_TYPES,
+    basicShapeFillColors: BASIC_SHAPE_FILL_COLORS,
+    basicShapeStrokeColors: BASIC_SHAPE_STROKE_COLORS,
+    basicShapeStrokeWidths: BASIC_SHAPE_STROKE_WIDTHS,
+    basicShapeOpacities: BASIC_SHAPE_OPACITIES,
+    basicShapeCounts: BASIC_SHAPE_COUNTS,
+    basicShapeLayouts: BASIC_SHAPE_LAYOUTS,
     selectedPolkaBackground: POLKA_BACKGROUND_COLORS[0].value,
     selectedPolkaDotColor: DEFAULT_POLKA_PATTERN_CONFIG.dotColor,
     selectedPolkaDotRadius: DEFAULT_POLKA_PATTERN_CONFIG.dotRadius,
@@ -387,6 +453,15 @@ Page({
     polkaPaperCustomizing: false,
     polkaPaperCustomPreviewStyle: "",
     polkaPaperCustomPreviewTiles: [],
+    basicShapeCustomizing: false,
+    selectedBasicShapeType: "circle",
+    selectedBasicShapeFill: "#f4b8c4",
+    selectedBasicShapeStroke: "",
+    selectedBasicShapeStrokeWidth: 0,
+    selectedBasicShapeOpacity: 1,
+    selectedBasicShapeCount: 1,
+    selectedBasicShapeLayout: "single",
+    basicShapeCustomPreviewStyle: "",
     selectedOutlineStyle: "none",
     brushDebugEnabled: false,
     brushEditing: false,
@@ -585,6 +660,7 @@ Page({
     scissorEditing: false,
     scissorBrushSize: SCISSOR_BRUSH_SIZE,
     scissorHasMask: false,
+    scissorHollowOriginal: true,
     scissorBusy: false,
     scissorImageStyle: "",
     scissorCanvasWidth: 1,
@@ -921,6 +997,10 @@ Page({
       this.openSolidPaperCustomFromExternal(action);
       return true;
     }
+    if (action.action === "openBasicShapeCustom") {
+      this.openBasicShapeCustomFromExternal(action);
+      return true;
+    }
     return false;
   },
 
@@ -971,6 +1051,33 @@ Page({
       this.beginSolidPaperCustom();
     });
     track("solid_paper_custom_open", {
+      page: "create",
+      source: action.source || "assetsTab",
+      newDraft: !!action.newDraft,
+      ...getDraftAnalyticsParams(this.draft)
+    });
+  },
+
+  openBasicShapeCustomFromExternal(action = {}) {
+    if (action.newDraft) {
+      this.resetToBlankDraftForEmptyEntry();
+    }
+    this.enterEditMode();
+    const category = "贴纸";
+    const packId = BASIC_SHAPE_PACK_ID;
+    this.setData({
+      activeTool: "asset",
+      activeDrawer: "asset",
+      selectedLayerId: "",
+      selectedLayerType: "",
+      activePalette: "",
+      textInputVisible: false,
+      ...this.getAssetPanelState(category, packId)
+    });
+    this.refreshAssetPanel(category, packId).then(() => {
+      this.beginBasicShapeCustom();
+    });
+    track("basic_shape_custom_open", {
       page: "create",
       source: action.source || "assetsTab",
       newDraft: !!action.newDraft,
@@ -1212,6 +1319,7 @@ Page({
       embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
+      scissorHollowOriginal: true,
       scissorBusy: false,
       scissorImageStyle: "",
       straightCutEditing: false,
@@ -1255,6 +1363,7 @@ Page({
       embossEditing: false,
       scissorEditing: false,
       scissorHasMask: false,
+      scissorHollowOriginal: true,
       scissorBusy: false,
       scissorImageStyle: "",
       straightCutEditing: false,
@@ -1872,6 +1981,7 @@ Page({
       this.setData({
         scissorEditing: true,
         scissorHasMask: false,
+        scissorHollowOriginal: true,
         scissorBusy: false,
         scissorBrushSize: SCISSOR_BRUSH_SIZE,
         scissorImageStyle: `left:${preview.left}px;top:${preview.top}px;width:${preview.width}px;height:${preview.height}px;`,
@@ -1895,7 +2005,7 @@ Page({
           showError("图片准备失败，请重试");
         });
     };
-    if (layer.sourceWidth && layer.sourceHeight) {
+    if ((layer.sourceWidth && layer.sourceHeight) || isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer)) {
       prepareAndStart();
       return;
     }
@@ -1928,6 +2038,7 @@ Page({
     this.setData({
       scissorEditing: false,
       scissorHasMask: false,
+      scissorHollowOriginal: true,
       scissorBusy: false,
       scissorImageStyle: "",
       activeTool: "",
@@ -1942,6 +2053,14 @@ Page({
     this.scissorStroke = null;
     this.setData({ scissorHasMask: false });
     this.drawScissorEditor();
+  },
+
+  toggleScissorHollowOriginal(event) {
+    if (this.data.scissorBusy) return;
+    const value = event && event.detail && typeof event.detail.value === "boolean"
+      ? event.detail.value
+      : !this.data.scissorHollowOriginal;
+    this.setData({ scissorHollowOriginal: value });
   },
 
   onScissorTouchStart(event) {
@@ -2058,6 +2177,9 @@ Page({
     });
     try {
       const tempFilePath = await this.createScissorCutImage(layer, strokes, bounds);
+      const remainder = this.data.scissorHollowOriginal
+        ? await this.createScissorRemainderImage(layer, strokes)
+        : null;
       const cutInfo = await getImageInfoAsync(tempFilePath).catch(() => null);
       const center = layerLocalPointToDraft({
         x: bounds.x + bounds.width / 2,
@@ -2095,6 +2217,13 @@ Page({
       };
       const index = this.getSelectedLayerIndex();
       this.draft.layers.splice(index + 1, 0, cutLayer);
+      if (remainder) {
+        layer.source = remainder.path;
+        layer.sourceWidth = remainder.width;
+        layer.sourceHeight = remainder.height;
+        layer.crop = null;
+        this.canvasImageCache = {};
+      }
       this.draft.layers = normalizeLayerOrder(this.draft.layers);
       this.scissorSession = null;
       this.scissorStroke = null;
@@ -2102,6 +2231,7 @@ Page({
       this.setData({
         scissorEditing: false,
         scissorHasMask: false,
+        scissorHollowOriginal: true,
         scissorBusy: false,
         scissorImageStyle: "",
         selectedLayerId: cutLayer.id,
@@ -2170,6 +2300,40 @@ Page({
     });
   },
 
+  async createScissorRemainderImage(layer, strokes) {
+    await this.ensureScissorCanvasContext();
+    if (!this.scissorCanvasNode || !this.scissorCtx) throw new Error("missing_scissor_canvas");
+    const sourceImage = await this.loadScissorCanvasImage(layer.source);
+    if (!sourceImage) throw new Error("missing_source_image");
+    const sourceCrop = getLayerSourceCrop(layer);
+    const naturalScale = Math.max(sourceCrop.width / layer.width, sourceCrop.height / layer.height);
+    let outputScale = Math.min(2.5, Math.max(1, naturalScale));
+    const maxSide = Math.max(layer.width, layer.height) * outputScale;
+    if (maxSide > SCISSOR_MAX_OUTPUT_SIZE) outputScale *= SCISSOR_MAX_OUTPUT_SIZE / maxSide;
+    const outputWidth = Math.max(1, Math.round(layer.width * outputScale));
+    const outputHeight = Math.max(1, Math.round(layer.height * outputScale));
+    this.scissorCanvasNode.width = outputWidth;
+    this.scissorCanvasNode.height = outputHeight;
+    const ctx = this.scissorCtx;
+    if (ctx.setTransform) ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+    ctx.drawImage(sourceImage, sourceCrop.x, sourceCrop.y, sourceCrop.width, sourceCrop.height, 0, 0, outputWidth, outputHeight);
+    applyScissorRemainderMask(ctx, outputWidth, outputHeight, strokes, outputScale);
+    const path = await new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.scissorCanvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve(res.tempFilePath),
+        fail: reject
+      }, this);
+    });
+    return { path, width: outputWidth, height: outputHeight };
+  },
+
   async createEmbossRemainderImage(layer, mask, shape) {
     await this.ensureScissorCanvasContext();
     if (!this.scissorCanvasNode || !this.scissorCtx) throw new Error("missing_scratch_canvas");
@@ -2212,6 +2376,7 @@ Page({
 
   layerNeedsVisualSourceBake(layer) {
     if (!isCuttableSourceLayer(layer)) return false;
+    if (!layer.source && (isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer))) return true;
     const style = layer.style || {};
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
@@ -2223,6 +2388,7 @@ Page({
 
   layerNeedsNonPolygonVisualBake(layer) {
     if (!isCuttableSourceLayer(layer)) return false;
+    if (!layer.source && (isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer))) return true;
     const style = layer.style || {};
     const clipShape = normalizeOptionalEmbossShape(layer.clipShape || layer.maskShape || style.clipShape || style.maskShape || style.shape || "");
     const excludeShape = normalizeOptionalEmbossShape(layer.excludeShape || style.excludeShape || "");
@@ -2312,6 +2478,9 @@ Page({
   async createVisibleLayerSourceImage(layer) {
     await this.ensureScissorCanvasContext();
     if (!this.scissorCanvasNode || !this.scissorCtx) throw new Error("missing_scratch_canvas");
+    if (!layer.source && (isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer))) {
+      return this.createVirtualLayerSourceImage(layer);
+    }
     const sourceImage = await this.loadScissorCanvasImage(layer.source);
     if (!sourceImage) throw new Error("missing_source_image");
     const sourceCrop = getLayerSourceCrop(layer);
@@ -2346,6 +2515,51 @@ Page({
     ctx.restore();
     this.applyLayerVisualAlphaToSource(ctx, layer, outputScale, outputWidth, outputHeight, localBounds, { skipPolygons: !!clipPolygons.length });
     ctx.globalCompositeOperation = "source-over";
+    const path = await new Promise((resolve, reject) => {
+      wx.canvasToTempFilePath({
+        canvas: this.scissorCanvasNode,
+        width: outputWidth,
+        height: outputHeight,
+        destWidth: outputWidth,
+        destHeight: outputHeight,
+        fileType: "png",
+        success: (res) => resolve(res.tempFilePath),
+        fail: reject
+      }, this);
+    });
+    return { path, width: outputWidth, height: outputHeight, localBounds };
+  },
+
+  async createVirtualLayerSourceImage(layer) {
+    const localBounds = { x: 0, y: 0, width: layer.width, height: layer.height };
+    let outputScale = 2;
+    const maxSide = Math.max(layer.width, layer.height) * outputScale;
+    if (maxSide > SCISSOR_MAX_OUTPUT_SIZE) {
+      outputScale *= SCISSOR_MAX_OUTPUT_SIZE / maxSide;
+    }
+    const outputWidth = Math.max(1, Math.round(layer.width * outputScale));
+    const outputHeight = Math.max(1, Math.round(layer.height * outputScale));
+    const patternConfig = layer.patternConfig || layer.style && layer.style.patternConfig;
+    if (patternConfig && patternConfig.shape === "image" && patternConfig.imageSource) {
+      await this.loadCanvasImage(patternConfig.imageSource).catch(() => null);
+    }
+    this.scissorCanvasNode.width = outputWidth;
+    this.scissorCanvasNode.height = outputHeight;
+    const ctx = this.scissorCtx;
+    if (ctx.setTransform) ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+    ctx.clearRect(0, 0, layer.width, layer.height);
+    ctx.globalCompositeOperation = "source-over";
+    drawLayer(ctx, {
+      ...JSON.parse(JSON.stringify(layer)),
+      x: 0,
+      y: 0,
+      rotation: 0,
+      shadow: false
+    }, {
+      imageCache: this.canvasImageCache || {},
+      disableLayerShadow: true
+    });
+    if (ctx.setTransform) ctx.setTransform(1, 0, 0, 1, 0, 0);
     const path = await new Promise((resolve, reject) => {
       wx.canvasToTempFilePath({
         canvas: this.scissorCanvasNode,
@@ -3175,6 +3389,7 @@ Page({
       activeAssetPackItems: [],
       patternAssetPickerVisible: false,
       paperPatternAssetPickerVisible: false,
+      basicShapeCustomizing: false,
       solidPaperCustomizing: false,
       polkaPaperCustomizing: false,
       activePatternAssetPack: null,
@@ -3200,7 +3415,7 @@ Page({
     this.assetPanelRequestId = requestId;
     return Promise.all([
       getResolvedAssetPacks(),
-      packId && ![POLKA_PAPER_PACK_ID, LOCAL_BACKGROUND_PAPER_PACK_ID].includes(packId)
+      packId && ![BASIC_SHAPE_PACK_ID, POLKA_PAPER_PACK_ID, LOCAL_BACKGROUND_PAPER_PACK_ID].includes(packId)
         ? getResolvedAssetPack(packId)
         : Promise.resolve(getCreateAssetPack(packId))
     ]).then(([packs, pack]) => {
@@ -3229,6 +3444,7 @@ Page({
     this.setData({
       ...this.getAssetPanelState(this.data.activeAssetCategory || "推荐", packId),
       paperPatternAssetPickerVisible: false,
+      basicShapeCustomizing: false,
       solidPaperCustomizing: false,
       polkaPaperCustomizing: false,
       ...getPolkaPaperControlData(this.getSelectedPolkaPaperLayer())
@@ -3240,6 +3456,7 @@ Page({
     this.setData({
       ...this.getAssetPanelState(this.data.activeAssetCategory || "推荐", ""),
       paperPatternAssetPickerVisible: false,
+      basicShapeCustomizing: false,
       solidPaperCustomizing: false,
       polkaPaperCustomizing: false
     });
@@ -3611,6 +3828,132 @@ Page({
     this.render();
   },
 
+  applyBasicShapePreset(event) {
+    const assetId = event.currentTarget.dataset.assetId;
+    if (!assetId) return;
+    const asset = getCreateAssetItem(assetId);
+    const layer = this.addAssetItemToDraft(asset);
+    if (!layer) {
+      showError("素材添加失败");
+      return;
+    }
+    this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type
+    });
+    this.markDirty();
+    track("basic_shape_add", {
+      page: "create",
+      assetId,
+      packId: asset.packId || BASIC_SHAPE_PACK_ID,
+      ...getDraftAnalyticsParams(this.draft)
+    });
+    this.render();
+  },
+
+  beginBasicShapeCustom() {
+    const config = this.getBasicShapeCustomConfig();
+    this.setData({
+      basicShapeCustomizing: true,
+      solidPaperCustomizing: false,
+      polkaPaperCustomizing: false,
+      paperPatternAssetPickerVisible: false,
+      basicShapeCustomPreviewStyle: createBasicShapePreviewStyle(config)
+    });
+  },
+
+  closeBasicShapeCustom() {
+    this.setData({ basicShapeCustomizing: false });
+  },
+
+  setBasicShapeType(event) {
+    this.updateBasicShapeCustom({ shape: event.currentTarget.dataset.shape });
+  },
+
+  setBasicShapeFill(event) {
+    this.updateBasicShapeCustom({ fillColor: event.currentTarget.dataset.color });
+  },
+
+  setBasicShapeStroke(event) {
+    const color = event.currentTarget.dataset.color;
+    this.updateBasicShapeCustom({
+      strokeColor: color,
+      ...(color && !this.data.selectedBasicShapeStrokeWidth ? { strokeWidth: 3 } : {}),
+      ...(!color ? { strokeWidth: 0 } : {})
+    });
+  },
+
+  setBasicShapeStrokeWidth(event) {
+    this.updateBasicShapeCustom({ strokeWidth: Number(event.currentTarget.dataset.width) });
+  },
+
+  setBasicShapeOpacity(event) {
+    this.updateBasicShapeCustom({ opacity: Number(event.currentTarget.dataset.opacity) });
+  },
+
+  setBasicShapeCount(event) {
+    this.updateBasicShapeCustom({ count: Number(event.currentTarget.dataset.count) });
+  },
+
+  setBasicShapeLayout(event) {
+    this.updateBasicShapeCustom({ layout: event.currentTarget.dataset.layout });
+  },
+
+  updateBasicShapeCustom(patch = {}) {
+    const next = normalizeBasicShapeConfig({
+      ...this.getBasicShapeCustomConfig(),
+      ...patch
+    });
+    this.setData({
+      selectedBasicShapeType: next.shape,
+      selectedBasicShapeFill: next.fillColor,
+      selectedBasicShapeStroke: next.strokeColor,
+      selectedBasicShapeStrokeWidth: next.strokeWidth,
+      selectedBasicShapeOpacity: next.opacity,
+      selectedBasicShapeCount: next.count,
+      selectedBasicShapeLayout: next.layout,
+      basicShapeCustomPreviewStyle: createBasicShapePreviewStyle(next)
+    });
+  },
+
+  getBasicShapeCustomConfig() {
+    return normalizeBasicShapeConfig({
+      shape: this.data.selectedBasicShapeType,
+      fillColor: this.data.selectedBasicShapeFill,
+      strokeColor: this.data.selectedBasicShapeStroke,
+      strokeWidth: this.data.selectedBasicShapeStrokeWidth,
+      opacity: this.data.selectedBasicShapeOpacity,
+      count: this.data.selectedBasicShapeCount,
+      layout: this.data.selectedBasicShapeLayout
+    });
+  },
+
+  addCustomBasicShape() {
+    const asset = createBasicShapeAssetFromConfig({
+      id: `basic-shape-custom-${Date.now()}`,
+      name: "自定义图形",
+      config: this.getBasicShapeCustomConfig()
+    });
+    const layer = this.addAssetItemToDraft(asset);
+    if (!layer) {
+      showError("素材添加失败");
+      return;
+    }
+    this.keepAssetDrawerAfterAddingLayer(this.data.activeAssetPack);
+    this.setData({
+      selectedLayerId: layer.id,
+      selectedLayerType: layer.type,
+      basicShapeCustomizing: false
+    });
+    this.markDirty();
+    track("basic_shape_custom_add", {
+      page: "create",
+      ...getDraftAnalyticsParams(this.draft)
+    });
+    this.render();
+  },
+
   beginSolidPaperCustom() {
     const color = this.data.selectedSolidPaperColor || SOLID_PAPER_COLORS[0].value;
     this.setData({
@@ -3664,6 +4007,9 @@ Page({
   beginPolkaPaperCustom() {
     const preset = normalizePolkaPatternConfig({
       ...DEFAULT_POLKA_PATTERN_CONFIG,
+      dotRadius: 9,
+      gap: 48,
+      opacity: 0.64,
       offset: "grid"
     });
     const preview = createPolkaPaperCustomPreviewData(POLKA_BACKGROUND_COLORS[0].value, preset);
@@ -5206,7 +5552,7 @@ Page({
           showError("图片准备失败，请重试");
         });
     };
-    if (layer.sourceWidth && layer.sourceHeight) {
+    if ((layer.sourceWidth && layer.sourceHeight) || isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer)) {
       prepareAndStart();
       return;
     }
@@ -5545,7 +5891,7 @@ Page({
           showError("图片准备失败，请重试");
         });
     };
-    if (layer.sourceWidth && layer.sourceHeight) {
+    if ((layer.sourceWidth && layer.sourceHeight) || isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer)) {
       prepareAndStart();
       return;
     }
@@ -7954,7 +8300,20 @@ function getSeedreamUploadCanvasSize(imageWidth, imageHeight) {
 }
 
 function isCuttableSourceLayer(layer) {
-  return !!(layer && layer.source && CUTTABLE_SOURCE_LAYER_TYPES.includes(layer.type));
+  return !!(layer && CUTTABLE_SOURCE_LAYER_TYPES.includes(layer.type) && (layer.source || isVirtualPaperLayer(layer) || isVirtualBasicShapeLayer(layer)));
+}
+
+function isVirtualPaperLayer(layer) {
+  if (!layer || layer.type !== "paper" || layer.source) return false;
+  const style = layer.style || {};
+  return !!(style.color || style.pattern || style.patternConfig || layer.pattern || layer.patternConfig);
+}
+
+function isVirtualBasicShapeLayer(layer) {
+  if (!layer || layer.type !== "sticker" || layer.source) return false;
+  const style = layer.style || {};
+  const config = layer.shapeConfig || style.shapeConfig;
+  return !!(config && config.type === "basic-shape");
 }
 
 function applyGeneratedLayerGeometry(layer, result) {
@@ -8577,6 +8936,23 @@ function applyScissorAlphaMask(ctx, width, height, strokes, bounds, outputScale)
   for (let i = 0; i < mask.length; i += 1) {
     const alphaIndex = i * 4 + 3;
     data[alphaIndex] = Math.min(data[alphaIndex], mask[i]);
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function applyScissorRemainderMask(ctx, width, height, strokes, outputScale) {
+  if (!ctx || !ctx.getImageData || !ctx.putImageData) throw new Error("missing_image_data_api");
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const mask = new Uint8ClampedArray(width * height);
+  strokes.forEach((stroke) => {
+    const points = (stroke.points || []).map((point) => ({ x: point.x * outputScale, y: point.y * outputScale }));
+    const radius = Math.max(1, (stroke.size || SCISSOR_BRUSH_SIZE) * outputScale / 2);
+    rasterizeStroke(mask, width, height, points, radius);
+  });
+  const data = imageData.data;
+  for (let i = 0; i < mask.length; i += 1) {
+    const alphaIndex = i * 4 + 3;
+    data[alphaIndex] = Math.round(data[alphaIndex] * (255 - mask[i]) / 255);
   }
   ctx.putImageData(imageData, 0, 0);
 }
@@ -9794,7 +10170,8 @@ function createLayerFromAsset(asset, draft) {
       name: asset.name || ""
     },
     pattern: spec.pattern || "",
-    patternConfig: spec.patternConfig || null
+    patternConfig: spec.patternConfig || null,
+    shapeConfig: spec.shapeConfig || spec.style && spec.style.shapeConfig || null
   };
 }
 
@@ -10024,6 +10401,7 @@ function createAssetPanelCategories() {
 function createAssetPanelPacks(packs) {
   const basePacks = appendLocalGridBackgroundsToPaper04(Array.isArray(packs) ? packs : getAssetPacks());
   const virtualPacks = [
+    createBasicShapeAssetPack(),
     createLocalBackgroundPaperAssetPack(),
     createPolkaPaperAssetPack()
   ];
@@ -10050,6 +10428,177 @@ function createLocalBackgroundPaperAssetPack() {
     })),
     items
   };
+}
+
+function createBasicShapeAssetPack() {
+  const items = createBasicShapePresetAssets();
+  return {
+    id: BASIC_SHAPE_PACK_ID,
+    name: "基础图形",
+    category: "贴纸",
+    tone: "#ffffff",
+    cover: "",
+    isBasicShapePack: true,
+    coverPreviews: items.slice(0, 4).map((item) => ({
+      previewStyle: item.previewStyle,
+      previewTiles: []
+    })),
+    items
+  };
+}
+
+function createBasicShapePresetAssets() {
+  const presets = [
+    ["basic-shape-circle-pink", "玫瑰圆点", { shape: "circle", fillColor: "#f4b8c4", strokeColor: "", strokeWidth: 0, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-square-soft", "柔色方块", { shape: "square", fillColor: "#eadcf8", strokeColor: "", strokeWidth: 0, opacity: 0.76, count: 1, layout: "single" }],
+    ["basic-shape-triangle-peach", "杏色三角", { shape: "triangle", fillColor: "#ffd9bf", strokeColor: "#111111", strokeWidth: 3, opacity: 0.9, count: 1, layout: "single" }],
+    ["basic-shape-heart-row", "爱心一排", { shape: "heart", fillColor: "#ffd9bf", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 3, layout: "row" }],
+    ["basic-shape-star-scatter", "星星散落", { shape: "star", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.64, count: 9, layout: "scatter" }],
+    ["basic-shape-sparkle-mint", "薄荷四角星", { shape: "sparkle", fillColor: "#d7f0ed", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-flower-soft", "四瓣小花", { shape: "flower", fillColor: "#eadcf8", strokeColor: "#ffffff", strokeWidth: 3, opacity: 0.9, count: 1, layout: "single" }],
+    ["basic-shape-raindrop-blue", "雾蓝雨滴", { shape: "raindrop", fillColor: "#dfe8ff", strokeColor: "#6d9bc3", strokeWidth: 4, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-diamond-blue", "雾蓝菱形", { shape: "diamond", fillColor: "#dfe8ff", strokeColor: "#6d9bc3", strokeWidth: 6, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-rounded-cream", "奶油圆角", { shape: "rounded", fillColor: "#fff2b8", strokeColor: "#111111", strokeWidth: 3, opacity: 0.92, count: 1, layout: "single" }],
+    ["basic-shape-snowflake-grid", "雪花阵列", { shape: "snowflake", fillColor: "#6d9bc3", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 6, layout: "grid" }],
+    ["basic-shape-plus-scatter", "加号散落", { shape: "cross", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.64, count: 9, layout: "scatter" }],
+    ["basic-shape-label", "手写标签", { shape: "tag", fillColor: "#fff2b8", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }]
+  ];
+  return presets.map(([id, name, config]) => createBasicShapeAssetFromConfig({ id, name, config }));
+}
+
+function createBasicShapeAssetFromConfig(options) {
+  const config = normalizeBasicShapeConfig(options.config || {});
+  const size = config.count > 1 ? 260 : 180;
+  return {
+    id: options.id,
+    type: "sticker",
+    name: options.name || "基础图形",
+    width: size,
+    height: size,
+    thumb: "",
+    previewStyle: createBasicShapePreviewStyle(config),
+    layer: {
+      type: "sticker",
+      width: size,
+      height: size,
+      rotation: -3,
+      opacity: 1,
+      shadow: false,
+      shapeConfig: config,
+      style: {
+        shapeConfig: config
+      }
+    }
+  };
+}
+
+function normalizeBasicShapeConfig(config = {}) {
+  const shape = BASIC_SHAPE_TYPES.some((item) => item.value === config.shape) ? config.shape : "circle";
+  const fillColor = config.fillColor || BASIC_SHAPE_FILL_COLORS[0].value;
+  const strokeColor = config.strokeColor == null ? "" : config.strokeColor;
+  const strokeWidth = Math.max(0, Math.min(16, Number(config.strokeWidth) || 0));
+  const opacity = Math.max(0.12, Math.min(1, Number(config.opacity) || 1));
+  const countValue = Number(config.count) || 1;
+  const count = BASIC_SHAPE_COUNTS.some((item) => item.value === countValue) ? countValue : 1;
+  const layout = BASIC_SHAPE_LAYOUTS.some((item) => item.value === config.layout) ? config.layout : "single";
+  return { type: "basic-shape", shape, fillColor, strokeColor, strokeWidth, opacity, count, layout };
+}
+
+function createBasicShapePreviewStyle(config) {
+  const normalized = normalizeBasicShapeConfig(config);
+  return `background-color:transparent;background-image:url("${createBasicShapeSvgDataUri(normalized)}");background-size:100% 100%;background-repeat:no-repeat;background-position:center;`;
+}
+
+function createBasicShapeSvgDataUri(config) {
+  const width = 120;
+  const height = 120;
+  const placements = getBasicShapePreviewPlacements(config.count, config.layout, width, height);
+  const shapes = placements.map((place, index) => createBasicShapeSvgShape(config, place, index)).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${shapes}</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function getBasicShapePreviewPlacements(count, layout, width, height) {
+  if (count <= 1 || layout === "single") return [{ x: width / 2, y: height / 2, size: 72, rotate: 0 }];
+  if (layout === "row") {
+    return Array.from({ length: count }, (_, index) => ({ x: 28 + index * (64 / Math.max(1, count - 1)), y: height / 2, size: 34, rotate: 0 }));
+  }
+  if (layout === "grid") {
+    return Array.from({ length: count }, (_, index) => ({ x: 32 + index % 3 * 28, y: 34 + Math.floor(index / 3) * 28, size: 22, rotate: 0 }));
+  }
+  return Array.from({ length: count }, (_, index) => ({
+    x: 24 + Math.abs(Math.sin(index * 2.1)) * 72,
+    y: 24 + Math.abs(Math.cos(index * 1.7)) * 72,
+    size: 18 + index % 3 * 4,
+    rotate: -18 + index % 5 * 9
+  }));
+}
+
+function createBasicShapeSvgShape(config, place) {
+  const half = place.size / 2;
+  const fill = `fill="${config.fillColor}" fill-opacity="${config.opacity}"`;
+  const previewStrokeWidth = Math.max(0.8, config.strokeWidth * 0.56);
+  const stroke = config.strokeColor && config.strokeWidth > 0 ? `stroke="${config.strokeColor}" stroke-width="${previewStrokeWidth}" stroke-linejoin="round" stroke-linecap="round"` : "";
+  const lineStroke = `stroke="${config.fillColor}" stroke-opacity="${config.opacity}" stroke-width="${Math.max(1.6, place.size * 0.08)}" stroke-linecap="round"`;
+  const lineBackStroke = config.strokeColor && config.strokeWidth > 0 ? `stroke="${config.strokeColor}" stroke-width="${Math.max(previewStrokeWidth + 1.6, place.size * 0.12)}" stroke-linecap="round"` : "";
+  const transform = `transform="rotate(${place.rotate || 0} ${place.x} ${place.y})"`;
+  if (config.shape === "square") return `<rect x="${place.x - half}" y="${place.y - half}" width="${place.size}" height="${place.size}" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "rounded") return `<rect x="${place.x - half}" y="${place.y - half}" width="${place.size}" height="${place.size}" rx="${place.size * 0.18}" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "diamond") return `<path d="M ${place.x} ${place.y - half} L ${place.x + half} ${place.y} L ${place.x} ${place.y + half} L ${place.x - half} ${place.y} Z" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "triangle") return `<path d="M ${place.x} ${place.y - half} L ${place.x + half} ${place.y + half} L ${place.x - half} ${place.y + half} Z" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "star") {
+    const points = [];
+    for (let i = 0; i < 10; i += 1) {
+      const r = i % 2 === 0 ? half : half * 0.45;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      points.push(`${place.x + Math.cos(angle) * r},${place.y + Math.sin(angle) * r}`);
+    }
+    return `<polygon points="${points.join(" ")}" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "sparkle") {
+    return `<path d="M ${place.x} ${place.y - half} C ${place.x + half * 0.12} ${place.y - half * 0.12}, ${place.x + half * 0.12} ${place.y - half * 0.12}, ${place.x + half} ${place.y} C ${place.x + half * 0.12} ${place.y + half * 0.12}, ${place.x + half * 0.12} ${place.y + half * 0.12}, ${place.x} ${place.y + half} C ${place.x - half * 0.12} ${place.y + half * 0.12}, ${place.x - half * 0.12} ${place.y + half * 0.12}, ${place.x - half} ${place.y} C ${place.x - half * 0.12} ${place.y - half * 0.12}, ${place.x - half * 0.12} ${place.y - half * 0.12}, ${place.x} ${place.y - half} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "heart") {
+    const r = half;
+    return `<path d="M ${place.x} ${place.y + r * 0.66} C ${place.x - r * 0.96} ${place.y + r * 0.02}, ${place.x - r * 1.04} ${place.y - r * 0.62}, ${place.x - r * 0.46} ${place.y - r * 0.66} C ${place.x - r * 0.2} ${place.y - r * 0.68}, ${place.x - r * 0.05} ${place.y - r * 0.52}, ${place.x} ${place.y - r * 0.34} C ${place.x + r * 0.05} ${place.y - r * 0.52}, ${place.x + r * 0.2} ${place.y - r * 0.68}, ${place.x + r * 0.46} ${place.y - r * 0.66} C ${place.x + r * 1.04} ${place.y - r * 0.62}, ${place.x + r * 0.96} ${place.y + r * 0.02}, ${place.x} ${place.y + r * 0.66} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "raindrop") {
+    const r = half;
+    return `<path d="M ${place.x} ${place.y + r} C ${place.x - r * 0.86} ${place.y + r * 0.18}, ${place.x - r * 0.76} ${place.y - r * 0.66}, ${place.x} ${place.y - r * 0.72} C ${place.x + r * 0.76} ${place.y - r * 0.66}, ${place.x + r * 0.86} ${place.y + r * 0.18}, ${place.x} ${place.y + r} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "flower") {
+    const points = Array.from({ length: 73 }, (_, index) => {
+      const angle = -Math.PI / 2 + index / 72 * Math.PI * 2;
+      const radius = half * (0.56 + 0.32 * Math.cos(4 * angle));
+      return `${place.x + Math.cos(angle) * radius},${place.y + Math.sin(angle) * radius}`;
+    }).join(" ");
+    return `<polygon points="${points}" ${fill} ${stroke} ${transform}/><circle cx="${place.x}" cy="${place.y}" r="${Math.max(2, half * 0.14)}" fill="#ffffff" fill-opacity="0.72" ${transform}/>`;
+  }
+  if (config.shape === "snowflake") {
+    const arms = [0, 60, 120].map((angle) => {
+      const rad = angle * Math.PI / 180;
+      const dx = Math.cos(rad) * half;
+      const dy = Math.sin(rad) * half;
+      const branch = half * 0.22;
+      const bx = Math.cos(rad + Math.PI / 4) * branch;
+      const by = Math.sin(rad + Math.PI / 4) * branch;
+      const cx = Math.cos(rad - Math.PI / 4) * branch;
+      const cy = Math.sin(rad - Math.PI / 4) * branch;
+      return `<line x1="${place.x - dx}" y1="${place.y - dy}" x2="${place.x + dx}" y2="${place.y + dy}"/><line x1="${place.x + dx * 0.58}" y1="${place.y + dy * 0.58}" x2="${place.x + dx * 0.58 - bx}" y2="${place.y + dy * 0.58 - by}"/><line x1="${place.x + dx * 0.58}" y1="${place.y + dy * 0.58}" x2="${place.x + dx * 0.58 - cx}" y2="${place.y + dy * 0.58 - cy}"/><line x1="${place.x - dx * 0.58}" y1="${place.y - dy * 0.58}" x2="${place.x - dx * 0.58 + bx}" y2="${place.y - dy * 0.58 + by}"/><line x1="${place.x - dx * 0.58}" y1="${place.y - dy * 0.58}" x2="${place.x - dx * 0.58 + cx}" y2="${place.y - dy * 0.58 + cy}"/>`;
+    }).join("");
+    return `${lineBackStroke ? `<g ${lineBackStroke} ${transform}>${arms}</g>` : ""}<g ${lineStroke} ${transform}>${arms}</g>`;
+  }
+  if (config.shape === "cross") {
+    const arm = half * 0.38;
+    return `<path d="M ${place.x - arm} ${place.y - half} H ${place.x + arm} V ${place.y - arm} H ${place.x + half} V ${place.y + arm} H ${place.x + arm} V ${place.y + half} H ${place.x - arm} V ${place.y + arm} H ${place.x - half} V ${place.y - arm} H ${place.x - arm} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "tag") {
+    const w = place.size * 1.18;
+    const h = place.size * 0.78;
+    const notch = h * 0.28;
+    return `<path d="M ${place.x - w / 2} ${place.y - h / 2} H ${place.x + w / 2 - notch} L ${place.x + w / 2} ${place.y} L ${place.x + w / 2 - notch} ${place.y + h / 2} H ${place.x - w / 2} Z" ${fill} ${stroke} ${transform}/><circle cx="${place.x - w * 0.28}" cy="${place.y}" r="${Math.max(2, h * 0.08)}" fill="#ffffff" fill-opacity="0.72" ${transform}/>`;
+  }
+  return `<circle cx="${place.x}" cy="${place.y}" r="${half}" ${fill} ${stroke} ${transform}/>`;
 }
 
 function appendLocalGridBackgroundsToPaper04(packs) {
@@ -10219,19 +10768,20 @@ function createPolkaPaperCustomPreviewData(background, patternConfig) {
 }
 
 function getCreateAssetPack(packId) {
+  if (packId === BASIC_SHAPE_PACK_ID) return createBasicShapeAssetPack();
   if (packId === LOCAL_BACKGROUND_PAPER_PACK_ID) return createLocalBackgroundPaperAssetPack();
   if (packId === POLKA_PAPER_PACK_ID) return createPolkaPaperAssetPack();
   return getAssetPack(packId);
 }
 
 function getCreateAssetItem(assetId) {
-  const virtualItem = [createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
+  const virtualItem = [createBasicShapeAssetPack(), createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
     .reduce((match, pack) => match || pack.items.find((item) => item.id === assetId), null);
   return virtualItem || getAssetItem(assetId);
 }
 
 function resolveCreateTransferAsset(assetId) {
-  const virtualItem = [createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
+  const virtualItem = [createBasicShapeAssetPack(), createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
     .reduce((match, pack) => match || pack.items.find((item) => item.id === assetId), null);
   if (virtualItem) return Promise.resolve(virtualItem);
   return getResolvedAssetItem(assetId);
@@ -10248,6 +10798,7 @@ function decorateAssetPanelPack(pack) {
     ...pack,
     name: displayName,
     category: normalizeCreateAssetCategory(pack.category),
+    isBasicShapePack: !!pack.isBasicShapePack,
     isPolkaPaperPack: !!pack.isPolkaPaperPack,
     isSolidPaperPack: !!pack.isSolidPaperPack,
     coverStyle: pack.coverStyle || "",
@@ -10269,6 +10820,7 @@ function decorateAssetPanelPack(pack) {
 function filterAssetPanelPacks(packs, category) {
   if (!category || category === "推荐") return filterRecommendedAssetPanelPacks(packs);
   const filtered = packs.filter((pack) => normalizeCreateAssetCategory(pack.category) === category);
+  if (category === "贴纸") return sortStickerAssetPacks(filtered);
   return category === "便签" ? sortStickyNoteAssetPacks(filtered) : filtered;
 }
 
@@ -10291,6 +10843,21 @@ function sortStickyNoteAssetPacks(packs) {
     [LOCAL_BACKGROUND_PAPER_PACK_ID]: 0,
     [POLKA_PAPER_PACK_ID]: 1,
     "biantie-01": 2
+  };
+  return (packs || [])
+    .map((pack, index) => ({ pack, index }))
+    .sort((a, b) => {
+      const priorityA = Object.prototype.hasOwnProperty.call(priority, a.pack.id) ? priority[a.pack.id] : 99;
+      const priorityB = Object.prototype.hasOwnProperty.call(priority, b.pack.id) ? priority[b.pack.id] : 99;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.pack);
+}
+
+function sortStickerAssetPacks(packs) {
+  const priority = {
+    [BASIC_SHAPE_PACK_ID]: 0
   };
   return (packs || [])
     .map((pack, index) => ({ pack, index }))

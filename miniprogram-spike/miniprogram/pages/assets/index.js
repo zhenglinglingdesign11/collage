@@ -16,8 +16,10 @@ const { track, trackPageShow, trackPageHide, trackShare } = require("../../utils
 const assetPageCategories = ["推荐", "收藏", "贴纸", "胶带", "便签", "主题混装", "相框"];
 const POLKA_PAPER_PACK_ID = "polka-paper-materials";
 const LOCAL_BACKGROUND_PAPER_PACK_ID = "local-background-paper-materials";
+const BASIC_SHAPE_PACK_ID = "basic-shape-materials";
 const POLKA_PAPER_CUSTOM_ENTRY_ID = "paper-polka-custom-entry";
 const SOLID_PAPER_CUSTOM_ENTRY_ID = "paper-solid-custom-entry";
+const BASIC_SHAPE_CUSTOM_ENTRY_ID = "basic-shape-custom-entry";
 const PENDING_CREATE_ACTION_STORAGE_KEY = "journal.pendingCreateAction";
 const DEFAULT_POLKA_PATTERN_CONFIG = {
   type: "polka",
@@ -57,6 +59,22 @@ const polkaPaperPresetDefinitions = [
   ["pattern-local-24", "素材 24", "#ffffff", "#111111", 9, 48, 0.64, "solid", "image", "/assets/packs/24.png", 177, 209],
   ["pattern-local-7", "素材 7", "#ffffff", "#111111", 9, 48, 0.64, "solid", "image", "/assets/packs/7.png", 299, 169],
   ["pattern-local-1", "素材 1", "#ffffff", "#111111", 9, 48, 0.64, "solid", "image", "/assets/packs/1.png", 215, 217]
+];
+const basicShapeTypeOptions = ["circle", "square", "triangle", "heart", "star", "sparkle", "flower", "raindrop", "diamond", "rounded", "snowflake", "cross", "tag"];
+const basicShapePresetDefinitions = [
+  ["basic-shape-circle-pink", "玫瑰圆点", { shape: "circle", fillColor: "#f4b8c4", strokeColor: "", strokeWidth: 0, opacity: 1, count: 1, layout: "single" }],
+  ["basic-shape-square-soft", "柔色方块", { shape: "square", fillColor: "#eadcf8", strokeColor: "", strokeWidth: 0, opacity: 0.76, count: 1, layout: "single" }],
+  ["basic-shape-triangle-peach", "杏色三角", { shape: "triangle", fillColor: "#ffd9bf", strokeColor: "#111111", strokeWidth: 3, opacity: 0.9, count: 1, layout: "single" }],
+  ["basic-shape-heart-row", "爱心一排", { shape: "heart", fillColor: "#ffd9bf", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 3, layout: "row" }],
+  ["basic-shape-star-scatter", "星星散落", { shape: "star", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.64, count: 9, layout: "scatter" }],
+  ["basic-shape-sparkle-mint", "薄荷四角星", { shape: "sparkle", fillColor: "#d7f0ed", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }],
+  ["basic-shape-flower-soft", "四瓣小花", { shape: "flower", fillColor: "#eadcf8", strokeColor: "#ffffff", strokeWidth: 3, opacity: 0.9, count: 1, layout: "single" }],
+  ["basic-shape-raindrop-blue", "雾蓝雨滴", { shape: "raindrop", fillColor: "#dfe8ff", strokeColor: "#6d9bc3", strokeWidth: 4, opacity: 1, count: 1, layout: "single" }],
+  ["basic-shape-diamond-blue", "雾蓝菱形", { shape: "diamond", fillColor: "#dfe8ff", strokeColor: "#6d9bc3", strokeWidth: 6, opacity: 1, count: 1, layout: "single" }],
+  ["basic-shape-rounded-cream", "奶油圆角", { shape: "rounded", fillColor: "#fff2b8", strokeColor: "#111111", strokeWidth: 3, opacity: 0.92, count: 1, layout: "single" }],
+  ["basic-shape-snowflake-grid", "雪花阵列", { shape: "snowflake", fillColor: "#6d9bc3", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 6, layout: "grid" }],
+  ["basic-shape-plus-scatter", "加号散落", { shape: "cross", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.64, count: 9, layout: "scatter" }],
+  ["basic-shape-label", "手写标签", { shape: "tag", fillColor: "#fff2b8", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }]
 ];
 
 const detailPaperWidth = 670;
@@ -218,6 +236,7 @@ Page({
     }
     if (category && category !== "推荐") {
       const filtered = packs.filter((pack) => normalizeAssetPageCategory(pack.category) === category);
+      if (category === "贴纸") return sortStickerAssetPacks(filtered);
       return category === "便签" ? sortStickyNoteAssetPacks(filtered) : filtered;
     }
     return filterRecommendedPacks(packs);
@@ -306,6 +325,10 @@ Page({
     }
     if (assetId === SOLID_PAPER_CUSTOM_ENTRY_ID) {
       this.confirmOpenSolidPaperCustom();
+      return;
+    }
+    if (assetId === BASIC_SHAPE_CUSTOM_ENTRY_ID) {
+      this.confirmOpenBasicShapeCustom();
       return;
     }
     const wasSelected = this.data.selectedAssetIds.includes(assetId);
@@ -418,6 +441,34 @@ Page({
     });
     this.isTransferringSelectedAssets = true;
     wx.switchTab({ url: "/pages/create/index" });
+  },
+
+  async confirmOpenBasicShapeCustom() {
+    const result = await showModal("前往创作页", "自定义基础图形需要在创作页里调整图形、颜色和数量。", {
+      confirmText: "继续"
+    });
+    if (!result.confirm) return;
+    const preserveDraft = !!(this.assetEntryContext && this.assetEntryContext.preserveDraft);
+    track("asset_basic_shape_custom_to_create", {
+      page: "assets",
+      packId: this.data.detailPack && this.data.detailPack.id || "",
+      source: preserveDraft ? "createAssetDrawer" : "assetsTab"
+    });
+    wx.setStorageSync(PENDING_CREATE_ACTION_STORAGE_KEY, {
+      action: "openBasicShapeCustom",
+      newDraft: !preserveDraft,
+      source: preserveDraft ? "createAssetDrawer" : "assetsTab",
+      createdAt: Date.now()
+    });
+    this.assetEntryContext = null;
+    this.setData({
+      detailPack: null,
+      selectedAssetIds: [],
+      selectedAssets: [],
+      assetSelectionMode: false
+    });
+    this.isTransferringSelectedAssets = true;
+    wx.switchTab({ url: "/pages/create/index" });
   }
 });
 
@@ -429,6 +480,7 @@ function readFavoritePackIds() {
 function createAssetPagePacks(packs) {
   const basePacks = appendLocalGridBackgroundsToPaper04(Array.isArray(packs) ? packs : getAssetPacks());
   const virtualPacks = [
+    createBasicShapeAssetPack(),
     createLocalBackgroundPaperAssetPack(),
     createPolkaPaperAssetPack()
   ];
@@ -440,13 +492,14 @@ function createAssetPagePacks(packs) {
 }
 
 function getAssetPagePack(packId) {
+  if (packId === BASIC_SHAPE_PACK_ID) return createBasicShapeAssetPack();
   if (packId === LOCAL_BACKGROUND_PAPER_PACK_ID) return createLocalBackgroundPaperAssetPack();
   if (packId === POLKA_PAPER_PACK_ID) return createPolkaPaperAssetPack();
   return prepareAssetPagePack(appendLocalGridBackgroundsToPaper04([getAssetPack(packId)])[0]);
 }
 
 function getResolvedAssetPagePack(packId) {
-  if (packId === LOCAL_BACKGROUND_PAPER_PACK_ID || packId === POLKA_PAPER_PACK_ID) {
+  if (packId === BASIC_SHAPE_PACK_ID || packId === LOCAL_BACKGROUND_PAPER_PACK_ID || packId === POLKA_PAPER_PACK_ID) {
     return Promise.resolve(getAssetPagePack(packId));
   }
   return getResolvedAssetPack(packId).then((pack) => getAssetPagePackFromResolved(pack));
@@ -464,6 +517,7 @@ function prepareAssetPagePack(pack) {
     ...pack,
     name: displayName,
     category: normalizeAssetPageCategory(pack.category),
+    isBasicShapePack: !!pack.isBasicShapePack,
     isPolkaPaperPack: !!pack.isPolkaPaperPack,
     isSolidPaperPack: !!pack.isSolidPaperPack,
     itemCount: Array.isArray(pack.items) ? pack.items.length : 0,
@@ -536,6 +590,49 @@ function createLocalBackgroundPaperAssets(kind) {
         }
       }
     }));
+}
+
+function createBasicShapeAssetPack() {
+  const items = basicShapePresetDefinitions.map(([id, name, config]) => createBasicShapeAssetFromConfig({ id, name, config }));
+  return prepareAssetPagePack({
+    id: BASIC_SHAPE_PACK_ID,
+    name: "基础图形",
+    category: "贴纸",
+    tone: "#ffffff",
+    cover: "",
+    isBasicShapePack: true,
+    coverPreviews: items.slice(0, 4).map((item) => ({
+      previewStyle: item.previewStyle,
+      previewTiles: []
+    })),
+    items
+  });
+}
+
+function createBasicShapeAssetFromConfig(options) {
+  const config = normalizeBasicShapeConfig(options.config || {});
+  const size = config.count > 1 ? 260 : 180;
+  return {
+    id: options.id,
+    type: "sticker",
+    name: options.name || "基础图形",
+    width: size,
+    height: size,
+    thumb: "",
+    previewStyle: createBasicShapePreviewStyle(config),
+    layer: {
+      type: "sticker",
+      width: size,
+      height: size,
+      rotation: -3,
+      opacity: 1,
+      shadow: false,
+      shapeConfig: config,
+      style: {
+        shapeConfig: config
+      }
+    }
+  };
 }
 
 function createPolkaPaperAssetPack() {
@@ -621,6 +718,9 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
   if (pack.id === LOCAL_BACKGROUND_PAPER_PACK_ID && !items.some((item) => item.id === SOLID_PAPER_CUSTOM_ENTRY_ID)) {
     items = [createSolidPaperCustomEntry()].concat(items);
   }
+  if (pack.id === BASIC_SHAPE_PACK_ID && !items.some((item) => item.id === BASIC_SHAPE_CUSTOM_ENTRY_ID)) {
+    items = [createBasicShapeCustomEntry()].concat(items);
+  }
   const layout = layoutDetailAssets(items);
   return {
     ...pack,
@@ -634,6 +734,7 @@ function decoratePack(pack, favoritePackIds, selectedAssetIds) {
       isCssAsset: !item.thumb,
       isCustomPolkaEntry: item.id === POLKA_PAPER_CUSTOM_ENTRY_ID,
       isCustomSolidEntry: item.id === SOLID_PAPER_CUSTOM_ENTRY_ID,
+      isCustomBasicShapeEntry: item.id === BASIC_SHAPE_CUSTOM_ENTRY_ID,
       selected: selectedAssetIds.includes(item.id)
     })),
     detailPaperHeight: layout.paperHeight
@@ -656,6 +757,19 @@ function createPolkaPaperCustomEntry() {
 function createSolidPaperCustomEntry() {
   return {
     id: SOLID_PAPER_CUSTOM_ENTRY_ID,
+    type: "action",
+    name: "自定义",
+    width: 160,
+    height: 160,
+    thumb: "",
+    previewStyle: "",
+    previewTiles: []
+  };
+}
+
+function createBasicShapeCustomEntry() {
+  return {
+    id: BASIC_SHAPE_CUSTOM_ENTRY_ID,
     type: "action",
     name: "自定义",
     width: 160,
@@ -691,6 +805,137 @@ function sortStickyNoteAssetPacks(packs) {
       return a.index - b.index;
     })
     .map((entry) => entry.pack);
+}
+
+function sortStickerAssetPacks(packs) {
+  const priority = {
+    [BASIC_SHAPE_PACK_ID]: 0
+  };
+  return (packs || [])
+    .map((pack, index) => ({ pack, index }))
+    .sort((a, b) => {
+      const priorityA = Object.prototype.hasOwnProperty.call(priority, a.pack.id) ? priority[a.pack.id] : 99;
+      const priorityB = Object.prototype.hasOwnProperty.call(priority, b.pack.id) ? priority[b.pack.id] : 99;
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.pack);
+}
+
+function normalizeBasicShapeConfig(config = {}) {
+  const shape = basicShapeTypeOptions.includes(config.shape) ? config.shape : "circle";
+  const strokeWidth = Math.max(0, Math.min(16, Number(config.strokeWidth) || 0));
+  const opacity = Math.max(0.12, Math.min(1, Number(config.opacity) || 1));
+  const countValue = Number(config.count) || 1;
+  const count = [1, 3, 6, 9].includes(countValue) ? countValue : 1;
+  const layout = ["single", "row", "grid", "scatter"].includes(config.layout) ? config.layout : "single";
+  return {
+    type: "basic-shape",
+    shape,
+    fillColor: config.fillColor || "#f4b8c4",
+    strokeColor: config.strokeColor || "",
+    strokeWidth,
+    opacity,
+    count,
+    layout
+  };
+}
+
+function createBasicShapePreviewStyle(config) {
+  const normalized = normalizeBasicShapeConfig(config);
+  return `background-color:transparent;background-image:url("${createBasicShapeSvgDataUri(normalized)}");background-size:100% 100%;background-repeat:no-repeat;background-position:center;`;
+}
+
+function createBasicShapeSvgDataUri(config) {
+  const width = 120;
+  const height = 120;
+  const placements = getBasicShapePreviewPlacements(config.count, config.layout, width, height);
+  const shapes = placements.map((place) => createBasicShapeSvgShape(config, place)).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${shapes}</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function getBasicShapePreviewPlacements(count, layout, width, height) {
+  if (count <= 1 || layout === "single") return [{ x: width / 2, y: height / 2, size: 72, rotate: 0 }];
+  if (layout === "row") {
+    return Array.from({ length: count }, (_, index) => ({ x: 28 + index * (64 / Math.max(1, count - 1)), y: height / 2, size: 34, rotate: 0 }));
+  }
+  if (layout === "grid") {
+    return Array.from({ length: count }, (_, index) => ({ x: 32 + index % 3 * 28, y: 34 + Math.floor(index / 3) * 28, size: 22, rotate: 0 }));
+  }
+  return Array.from({ length: count }, (_, index) => ({
+    x: 24 + Math.abs(Math.sin(index * 2.1)) * 72,
+    y: 24 + Math.abs(Math.cos(index * 1.7)) * 72,
+    size: 18 + index % 3 * 4,
+    rotate: -18 + index % 5 * 9
+  }));
+}
+
+function createBasicShapeSvgShape(config, place) {
+  const half = place.size / 2;
+  const fill = `fill="${config.fillColor}" fill-opacity="${config.opacity}"`;
+  const previewStrokeWidth = Math.max(0.8, config.strokeWidth * 0.56);
+  const stroke = config.strokeColor && config.strokeWidth > 0 ? `stroke="${config.strokeColor}" stroke-width="${previewStrokeWidth}" stroke-linejoin="round" stroke-linecap="round"` : "";
+  const lineStroke = `stroke="${config.fillColor}" stroke-opacity="${config.opacity}" stroke-width="${Math.max(1.6, place.size * 0.08)}" stroke-linecap="round"`;
+  const lineBackStroke = config.strokeColor && config.strokeWidth > 0 ? `stroke="${config.strokeColor}" stroke-width="${Math.max(previewStrokeWidth + 1.6, place.size * 0.12)}" stroke-linecap="round"` : "";
+  const transform = `transform="rotate(${place.rotate || 0} ${place.x} ${place.y})"`;
+  if (config.shape === "square") return `<rect x="${place.x - half}" y="${place.y - half}" width="${place.size}" height="${place.size}" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "rounded") return `<rect x="${place.x - half}" y="${place.y - half}" width="${place.size}" height="${place.size}" rx="${place.size * 0.18}" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "diamond") return `<path d="M ${place.x} ${place.y - half} L ${place.x + half} ${place.y} L ${place.x} ${place.y + half} L ${place.x - half} ${place.y} Z" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "triangle") return `<path d="M ${place.x} ${place.y - half} L ${place.x + half} ${place.y + half} L ${place.x - half} ${place.y + half} Z" ${fill} ${stroke} ${transform}/>`;
+  if (config.shape === "star") {
+    const points = [];
+    for (let i = 0; i < 10; i += 1) {
+      const r = i % 2 === 0 ? half : half * 0.45;
+      const angle = -Math.PI / 2 + i * Math.PI / 5;
+      points.push(`${place.x + Math.cos(angle) * r},${place.y + Math.sin(angle) * r}`);
+    }
+    return `<polygon points="${points.join(" ")}" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "sparkle") {
+    return `<path d="M ${place.x} ${place.y - half} C ${place.x + half * 0.12} ${place.y - half * 0.12}, ${place.x + half * 0.12} ${place.y - half * 0.12}, ${place.x + half} ${place.y} C ${place.x + half * 0.12} ${place.y + half * 0.12}, ${place.x + half * 0.12} ${place.y + half * 0.12}, ${place.x} ${place.y + half} C ${place.x - half * 0.12} ${place.y + half * 0.12}, ${place.x - half * 0.12} ${place.y + half * 0.12}, ${place.x - half} ${place.y} C ${place.x - half * 0.12} ${place.y - half * 0.12}, ${place.x - half * 0.12} ${place.y - half * 0.12}, ${place.x} ${place.y - half} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "heart") {
+    const r = half;
+    return `<path d="M ${place.x} ${place.y + r * 0.66} C ${place.x - r * 0.96} ${place.y + r * 0.02}, ${place.x - r * 1.04} ${place.y - r * 0.62}, ${place.x - r * 0.46} ${place.y - r * 0.66} C ${place.x - r * 0.2} ${place.y - r * 0.68}, ${place.x - r * 0.05} ${place.y - r * 0.52}, ${place.x} ${place.y - r * 0.34} C ${place.x + r * 0.05} ${place.y - r * 0.52}, ${place.x + r * 0.2} ${place.y - r * 0.68}, ${place.x + r * 0.46} ${place.y - r * 0.66} C ${place.x + r * 1.04} ${place.y - r * 0.62}, ${place.x + r * 0.96} ${place.y + r * 0.02}, ${place.x} ${place.y + r * 0.66} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "raindrop") {
+    const r = half;
+    return `<path d="M ${place.x} ${place.y + r} C ${place.x - r * 0.86} ${place.y + r * 0.18}, ${place.x - r * 0.76} ${place.y - r * 0.66}, ${place.x} ${place.y - r * 0.72} C ${place.x + r * 0.76} ${place.y - r * 0.66}, ${place.x + r * 0.86} ${place.y + r * 0.18}, ${place.x} ${place.y + r} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "flower") {
+    const points = Array.from({ length: 73 }, (_, index) => {
+      const angle = -Math.PI / 2 + index / 72 * Math.PI * 2;
+      const radius = half * (0.56 + 0.32 * Math.cos(4 * angle));
+      return `${place.x + Math.cos(angle) * radius},${place.y + Math.sin(angle) * radius}`;
+    }).join(" ");
+    return `<polygon points="${points}" ${fill} ${stroke} ${transform}/><circle cx="${place.x}" cy="${place.y}" r="${Math.max(2, half * 0.14)}" fill="#ffffff" fill-opacity="0.72" ${transform}/>`;
+  }
+  if (config.shape === "snowflake") {
+    const arms = [0, 60, 120].map((angle) => {
+      const rad = angle * Math.PI / 180;
+      const dx = Math.cos(rad) * half;
+      const dy = Math.sin(rad) * half;
+      const branch = half * 0.22;
+      const bx = Math.cos(rad + Math.PI / 4) * branch;
+      const by = Math.sin(rad + Math.PI / 4) * branch;
+      const cx = Math.cos(rad - Math.PI / 4) * branch;
+      const cy = Math.sin(rad - Math.PI / 4) * branch;
+      return `<line x1="${place.x - dx}" y1="${place.y - dy}" x2="${place.x + dx}" y2="${place.y + dy}"/><line x1="${place.x + dx * 0.58}" y1="${place.y + dy * 0.58}" x2="${place.x + dx * 0.58 - bx}" y2="${place.y + dy * 0.58 - by}"/><line x1="${place.x + dx * 0.58}" y1="${place.y + dy * 0.58}" x2="${place.x + dx * 0.58 - cx}" y2="${place.y + dy * 0.58 - cy}"/><line x1="${place.x - dx * 0.58}" y1="${place.y - dy * 0.58}" x2="${place.x - dx * 0.58 + bx}" y2="${place.y - dy * 0.58 + by}"/><line x1="${place.x - dx * 0.58}" y1="${place.y - dy * 0.58}" x2="${place.x - dx * 0.58 + cx}" y2="${place.y - dy * 0.58 + cy}"/>`;
+    }).join("");
+    return `${lineBackStroke ? `<g ${lineBackStroke} ${transform}>${arms}</g>` : ""}<g ${lineStroke} ${transform}>${arms}</g>`;
+  }
+  if (config.shape === "cross") {
+    const arm = half * 0.38;
+    return `<path d="M ${place.x - arm} ${place.y - half} H ${place.x + arm} V ${place.y - arm} H ${place.x + half} V ${place.y + arm} H ${place.x + arm} V ${place.y + half} H ${place.x - arm} V ${place.y + arm} H ${place.x - half} V ${place.y - arm} H ${place.x - arm} Z" ${fill} ${stroke} ${transform}/>`;
+  }
+  if (config.shape === "tag") {
+    const w = place.size * 1.18;
+    const h = place.size * 0.78;
+    const notch = h * 0.28;
+    return `<path d="M ${place.x - w / 2} ${place.y - h / 2} H ${place.x + w / 2 - notch} L ${place.x + w / 2} ${place.y} L ${place.x + w / 2 - notch} ${place.y + h / 2} H ${place.x - w / 2} Z" ${fill} ${stroke} ${transform}/><circle cx="${place.x - w * 0.28}" cy="${place.y}" r="${Math.max(2, h * 0.08)}" fill="#ffffff" fill-opacity="0.72" ${transform}/>`;
+  }
+  return `<circle cx="${place.x}" cy="${place.y}" r="${half}" ${fill} ${stroke} ${transform}/>`;
 }
 
 function enableShareMenu() {
