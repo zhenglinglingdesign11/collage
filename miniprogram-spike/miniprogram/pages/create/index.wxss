@@ -2252,6 +2252,28 @@ button::after {
   box-sizing: border-box;
 }
 
+.basic-shape-texture-row {
+  box-sizing: border-box;
+  padding: 14rpx 0 14rpx 14rpx;
+}
+
+.basic-shape-texture-swatch {
+  display: inline-block;
+  width: 52rpx;
+  height: 52rpx;
+  margin: 6rpx 18rpx 6rpx 6rpx;
+  border: 1rpx solid #e8e6e1;
+  border-radius: 14rpx;
+  box-sizing: border-box;
+  vertical-align: top;
+  background: #ffffff;
+}
+
+.basic-shape-texture-swatch.active {
+  outline: 3rpx solid #111111;
+  outline-offset: 4rpx;
+}
+
 .solid-paper-config {
   height: 112rpx;
 }

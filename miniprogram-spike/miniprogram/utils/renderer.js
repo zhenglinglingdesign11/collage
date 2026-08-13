@@ -154,7 +154,7 @@ function drawLayer(ctx, layer, options = {}) {
   } else if (layer.source) {
     drawSourceLayer(ctx, layer, options);
   } else if (isBasicShapeLayer(layer)) {
-    drawBasicShapeLayer(ctx, layer);
+    drawBasicShapeLayer(ctx, layer, options);
   } else if (isCollageSlot(layer)) {
     drawCollagePlaceholder(ctx, layer);
   } else if (layer.type === "brush") {
@@ -1893,6 +1893,8 @@ function normalizeBasicShapeLayerConfig(config = {}) {
   return {
     shape,
     fillColor: config.fillColor || "#f4b8c4",
+    textureSource: config.textureSource || "",
+    textureId: config.textureId || "",
     strokeColor: config.strokeColor || "",
     strokeWidth,
     opacity,
@@ -1901,10 +1903,11 @@ function normalizeBasicShapeLayerConfig(config = {}) {
   };
 }
 
-function drawBasicShapeLayer(ctx, layer) {
+function drawBasicShapeLayer(ctx, layer, options = {}) {
   const style = layer.style || {};
   const config = normalizeBasicShapeLayerConfig(layer.shapeConfig || style.shapeConfig || {});
   const placements = getBasicShapeLayerPlacements(config.count, config.layout, layer.width, layer.height);
+  const textureImage = config.textureSource && options.imageCache ? options.imageCache[config.textureSource] : null;
   ctx.save();
   setShadow(ctx, 0, 0, 0, "transparent");
   setGlobalAlpha(ctx, (ctx.globalAlpha == null ? 1 : ctx.globalAlpha) * config.opacity);
@@ -1923,7 +1926,15 @@ function drawBasicShapeLayer(ctx, layer) {
       return;
     }
     drawBasicShapePath(ctx, config.shape, place.size);
-    ctx.fill();
+    if (textureImage) {
+      ctx.save();
+      ctx.clip();
+      drawBasicShapeTextureFill(ctx, textureImage, place.size);
+      ctx.restore();
+      drawBasicShapePath(ctx, config.shape, place.size);
+    } else {
+      ctx.fill();
+    }
     if (config.strokeColor && config.strokeWidth > 0) ctx.stroke();
     if (config.shape === "tag") {
       setShadow(ctx, 0, 0, 0, "transparent");
@@ -1975,6 +1986,16 @@ function getBasicShapeLayerPlacements(count, layout, width, height) {
     size: minSide * (0.14 + seededUnit(15000 + index * 37) * 0.08),
     rotate: -22 + seededUnit(18000 + index * 71) * 44
   }));
+}
+
+function drawBasicShapeTextureFill(ctx, image, size) {
+  const sourceWidth = Math.max(1, image.width || size);
+  const sourceHeight = Math.max(1, image.height || size);
+  const fillSize = Math.max(size * 1.8, 96);
+  const scale = Math.max(fillSize / sourceWidth, fillSize / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
 }
 
 function drawBasicShapePath(ctx, shape, size) {

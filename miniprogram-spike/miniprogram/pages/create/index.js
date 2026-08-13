@@ -239,17 +239,22 @@ const BASIC_SHAPE_TYPES = [
   { value: "raindrop", label: "雨滴" },
   { value: "diamond", label: "菱" },
   { value: "rounded", label: "圆角" },
-  { value: "snowflake", label: "雪花" },
   { value: "cross", label: "+" },
   { value: "tag", label: "标签" }
 ];
 const BASIC_SHAPE_FILL_COLORS = [
   { value: "#f4b8c4", label: "玫瑰" },
   { value: "#ffd9bf", label: "杏橘" },
+  { value: "#f2dfc6", label: "米色" },
   { value: "#fff2b8", label: "黄油" },
   { value: "#d7f0ed", label: "薄荷" },
+  { value: "#bfe8db", label: "薄荷绿" },
   { value: "#dfe8ff", label: "雾蓝" },
+  { value: "#b9d7ff", label: "水蓝" },
   { value: "#eadcf8", label: "芋紫" },
+  { value: "#f7c8df", label: "樱粉" },
+  { value: "#cfe6bf", label: "青柠" },
+  { value: "#d7c1a7", label: "拿铁" },
   { value: "#ffffff", label: "白" },
   { value: "#111111", label: "黑" }
 ];
@@ -258,14 +263,25 @@ const BASIC_SHAPE_STROKE_COLORS = [
   { value: "#111111", label: "黑" },
   { value: "#ffffff", label: "白" },
   { value: "#d94a38", label: "红" },
+  { value: "#b45d79", label: "玫红" },
   { value: "#5f806f", label: "绿" },
-  { value: "#6d9bc3", label: "蓝" }
+  { value: "#86cdbb", label: "薄荷" },
+  { value: "#6d9bc3", label: "蓝" },
+  { value: "#8b79bd", label: "紫" },
+  { value: "#c79a62", label: "焦糖" }
 ];
 const BASIC_SHAPE_STROKE_WIDTHS = [
   { value: 0, label: "无" },
   { value: 3, label: "细" },
   { value: 6, label: "中" },
   { value: 10, label: "粗" }
+];
+const BASIC_SHAPE_TEXTURES = [
+  { id: "texture-1", label: "材质1", source: "https://assets.zllarchi.site/effects/shape-textures-01.png" },
+  { id: "texture-2", label: "材质2", source: "https://assets.zllarchi.site/effects/shape-textures-02.png" },
+  { id: "texture-3", label: "材质3", source: "https://assets.zllarchi.site/effects/shape-textures-03.png" },
+  { id: "texture-4", label: "材质4", source: "https://assets.zllarchi.site/effects/shape-textures-04.png" },
+  { id: "texture-5", label: "材质5", source: "https://assets.zllarchi.site/effects/shape-textures-05.png" }
 ];
 const BASIC_SHAPE_OPACITIES = [
   { value: 0.38, label: "弱" },
@@ -293,6 +309,7 @@ const ASSET_PANEL_CATEGORY_ORDER = ["推荐", "贴纸", "胶带", "便签", "主
 const POLKA_PAPER_PACK_ID = "polka-paper-materials";
 const LOCAL_BACKGROUND_PAPER_PACK_ID = "local-background-paper-materials";
 const BASIC_SHAPE_PACK_ID = "basic-shape-materials";
+const MATERIAL_BASIC_SHAPE_PACK_ID = "material-basic-shape-materials";
 const PENDING_CREATE_ACTION_STORAGE_KEY = "journal.pendingCreateAction";
 const ASSET_PANEL_PACKS = createAssetPanelPacks();
 const LEGACY_ASSET_SOURCE_MIGRATIONS = [
@@ -427,6 +444,7 @@ Page({
     basicShapeFillColors: BASIC_SHAPE_FILL_COLORS,
     basicShapeStrokeColors: BASIC_SHAPE_STROKE_COLORS,
     basicShapeStrokeWidths: BASIC_SHAPE_STROKE_WIDTHS,
+    basicShapeTextures: BASIC_SHAPE_TEXTURES,
     basicShapeOpacities: BASIC_SHAPE_OPACITIES,
     basicShapeCounts: BASIC_SHAPE_COUNTS,
     basicShapeLayouts: BASIC_SHAPE_LAYOUTS,
@@ -456,6 +474,7 @@ Page({
     basicShapeCustomizing: false,
     selectedBasicShapeType: "circle",
     selectedBasicShapeFill: "#f4b8c4",
+    selectedBasicShapeTexture: BASIC_SHAPE_TEXTURES[0].source,
     selectedBasicShapeStroke: "",
     selectedBasicShapeStrokeWidth: 0,
     selectedBasicShapeOpacity: 1,
@@ -1064,7 +1083,7 @@ Page({
     }
     this.enterEditMode();
     const category = "贴纸";
-    const packId = BASIC_SHAPE_PACK_ID;
+    const packId = action.material ? MATERIAL_BASIC_SHAPE_PACK_ID : BASIC_SHAPE_PACK_ID;
     this.setData({
       activeTool: "asset",
       activeDrawer: "asset",
@@ -2543,6 +2562,10 @@ Page({
     if (patternConfig && patternConfig.shape === "image" && patternConfig.imageSource) {
       await this.loadCanvasImage(patternConfig.imageSource).catch(() => null);
     }
+    const shapeConfig = layer.shapeConfig || layer.style && layer.style.shapeConfig;
+    if (shapeConfig && shapeConfig.textureSource) {
+      await this.loadCanvasImage(shapeConfig.textureSource).catch(() => null);
+    }
     this.scissorCanvasNode.width = outputWidth;
     this.scissorCanvasNode.height = outputHeight;
     const ctx = this.scissorCtx;
@@ -3415,7 +3438,7 @@ Page({
     this.assetPanelRequestId = requestId;
     return Promise.all([
       getResolvedAssetPacks(),
-      packId && ![BASIC_SHAPE_PACK_ID, POLKA_PAPER_PACK_ID, LOCAL_BACKGROUND_PAPER_PACK_ID].includes(packId)
+      packId && ![BASIC_SHAPE_PACK_ID, MATERIAL_BASIC_SHAPE_PACK_ID, POLKA_PAPER_PACK_ID, LOCAL_BACKGROUND_PAPER_PACK_ID].includes(packId)
         ? getResolvedAssetPack(packId)
         : Promise.resolve(getCreateAssetPack(packId))
     ]).then(([packs, pack]) => {
@@ -3875,6 +3898,10 @@ Page({
     this.updateBasicShapeCustom({ fillColor: event.currentTarget.dataset.color });
   },
 
+  setBasicShapeTexture(event) {
+    this.updateBasicShapeCustom({ textureSource: event.currentTarget.dataset.source });
+  },
+
   setBasicShapeStroke(event) {
     const color = event.currentTarget.dataset.color;
     this.updateBasicShapeCustom({
@@ -3908,6 +3935,7 @@ Page({
     this.setData({
       selectedBasicShapeType: next.shape,
       selectedBasicShapeFill: next.fillColor,
+      selectedBasicShapeTexture: next.textureSource || BASIC_SHAPE_TEXTURES[0].source,
       selectedBasicShapeStroke: next.strokeColor,
       selectedBasicShapeStrokeWidth: next.strokeWidth,
       selectedBasicShapeOpacity: next.opacity,
@@ -3918,11 +3946,13 @@ Page({
   },
 
   getBasicShapeCustomConfig() {
+    const isMaterialPack = !!(this.data.activeAssetPack && this.data.activeAssetPack.isMaterialBasicShapePack);
     return normalizeBasicShapeConfig({
       shape: this.data.selectedBasicShapeType,
       fillColor: this.data.selectedBasicShapeFill,
-      strokeColor: this.data.selectedBasicShapeStroke,
-      strokeWidth: this.data.selectedBasicShapeStrokeWidth,
+      textureSource: isMaterialPack ? this.data.selectedBasicShapeTexture : "",
+      strokeColor: isMaterialPack ? "" : this.data.selectedBasicShapeStroke,
+      strokeWidth: isMaterialPack ? 0 : this.data.selectedBasicShapeStrokeWidth,
       opacity: this.data.selectedBasicShapeOpacity,
       count: this.data.selectedBasicShapeCount,
       layout: this.data.selectedBasicShapeLayout
@@ -3930,10 +3960,12 @@ Page({
   },
 
   addCustomBasicShape() {
+    const isMaterialPack = !!(this.data.activeAssetPack && this.data.activeAssetPack.isMaterialBasicShapePack);
     const asset = createBasicShapeAssetFromConfig({
       id: `basic-shape-custom-${Date.now()}`,
-      name: "自定义图形",
-      config: this.getBasicShapeCustomConfig()
+      name: isMaterialPack ? "自定义材质图形" : "自定义图形",
+      config: this.getBasicShapeCustomConfig(),
+      packId: isMaterialPack ? MATERIAL_BASIC_SHAPE_PACK_ID : BASIC_SHAPE_PACK_ID
     });
     const layer = this.addAssetItemToDraft(asset);
     if (!layer) {
@@ -10266,6 +10298,10 @@ function getLayerPatternSources(layers) {
     if (patternConfig && patternConfig.type === "polka" && patternConfig.shape === "image" && patternConfig.imageSource) {
       sources.push(patternConfig.imageSource);
     }
+    const shapeConfig = layer && (layer.shapeConfig || layer.style && layer.style.shapeConfig);
+    if (shapeConfig && shapeConfig.type === "basic-shape" && shapeConfig.textureSource) {
+      sources.push(shapeConfig.textureSource);
+    }
     return sources;
   }, []);
 }
@@ -10402,6 +10438,7 @@ function createAssetPanelPacks(packs) {
   const basePacks = appendLocalGridBackgroundsToPaper04(Array.isArray(packs) ? packs : getAssetPacks());
   const virtualPacks = [
     createBasicShapeAssetPack(),
+    createMaterialBasicShapeAssetPack(),
     createLocalBackgroundPaperAssetPack(),
     createPolkaPaperAssetPack()
   ];
@@ -10447,30 +10484,73 @@ function createBasicShapeAssetPack() {
   };
 }
 
+function createMaterialBasicShapeAssetPack() {
+  const items = createMaterialBasicShapePresetAssets();
+  return {
+    id: MATERIAL_BASIC_SHAPE_PACK_ID,
+    name: "材质基础图形",
+    category: "贴纸",
+    tone: "#ffffff",
+    cover: "",
+    isBasicShapePack: true,
+    isMaterialBasicShapePack: true,
+    coverPreviews: items.slice(0, 4).map((item) => ({
+      previewStyle: item.previewStyle,
+      previewTiles: []
+    })),
+    items
+  };
+}
+
 function createBasicShapePresetAssets() {
   const presets = [
     ["basic-shape-circle-pink", "玫瑰圆点", { shape: "circle", fillColor: "#f4b8c4", strokeColor: "", strokeWidth: 0, opacity: 1, count: 1, layout: "single" }],
-    ["basic-shape-square-soft", "柔色方块", { shape: "square", fillColor: "#eadcf8", strokeColor: "", strokeWidth: 0, opacity: 0.76, count: 1, layout: "single" }],
-    ["basic-shape-triangle-peach", "杏色三角", { shape: "triangle", fillColor: "#ffd9bf", strokeColor: "#111111", strokeWidth: 3, opacity: 0.9, count: 1, layout: "single" }],
+    ["basic-shape-square-soft", "薄荷方块", { shape: "square", fillColor: "#bfe8db", strokeColor: "", strokeWidth: 0, opacity: 0.9, count: 1, layout: "single" }],
+    ["basic-shape-triangle-peach", "黑色三角", { shape: "triangle", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.9, count: 1, layout: "single" }],
     ["basic-shape-heart-row", "爱心一排", { shape: "heart", fillColor: "#ffd9bf", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 3, layout: "row" }],
     ["basic-shape-star-scatter", "星星散落", { shape: "star", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.64, count: 9, layout: "scatter" }],
     ["basic-shape-sparkle-mint", "薄荷四角星", { shape: "sparkle", fillColor: "#d7f0ed", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }],
     ["basic-shape-flower-soft", "四瓣小花", { shape: "flower", fillColor: "#eadcf8", strokeColor: "#ffffff", strokeWidth: 3, opacity: 0.9, count: 1, layout: "single" }],
-    ["basic-shape-raindrop-blue", "雾蓝雨滴", { shape: "raindrop", fillColor: "#dfe8ff", strokeColor: "#6d9bc3", strokeWidth: 4, opacity: 1, count: 1, layout: "single" }],
-    ["basic-shape-diamond-blue", "雾蓝菱形", { shape: "diamond", fillColor: "#dfe8ff", strokeColor: "#6d9bc3", strokeWidth: 6, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-raindrop-blue", "雾蓝雨滴", { shape: "raindrop", fillColor: "#dfe8ff", strokeColor: "", strokeWidth: 0, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-diamond-blue", "黑色菱形", { shape: "diamond", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 1, count: 1, layout: "single" }],
     ["basic-shape-rounded-cream", "奶油圆角", { shape: "rounded", fillColor: "#fff2b8", strokeColor: "#111111", strokeWidth: 3, opacity: 0.92, count: 1, layout: "single" }],
-    ["basic-shape-snowflake-grid", "雪花阵列", { shape: "snowflake", fillColor: "#6d9bc3", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 6, layout: "grid" }],
     ["basic-shape-plus-scatter", "加号散落", { shape: "cross", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.64, count: 9, layout: "scatter" }],
-    ["basic-shape-label", "手写标签", { shape: "tag", fillColor: "#fff2b8", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }]
+    ["basic-shape-label", "米色标签", { shape: "tag", fillColor: "#f2dfc6", strokeColor: "#111111", strokeWidth: 3, opacity: 1, count: 1, layout: "single" }],
+    ["basic-shape-sparkle-grid", "四角星网格", { shape: "sparkle", fillColor: "#d7f0ed", strokeColor: "#111111", strokeWidth: 3, opacity: 0.9, count: 9, layout: "grid" }],
+    ["basic-shape-flower-grid", "四瓣花网格", { shape: "flower", fillColor: "#eadcf8", strokeColor: "#ffffff", strokeWidth: 3, opacity: 0.9, count: 9, layout: "grid" }],
+    ["basic-shape-raindrop-grid", "雨滴网格", { shape: "raindrop", fillColor: "#dfe8ff", strokeColor: "", strokeWidth: 0, opacity: 0.9, count: 9, layout: "grid" }],
+    ["basic-shape-diamond-grid", "菱形网格", { shape: "diamond", fillColor: "#111111", strokeColor: "", strokeWidth: 0, opacity: 0.82, count: 9, layout: "grid" }]
   ];
   return presets.map(([id, name, config]) => createBasicShapeAssetFromConfig({ id, name, config }));
 }
 
+function createMaterialBasicShapePresetAssets() {
+  return createBasicShapePresetAssets().map((asset, index) => {
+    const texture = BASIC_SHAPE_TEXTURES[index % BASIC_SHAPE_TEXTURES.length];
+    const config = normalizeBasicShapeConfig({
+      ...(asset.layer && asset.layer.shapeConfig || {}),
+      fillColor: "#ffffff",
+      strokeColor: "",
+      strokeWidth: 0,
+      textureId: texture.id,
+      textureSource: texture.source,
+      textureName: texture.label
+    });
+    return createBasicShapeAssetFromConfig({
+      id: `material-${asset.id}`,
+      name: asset.name,
+      config,
+      packId: MATERIAL_BASIC_SHAPE_PACK_ID
+    });
+  });
+}
+
 function createBasicShapeAssetFromConfig(options) {
   const config = normalizeBasicShapeConfig(options.config || {});
-  const size = config.count > 1 ? 260 : 180;
+  const size = config.count > 1 ? 340 : 220;
   return {
     id: options.id,
+    packId: options.packId || BASIC_SHAPE_PACK_ID,
     type: "sticker",
     name: options.name || "基础图形",
     width: size,
@@ -10501,11 +10581,38 @@ function normalizeBasicShapeConfig(config = {}) {
   const countValue = Number(config.count) || 1;
   const count = BASIC_SHAPE_COUNTS.some((item) => item.value === countValue) ? countValue : 1;
   const layout = BASIC_SHAPE_LAYOUTS.some((item) => item.value === config.layout) ? config.layout : "single";
-  return { type: "basic-shape", shape, fillColor, strokeColor, strokeWidth, opacity, count, layout };
+  const textureSource = config.textureSource || "";
+  const texture = textureSource
+    ? BASIC_SHAPE_TEXTURES.find((item) => item.source === textureSource || item.id === config.textureId) || null
+    : null;
+  return {
+    type: "basic-shape",
+    shape,
+    fillColor,
+    strokeColor,
+    strokeWidth,
+    opacity,
+    count,
+    layout,
+    textureId: texture ? texture.id : config.textureId || "",
+    textureName: texture ? texture.label : config.textureName || "",
+    textureSource
+  };
 }
 
 function createBasicShapePreviewStyle(config) {
   const normalized = normalizeBasicShapeConfig(config);
+  if (normalized.textureSource) {
+    const mask = createBasicShapeSvgDataUri({
+      ...normalized,
+      textureSource: "",
+      fillColor: "#000000",
+      strokeColor: "",
+      strokeWidth: 0,
+      opacity: 1
+    });
+    return `background-color:transparent;background-image:url("${normalized.textureSource}");background-size:cover;background-position:center;background-repeat:no-repeat;-webkit-mask-image:url("${mask}");mask-image:url("${mask}");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;`;
+  }
   return `background-color:transparent;background-image:url("${createBasicShapeSvgDataUri(normalized)}");background-size:100% 100%;background-repeat:no-repeat;background-position:center;`;
 }
 
@@ -10769,19 +10876,20 @@ function createPolkaPaperCustomPreviewData(background, patternConfig) {
 
 function getCreateAssetPack(packId) {
   if (packId === BASIC_SHAPE_PACK_ID) return createBasicShapeAssetPack();
+  if (packId === MATERIAL_BASIC_SHAPE_PACK_ID) return createMaterialBasicShapeAssetPack();
   if (packId === LOCAL_BACKGROUND_PAPER_PACK_ID) return createLocalBackgroundPaperAssetPack();
   if (packId === POLKA_PAPER_PACK_ID) return createPolkaPaperAssetPack();
   return getAssetPack(packId);
 }
 
 function getCreateAssetItem(assetId) {
-  const virtualItem = [createBasicShapeAssetPack(), createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
+  const virtualItem = [createBasicShapeAssetPack(), createMaterialBasicShapeAssetPack(), createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
     .reduce((match, pack) => match || pack.items.find((item) => item.id === assetId), null);
   return virtualItem || getAssetItem(assetId);
 }
 
 function resolveCreateTransferAsset(assetId) {
-  const virtualItem = [createBasicShapeAssetPack(), createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
+  const virtualItem = [createBasicShapeAssetPack(), createMaterialBasicShapeAssetPack(), createLocalBackgroundPaperAssetPack(), { items: createLocalGridBackgroundPaperAssets() }, createPolkaPaperAssetPack()]
     .reduce((match, pack) => match || pack.items.find((item) => item.id === assetId), null);
   if (virtualItem) return Promise.resolve(virtualItem);
   return getResolvedAssetItem(assetId);
@@ -10799,6 +10907,7 @@ function decorateAssetPanelPack(pack) {
     name: displayName,
     category: normalizeCreateAssetCategory(pack.category),
     isBasicShapePack: !!pack.isBasicShapePack,
+    isMaterialBasicShapePack: !!pack.isMaterialBasicShapePack,
     isPolkaPaperPack: !!pack.isPolkaPaperPack,
     isSolidPaperPack: !!pack.isSolidPaperPack,
     coverStyle: pack.coverStyle || "",
@@ -10857,7 +10966,8 @@ function sortStickyNoteAssetPacks(packs) {
 
 function sortStickerAssetPacks(packs) {
   const priority = {
-    [BASIC_SHAPE_PACK_ID]: 0
+    [BASIC_SHAPE_PACK_ID]: 0,
+    [MATERIAL_BASIC_SHAPE_PACK_ID]: 1
   };
   return (packs || [])
     .map((pack, index) => ({ pack, index }))

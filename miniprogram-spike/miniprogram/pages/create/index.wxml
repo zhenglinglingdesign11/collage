@@ -767,13 +767,19 @@
                         <view wx:for="{{basicShapeTypes}}" wx:key="value" class="polka-segment {{selectedBasicShapeType === item.value ? 'active' : ''}}" data-shape="{{item.value}}" bindtap="setBasicShapeType">{{item.label}}</view>
                       </scroll-view>
                     </view>
-                    <view class="polka-config-row">
+                    <view wx:if="{{!activeAssetPack.isMaterialBasicShapePack}}" class="polka-config-row">
                       <view class="polka-config-label">填充</view>
                       <scroll-view scroll-x class="polka-swatch-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                         <view wx:for="{{basicShapeFillColors}}" wx:key="value" class="polka-swatch {{selectedBasicShapeFill === item.value ? 'active' : ''}}" style="background-color: {{item.value}};" data-color="{{item.value}}" bindtap="setBasicShapeFill"></view>
                       </scroll-view>
                     </view>
-                    <view class="polka-config-row compact">
+                    <view wx:else class="polka-config-row">
+                      <view class="polka-config-label">材质</view>
+                      <scroll-view scroll-x class="polka-swatch-row basic-shape-texture-row" enhanced="{{true}}" show-scrollbar="{{false}}">
+                        <image wx:for="{{basicShapeTextures}}" wx:key="source" class="basic-shape-texture-swatch {{selectedBasicShapeTexture === item.source ? 'active' : ''}}" src="{{item.source}}" data-source="{{item.source}}" bindtap="setBasicShapeTexture" mode="aspectFill"></image>
+                      </scroll-view>
+                    </view>
+                    <view wx:if="{{!activeAssetPack.isMaterialBasicShapePack}}" class="polka-config-row compact">
                       <view class="polka-config-label">描边</view>
                       <scroll-view scroll-x class="polka-segment-row" enhanced="{{true}}" show-scrollbar="{{false}}">
                         <view wx:for="{{basicShapeStrokeColors}}" wx:key="value" class="polka-segment basic-shape-stroke {{selectedBasicShapeStroke === item.value ? 'active' : ''}}" data-color="{{item.value}}" bindtap="setBasicShapeStroke">
@@ -782,7 +788,7 @@
                         </view>
                       </scroll-view>
                     </view>
-                    <view class="polka-config-row compact">
+                    <view wx:if="{{!activeAssetPack.isMaterialBasicShapePack}}" class="polka-config-row compact">
                       <view class="polka-config-label">粗细</view>
                       <view class="polka-segment-row">
                         <view wx:for="{{basicShapeStrokeWidths}}" wx:key="value" class="polka-segment {{selectedBasicShapeStrokeWidth == item.value ? 'active' : ''}}" data-width="{{item.value}}" bindtap="setBasicShapeStrokeWidth">{{item.label}}</view>

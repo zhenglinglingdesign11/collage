@@ -82,7 +82,7 @@
         <view
           wx:for="{{detailPack.items}}"
           wx:key="id"
-          class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}} {{item.packId === 'basic-shape-materials' ? 'basic-shape-detail-item' : ''}} {{item.isCustomPolkaEntry || item.isCustomSolidEntry || item.isCustomBasicShapeEntry ? 'custom-polka-entry' : ''}}"
+          class="detail-asset floating-piece {{item.layoutClass}} {{item.assetClass}} {{item.selected ? 'selected' : ''}} {{item.packId === 'basic-shape-materials' || item.packId === 'material-basic-shape-materials' ? 'basic-shape-detail-item' : ''}} {{item.isCustomPolkaEntry || item.isCustomSolidEntry || item.isCustomBasicShapeEntry ? 'custom-polka-entry' : ''}}"
           style="{{item.detailStyle}}"
           data-asset-id="{{item.id}}"
           bindtap="selectDetailAsset"
@@ -97,7 +97,7 @@
           <block wx:elif="{{item.thumb}}">
             <image class="detail-thumb" src="{{item.thumb}}" mode="aspectFit"></image>
           </block>
-          <view wx:else class="detail-thumb detail-thumb-css {{item.packId === 'basic-shape-materials' ? 'basic-shape-detail-thumb' : ''}}" style="{{item.previewStyle}}">
+          <view wx:else class="detail-thumb detail-thumb-css {{item.packId === 'basic-shape-materials' || item.packId === 'material-basic-shape-materials' ? 'basic-shape-detail-thumb' : ''}}" style="{{item.previewStyle}}">
             <image
               wx:for="{{item.previewTiles}}"
               wx:for-item="tile"
