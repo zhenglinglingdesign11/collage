@@ -3,6 +3,7 @@ const path = require("path");
 
 const repoRoot = path.resolve(__dirname, "..", "..");
 const packsModule = path.join(repoRoot, "miniprogram-spike", "miniprogram", "config", "assets", "packs");
+const DEFAULT_REMOTE_ASSET_ROOT = "https://assets.zllarchi.site/packs";
 const { imagePackDefinitions } = require(packsModule);
 
 function itemTypeForCategory(category) {
@@ -17,18 +18,31 @@ function itemId(packId, fileName) {
     .replace(/[^a-zA-Z0-9]+/g, "-")}`;
 }
 
+function resolvePackBaseUrl(pack) {
+  const configuredBaseUrl = pack.baseUrl || pack.cloudBasePath || "";
+  if (configuredBaseUrl) {
+    return String(configuredBaseUrl).replace(/\/+$/, "");
+  }
+  return `${DEFAULT_REMOTE_ASSET_ROOT}/${pack.id}`.replace(/\/+$/, "");
+}
+
+function resolvePackAssetUrl(pack, relativePath) {
+  const baseUrl = resolvePackBaseUrl(pack);
+  return `${baseUrl}/${String(relativePath).replace(/^\/+/, "")}`;
+}
+
 const packs = imagePackDefinitions.map((pack) => ({
   id: pack.id,
   name: pack.name,
   category: pack.category,
   tone: pack.tone,
-  cover: `packs/${pack.id}/${pack.cover}`,
+  cover: resolvePackAssetUrl(pack, pack.cover),
   version: 1,
   items: pack.items.map((item) => ({
     id: itemId(pack.id, item[0]),
     type: itemTypeForCategory(pack.category),
     name: item[3] || `${pack.name} ${String(item[0]).replace(/\.[^.]+$/, "")}`,
-    source: `packs/${pack.id}/items/${item[0]}`,
+    source: resolvePackAssetUrl(pack, `items/${item[0]}`),
     width: item[1],
     height: item[2]
   }))

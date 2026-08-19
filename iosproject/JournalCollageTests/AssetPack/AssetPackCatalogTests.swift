@@ -21,4 +21,13 @@ final class AssetPackCatalogTests: XCTestCase {
         XCTAssertTrue(items.allSatisfy { !$0.source.isEmpty })
         XCTAssertTrue(items.allSatisfy { $0.width > 0 && $0.height > 0 })
     }
+
+    func testAssetSourcesUseRemoteURLsWhenAvailable() throws {
+        let catalog = try AssetPackRepository.loadBundledCatalog()
+        let items = catalog.packs.flatMap(\.items)
+
+        XCTAssertFalse(items.isEmpty)
+        XCTAssertTrue(items.allSatisfy { $0.source.hasPrefix("http://") || $0.source.hasPrefix("https://") })
+        XCTAssertNotNil(ImageSourceResolver.url(for: "https://assets.zllarchi.site/packs/stickers/items/1.png"))
+    }
 }

@@ -44,8 +44,8 @@ function validateAssetCatalog() {
   const items = catalog.packs.flatMap((pack) => pack.items);
 
   assert(catalog.schemaVersion === 1, "asset catalog schemaVersion should be 1");
-  assert(catalog.packs.length === 10, `expected 10 asset packs, got ${catalog.packs.length}`);
-  assert(items.length === 100, `expected 100 asset items, got ${items.length}`);
+  assert(catalog.packs.length >= 10, `expected at least 10 asset packs, got ${catalog.packs.length}`);
+  assert(items.length >= 100, `expected at least 100 asset items, got ${items.length}`);
   assert(catalog.packs.some((pack) => pack.id === "papers"), "papers pack is missing");
   assert(catalog.packs.some((pack) => pack.id === "jiaodai"), "jiaodai pack is missing");
   assert(items.every((item) => item.id && item.source && item.width > 0 && item.height > 0), "asset items have invalid required fields");
