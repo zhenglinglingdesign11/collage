@@ -144,11 +144,17 @@ struct LayerTearShape: Shape {
     func path(in rect: CGRect) -> Path {
         let points = LayerTearPath.points(for: layer)
         guard points.count >= 3 else { return Path(rect) }
+
         var path = Path()
+        let width = max(1.0, layer.width)
+        let height = max(1.0, layer.height)
+
         for (index, point) in points.enumerated() {
+            let xRatio = point.x / width
+            let yRatio = point.y / height
             let mapped = CGPoint(
-                x: rect.minX + CGFloat(point.x / max(1, layer.width)) * rect.width,
-                y: rect.minY + CGFloat(point.y / max(1, layer.height)) * rect.height
+                x: rect.minX + CGFloat(xRatio) * rect.width,
+                y: rect.minY + CGFloat(yRatio) * rect.height
             )
             if index == 0 {
                 path.move(to: mapped)

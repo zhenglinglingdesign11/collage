@@ -1,11 +1,6 @@
 import CoreGraphics
 import UIKit
 
-struct BrushPoint: Codable, Equatable, Sendable {
-    var x: Double
-    var y: Double
-}
-
 enum BrushMaskRenderer {
     static let maskSize = CGSize(width: 1024, height: 1024)
     static let lineWidth = 72.0

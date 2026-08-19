@@ -1,6 +1,7 @@
 import Foundation
 import Photos
 import PhotosUI
+import SwiftUI
 import UniformTypeIdentifiers
 
 struct ImportedLivePhoto: Equatable, Sendable {
@@ -101,7 +102,7 @@ enum LivePhotoImporter {
             try? FileManager.default.removeItem(at: tempURL)
         }
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             PHAssetResourceManager.default().writeData(for: resource, toFile: tempURL, options: nil) { error in
                 if let error {
                     continuation.resume(throwing: error)
