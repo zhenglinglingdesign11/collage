@@ -85,7 +85,7 @@ enum MultiLiveVideoExporter {
 
         for frameIndex in 0..<frameCount {
             while !input.isReadyForMoreMediaData {
-                Thread.sleep(forTimeInterval: 0.01)
+                try await Task.sleep(for: .milliseconds(10))
             }
 
             let presentationTime = CMTimeMultiply(frameDuration, multiplier: Int32(frameIndex))

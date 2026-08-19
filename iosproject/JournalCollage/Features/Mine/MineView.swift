@@ -108,14 +108,23 @@ struct MineView: View {
             }
             .confirmationDialog(
                 L10n.t("mine.delete_draft.title"),
-                item: $draftPendingDeletion,
+                isPresented: Binding(
+                    get: { draftPendingDeletion != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            draftPendingDeletion = nil
+                        }
+                    }
+                ),
                 titleVisibility: .visible
-            ) { summary in
-                Button(L10n.t("mine.delete_drafts"), role: .destructive) {
-                    deleteDraft(summary)
+            ) {
+                if let summary = draftPendingDeletion {
+                    Button(L10n.t("mine.delete_drafts"), role: .destructive) {
+                        deleteDraft(summary)
+                    }
                 }
                 Button(L10n.t("editor.leave.cancel"), role: .cancel) {}
-            } message: { _ in
+            } message: {
                 Text(L10n.t("mine.delete_draft.warning"))
             }
             .onAppear {

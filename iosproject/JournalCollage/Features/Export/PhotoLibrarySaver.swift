@@ -19,7 +19,7 @@ enum PhotoLibrarySaver {
     static func save(_ image: UIImage) async throws {
         try await authorizeAddOnly()
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.creationRequestForAsset(from: image)
             } completionHandler: { success, error in
@@ -37,7 +37,7 @@ enum PhotoLibrarySaver {
     static func saveLivePhoto(photoURL: URL, pairedVideoURL: URL) async throws {
         try await authorizeAddOnly()
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             PHPhotoLibrary.shared().performChanges {
                 let request = PHAssetCreationRequest.forAsset()
                 let photoOptions = PHAssetResourceCreationOptions()
@@ -62,7 +62,7 @@ enum PhotoLibrarySaver {
     static func saveVideo(fileURL: URL) async throws {
         try await authorizeAddOnly()
 
-        try await withCheckedThrowingContinuation { continuation in
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             PHPhotoLibrary.shared().performChanges {
                 let request = PHAssetCreationRequest.forAsset()
                 let options = PHAssetResourceCreationOptions()
