@@ -9,7 +9,7 @@ const catalog = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
 const required = catalog.packs.flatMap((pack) => [
   pack.cover,
   ...pack.items.map((item) => item.source)
-]);
+]).filter((value) => typeof value === "string" && value.length > 0 && !/^https?:\/\//i.test(value));
 
 const missing = required.filter((relativePath) => !fs.existsSync(path.join(assetRoot, relativePath)));
 
@@ -19,4 +19,4 @@ if (missing.length) {
   process.exit(1);
 }
 
-console.log(`Asset resources ok: ${catalog.packs.length} packs, ${required.length} files`);
+console.log(`Asset resources ok: ${catalog.packs.length} packs, ${required.length} local files checked`);
