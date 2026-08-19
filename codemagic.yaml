@@ -60,7 +60,7 @@ workflows:
             -scheme "JournalCollage" \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=18.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=17.5' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
