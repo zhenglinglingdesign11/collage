@@ -17,11 +17,6 @@ struct CropBox: Codable, Equatable, Sendable {
     var height: Double
 }
 
-struct BrushPoint: Codable, Equatable, Sendable {
-    var x: Double
-    var y: Double
-}
-
 enum BrushType: String, Codable, CaseIterable, Identifiable, Sendable {
     case line
     case stitch
