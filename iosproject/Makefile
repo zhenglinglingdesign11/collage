@@ -1,8 +1,10 @@
+SHELL := /bin/sh
+
 .PHONY: assets validate preflight project bootstrap clean
 
 assets:
 	node Scripts/generate-asset-catalog.js
-	bash Scripts/sync-assets.sh
+	$(SHELL) Scripts/sync-assets.sh
 
 validate:
 	node Scripts/validate-resources.js
