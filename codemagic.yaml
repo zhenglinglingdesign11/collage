@@ -29,4 +29,42 @@ workflows:
             build
 
     artifacts:
-      - "iosproject/**/*.app"
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app
+
+
+  ios-simulator:
+    name: iOS Simulator
+
+    working_directory: iosproject
+
+    environment:
+      xcode: 16.4
+
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen
+
+      - name: Generate iOS project
+        script: |
+          make bootstrap
+
+      - name: List available simulators
+        script: |
+          xcrun simctl list devices available
+
+      - name: Build iOS Simulator app
+        script: |
+          xcodebuild \
+            -project *.xcodeproj \
+            -scheme "JournalCollage" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=18.5' \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+    artifacts:
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/**/*.app
