@@ -7,7 +7,8 @@ $fallbackSourceRoot = Join-Path $RepoRoot "source-assets\packs"
 $targetRoot = Join-Path $RepoRoot "iosproject\JournalCollage\Resources\AssetPacks\packs"
 
 if (!(Test-Path -LiteralPath $primarySourceRoot) -and !(Test-Path -LiteralPath $fallbackSourceRoot)) {
-  throw "No source asset folders found."
+  Write-Host "No local source asset folders found; remote CDN asset URLs are enabled, skipping local sync."
+  return
 }
 
 New-Item -ItemType Directory -Force -Path $targetRoot | Out-Null
@@ -28,6 +29,9 @@ $packNames | Sort-Object -Unique | ForEach-Object {
   }
 
   $targetPack = Join-Path $targetRoot $packName
+  if (Test-Path -LiteralPath $targetPack) {
+    Remove-Item -LiteralPath $targetPack -Recurse -Force
+  }
   New-Item -ItemType Directory -Force -Path $targetPack | Out-Null
 
   $cover = Join-Path $sourcePack "pack-sheet.jpg"
@@ -39,8 +43,9 @@ $packNames | Sort-Object -Unique | ForEach-Object {
   if (Test-Path -LiteralPath $sourceItems) {
     $targetItems = Join-Path $targetPack "items"
     New-Item -ItemType Directory -Force -Path $targetItems | Out-Null
-    Get-ChildItem -LiteralPath $sourceItems -File | ForEach-Object {
-      Copy-Item -LiteralPath $_.FullName -Destination $targetItems -Force
+    $items = @(Get-ChildItem -LiteralPath $sourceItems -File)
+    foreach ($item in $items) {
+      Copy-Item -LiteralPath $item.FullName -Destination $targetItems -Force
     }
   }
 }

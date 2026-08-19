@@ -8,11 +8,12 @@ FALLBACK_SOURCE_ROOT="$REPO_ROOT/source-assets/packs"
 TARGET_ROOT="$REPO_ROOT/iosproject/JournalCollage/Resources/AssetPacks/packs"
 
 if [[ ! -d "$PRIMARY_SOURCE_ROOT" && ! -d "$FALLBACK_SOURCE_ROOT" ]]; then
-  echo "No source asset folders found." >&2
-  exit 1
+  echo "No local source asset folders found; remote CDN asset URLs are enabled, skipping local sync." >&2
+  exit 0
 fi
 
 mkdir -p "$TARGET_ROOT"
+shopt -s nullglob
 
 pack_names="$(
   {
@@ -29,6 +30,7 @@ while IFS= read -r pack_name; do
   fi
 
   target_pack="$TARGET_ROOT/$pack_name"
+  rm -rf "$target_pack"
   mkdir -p "$target_pack"
 
   if [[ -f "$pack/pack-sheet.jpg" ]]; then
@@ -37,7 +39,10 @@ while IFS= read -r pack_name; do
 
   if [[ -d "$pack/items" ]]; then
     mkdir -p "$target_pack/items"
-    cp "$pack/items"/* "$target_pack/items/"
+    for item_path in "$pack/items"/*; do
+      [[ -e "$item_path" ]] || continue
+      cp "$item_path" "$target_pack/items/"
+    done
   fi
 done <<< "$pack_names"
 
