@@ -5,7 +5,7 @@ workflows:
     working_directory: iosproject
 
     environment:
-      xcode: latest
+      xcode: 16.4
 
     scripts:
       - name: Install XcodeGen
