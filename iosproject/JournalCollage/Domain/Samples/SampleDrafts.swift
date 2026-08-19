@@ -2,6 +2,19 @@ import Foundation
 
 enum SampleDrafts {
     static var starter: Draft {
+        let paperStyle: [String: JSONValue] = [
+            "color": .string("#efe7d8")
+        ]
+        let tapeStyle: [String: JSONValue] = [
+            "color": .string("#e9d28a")
+        ]
+        let textStyle: [String: JSONValue] = [
+            "fontId": .string("system"),
+            "fontLabel": .string("System"),
+            "fontSize": .number(54),
+            "color": .string("#111111")
+        ]
+
         var draft = Draft(ratio: .portrait)
         draft.id = "sample-starter"
         draft.background = "#fdfdfb"
@@ -9,7 +22,7 @@ enum SampleDrafts {
         draft.layers = [
             Layer(
                 id: "sample-paper",
-                type: .paper,
+                type: LayerType.paper,
                 x: 150,
                 y: 180,
                 width: 560,
@@ -17,13 +30,11 @@ enum SampleDrafts {
                 rotation: 2,
                 zIndex: 1,
                 shadow: true,
-                style: [
-                    "color": .string("#efe7d8")
-                ]
+                style: paperStyle
             ),
             Layer(
                 id: "sample-photo",
-                type: .image,
+                type: LayerType.image,
                 x: 235,
                 y: 260,
                 width: 430,
@@ -35,7 +46,7 @@ enum SampleDrafts {
             ),
             Layer(
                 id: "sample-tape",
-                type: .tape,
+                type: LayerType.tape,
                 x: 315,
                 y: 220,
                 width: 300,
@@ -43,13 +54,11 @@ enum SampleDrafts {
                 rotation: -8,
                 opacity: 0.92,
                 zIndex: 3,
-                style: [
-                    "color": .string("#e9d28a")
-                ]
+                style: tapeStyle
             ),
             Layer(
                 id: "sample-text",
-                type: .text,
+                type: LayerType.text,
                 x: 450,
                 y: 835,
                 width: 300,
@@ -57,12 +66,7 @@ enum SampleDrafts {
                 rotation: -3,
                 zIndex: 4,
                 text: "weekend",
-                style: [
-                    "fontId": .string("system"),
-                    "fontLabel": .string("System"),
-                    "fontSize": .number(54),
-                    "color": .string("#111111")
-                ]
+                style: textStyle
             )
         ]
         return draft
