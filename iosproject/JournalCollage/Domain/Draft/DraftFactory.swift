@@ -99,7 +99,7 @@ enum DraftFactory {
             zIndex: nextLayerOrder(in: draft),
             brushWidth: bounds.width,
             brushHeight: bounds.height,
-            strokes: normalizeBrushStrokes(strokes, origin: bounds.origin),
+            strokes: normalizeBrushStrokes(strokes: strokes, origin: bounds.origin),
             style: [
                 LayerStyleKey.brushType: .string("decorative")
             ]
