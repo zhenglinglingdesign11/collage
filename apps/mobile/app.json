@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "JournalCollage",
+    "slug": "journal-collage",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.journalcollage.app",
+      "infoPlist": {
+        "NSPhotoLibraryAddUsageDescription": "JournalCollage saves your finished collages to your photo library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.journalcollage.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "./plugins/withAndroidTls12",
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "JournalCollage uses selected photos to create your private collages.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "JournalCollage saves your finished collages to your photo library."
+        }
+      ]
+    ]
+  }
+}
