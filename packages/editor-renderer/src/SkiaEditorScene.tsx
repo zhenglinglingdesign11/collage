@@ -1,6 +1,7 @@
 import {
   BlurMask,
   Circle,
+  Canvas,
   Fill,
   Group,
   Image as SkiaImage,
@@ -28,12 +29,55 @@ export type ActiveLayerPresentation = Readonly<{
   transform: SharedValue<Transforms3d>;
 }>;
 
+/** Product asset metadata supplied at render time; never persisted in a Draft. */
+export type ProceduralPaperPaint = Readonly<{
+  background: string;
+  pattern: 'solid' | 'dot' | 'line' | 'square' | 'polka';
+  foreground?: string;
+  shape?: 'circle' | 'heart' | 'square' | 'diamond' | 'star' | 'cross' | 'image';
+  opacity?: number;
+  radius?: number;
+  gap?: number;
+  style?: 'solid' | 'soft' | 'outline';
+  offset?: 'grid' | 'staggered';
+  imageAsset?: '24' | '7' | '1';
+}>;
+
+export type ProceduralStickerPaint = Readonly<{
+  shape: 'circle' | 'square' | 'triangle' | 'heart' | 'star' | 'sparkle' | 'flower' | 'raindrop' | 'diamond' | 'rounded' | 'cross' | 'tag';
+  fillColor: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+  opacity: number;
+  count: 1 | 3 | 6 | 9;
+  layout: 'single' | 'row' | 'grid' | 'scatter';
+  textureSource?: string;
+}>;
+
+/** A lightweight product-surface preview that uses the exact canvas paper renderer. */
+export const ProceduralPaperPreview = ({ paper, patternImageUri, size }: Readonly<{ paper: ProceduralPaperPaint; patternImageUri?: string; size: { width: number; height: number } }>) => (
+  <Canvas style={{ height: size.height, width: size.width }}>
+    <Group transform={[{ scaleX: size.width / 580 }, { scaleY: size.height / 760 }]}><ProceduralPaperLayer frame={{ width: 580, height: 760 }} paper={paper} patternImageUri={patternImageUri} /></Group>
+  </Canvas>
+);
+
+/** Uses the same compositing code as an editor layer, so drawer artwork cannot drift from the canvas. */
+export const ProceduralStickerPreview = ({ sticker, size, textureUri }: Readonly<{ sticker: ProceduralStickerPaint; size: { width: number; height: number }; textureUri?: string | null }>) => (
+  <Canvas style={{ height: size.height, width: size.width }}>
+    <ProceduralStickerLayer frame={size} sticker={sticker} textureUri={textureUri} />
+  </Canvas>
+);
+
 type SkiaEditorSceneProps = Readonly<{
   draft: Draft;
   viewport: CanvasViewport;
   activeLayer: ActiveLayerPresentation;
   assetUris?: Readonly<Record<string, string>>;
+  proceduralPapers?: Readonly<Record<string, ProceduralPaperPaint>>;
+  proceduralStickers?: Readonly<Record<string, ProceduralStickerPaint>>;
   showSelection?: boolean;
+  /** Preview-only stage color. It is deliberately not stored in the Draft. */
+  surfaceColor?: string;
 }>;
 
 /**
@@ -41,9 +85,9 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, showSelection = true }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, showSelection = true, surfaceColor = '#D9D2C7' }: SkiaEditorSceneProps) => (
   <>
-    <Fill color="#D9D2C7" />
+    <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
       <RoundedRect
         x={0}
@@ -60,6 +104,8 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           selected={showSelection && draft.selectedLayerId === layer.id}
           transform={activeLayer.layerId === layer.id ? activeLayer.transform : layerTransform(layer)}
           assetUri={layer.type === 'image' ? assetUris[layer.asset.id] : undefined}
+          proceduralPaper={layer.type === 'image' ? proceduralPapers[layer.asset.id] : undefined}
+          proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
         />
       ))}
     </Group>
@@ -71,9 +117,11 @@ type SkiaLayerProps = Readonly<{
   selected: boolean;
   transform: Transforms3d | SharedValue<Transforms3d>;
   assetUri?: string;
+  proceduralPaper?: ProceduralPaperPaint;
+  proceduralSticker?: ProceduralStickerPaint;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker }: SkiaLayerProps) => {
   const { frame } = layer;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
@@ -90,7 +138,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri }: SkiaLayerProps) => 
     <Group transform={transform} origin={{ x: frame.width / 2, y: frame.height / 2 }} opacity={layer.opacity}>
       {shadow && <Group transform={[{ translateX: shadow.offset.x }, { translateY: shadow.offset.y }]} opacity={shadow.opacity}><Path path={shapePath} color={shadow.color}><BlurMask blur={shadow.blur} style="normal" /></Path></Group>}
       <Group clip={shapePath}>
-        {layer.type === 'image' && <ImagePlaceholder layer={layer} assetUri={assetUri} />}
+        {layer.type === 'image' && <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
         {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
         {layer.type === 'brush' && <BrushPlaceholder layer={layer} />}
         {layer.type === 'text' && <><RoundedRect x={0} y={0} width={frame.width} height={frame.height} r={20} color="#FFFDF9" /><Text x={34} y={frame.height / 2 + layer.fontSize / 3} text={layer.text} font={font} color={layer.color} /></>}
@@ -98,21 +146,158 @@ const SkiaLayer = ({ layer, selected, transform, assetUri }: SkiaLayerProps) => 
       {outline && <Path path={shapePath} color={outline.color} style="stroke" strokeWidth={outline.width} />}
       {selected && (
         <>
-          <Rect x={-12} y={-12} width={frame.width + 24} height={frame.height + 24} color="#4A6F9A" style="stroke" strokeWidth={8} />
-          <Circle cx={frame.width / 2} cy={-12} r={13} color="#4A6F9A" />
+          <Rect x={-8} y={-8} width={frame.width + 16} height={frame.height + 16} color="#111111" style="stroke" strokeWidth={6} />
+          <Rect x={-14} y={-14} width={16} height={16} color="#111111" />
+          <Rect x={frame.width - 2} y={-14} width={16} height={16} color="#111111" />
+          <Rect x={-14} y={frame.height - 2} width={16} height={16} color="#111111" />
+          <Rect x={frame.width - 2} y={frame.height - 2} width={16} height={16} color="#111111" />
         </>
       )}
     </Group>
   );
 };
 
-const ImagePlaceholder = ({ layer, assetUri }: { layer: Extract<Layer, { type: 'image' }>; assetUri?: string }) => {
+const ImagePlaceholder = ({ layer, assetUri, proceduralPaper, proceduralSticker }: { layer: Extract<Layer, { type: 'image' }>; assetUri?: string; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {
   const image = useImage(assetUri);
+  if (proceduralPaper !== undefined) return <ProceduralPaperLayer frame={layer.frame} paper={proceduralPaper} patternImageUri={assetUri} />;
+  if (proceduralSticker !== undefined) return <ProceduralStickerLayer frame={layer.frame} sticker={proceduralSticker} textureUri={assetUri} />;
   return (
   <Group transform={[{ translateX: -layer.crop.x * layer.frame.width / layer.crop.width }, { translateY: -layer.crop.y * layer.frame.height / layer.crop.height }, { scaleX: 1 / layer.crop.width }, { scaleY: 1 / layer.crop.height }]}>
     {image ? <SkiaImage image={image} x={0} y={0} width={layer.frame.width} height={layer.frame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={layer.frame.width} height={layer.frame.height} r={28} color="#5E7D79" /><Circle cx={layer.frame.width * 0.76} cy={layer.frame.height * 0.24} r={layer.frame.width * 0.1} color="#F8D88B" /><Rect x={0} y={layer.frame.height * 0.55} width={layer.frame.width} height={layer.frame.height * 0.45} color="#355C58" /><Rect x={0} y={layer.frame.height * 0.7} width={layer.frame.width} height={layer.frame.height * 0.3} color="#284A47" /></>}
   </Group>
   );
+};
+
+const ProceduralStickerLayer = ({ frame, sticker, textureUri }: { frame: { width: number; height: number }; sticker: ProceduralStickerPaint; textureUri?: string | null }) => {
+  const texture = useImage(textureUri === undefined ? sticker.textureSource : textureUri);
+  const placements = useMemo(() => makeStickerPlacements(sticker), [sticker]);
+  const scale = Math.min(frame.width, frame.height) / 128;
+  const offsetX = (frame.width - 128 * scale) / 2;
+  const offsetY = (frame.height - 128 * scale) / 2;
+  return <>{placements.map((placement, index) => {
+    const cx = offsetX + placement.x * scale;
+    const cy = offsetY + placement.y * scale;
+    const path = makeStickerPath(sticker.shape, cx, cy, placement.size * scale);
+    return <Group key={index} transform={[{ rotate: placement.rotation * Math.PI / 180 }]} origin={{ x: cx, y: cy }}>
+      {texture ? <Group clip={path} opacity={sticker.opacity}><SkiaImage image={texture} x={0} y={0} width={frame.width} height={frame.height} fit="cover" /></Group> : <Path path={path} color={sticker.fillColor} opacity={sticker.opacity} />}
+      {sticker.strokeColor && (sticker.strokeWidth ?? 0) > 0 && <Path path={path} color={sticker.strokeColor} style="stroke" strokeWidth={(sticker.strokeWidth ?? 0) * scale} opacity={sticker.opacity} />}
+    </Group>;
+  })}</>;
+};
+
+const makeStickerPlacements = (sticker: ProceduralStickerPaint): readonly Readonly<{ x: number; y: number; size: number; rotation: number }>[] => {
+  if (sticker.layout === 'single') return [{ x: 64, y: 64, size: 42, rotation: 0 }];
+  // Hearts are optically wider than a circle at the same nominal size. Keep
+  // the row airy, while scaling down a six/nine item row to stay in bounds.
+  if (sticker.layout === 'row') {
+    if (sticker.count === 1) return [{ x: 64, y: 64, size: 24, rotation: 0 }];
+    const size = sticker.count === 3 ? 14 : sticker.count === 6 ? 9 : 7;
+    // Leave 20 logical pixels at each side after accounting for the widest
+    // silhouette. This keeps texture-clipped shapes intact at the row edges.
+    const start = 32;
+    const spacing = 64 / (sticker.count - 1);
+    return Array.from({ length: sticker.count }, (_, index) => ({ x: start + index * spacing, y: 64, size, rotation: 0 }));
+  }
+  if (sticker.layout === 'grid') return Array.from({ length: sticker.count }, (_, index) => ({ x: 32 + index % 3 * 32, y: 34 + Math.floor(index / 3) * 32, size: 14, rotation: 0 }));
+  return Array.from({ length: sticker.count }, (_, index) => ({ x: 24 + Math.abs(Math.sin(index * 2.1)) * 72, y: 24 + Math.abs(Math.cos(index * 1.7)) * 72, size: 11 + index % 3 * 2, rotation: -18 + index % 5 * 9 }));
+};
+
+const makeStickerPath = (shape: ProceduralStickerPaint['shape'], cx: number, cy: number, size: number) => {
+  const path = Skia.Path.Make();
+  const addPolygon = (points: readonly Readonly<{ x: number; y: number }>[]) => {
+    points.forEach((point, index) => index === 0 ? path.moveTo(point.x, point.y) : path.lineTo(point.x, point.y));
+    path.close();
+  };
+  if (shape === 'circle') { path.addCircle(cx, cy, size); return path; }
+  if (shape === 'square') { path.addRect({ x: cx - size, y: cy - size, width: size * 2, height: size * 2 }); return path; }
+  if (shape === 'rounded') {
+    const r = size * 0.3; const left = cx - size; const top = cy - size; const right = cx + size; const bottom = cy + size;
+    path.moveTo(left + r, top); path.lineTo(right - r, top); path.quadTo(right, top, right, top + r); path.lineTo(right, bottom - r); path.quadTo(right, bottom, right - r, bottom); path.lineTo(left + r, bottom); path.quadTo(left, bottom, left, bottom - r); path.lineTo(left, top + r); path.quadTo(left, top, left + r, top); path.close(); return path;
+  }
+  if (shape === 'triangle') { addPolygon([{ x: cx, y: cy - size }, { x: cx + size, y: cy + size }, { x: cx - size, y: cy + size }]); return path; }
+  if (shape === 'diamond') { addPolygon([{ x: cx, y: cy - size }, { x: cx + size, y: cy }, { x: cx, y: cy + size }, { x: cx - size, y: cy }]); return path; }
+  if (shape === 'cross') { const arm = size * 0.3; addPolygon([{ x: cx - arm, y: cy - size }, { x: cx + arm, y: cy - size }, { x: cx + arm, y: cy - arm }, { x: cx + size, y: cy - arm }, { x: cx + size, y: cy + arm }, { x: cx + arm, y: cy + arm }, { x: cx + arm, y: cy + size }, { x: cx - arm, y: cy + size }, { x: cx - arm, y: cy + arm }, { x: cx - size, y: cy + arm }, { x: cx - size, y: cy - arm }, { x: cx - arm, y: cy - arm }]); return path; }
+  if (shape === 'tag') { addPolygon([{ x: cx - size, y: cy - size * 0.65 }, { x: cx + size * 0.42, y: cy - size * 0.65 }, { x: cx + size, y: cy }, { x: cx + size * 0.42, y: cy + size * 0.65 }, { x: cx - size, y: cy + size * 0.65 }]); return path; }
+  if (shape === 'heart') {
+    path.moveTo(cx, cy + size * 0.84); path.cubicTo(cx - size * 1.5, cy - size * 0.05, cx - size, cy - size * 1.25, cx, cy - size * 0.35); path.cubicTo(cx + size, cy - size * 1.25, cx + size * 1.5, cy - size * 0.05, cx, cy + size * 0.84); path.close(); return path;
+  }
+  if (shape === 'raindrop') { path.moveTo(cx, cy - size); path.cubicTo(cx + size * 1.1, cy + size * 0.1, cx + size * 0.75, cy + size, cx, cy + size); path.cubicTo(cx - size * 0.75, cy + size, cx - size * 1.1, cy + size * 0.1, cx, cy - size); path.close(); return path; }
+  if (shape === 'flower') {
+    // One continuous four-lobed contour: unlike four overlapping circles it
+    // has no internal stroke seams when a custom outline is enabled.
+    for (let index = 0; index <= 72; index += 1) {
+      const angle = -Math.PI / 2 + index / 72 * Math.PI * 2;
+      const distance = size * (0.56 + 0.32 * Math.cos(4 * angle));
+      const x = cx + Math.cos(angle) * distance;
+      const y = cy + Math.sin(angle) * distance;
+      if (index === 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+    path.close();
+    return path;
+  }
+  const points = shape === 'sparkle' ? 4 : 5;
+  for (let index = 0; index < points * 2; index += 1) { const angle = -Math.PI / 2 + index * Math.PI / points; const distance = index % 2 === 0 ? size : size * (shape === 'sparkle' ? 0.25 : 0.43); const x = cx + Math.cos(angle) * distance; const y = cy + Math.sin(angle) * distance; if (index === 0) path.moveTo(x, y); else path.lineTo(x, y); }
+  path.close(); return path;
+};
+
+const ProceduralPaperLayer = ({ frame, paper, patternImageUri }: { frame: { width: number; height: number }; paper: ProceduralPaperPaint; patternImageUri?: string }) => {
+  const marks = useMemo(() => makePaperMarks(frame.width, frame.height, paper), [frame.height, frame.width, paper]);
+  const patternImage = useImage(paper.shape === 'image' ? patternImageUri : undefined);
+  const foreground = paper.foreground ?? '#111111';
+  const opacity = paper.style === 'soft' ? (paper.opacity ?? 0.64) * 0.58 : paper.opacity ?? (paper.pattern === 'solid' ? 1 : 0.16);
+  return <>
+    <Rect x={0} y={0} width={frame.width} height={frame.height} color={paper.background} />
+    {paper.pattern === 'line' && marks.map((mark, index) => <Rect key={index} x={0} y={mark.y} width={frame.width} height={2} color={foreground} opacity={opacity} />)}
+    {paper.pattern === 'square' && marks.map((mark, index) => <><Rect key={`h-${index}`} x={0} y={mark.y} width={frame.width} height={2} color={foreground} opacity={opacity} />{mark.x !== undefined && <Rect key={`v-${index}`} x={mark.x} y={0} width={2} height={frame.height} color={foreground} opacity={opacity} />}</>)}
+    {(paper.pattern === 'dot' || paper.pattern === 'polka') && marks.map((mark, index) => <PaperMark key={index} cx={mark.x ?? 0} cy={mark.y} color={foreground} image={patternImage} opacity={opacity} outline={paper.style === 'outline'} radius={paper.pattern === 'polka' ? (paper.radius ?? 9) * 1.45 : 4} shape={paper.shape ?? 'circle'} />)}
+  </>;
+};
+
+const PaperMark = ({ color, cx, cy, image, opacity, outline, radius, shape }: Readonly<{ color: string; cx: number; cy: number; image: ReturnType<typeof useImage>; opacity: number; outline: boolean; radius: number; shape: NonNullable<ProceduralPaperPaint['shape']> }>) => {
+  const style = outline ? 'stroke' as const : 'fill' as const;
+  const strokeWidth = outline ? Math.max(2, radius * 0.28) : undefined;
+  if (shape === 'image' && image) return <SkiaImage image={image} x={cx - radius * 2.4} y={cy - radius * 2.4} width={radius * 4.8} height={radius * 4.8} fit="contain" opacity={opacity} />;
+  if (shape === 'circle' || shape === 'image') return <Circle cx={cx} cy={cy} r={radius} color={color} opacity={opacity} style={style} strokeWidth={strokeWidth} />;
+  if (shape === 'square') return <Rect x={cx - radius} y={cy - radius} width={radius * 2} height={radius * 2} color={color} opacity={opacity} style={style} strokeWidth={strokeWidth} />;
+  if (shape === 'cross') return <Group opacity={opacity}><Rect x={cx - radius * 0.28} y={cy - radius} width={radius * 0.56} height={radius * 2} color={color} /><Rect x={cx - radius} y={cy - radius * 0.28} width={radius * 2} height={radius * 0.56} color={color} /></Group>;
+  const path = makePaperMarkPath(shape, cx, cy, radius);
+  return <Path path={path} color={color} opacity={opacity} style={style} strokeWidth={strokeWidth} />;
+};
+
+const makePaperMarkPath = (shape: 'diamond' | 'heart' | 'star', cx: number, cy: number, radius: number) => {
+  const path = Skia.Path.Make();
+  if (shape === 'diamond') {
+    path.moveTo(cx, cy - radius); path.lineTo(cx + radius, cy); path.lineTo(cx, cy + radius); path.lineTo(cx - radius, cy); path.close();
+    return path;
+  }
+  if (shape === 'heart') {
+    path.moveTo(cx, cy + radius * 0.8); path.cubicTo(cx - radius * 1.5, cy - radius * 0.05, cx - radius, cy - radius * 1.25, cx, cy - radius * 0.38); path.cubicTo(cx + radius, cy - radius * 1.25, cx + radius * 1.5, cy - radius * 0.05, cx, cy + radius * 0.8); path.close();
+    return path;
+  }
+  for (let index = 0; index < 10; index += 1) {
+    const angle = -Math.PI / 2 + index * Math.PI / 5;
+    const distance = index % 2 === 0 ? radius : radius * 0.43;
+    const x = cx + Math.cos(angle) * distance;
+    const y = cy + Math.sin(angle) * distance;
+    if (index === 0) path.moveTo(x, y); else path.lineTo(x, y);
+  }
+  path.close();
+  return path;
+};
+
+const makePaperMarks = (width: number, height: number, paper: ProceduralPaperPaint): readonly Readonly<{ x?: number; y: number }>[] => {
+  const { pattern } = paper;
+  const spacing = pattern === 'polka' ? Math.max(40, (paper.gap ?? 48) * 1.5) : pattern === 'dot' ? 38 : 64;
+  if (pattern === 'line') return Array.from({ length: Math.ceil(height / spacing) }, (_, index) => ({ y: (index + 1) * spacing }));
+  if (pattern === 'square') return Array.from({ length: Math.ceil(Math.max(width, height) / spacing) }, (_, index) => ({ x: (index + 1) * spacing, y: (index + 1) * spacing }));
+  if (pattern === 'dot' || pattern === 'polka') {
+    const columns = Math.ceil(width / spacing);
+    return Array.from({ length: columns * Math.ceil(height / spacing) }, (_, index) => {
+      const row = Math.floor(index / columns);
+      return { x: (index % columns) * spacing + spacing / 2 + (paper.offset === 'staggered' && row % 2 === 1 ? spacing / 2 : 0), y: row * spacing + spacing / 2 };
+    });
+  }
+  return [];
 };
 
 const MaterialPlaceholder = ({ layer }: { layer: Extract<Layer, { type: 'material' }> }) => (

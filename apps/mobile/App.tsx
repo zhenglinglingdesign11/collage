@@ -1,20 +1,42 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import { Canvas, useCanvasRef, type Transforms3d } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
-import * as MediaLibrary from 'expo-media-library';
-import { assetUriMap, emptyAssetCatalog, upsertAsset, type AssetCatalog } from '@journalcollage/asset-system';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { assetUriMap, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
 import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, type Draft, type EditorCommand, type Effect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type CanvasViewport } from '@journalcollage/editor-renderer';
-import { importLocalImage, loadWorkspace, saveExportPng, saveWorkspace } from './src/localWorkspace';
+import { cacheRemotePackItem, importLocalImage, loadWorkspace, saveExportPng, saveWorkspace } from './src/localWorkspace';
+import { ProductAppShell } from './src/product-ui/ProductAppShell';
+import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
+import { EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls } from './src/product-ui/EditorChrome';
+import { AssetDrawer } from './src/product-ui/AssetDrawer';
+import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
+import { resolveProductLocale, t } from './src/product-ui/localization';
+import type { ProductTab } from './src/product-ui/ProductTabBar';
 
 const CANVAS_SIZE = { width: 1800, height: 2400 };
+const localPolkaPatternUris: Readonly<Record<string, string>> = {
+  'asset://pack/polka-paper-materials/pattern-local-24': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/24.png')).uri,
+  'asset://pack/polka-paper-materials/pattern-local-7': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/7.png')).uri,
+  'asset://pack/polka-paper-materials/pattern-local-1': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/1.png')).uri,
+};
 type EditorState = Readonly<{ past: readonly Draft[]; present: Draft; future: readonly Draft[] }>;
 type EditorAction = Readonly<{ type: 'command'; command: EditorCommand }> | Readonly<{ type: 'undo' }> | Readonly<{ type: 'redo' }> | Readonly<{ type: 'hydrate'; draft: Draft }>;
+type MediaLibraryModule = typeof import('expo-media-library/legacy');
+
+/** Avoid a startup crash in Expo Go or a development build made before this native module was installed. */
+const loadMediaLibrary = (): MediaLibraryModule | null => {
+  try {
+    return require('expo-media-library/legacy') as MediaLibraryModule;
+  } catch {
+    return null;
+  }
+};
 
 const createFixtureDraft = (): Draft => {
   const draft = createDraft({ id: 'a1-canvas-fixture', size: CANVAS_SIZE, now: '2026-09-10T00:00:00.000Z' });
@@ -45,12 +67,29 @@ const editorReducer = (state: EditorState, action: EditorAction): EditorState =>
   return { past: [...state.past, state.present], present: result.draft, future: [] };
 };
 
-const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
+const EditorWorkspace = (props: { initialEntry: CreateEntry; onExit: () => void }) => (
+  <SafeAreaProvider>
+    <EditorWorkspaceContent {...props} />
+  </SafeAreaProvider>
+);
+
+const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: CreateEntry; onExit: () => void }) => {
+  const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
-  const [state, dispatch] = useReducer(editorReducer, undefined, () => ({ past: [], present: createFixtureDraft(), future: [] }));
+  const locale = resolveProductLocale();
+  const [state, dispatch] = useReducer(editorReducer, undefined, () => ({
+    past: [],
+    present: initialEntry === 'restore'
+      ? createFixtureDraft()
+      : createDraft({ id: `canvas-${Date.now()}`, size: CANVAS_SIZE, now: new Date().toISOString() }),
+    future: [],
+  }));
   const [catalog, setCatalog] = useState<AssetCatalog>(() => emptyAssetCatalog());
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
+  const [canvasFrame, setCanvasFrame] = useState({ x: 0, y: 0 });
+  const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
+  const [assetDrawerHeight, setAssetDrawerHeight] = useState(0);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
@@ -59,11 +98,13 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
     const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
     return { scale, x: (surfaceSize.width - CANVAS_SIZE.width * scale) / 2, y: (surfaceSize.height - CANVAS_SIZE.height * scale) / 2 };
   }, [surfaceSize]);
-  const assetUris = useMemo(() => assetUriMap(catalog), [catalog]);
+  // Local pattern assets intentionally win over the procedural SVG cache: the
+  // paper renderer repeats these PNGs instead of falling back to dot marks.
+  const assetUris = useMemo(() => ({ ...remoteAssetUriMap(), ...assetUriMap(catalog), ...localPolkaPatternUris }), [catalog]);
 
   useEffect(() => {
     void loadWorkspace().then((workspace) => {
-      if (workspace !== null) {
+      if (initialEntry === 'restore' && workspace !== null) {
         const migration = migrateDraft(workspace.draft);
         if (migration.ok) {
           dispatch({ type: 'hydrate', draft: migration.draft });
@@ -71,7 +112,7 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
         }
       }
     }).finally(() => setWorkspaceReady(true));
-  }, []);
+  }, [initialEntry]);
   useEffect(() => {
     if (!workspaceReady) return;
     if (saveTimer.current !== null) clearTimeout(saveTimer.current);
@@ -133,6 +174,7 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
   const rotate = Gesture.Rotation().enabled(selectedLayerId !== null).onBegin(() => { startRotation.value = rotation.value; }).onUpdate((event) => { rotation.value = startRotation.value + event.rotation; }).onEnd(commitOnEnd);
   const gesture = Gesture.Simultaneous(tap, pan, pinch, rotate);
   const onCanvasLayout = useCallback((event: LayoutChangeEvent) => setSurfaceSize(event.nativeEvent.layout), []);
+  const onCanvasFrameLayout = useCallback((event: LayoutChangeEvent) => setCanvasFrame(event.nativeEvent.layout), []);
   const selectLayer = useCallback((layerId: string) => dispatch({ type: 'command', command: { type: 'layer.select', layerId } }), []);
   const setEffects = useCallback((effects: readonly Effect[]) => {
     if (selectedLayer === null) return;
@@ -171,16 +213,98 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
     const next = { x: Math.max(0, Math.min(1 - width, centerX - width / 2)), y: Math.max(0, Math.min(1 - height, centerY - height / 2)), width, height };
     dispatch({ type: 'command', command: { type: 'layer.crop.set', layerId: selectedLayer.id, crop: next } });
   }, [selectedLayer]);
-  const importPhoto = useCallback(async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 });
-    if (result.canceled) return;
-    const source = result.assets[0];
-    const record = await importLocalImage({ uri: source.uri, width: source.width, height: source.height, mimeType: source.mimeType ?? null });
-    setCatalog((current) => upsertAsset(current, record));
-    const aspect = source.width > 0 && source.height > 0 ? source.width / source.height : 1;
-    const frame = aspect >= 1 ? { width: 1080, height: 1080 / aspect } : { width: 760 * aspect, height: 760 };
-    dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: `layer-${Date.now()}`, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - frame.width) / 2, y: (CANVAS_SIZE.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: [] } } });
+  const addRemotePackItem = useCallback(async (item: RemotePackItem) => {
+    try {
+      const record = await cacheRemotePackItem(item, catalog);
+      setCatalog((current) => upsertAsset(current, record));
+      const scale = Math.min(760 / item.width, 760 / item.height, 1.8);
+      const frame = { width: Math.round(item.width * scale), height: Math.round(item.height * scale) };
+      dispatch({ type: 'command', command: {
+        type: 'layer.add',
+        layer: {
+          id: `pack-layer-${Date.now()}`,
+          name: item.id,
+          type: 'image',
+          asset: item.reference,
+          frame,
+          crop: { x: 0, y: 0, width: 1, height: 1 },
+          transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - frame.width) / 2, y: (CANVAS_SIZE.height - frame.height) / 2 } },
+          opacity: 1,
+          isLocked: false,
+          effects: [],
+        },
+      } });
+    } catch {
+      Alert.alert('Material unavailable', 'This material could not be downloaded. Please try again.');
+    }
+  }, [catalog]);
+  const commitImportedPhotos = useCallback(async (assets: readonly ImagePicker.ImagePickerAsset[], replaceLayerId: string | null = null) => {
+    try {
+      const records = await Promise.all(assets.map((source) => importLocalImage({ uri: source.uri, width: source.width, height: source.height, mimeType: source.mimeType ?? null })));
+      records.forEach((record) => setCatalog((current) => upsertAsset(current, record)));
+      if (replaceLayerId !== null) {
+        dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference } });
+        return;
+      }
+      records.forEach((record, index) => {
+        const source = assets[index];
+        const aspect = source.width > 0 && source.height > 0 ? source.width / source.height : 1;
+        const frame = aspect >= 1 ? { width: 1080, height: 1080 / aspect } : { width: 760 * aspect, height: 760 };
+        dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: `layer-${Date.now()}-${index}`, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - frame.width) / 2, y: (CANVAS_SIZE.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: [] } } });
+      });
+      // The mini-program returns to the neutral editing state after a standard import.
+      dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+    } catch {
+      Alert.alert('Could not add photo', 'The selected photo could not be stored. Please try again.');
+    }
   }, []);
+  const pickPhoto = useCallback(async (source: 'camera' | 'library', replaceLayerId: string | null = null) => {
+    if (source === 'camera') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Camera access needed', 'Allow camera access in Settings to take a photo for your collage.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
+      if (!result.canceled) await commitImportedPhotos(result.assets, replaceLayerId);
+      return;
+    }
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Photo access needed', 'Allow photo access in Settings to add photos to your collage.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: replaceLayerId === null, mediaTypes: ['images'], orderedSelection: true, quality: 1, selectionLimit: 9 });
+    if (!result.canceled) await commitImportedPhotos(result.assets, replaceLayerId);
+  }, [commitImportedPhotos]);
+  const openPhotoSource = useCallback(() => {
+    const choose = (source: 'camera' | 'library' | 'collage') => {
+      if (source === 'collage') {
+        Alert.alert('Collage layout', 'Collage layouts are the next image workflow to be connected.');
+        return;
+      }
+      void pickPhoto(source);
+    };
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions({ cancelButtonIndex: 3, options: [t(locale, 'editor.source.library'), t(locale, 'editor.source.camera'), t(locale, 'editor.source.collage'), t(locale, 'editor.source.cancel')] }, (index) => {
+        if (index === 0) choose('library');
+        if (index === 1) choose('camera');
+        if (index === 2) choose('collage');
+      });
+      return;
+    }
+    Alert.alert(t(locale, 'editor.tool.image'), undefined, [
+      { text: t(locale, 'editor.source.library'), onPress: () => choose('library') },
+      { text: t(locale, 'editor.source.camera'), onPress: () => choose('camera') },
+      { text: t(locale, 'editor.source.cancel'), style: 'cancel' },
+    ]);
+  }, [locale, pickPhoto]);
+  const initialPhotoRequested = useRef(false);
+  useEffect(() => {
+    if (initialEntry !== 'photo' || !workspaceReady || initialPhotoRequested.current) return;
+    initialPhotoRequested.current = true;
+    void pickPhoto('library');
+  }, [initialEntry, pickPhoto, workspaceReady]);
   const exportPng = useCallback(async () => {
     const snapshot = await exportCanvasRef.current?.makeImageSnapshotAsync();
     if (!snapshot) {
@@ -195,8 +319,13 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
     }
   }, [exportCanvasRef]);
   const savePngToPhotoLibrary = useCallback(async () => {
+    const mediaLibrary = loadMediaLibrary();
+    if (mediaLibrary === null) {
+      Alert.alert('Save to Photos needs a new build', 'This app client was built before photo-library support was added. Use Share for now, or rebuild and reinstall the development build.');
+      return;
+    }
     try {
-      const permission = await MediaLibrary.requestPermissionsAsync(true);
+      const permission = await mediaLibrary.requestPermissionsAsync(true);
       if (!permission.granted) {
         Alert.alert('Photo access needed', 'Allow photo access in Settings to save your finished collage.');
         return;
@@ -207,7 +336,7 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
         return;
       }
       const uri = await saveExportPng(snapshot.encodeToBase64());
-      await MediaLibrary.saveToLibraryAsync(uri);
+      await mediaLibrary.saveToLibraryAsync(uri);
       Alert.alert('Saved', 'Your collage has been saved to the photo library.');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -215,14 +344,58 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
     }
   }, [exportCanvasRef]);
   const isTablet = window.width >= 768;
-  const scene = <SkiaEditorScene draft={state.present} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} />;
-  const canvas = <EditorCanvas gesture={gesture} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
+  const canvasBottomOverlay = assetDrawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const previewSize = useMemo(() => {
+    const maxWidth = Math.max(1, window.width - 56);
+    const editorHeight = Math.max(1, window.height - insets.top - 56);
+    const normalMaxHeight = window.width > 380 ? 520 : 460;
+    const maxHeight = canvasBottomOverlay > 0
+      // Keep the logical canvas centre visible above the sheet while allowing
+      // the lower paper area to continue beneath it. This preserves a useful
+      // editing scale instead of shrinking the whole canvas to sheet-free space.
+      ? Math.min(normalMaxHeight, Math.max(240, (editorHeight - canvasBottomOverlay - 50) * 2))
+      : normalMaxHeight;
+    const scale = Math.min(maxWidth / CANVAS_SIZE.width, maxHeight / CANVAS_SIZE.height);
+    return { width: Math.round(CANVAS_SIZE.width * scale), height: Math.round(CANVAS_SIZE.height * scale) };
+  }, [canvasBottomOverlay, insets.top, window.height, window.width]);
+  const proceduralPapers = useMemo(() => Object.fromEntries(state.present.layers.flatMap((layer) => {
+    if (layer.type !== 'image') return [];
+    const paper = proceduralPaperForReferenceId(layer.asset.id);
+    return paper ? [[layer.asset.id, paper] as const] : [];
+  })), [state.present.layers]);
+  const proceduralStickers = useMemo(() => Object.fromEntries(state.present.layers.flatMap((layer) => {
+    if (layer.type !== 'image') return [];
+    const sticker = proceduralStickerForReferenceId(layer.asset.id);
+    return sticker ? [[layer.asset.id, sticker] as const] : [];
+  })), [state.present.layers]);
+  const scene = <SkiaEditorScene draft={state.present} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} surfaceColor="#FAFAF8" />;
+  const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
+  const imageLayerToolbar = selectedLayer?.type === 'image' ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
+    onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
+    onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
+    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
+    onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
+    onCrop={() => updateCrop('in')}
+    onShadow={() => toggleEffect('shadow')}
+    onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
+    onOutline={() => toggleEffect('outline')}
+    onEffects={() => toggleEffect('torn-edge')}
+    onScissors={() => {}}
+    onEmboss={() => {}}
+  /> : null;
+  const imageSelectionControls = selectedLayer?.type === 'image' ? <ImageSelectionControls
+    isLocked={selectedLayer.isLocked}
+    lockStyle={{ left: canvasFrame.x + viewport.x + selectedLayer.transform.position.x * viewport.scale - 14, top: canvasFrame.y + viewport.y + selectedLayer.transform.position.y * viewport.scale - 14 }}
+    onReplace={() => { void pickPhoto('library', selectedLayer.id); }}
+    onToggleLock={() => dispatch({ type: 'command', command: { type: 'layer.lock.set', layerId: selectedLayer.id, isLocked: !selectedLayer.isLocked } })}
+    replaceStyle={{ left: canvasFrame.x + viewport.x + (selectedLayer.transform.position.x + selectedLayer.frame.width) * viewport.scale - 14, top: canvasFrame.y + viewport.y + selectedLayer.transform.position.y * viewport.scale - 14 }}
+  /> : null;
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaView style={styles.safeArea}>
-        <EditorHeader pastCount={state.past.length} futureCount={state.future.length} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={exportPng} onSave={savePngToPhotoLibrary} onExit={onExit} />
+    <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
+        <SafeAreaView edges={['top']} style={styles.safeArea}>
+        <ProductEditorHeader canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={exportPng} onExit={onExit} />
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -230,22 +403,37 @@ const EditorWorkspace = ({ onExit }: { onExit: () => void }) => {
             <View style={styles.tabletInspector}>{inspector}</View>
           </View>
         ) : (
-          <View style={styles.phoneWorkspace}>
+          <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace]}>
             {canvas}
-            <PhoneToolbar onPhoto={importPhoto} onEffects={() => toggleEffect('torn-edge')} />
-            {inspector}
+            {imageSelectionControls}
+            {selectedLayer === null && !assetDrawerOpen && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={() => toggleEffect('torn-edge')} />}
+            {imageLayerToolbar ?? (selectedLayer !== null && inspector)}
+            {assetDrawerOpen && <>
+              <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
+              <AssetDrawer onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => setAssetDrawerOpen(false)} />
+            </>}
           </View>
         )}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} showSelection={false} /></Canvas>
+        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
-      </SafeAreaView>
-    </GestureHandlerRootView>
+        </SafeAreaView>
+      </GestureHandlerRootView>
   );
 };
 
 const HistoryButton = ({ label, disabled, onPress }: { label: string; disabled: boolean; onPress: () => void }) => <Pressable disabled={disabled} onPress={onPress} style={[styles.historyButton, disabled && styles.historyButtonDisabled]}><Text style={[styles.historyButtonText, disabled && styles.historyButtonTextDisabled]}>{label}</Text></Pressable>;
 const EditorHeader = ({ pastCount, futureCount, onUndo, onRedo, onExport, onSave, onExit }: { pastCount: number; futureCount: number; onUndo: () => void; onRedo: () => void; onExport: () => void; onSave: () => void; onExit: () => void }) => <View style={styles.header}><View style={a3Styles.headerCopy}><Text style={styles.eyebrow}>JOURNAL COLLAGE · A3</Text><Text numberOfLines={1} style={styles.title}>New collage</Text></View><View style={styles.history}><HistoryButton label="Close" disabled={false} onPress={onExit} /><HistoryButton label="↶" disabled={pastCount === 0} onPress={onUndo} /><HistoryButton label="↷" disabled={futureCount === 0} onPress={onRedo} /><HistoryButton label="Save" disabled={false} onPress={onSave} /><HistoryButton label="Share" disabled={false} onPress={onExport} /></View></View>;
-const EditorCanvas = ({ gesture, onLayout, children }: { gesture: ReturnType<typeof Gesture.Simultaneous>; onLayout: (event: LayoutChangeEvent) => void; children: React.ReactNode }) => <View style={styles.canvasArea} onLayout={onLayout}><GestureDetector gesture={gesture}><Canvas style={styles.canvas}>{children}</Canvas></GestureDetector></View>;
+const EditorCanvas = ({ bottomOverlay, children, frame, gesture, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous>; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
+  <View style={[a3Styles.canvasStage, bottomOverlay > 0 ? a3Styles.canvasStageWithSheet : { paddingBottom: 104 }]}>
+    <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, frame]}>
+      <View onLayout={onLayout} style={a3Styles.canvasMeasurement}>
+        <GestureDetector gesture={gesture}>
+          <Canvas style={styles.canvas}>{children}</Canvas>
+        </GestureDetector>
+      </View>
+    </View>
+  </View>
+);
 const LayerPanel = ({ layers, selectedLayerId, onSelect }: { layers: Draft['layers']; selectedLayerId: string | null; onSelect: (layerId: string) => void }) => <View style={styles.layerPanel}><Text style={styles.panelLabel}>LAYERS</Text>{[...layers].reverse().map((layer) => <Pressable key={layer.id} onPress={() => onSelect(layer.id)} style={[styles.layerRow, layer.id === selectedLayerId && styles.layerRowSelected]}><View style={[styles.layerSwatch, { backgroundColor: layer.type === 'image' ? '#5E7D79' : layer.type === 'material' ? '#E5AFA1' : '#D6C2A9' }]} /><View><Text style={styles.layerName}>{layer.name ?? layer.type}</Text><Text style={styles.layerType}>{layer.type}</Text></View></Pressable>)}</View>;
 const PhoneToolbar = ({ onPhoto, onEffects }: { onPhoto: () => void; onEffects: () => void }) => <View style={styles.phoneToolbar}><ToolButton label="Photo" onPress={onPhoto} /><ToolButton label="Material" /><ToolButton label="Text" /><ToolButton label="Torn" onPress={onEffects} /></View>;
 const ToolButton = ({ label, onPress }: { label: string; onPress?: () => void }) => <Pressable onPress={onPress} style={styles.toolButton}><View style={styles.toolGlyph} /><Text style={styles.toolLabel}>{label}</Text></Pressable>;
@@ -283,61 +471,38 @@ const a2Styles = StyleSheet.create({
 });
 
 const a3Styles = StyleSheet.create({
+  editorRoot: { backgroundColor: '#FAFAF8' },
   headerCopy: { flexShrink: 1 },
+  phoneWorkspace: { position: 'relative' },
+  canvasStage: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingBottom: 104, paddingTop: 8 },
+  canvasStageWithSheet: { justifyContent: 'flex-start', paddingBottom: 0, paddingTop: 8 },
+  assetDrawerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 9 },
+  canvasFrame: { backgroundColor: '#FDFDFB', shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.12, shadowRadius: 29 },
+  canvasMeasurement: { flex: 1 },
   exportCanvas: { height: CANVAS_SIZE.height, left: -10000, position: 'absolute', top: -10000, width: CANVAS_SIZE.width },
 });
 
-type AppTab = 'create' | 'assets' | 'inspiration' | 'mine';
-
-const tabCopy: Readonly<Record<AppTab, Readonly<{ label: string; eyebrow: string; title: string; body: string }>>> = {
-  create: { label: 'Create', eyebrow: 'YOUR WORKSPACE', title: 'Make a collage', body: 'Start with a photo, then layer paper, tape, type, and handmade details.' },
-  assets: { label: 'Assets', eyebrow: 'MATERIAL LIBRARY', title: 'Choose materials', body: 'Paper, tape, stickers, and brushes are added to a collage without changing its portable draft format.' },
-  inspiration: { label: 'Inspiration', eyebrow: 'WAYS TO START', title: 'Begin with a feeling', body: 'Inspiration will open a new canvas at its recommended ratio and surface the relevant materials.' },
-  mine: { label: 'Mine', eyebrow: 'ON THIS DEVICE', title: 'Your private drafts', body: 'Collages and imported photos stay on this device unless you explicitly export or share them.' },
-};
-
 export default function App() {
-  const [tab, setTab] = useState<AppTab>('create');
+  const [tab, setTab] = useState<ProductTab>('create');
   const [editing, setEditing] = useState(false);
+  const [editorEntry, setEditorEntry] = useState<CreateEntry>('blank');
+  const locale = resolveProductLocale();
 
-  if (editing) return <EditorWorkspace onExit={() => setEditing(false)} />;
+  if (editing) return <EditorWorkspace initialEntry={editorEntry} onExit={() => setEditing(false)} />;
 
-  const copy = tabCopy[tab];
   return (
-    <SafeAreaView style={shellStyles.safeArea}>
-      <View style={shellStyles.content}>
-        <Text style={shellStyles.brand}>JOURNAL COLLAGE</Text>
-        <Text style={shellStyles.eyebrow}>{copy.eyebrow}</Text>
-        <Text style={shellStyles.title}>{copy.title}</Text>
-        <Text style={shellStyles.body}>{copy.body}</Text>
-        <Pressable style={shellStyles.primaryButton} onPress={() => setEditing(true)}>
-          <Text style={shellStyles.primaryButtonLabel}>{tab === 'create' ? 'Start a new collage' : 'Open the editor'}</Text>
-        </Pressable>
-        {tab === 'create' && <Text style={shellStyles.caption}>Your latest draft restores automatically when you reopen the editor.</Text>}
-      </View>
-      <View style={shellStyles.tabBar}>
-        {(Object.keys(tabCopy) as AppTab[]).map((item) => (
-          <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} onPress={() => setTab(item)} style={shellStyles.tabButton}>
-            <Text style={[shellStyles.tabLabel, tab === item && shellStyles.tabLabelActive]}>{tabCopy[item].label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </SafeAreaView>
+    <ProductAppShell activeTab={tab} locale={locale} onTabChange={setTab}>
+      <StatusBar style="dark" />
+      {tab === 'create'
+        ? <CreateHome locale={locale} onOpenAssets={() => setTab('assets')} onOpenEditor={(entry) => { setEditorEntry(entry); setEditing(true); }} />
+        : tab === 'assets'
+          ? <AssetsLibrary />
+          : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
+    </ProductAppShell>
   );
 }
 
-const shellStyles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FAFAF8' },
-  content: { flex: 1, justifyContent: 'center', padding: 24 },
-  brand: { color: '#111111', fontSize: 11, fontWeight: '700', letterSpacing: 1.5, marginBottom: 28 },
-  eyebrow: { color: '#6F6F6F', fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: 10 },
-  title: { color: '#111111', fontSize: 32, fontWeight: '700', letterSpacing: -0.6, marginBottom: 12 },
-  body: { color: '#6F6F6F', fontSize: 16, lineHeight: 24, maxWidth: 360 },
-  primaryButton: { alignItems: 'center', alignSelf: 'flex-start', backgroundColor: '#111111', borderRadius: 18, marginTop: 28, minHeight: 52, justifyContent: 'center', paddingHorizontal: 20 },
-  primaryButtonLabel: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  caption: { color: '#9A9A9A', fontSize: 12, lineHeight: 18, marginTop: 14, maxWidth: 310 },
-  tabBar: { borderTopColor: '#E8E6E1', borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', paddingHorizontal: 8, paddingTop: 10 },
-  tabButton: { alignItems: 'center', flex: 1, minHeight: 48, justifyContent: 'center' },
-  tabLabel: { color: '#9A9A9A', fontSize: 12, fontWeight: '600' },
-  tabLabelActive: { color: '#111111' },
+const productShellStyles = StyleSheet.create({
+  page: { flex: 1, paddingHorizontal: 20, paddingTop: 32 },
+  title: { color: '#111111', fontSize: 22, fontWeight: '600', lineHeight: 28 },
 });

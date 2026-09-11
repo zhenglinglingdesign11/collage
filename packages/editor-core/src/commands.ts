@@ -1,4 +1,4 @@
-import type { Draft, Effect, Layer } from './document';
+import type { AssetReference, Draft, Effect, Layer } from './document';
 import type { Rect, Transform } from './geometry';
 
 /** Every persistent editor mutation is an explicit, serializable command. */
@@ -10,6 +10,9 @@ export type EditorCommand =
   | Readonly<{ type: 'layer.transform'; layerId: string; transform: Transform }>
   | Readonly<{ type: 'layer.effects.set'; layerId: string; effects: readonly Effect[] }>
   | Readonly<{ type: 'layer.crop.set'; layerId: string; crop: Rect }>
+  | Readonly<{ type: 'layer.opacity.set'; layerId: string; opacity: number }>
+  | Readonly<{ type: 'layer.lock.set'; layerId: string; isLocked: boolean }>
+  | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference }>
   | Readonly<{ type: 'layer.select'; layerId: string | null }>;
 
 export type CommandResult = Readonly<{ draft: Draft; changed: boolean }>;
@@ -58,6 +61,17 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       if (command.crop.width <= 0 || command.crop.height <= 0 || command.crop.x < 0 || command.crop.y < 0 || command.crop.x + command.crop.width > 1 || command.crop.y + command.crop.height > 1) return { draft, changed: false };
       if (JSON.stringify(layer.crop) === JSON.stringify(command.crop)) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId ? { ...candidate, crop: command.crop } : candidate) });
+    }
+    case 'layer.lock.set':
+      if (layerIndex < 0 || draft.layers[layerIndex].isLocked === command.isLocked) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, isLocked: command.isLocked } : layer) });
+    case 'layer.opacity.set':
+      if (layerIndex < 0 || command.opacity < 0 || command.opacity > 1 || draft.layers[layerIndex].opacity === command.opacity) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, opacity: command.opacity } : layer) });
+    case 'image.asset.replace': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'image' || layer.asset.id === command.asset.id) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image' ? { ...candidate, asset: command.asset, crop: { x: 0, y: 0, width: 1, height: 1 } } : candidate) });
     }
     case 'layer.select':
       if (command.layerId !== null && !draft.layers.some((layer) => layer.id === command.layerId)) return { draft, changed: false };
