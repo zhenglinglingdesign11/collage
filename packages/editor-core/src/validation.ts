@@ -33,4 +33,13 @@ const validateLayer = (layer: Layer, index: number, ids: Set<string>, issues: Va
   if (layer.type === 'image' && (!Number.isFinite(layer.crop.x) || !Number.isFinite(layer.crop.y) || layer.crop.x < 0 || layer.crop.y < 0 || layer.crop.width <= 0 || layer.crop.height <= 0 || layer.crop.x + layer.crop.width > 1 || layer.crop.y + layer.crop.height > 1)) {
     issues.push({ path: `${path}.crop`, message: 'Image crop must be a normalized rectangle within the source image.' });
   }
+  if (layer.type === 'image' && layer.clipPath && (layer.clipPath.length < 3 || layer.clipPath.some((point) => !isFinitePoint(point) || point.x < 0 || point.y < 0 || point.x > layer.frame.width || point.y > layer.frame.height))) {
+    issues.push({ path: `${path}.clipPath`, message: 'Image clip path must contain at least three finite points.' });
+  }
+  if (layer.type === 'image' && layer.clipPaths && layer.clipPaths.some((pathPoints) => pathPoints.length < 3 || pathPoints.some((point) => !isFinitePoint(point) || point.x < 0 || point.y < 0 || point.x > layer.frame.width || point.y > layer.frame.height))) {
+    issues.push({ path: `${path}.clipPaths`, message: 'Image clip paths must contain in-frame finite polygons.' });
+  }
+  if (layer.type === 'image' && layer.contentFrame && (!Number.isFinite(layer.contentFrame.x) || !Number.isFinite(layer.contentFrame.y) || !isFiniteSize(layer.contentFrame))) {
+    issues.push({ path: `${path}.contentFrame`, message: 'Image content frame must contain finite dimensions.' });
+  }
 };

@@ -33,6 +33,20 @@ export type ImageLayer = LayerBase & Readonly<{
   asset: AssetReference;
   frame: Size;
   crop: Rect;
+  /**
+   * Position of the original image content within a tight fragment frame.
+   * Absent means the content exactly fills `frame`.
+   */
+  contentFrame?: Rect;
+  /**
+   * A layer-local polygon used for non-destructive cut fragments. The image
+   * asset remains immutable and can be shared by both sides of a cut.
+   */
+  clipPath?: readonly Point[];
+  /** Intersected clip paths for repeated cuts of concave fragments. */
+  clipPaths?: readonly (readonly Point[])[];
+  /** Stable lineage for repeated cuts; never contains a platform file path. */
+  cutFragment?: Readonly<{ sourceLayerId: string; operationId: string; style: 'straight' | 'wave' }>;
 }>;
 
 export type TextLayer = LayerBase & Readonly<{

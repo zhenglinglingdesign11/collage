@@ -8,8 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { assetUriMap, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, type Draft, type EditorCommand, type Effect, type Transform } from '@journalcollage/editor-core';
-import { SkiaEditorScene, type CanvasViewport } from '@journalcollage/editor-renderer';
+import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, type Draft, type EditorCommand, type Effect, type Point, type Transform } from '@journalcollage/editor-core';
+import { SkiaEditorScene, type CanvasViewport, type StraightCutPreview } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, importLocalImage, loadSavedDraft, loadWorkspace, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
@@ -32,6 +32,8 @@ const localPolkaPatternUris: Readonly<Record<string, string>> = {
 type EditorState = Readonly<{ past: readonly Draft[]; present: Draft; future: readonly Draft[] }>;
 type EditorAction = Readonly<{ type: 'command'; command: EditorCommand }> | Readonly<{ type: 'undo' }> | Readonly<{ type: 'redo' }> | Readonly<{ type: 'hydrate'; draft: Draft }>;
 type MediaLibraryModule = typeof import('expo-media-library/legacy');
+type StraightCutSession = Readonly<{ layerId: string; start: Point; end: Point; style: 'straight' | 'wave' }>;
+type CutStyle = 'straight' | 'wave' | 'free' | 'subject';
 
 /** Avoid a startup crash in Expo Go or a development build made before this native module was installed. */
 const loadMediaLibrary = (): MediaLibraryModule | null => {
@@ -99,15 +101,27 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [textEdit, setTextEdit] = useState<Readonly<{ layerId: string; initialText: string; text: string; created: boolean }> | null>(null);
   const [fontRevision, setFontRevision] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [straightCut, setStraightCut] = useState<StraightCutSession | null>(null);
+  const [cutPaletteOpen, setCutPaletteOpen] = useState(false);
+  const [pendingCutStyle, setPendingCutStyle] = useState<CutStyle | null>(null);
+  const [cutHint, setCutHint] = useState<string | null>(null);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialPackItemsAdded = useRef(false);
   const textLayerSequence = useRef(0);
+  const cutHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
-  const renderedDraft = useMemo(() => textEdit === null ? state.present : {
-    ...state.present,
-    layers: state.present.layers.map((layer) => layer.id === textEdit.layerId && layer.type === 'text' ? { ...layer, text: textEdit.text } : layer),
-  }, [state.present, textEdit]);
+  const renderedDraft = useMemo(() => {
+    const withTextPreview = textEdit === null ? state.present : {
+      ...state.present,
+      layers: state.present.layers.map((layer) => layer.id === textEdit.layerId && layer.type === 'text' ? { ...layer, text: textEdit.text } : layer),
+    };
+    // Straight cut is a focused, ephemeral editing surface. Other layers stay
+    // untouched in the document, but must not visually interfere with the
+    // selected source while its cut line is positioned.
+    if (straightCut === null) return withTextPreview;
+    return { ...withTextPreview, layers: withTextPreview.layers.filter((layer) => layer.id === straightCut.layerId) };
+  }, [state.present, straightCut, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
     const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
@@ -152,6 +166,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const startScaleX = useSharedValue(1);
   const startScaleY = useSharedValue(1);
   const startRotation = useSharedValue(0);
+  const straightCutRef = useRef<StraightCutSession | null>(null);
+  const straightCutDragRef = useRef<StraightCutSession | null>(null);
+  straightCutRef.current = straightCut;
 
   useEffect(() => {
     const transform = selectedLayer?.transform ?? identityTransform();
@@ -182,10 +199,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     if (selectedLayerId !== null) runOnJS(commitActiveTransform)(selectedLayerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value);
   };
   const tap = Gesture.Tap().onEnd((event, success) => { if (success) runOnJS(selectAt)(event.x, event.y); });
-  const pan = Gesture.Pan().enabled(selectedLayerId !== null).onBegin(() => { startX.value = positionX.value; startY.value = positionY.value; }).onUpdate((event) => { positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; }).onEnd(commitOnEnd);
-  const pinch = Gesture.Pinch().enabled(selectedLayerId !== null).onBegin(() => { startScaleX.value = scaleX.value; startScaleY.value = scaleY.value; }).onUpdate((event) => { const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd);
-  const rotate = Gesture.Rotation().enabled(selectedLayerId !== null).onBegin(() => { startRotation.value = rotation.value; }).onUpdate((event) => { rotation.value = startRotation.value + event.rotation; }).onEnd(commitOnEnd);
-  const gesture = Gesture.Simultaneous(tap, pan, pinch, rotate);
+  const pan = Gesture.Pan().enabled(selectedLayerId !== null && straightCut === null).onBegin(() => { startX.value = positionX.value; startY.value = positionY.value; }).onUpdate((event) => { positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; }).onEnd(commitOnEnd);
+  const pinch = Gesture.Pinch().enabled(selectedLayerId !== null && straightCut === null).onBegin(() => { startScaleX.value = scaleX.value; startScaleY.value = scaleY.value; }).onUpdate((event) => { const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd);
+  const rotate = Gesture.Rotation().enabled(selectedLayerId !== null && straightCut === null).onBegin(() => { startRotation.value = rotation.value; }).onUpdate((event) => { rotation.value = startRotation.value + event.rotation; }).onEnd(commitOnEnd);
+  const ordinaryGesture = Gesture.Simultaneous(tap, pan, pinch, rotate);
   const onCanvasLayout = useCallback((event: LayoutChangeEvent) => setSurfaceSize(event.nativeEvent.layout), []);
   const onCanvasFrameLayout = useCallback((event: LayoutChangeEvent) => setCanvasFrame(event.nativeEvent.layout), []);
   const selectLayer = useCallback((layerId: string) => dispatch({ type: 'command', command: { type: 'layer.select', layerId } }), []);
@@ -226,6 +243,106 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     const next = { x: Math.max(0, Math.min(1 - width, centerX - width / 2)), y: Math.max(0, Math.min(1 - height, centerY - height / 2)), width, height };
     dispatch({ type: 'command', command: { type: 'layer.crop.set', layerId: selectedLayer.id, crop: next } });
   }, [selectedLayer]);
+  const showCutHint = useCallback((message: string) => {
+    if (cutHintTimer.current !== null) clearTimeout(cutHintTimer.current);
+    setCutHint(message);
+    cutHintTimer.current = setTimeout(() => { setCutHint(null); cutHintTimer.current = null; }, 2200);
+  }, []);
+  useEffect(() => () => { if (cutHintTimer.current !== null) clearTimeout(cutHintTimer.current); }, []);
+  const openCutPalette = useCallback(() => {
+    setAssetDrawerOpen(false);
+    setBackgroundDrawerOpen(false);
+    setCutPaletteOpen((open) => !open);
+  }, []);
+  const beginStraightCut = useCallback((style: 'straight' | 'wave' = 'straight') => {
+    if (selectedLayer?.type !== 'image') {
+      Alert.alert(t(locale, 'editor.cut.unavailableTitle'), t(locale, 'editor.cut.unavailableBody'));
+      return;
+    }
+    if (selectedLayer.isLocked) {
+      Alert.alert(t(locale, 'editor.cut.lockedTitle'), t(locale, 'editor.cut.lockedBody'));
+      return;
+    }
+    const { width, height } = selectedLayer.frame;
+    setAssetDrawerOpen(false);
+    setBackgroundDrawerOpen(false);
+    setCutPaletteOpen(false);
+    setStraightCut({ layerId: selectedLayer.id, style, start: { x: width * 0.12, y: height * 0.5 }, end: { x: width * 0.88, y: height * 0.5 } });
+  }, [locale, selectedLayer]);
+  const selectCutStyle = useCallback((style: CutStyle) => {
+    if (selectedLayer?.type !== 'image') {
+      setPendingCutStyle(style);
+      setCutPaletteOpen(false);
+      showCutHint(t(locale, 'editor.cut.selectHint'));
+      return;
+    }
+    if (selectedLayer.isLocked) {
+      showCutHint(t(locale, 'editor.cut.lockedBody'));
+      return;
+    }
+    if (style === 'straight' || style === 'wave') {
+      beginStraightCut(style);
+      return;
+    }
+    Alert.alert(t(locale, 'editor.cut.comingSoonTitle'), t(locale, 'editor.cut.comingSoonBody'));
+  }, [beginStraightCut, locale, selectedLayer, showCutHint]);
+  useEffect(() => {
+    if (pendingCutStyle === null || selectedLayer?.type !== 'image') return;
+    if (selectedLayer.isLocked) {
+      setPendingCutStyle(null);
+      showCutHint(t(locale, 'editor.cut.lockedBody'));
+      return;
+    }
+    const style = pendingCutStyle;
+    setPendingCutStyle(null);
+    if (style === 'straight' || style === 'wave') beginStraightCut(style);
+    else Alert.alert(t(locale, 'editor.cut.comingSoonTitle'), t(locale, 'editor.cut.comingSoonBody'));
+  }, [beginStraightCut, locale, pendingCutStyle, selectedLayer, showCutHint]);
+  const beginStraightCutDrag = useCallback(() => { straightCutDragRef.current = straightCutRef.current; }, []);
+  const moveStraightCut = useCallback((canvasDx: number, canvasDy: number) => {
+    const session = straightCutDragRef.current;
+    const layer = session && state.present.layers.find((candidate) => candidate.id === session.layerId);
+    if (!session || layer?.type !== 'image') return;
+    const rotation = layer.transform.rotation;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const dx = (canvasDx * cos + canvasDy * sin) / Math.max(0.01, layer.transform.scale.x);
+    const dy = (-canvasDx * sin + canvasDy * cos) / Math.max(0.01, layer.transform.scale.y);
+    const minX = Math.min(session.start.x, session.end.x);
+    const maxX = Math.max(session.start.x, session.end.x);
+    const minY = Math.min(session.start.y, session.end.y);
+    const maxY = Math.max(session.start.y, session.end.y);
+    const boundedDx = Math.max(-minX, Math.min(layer.frame.width - maxX, dx));
+    const boundedDy = Math.max(-minY, Math.min(layer.frame.height - maxY, dy));
+    setStraightCut({ ...session, start: { x: session.start.x + boundedDx, y: session.start.y + boundedDy }, end: { x: session.end.x + boundedDx, y: session.end.y + boundedDy } });
+  }, [state.present.layers]);
+  const cutPan = Gesture.Pan().enabled(straightCut !== null).onBegin(() => { runOnJS(beginStraightCutDrag)(); }).onUpdate((event) => { runOnJS(moveStraightCut)(event.translationX / gestureScale.value, event.translationY / gestureScale.value); });
+  const cancelStraightCut = useCallback(() => { setStraightCut(null); }, []);
+  const rotateStraightCutBy = useCallback((angle: number) => {
+    const session = straightCutDragRef.current;
+    const layer = session && state.present.layers.find((candidate) => candidate.id === session.layerId);
+    if (!session || layer?.type !== 'image') return;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const center = { x: (session.start.x + session.end.x) / 2, y: (session.start.y + session.end.y) / 2 };
+    const rotatePoint = (point: Point): Point => {
+      const x = point.x - center.x;
+      const y = point.y - center.y;
+      return { x: center.x + x * cos - y * sin, y: center.y + x * sin + y * cos };
+    };
+    const clamp = (point: Point): Point => ({ x: Math.max(0, Math.min(layer.frame.width, point.x)), y: Math.max(0, Math.min(layer.frame.height, point.y)) });
+    setStraightCut({ ...session, start: clamp(rotatePoint(session.start)), end: clamp(rotatePoint(session.end)) });
+  }, [state.present.layers]);
+  const beginStraightCutRotate = useCallback(() => { straightCutDragRef.current = straightCutRef.current; }, []);
+  const cutRotate = Gesture.Rotation().enabled(straightCut !== null).onBegin(() => { runOnJS(beginStraightCutRotate)(); }).onUpdate((event) => { runOnJS(rotateStraightCutBy)(event.rotation); });
+  const gesture = straightCut === null ? ordinaryGesture : Gesture.Simultaneous(cutPan, cutRotate);
+  const confirmStraightCut = useCallback(() => {
+    const session = straightCut;
+    if (session === null) return;
+    const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    dispatch({ type: 'command', command: { type: 'image.cut.straight', layerId: session.layerId, start: session.start, end: session.end, firstLayerId: `image-cut-${id}-a`, secondLayerId: `image-cut-${id}-b`, operationId: `${session.style}-cut-${id}`, gap: 18, style: session.style } });
+    setStraightCut(null);
+  }, [straightCut]);
   const addRemotePackItem = useCallback(async (item: RemotePackItem) => {
     try {
       const record = await cacheRemotePackItem(item, catalog);
@@ -504,10 +621,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   // remains limited to stable font IDs and never observes these local URIs.
   const fontUris = useMemo(() => Object.fromEntries(renderedDraft.layers.filter((layer) => layer.type === 'text').flatMap((layer) => { const uri = resolvedTextFontUri(layer.fontVariantId); return uri ? [[layer.fontVariantId, uri] as const] : []; })), [fontRevision, renderedDraft.layers]);
   const fontSupportsCjk = useMemo(() => Object.fromEntries(renderedDraft.layers.filter((layer) => layer.type === 'text').map((layer) => [layer.fontVariantId, getTextFont(layer.fontVariantId).supportsCjk])), [renderedDraft.layers]);
-  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} surfaceColor="#FAFAF8" />;
+  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} />;
   const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
-  const imageLayerToolbar = selectedLayer?.type === 'image' ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
+  const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
@@ -517,7 +634,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
     onOutline={() => toggleEffect('outline')}
     onEffects={() => toggleEffect('torn-edge')}
-    onScissors={() => {}}
+    onScissors={openCutPalette}
     onEmboss={() => {}}
   /> : null;
   const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale}
@@ -551,9 +668,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
         ) : (
           <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace]}>
             {canvas}
-            {imageSelectionControls}
-            {selectedLayer === null && !drawerOpen && textEdit === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={() => toggleEffect('torn-edge')} onText={addText} />}
-            {imageLayerToolbar ?? textLayerToolbar ?? (selectedLayer !== null && inspector)}
+            {straightCut === null && imageSelectionControls}
+            {selectedLayer === null && !drawerOpen && textEdit === null && straightCut === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
+            {straightCut === null && (imageLayerToolbar ?? textLayerToolbar ?? (selectedLayer !== null && inspector))}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
               <AssetDrawer initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
@@ -563,6 +680,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
               <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: '#F7F3ED', asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} />
             </>}
             {textEdit !== null && selectedLayer?.type === 'text' && <TextEditorPanel key={textEdit.layerId} bottomInset={insets.bottom} keyboardHeight={keyboardHeight} layer={selectedLayer} locale={locale} text={textEdit.text} onCancel={cancelTextEditing} onChangeText={(text) => setTextEdit((current) => current === null ? null : { ...current, text })} onDone={finishTextEditing} onStyleChange={(change) => updateTextStyle(selectedLayer.id, change)} />}
+            {cutPaletteOpen && straightCut === null && <Pressable accessibilityLabel={t(locale, 'editor.cut.dismiss')} accessibilityRole="button" onPress={() => setCutPaletteOpen(false)} style={a3Styles.cutPaletteBackdrop} />}
+            {cutPaletteOpen && straightCut === null && <CutPalette bottomInset={insets.bottom} hasSelectedLayer={selectedLayer !== null} locale={locale} onClose={() => setCutPaletteOpen(false)} onSelect={selectCutStyle} />}
+            {straightCut !== null && <StraightCutActions bottomInset={insets.bottom} locale={locale} onCancel={cancelStraightCut} onConfirm={confirmStraightCut} />}
+            {cutHint !== null && <View pointerEvents="none" style={[a3Styles.cutHint, { bottom: 112 + insets.bottom }]}><Text style={a3Styles.cutHintText}>{cutHint}</Text></View>}
           </View>
         )}
         <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
@@ -574,7 +695,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
 
 const HistoryButton = ({ label, disabled, onPress }: { label: string; disabled: boolean; onPress: () => void }) => <Pressable disabled={disabled} onPress={onPress} style={[styles.historyButton, disabled && styles.historyButtonDisabled]}><Text style={[styles.historyButtonText, disabled && styles.historyButtonTextDisabled]}>{label}</Text></Pressable>;
 const EditorHeader = ({ pastCount, futureCount, onUndo, onRedo, onExport, onSave, onExit }: { pastCount: number; futureCount: number; onUndo: () => void; onRedo: () => void; onExport: () => void; onSave: () => void; onExit: () => void }) => <View style={styles.header}><View style={a3Styles.headerCopy}><Text style={styles.eyebrow}>JOURNAL COLLAGE · A3</Text><Text numberOfLines={1} style={styles.title}>New collage</Text></View><View style={styles.history}><HistoryButton label="Close" disabled={false} onPress={onExit} /><HistoryButton label="↶" disabled={pastCount === 0} onPress={onUndo} /><HistoryButton label="↷" disabled={futureCount === 0} onPress={onRedo} /><HistoryButton label="Save" disabled={false} onPress={onSave} /><HistoryButton label="Share" disabled={false} onPress={onExport} /></View></View>;
-const EditorCanvas = ({ bottomOverlay, children, frame, gesture, keyboardOffset, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous>; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
+const EditorCanvas = ({ bottomOverlay, children, frame, gesture, keyboardOffset, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous> | ReturnType<typeof Gesture.Pan>; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
   <View style={[a3Styles.canvasStage, bottomOverlay > 0 ? a3Styles.canvasStageWithSheet : { paddingBottom: 104 }]}>
     <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, frame, keyboardOffset > 0 && { transform: [{ translateY: -keyboardOffset }] }]}>
       <View onLayout={onLayout} style={a3Styles.canvasMeasurement}>
@@ -586,6 +707,22 @@ const EditorCanvas = ({ bottomOverlay, children, frame, gesture, keyboardOffset,
   </View>
 );
 const LayerPanel = ({ layers, selectedLayerId, onSelect }: { layers: Draft['layers']; selectedLayerId: string | null; onSelect: (layerId: string) => void }) => <View style={styles.layerPanel}><Text style={styles.panelLabel}>LAYERS</Text>{[...layers].reverse().map((layer) => <Pressable key={layer.id} onPress={() => onSelect(layer.id)} style={[styles.layerRow, layer.id === selectedLayerId && styles.layerRowSelected]}><View style={[styles.layerSwatch, { backgroundColor: layer.type === 'image' ? '#5E7D79' : layer.type === 'material' ? '#E5AFA1' : '#D6C2A9' }]} /><View><Text style={styles.layerName}>{layer.name ?? layer.type}</Text><Text style={styles.layerType}>{layer.type}</Text></View></Pressable>)}</View>;
+const CutPalette = ({ bottomInset, hasSelectedLayer, locale, onClose, onSelect }: Readonly<{ bottomInset: number; hasSelectedLayer: boolean; locale: ReturnType<typeof resolveProductLocale>; onClose: () => void; onSelect: (style: CutStyle) => void }>) => {
+  return <View style={[a3Styles.cutPalette, { bottom: (hasSelectedLayer ? 170 : 96) + bottomInset }]}>
+    <Pressable accessibilityLabel={t(locale, 'editor.cut.straight')} accessibilityRole="button" onPress={() => onSelect('straight')} style={a3Styles.cutPaletteOption}><Image source={require('../../miniprogram-spike/miniprogram/assets/icons/scissors/bolang.png')} style={a3Styles.cutPaletteIcon} /><Text style={a3Styles.cutPaletteLabel}>{t(locale, 'editor.cut.straight')}</Text></Pressable>
+    <Pressable accessibilityLabel={t(locale, 'editor.cut.wave')} accessibilityRole="button" onPress={() => onSelect('wave')} style={a3Styles.cutPaletteOption}><Image source={require('../../miniprogram-spike/miniprogram/assets/icons/scissors/zhijiao.png')} style={a3Styles.cutPaletteIcon} /><Text style={a3Styles.cutPaletteLabel}>{t(locale, 'editor.cut.wave')}</Text></Pressable>
+    <Pressable accessibilityLabel={t(locale, 'editor.cut.free')} accessibilityRole="button" onPress={() => onSelect('free')} style={a3Styles.cutPaletteOption}><Image source={require('../../miniprogram-spike/miniprogram/assets/icons/scissors/tumo.png')} style={a3Styles.cutPaletteIcon} /><Text style={a3Styles.cutPaletteLabel}>{t(locale, 'editor.cut.free')}</Text></Pressable>
+    <Pressable accessibilityLabel={t(locale, 'editor.cut.subject')} accessibilityRole="button" onPress={() => onSelect('subject')} style={a3Styles.cutPaletteOption}><Image source={require('../../miniprogram-spike/miniprogram/assets/icons/scissors/zhuti.png')} style={a3Styles.cutPaletteIcon} /><Text style={a3Styles.cutPaletteLabel}>{t(locale, 'editor.cut.subject')}</Text></Pressable>
+    <Pressable accessibilityLabel={t(locale, 'editor.cut.cancel')} accessibilityRole="button" hitSlop={8} onPress={onClose} style={a3Styles.cutPaletteClose}><Text style={a3Styles.cutPaletteCloseText}>×</Text></Pressable>
+  </View>;
+};
+
+const StraightCutActions = ({ bottomInset, locale, onCancel, onConfirm }: Readonly<{ bottomInset: number; locale: ReturnType<typeof resolveProductLocale>; onCancel: () => void; onConfirm: () => void }>) => (
+  <View style={[a3Styles.straightCutActions, { bottom: 28 + bottomInset }]}>
+    <Pressable accessibilityRole="button" onPress={onCancel} style={a3Styles.straightCutAction}><Text style={a3Styles.straightCutCancel}>{t(locale, 'editor.cut.cancel')}</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={onConfirm} style={a3Styles.straightCutAction}><Text style={a3Styles.straightCutDone}>{t(locale, 'editor.cut.done')}</Text></Pressable>
+  </View>
+);
 const PhoneToolbar = ({ onPhoto, onEffects }: { onPhoto: () => void; onEffects: () => void }) => <View style={styles.phoneToolbar}><ToolButton label="Photo" onPress={onPhoto} /><ToolButton label="Material" /><ToolButton label="Text" /><ToolButton label="Torn" onPress={onEffects} /></View>;
 const ToolButton = ({ label, onPress }: { label: string; onPress?: () => void }) => <Pressable onPress={onPress} style={styles.toolButton}><View style={styles.toolGlyph} /><Text style={styles.toolLabel}>{label}</Text></Pressable>;
 const Inspector = ({ layer, onToggleEffect, onTornEdgeChange, onCropChange }: { layer: Draft['layers'][number] | null; onToggleEffect: (effect: Effect['id']) => void; onTornEdgeChange: (change: 'less' | 'more' | 'reroll') => void; onCropChange: (action: 'in' | 'out' | 'left' | 'right' | 'reset') => void }) => {
@@ -628,9 +765,22 @@ const a3Styles = StyleSheet.create({
   canvasStage: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingBottom: 104, paddingTop: 8 },
   canvasStageWithSheet: { justifyContent: 'flex-start', paddingBottom: 0, paddingTop: 8 },
   assetDrawerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 9 },
+  cutPaletteBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 6 },
   canvasFrame: { backgroundColor: '#FDFDFB', shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.12, shadowRadius: 29 },
   canvasMeasurement: { flex: 1 },
   exportCanvas: { height: CANVAS_SIZE.height, left: -10000, position: 'absolute', top: -10000, width: CANVAS_SIZE.width },
+  cutPalette: { alignItems: 'stretch', backgroundColor: 'rgba(255,255,255,0.94)', borderColor: '#ECEAE5', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 82, left: 32, paddingHorizontal: 9, position: 'absolute', right: 32, shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.1, shadowRadius: 20, zIndex: 7 },
+  cutPaletteOption: { alignItems: 'center', flex: 1, justifyContent: 'center', minWidth: 0, paddingTop: 4 },
+  cutPaletteIcon: { height: 31, resizeMode: 'contain', width: 31 },
+  cutPaletteLabel: { color: '#111111', fontSize: 11, fontWeight: '600', marginTop: 3, textAlign: 'center' },
+  cutPaletteClose: { alignItems: 'center', backgroundColor: '#F2F1EE', borderRadius: 10, height: 20, justifyContent: 'center', position: 'absolute', right: -7, top: -7, width: 20 },
+  cutPaletteCloseText: { color: '#6F6F6F', fontSize: 17, fontWeight: '400', lineHeight: 19 },
+  cutHint: { alignSelf: 'center', backgroundColor: 'rgba(17,17,17,0.88)', borderRadius: 18, left: 32, paddingHorizontal: 16, paddingVertical: 10, position: 'absolute', right: 32, zIndex: 10 },
+  cutHintText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  straightCutActions: { alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 999, flexDirection: 'row', height: 44, left: '25%', position: 'absolute', right: '25%', shadowColor: '#111111', shadowOffset: { height: 8, width: 0 }, shadowOpacity: 0.12, shadowRadius: 22, zIndex: 7 },
+  straightCutAction: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  straightCutCancel: { color: '#6F6F6F', fontSize: 17, fontWeight: '600' },
+  straightCutDone: { color: '#111111', fontSize: 17, fontWeight: '700' },
 });
 
 export default function App() {

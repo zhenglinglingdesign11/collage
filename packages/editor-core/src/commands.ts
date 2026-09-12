@@ -1,5 +1,6 @@
 import type { AssetReference, Draft, Effect, Layer } from './document';
-import type { Rect, Transform } from './geometry';
+import type { Point, Rect, Transform } from './geometry';
+import { splitPolygonByLine, splitPolygonByWave, waveCutSidesForFrame } from './straightCut';
 
 /** Every persistent editor mutation is an explicit, serializable command. */
 export type EditorCommand =
@@ -10,6 +11,7 @@ export type EditorCommand =
   | Readonly<{ type: 'layer.transform'; layerId: string; transform: Transform }>
   | Readonly<{ type: 'layer.effects.set'; layerId: string; effects: readonly Effect[] }>
   | Readonly<{ type: 'layer.crop.set'; layerId: string; crop: Rect }>
+  | Readonly<{ type: 'image.cut.straight'; layerId: string; start: Point; end: Point; firstLayerId: string; secondLayerId: string; operationId: string; gap: number; style: 'straight' | 'wave' }>
   | Readonly<{ type: 'layer.opacity.set'; layerId: string; opacity: number }>
   | Readonly<{ type: 'text.content.set'; layerId: string; text: string }>
   | Readonly<{ type: 'text.style.set'; layerId: string; fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null }>
@@ -65,6 +67,41 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       if (JSON.stringify(layer.crop) === JSON.stringify(command.crop)) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId ? { ...candidate, crop: command.crop } : candidate) });
     }
+    case 'image.cut.straight': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'image' || layer.isLocked) return { draft, changed: false };
+      if (![command.start.x, command.start.y, command.end.x, command.end.y, command.gap].every(Number.isFinite)) return { draft, changed: false };
+      if (command.firstLayerId === command.secondLayerId || draft.layers.some((candidate) => candidate.id !== layer.id && (candidate.id === command.firstLayerId || candidate.id === command.secondLayerId))) return { draft, changed: false };
+      const sourcePolygon = layer.clipPath ?? [
+        { x: 0, y: 0 }, { x: layer.frame.width, y: 0 },
+        { x: layer.frame.width, y: layer.frame.height }, { x: 0, y: layer.frame.height },
+      ];
+      const stackWaveClip = command.style === 'wave' && (layer.cutFragment?.style === 'wave' || layer.clipPaths !== undefined);
+      const pieces = stackWaveClip
+        ? waveCutSidesForFrame(layer.frame, command.start, command.end)
+        : command.style === 'wave'
+          ? splitPolygonByWave(sourcePolygon, command.start, command.end)
+          : splitPolygonByLine(sourcePolygon, command.start, command.end);
+      if (pieces === null) return { draft, changed: false };
+      const sourceLayerId = layer.cutFragment?.sourceLayerId ?? layer.id;
+      const gap = Math.max(0, Math.min(80, command.gap));
+      const dx = command.end.x - command.start.x;
+      const dy = command.end.y - command.start.y;
+      const length = Math.hypot(dx, dy);
+      const localNormal = { x: -dy / length, y: dx / length };
+      const scaledNormal = { x: localNormal.x * layer.transform.scale.x, y: localNormal.y * layer.transform.scale.y };
+      const cos = Math.cos(layer.transform.rotation);
+      const sin = Math.sin(layer.transform.rotation);
+      const canvasNormal = { x: scaledNormal.x * cos - scaledNormal.y * sin, y: scaledNormal.x * sin + scaledNormal.y * cos };
+      const offset = { x: canvasNormal.x * gap / 2, y: canvasNormal.y * gap / 2 };
+      const first = stackWaveClip
+        ? makeStackedWaveFragment(layer, pieces[0], command.firstLayerId, `${layer.name ?? 'Image'} · 1`, sourceLayerId, command.operationId, offset)
+        : makeStraightCutFragment(layer, pieces[0], command.firstLayerId, `${layer.name ?? 'Image'} · 1`, sourceLayerId, command.operationId, command.style, offset);
+      const second = stackWaveClip
+        ? makeStackedWaveFragment(layer, pieces[1], command.secondLayerId, `${layer.name ?? 'Image'} · 2`, sourceLayerId, command.operationId, { x: -offset.x, y: -offset.y })
+        : makeStraightCutFragment(layer, pieces[1], command.secondLayerId, `${layer.name ?? 'Image'} · 2`, sourceLayerId, command.operationId, command.style, { x: -offset.x, y: -offset.y });
+      return touch({ ...draft, layers: [...draft.layers.slice(0, layerIndex), first, second, ...draft.layers.slice(layerIndex + 1)], selectedLayerId: first.id });
+    }
     case 'layer.lock.set':
       if (layerIndex < 0 || draft.layers[layerIndex].isLocked === command.isLocked) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, isLocked: command.isLocked } : layer) });
@@ -113,4 +150,51 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       if (command.layerId === draft.selectedLayerId) return { draft, changed: false };
       return { draft: { ...draft, selectedLayerId: command.layerId }, changed: true };
   }
+};
+
+const makeStraightCutFragment = (layer: Extract<Layer, { type: 'image' }>, polygon: readonly Point[], id: string, name: string, sourceLayerId: string, operationId: string, style: 'straight' | 'wave', nudge: Point) => {
+  const bounds = polygonBounds(polygon);
+  const originalCenter = { x: layer.frame.width / 2, y: layer.frame.height / 2 };
+  const nextFrame = { width: bounds.width, height: bounds.height };
+  const nextCenter = { x: nextFrame.width / 2, y: nextFrame.height / 2 };
+  const localOffset = { x: bounds.x - originalCenter.x, y: bounds.y - originalCenter.y };
+  const cos = Math.cos(layer.transform.rotation);
+  const sin = Math.sin(layer.transform.rotation);
+  const mapVector = (point: Point): Point => ({
+    x: point.x * layer.transform.scale.x * cos - point.y * layer.transform.scale.y * sin,
+    y: point.x * layer.transform.scale.x * sin + point.y * layer.transform.scale.y * cos,
+  });
+  const mappedOffset = mapVector(localOffset);
+  const mappedNewCenter = mapVector(nextCenter);
+  const content = layer.contentFrame ?? { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
+  return {
+    ...layer,
+    id,
+    name,
+    frame: nextFrame,
+    transform: { ...layer.transform, position: { x: layer.transform.position.x + originalCenter.x + mappedOffset.x - nextCenter.x + mappedNewCenter.x + nudge.x, y: layer.transform.position.y + originalCenter.y + mappedOffset.y - nextCenter.y + mappedNewCenter.y + nudge.y } },
+    contentFrame: { ...content, x: content.x - bounds.x, y: content.y - bounds.y },
+    clipPath: polygon.map((point) => ({ x: point.x - bounds.x, y: point.y - bounds.y })),
+    cutFragment: { sourceLayerId, operationId, style },
+  };
+};
+
+const makeStackedWaveFragment = (layer: Extract<Layer, { type: 'image' }>, waveSide: readonly Point[], id: string, name: string, sourceLayerId: string, operationId: string, nudge: Point) => {
+  const existingPaths = layer.clipPaths ?? (layer.clipPath ? [layer.clipPath] : []);
+  return {
+    ...layer,
+    id,
+    name,
+    transform: { ...layer.transform, position: { x: layer.transform.position.x + nudge.x, y: layer.transform.position.y + nudge.y } },
+    clipPaths: [...existingPaths, waveSide],
+    cutFragment: { sourceLayerId, operationId, style: 'wave' as const },
+  };
+};
+
+const polygonBounds = (polygon: readonly Point[]) => {
+  const xs = polygon.map((point) => point.x);
+  const ys = polygon.map((point) => point.y);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(0.001, Math.max(...xs) - x), height: Math.max(0.001, Math.max(...ys) - y) };
 };

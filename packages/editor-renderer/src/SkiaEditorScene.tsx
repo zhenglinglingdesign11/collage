@@ -2,6 +2,7 @@ import {
   BlurMask,
   Circle,
   Canvas,
+  DashPathEffect,
   Fill,
   Group,
   Image as SkiaImage,
@@ -16,7 +17,7 @@ import {
   type Transforms3d,
 } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
-import type { Draft, Effect, Layer } from '@journalcollage/editor-core';
+import type { Draft, Effect, Layer, Point } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
@@ -29,6 +30,9 @@ export type ActiveLayerPresentation = Readonly<{
   layerId: string | null;
   transform: SharedValue<Transforms3d>;
 }>;
+
+/** Ephemeral interaction state. It is intentionally not persisted in Draft. */
+export type StraightCutPreview = Readonly<{ layerId: string; start: Point; end: Point; style: 'straight' | 'wave' }>;
 
 /** Product asset metadata supplied at render time; never persisted in a Draft. */
 export type ProceduralPaperPaint = Readonly<{
@@ -85,6 +89,7 @@ type SkiaEditorSceneProps = Readonly<{
   showSelection?: boolean;
   /** Preview-only stage color. It is deliberately not stored in the Draft. */
   surfaceColor?: string;
+  straightCutPreview?: StraightCutPreview | null;
 }>;
 
 /**
@@ -92,7 +97,7 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7' }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -108,6 +113,7 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
           fontUri={layer.type === 'text' ? fontUris[layer.fontVariantId] : undefined}
           fontSupportsCjk={layer.type === 'text' ? fontSupportsCjk[layer.fontVariantId] : undefined}
+          straightCutPreview={straightCutPreview?.layerId === layer.id ? straightCutPreview : null}
         />
       ))}
     </Group>
@@ -136,9 +142,10 @@ type SkiaLayerProps = Readonly<{
   proceduralSticker?: ProceduralStickerPaint;
   fontUri?: string;
   fontSupportsCjk?: boolean;
+  straightCutPreview: StraightCutPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
@@ -149,16 +156,25 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
     () => makeLayerPath(frame.width, frame.height, tornEdge?.seed, tornEdge?.intensity),
     [frame.height, frame.width, tornEdge?.intensity, tornEdge?.seed],
   );
+  const cutPaths = useMemo(() => layer.type !== 'image' ? [] : layer.clipPaths ?? (layer.clipPath ? [layer.clipPath] : []), [layer]);
+  const previewPath = useMemo(() => straightCutPreview ? (straightCutPreview.style === 'wave' ? makeWaveCutPath(straightCutPreview.start, straightCutPreview.end, frame) : makeStraightCutPath(straightCutPreview.start, straightCutPreview.end)) : null, [frame, straightCutPreview]);
 
   return (
     <Group transform={transform} origin={{ x: frame.width / 2, y: frame.height / 2 }} opacity={layer.opacity}>
       {shadow && <Group transform={[{ translateX: shadow.offset.x }, { translateY: shadow.offset.y }]} opacity={shadow.opacity}><Path path={shapePath} color={shadow.color}><BlurMask blur={shadow.blur} style="normal" /></Path></Group>}
       <Group clip={shapePath}>
-        {layer.type === 'image' && <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
+        {layer.type === 'image' && <ImageLayerContent layer={layer} assetUri={assetUri} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
         {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
         {layer.type === 'brush' && <BrushPlaceholder layer={layer} />}
         {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
       </Group>
+      {previewPath && <>
+        <Path path={previewPath} color="rgba(17,17,17,0.78)" strokeCap="round" style="stroke" strokeWidth={10}><DashPathEffect intervals={[34, 28]} /></Path>
+        <Circle cx={straightCutPreview!.start.x} cy={straightCutPreview!.start.y} r={28} color="rgba(255,255,255,0.94)" />
+        <Circle cx={straightCutPreview!.start.x} cy={straightCutPreview!.start.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
+        <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="rgba(255,255,255,0.94)" />
+        <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
+      </>}
       {outline && <Path path={shapePath} color={outline.color} style="stroke" strokeWidth={outline.width} />}
       {selected && (
         <>
@@ -171,6 +187,46 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
       )}
     </Group>
   );
+};
+
+const ImageLayerContent = ({ layer, assetUri, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ layer: Extract<Layer, { type: 'image' }>; assetUri?: string; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {
+  const content = <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
+  return clipPaths.reduceRight((child, points, index) => <Group key={`${index}-${points.length}`} clip={makePolygonPath(points)}>{child}</Group>, content);
+};
+
+const makePolygonPath = (points: readonly Point[]) => {
+  const path = Skia.Path.Make();
+  points.forEach((point, index) => index === 0 ? path.moveTo(point.x, point.y) : path.lineTo(point.x, point.y));
+  path.close();
+  return path;
+};
+
+const makeStraightCutPath = (start: Point, end: Point) => {
+  const path = Skia.Path.Make();
+  path.moveTo(start.x, start.y);
+  path.lineTo(end.x, end.y);
+  return path;
+};
+
+const makeWaveCutPath = (start: Point, end: Point, frame: { width: number; height: number }) => {
+  const path = Skia.Path.Make();
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1) return path;
+  const unit = { x: dx / length, y: dy / length };
+  const normal = { x: -unit.y, y: unit.x };
+  const amplitude = Math.min(44, Math.max(10, Math.min(frame.width, frame.height) * 0.08));
+  const wavelength = Math.max(36, Math.min(120, Math.max(36, length * 0.55)));
+  const steps = Math.max(18, Math.ceil(length / 8));
+  for (let index = 0; index <= steps; index += 1) {
+    const distance = length * index / steps;
+    const wave = Math.sin(distance / wavelength * Math.PI * 2) * amplitude;
+    const x = start.x + unit.x * distance + normal.x * wave;
+    const y = start.y + unit.y * distance + normal.y * wave;
+    if (index === 0) path.moveTo(x, y); else path.lineTo(x, y);
+  }
+  return path;
 };
 
 const TextLayerContent = ({ layer, fontSupportsCjk = false, fontUri }: Readonly<{ layer: Extract<Layer, { type: 'text' }>; fontSupportsCjk?: boolean; fontUri?: string }>) => {
@@ -203,11 +259,12 @@ const splitTextRuns = (text: string, cjkFont: ReturnType<typeof matchFont>, lati
 
 const ImagePlaceholder = ({ layer, assetUri, proceduralPaper, proceduralSticker }: { layer: Extract<Layer, { type: 'image' }>; assetUri?: string; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {
   const image = useImage(assetUri);
-  if (proceduralPaper !== undefined) return <ProceduralPaperLayer frame={layer.frame} paper={proceduralPaper} patternImageUri={assetUri} />;
-  if (proceduralSticker !== undefined) return <ProceduralStickerLayer frame={layer.frame} sticker={proceduralSticker} textureUri={assetUri} />;
+  const contentFrame = layer.contentFrame ?? { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
+  if (proceduralPaper !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralPaperLayer frame={contentFrame} paper={proceduralPaper} patternImageUri={assetUri} /></Group>;
+  if (proceduralSticker !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralStickerLayer frame={contentFrame} sticker={proceduralSticker} textureUri={assetUri} /></Group>;
   return (
-  <Group transform={[{ translateX: -layer.crop.x * layer.frame.width / layer.crop.width }, { translateY: -layer.crop.y * layer.frame.height / layer.crop.height }, { scaleX: 1 / layer.crop.width }, { scaleY: 1 / layer.crop.height }]}>
-    {image ? <SkiaImage image={image} x={0} y={0} width={layer.frame.width} height={layer.frame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={layer.frame.width} height={layer.frame.height} r={28} color="#5E7D79" /><Circle cx={layer.frame.width * 0.76} cy={layer.frame.height * 0.24} r={layer.frame.width * 0.1} color="#F8D88B" /><Rect x={0} y={layer.frame.height * 0.55} width={layer.frame.width} height={layer.frame.height * 0.45} color="#355C58" /><Rect x={0} y={layer.frame.height * 0.7} width={layer.frame.width} height={layer.frame.height * 0.3} color="#284A47" /></>}
+  <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }, { translateX: -layer.crop.x * contentFrame.width / layer.crop.width }, { translateY: -layer.crop.y * contentFrame.height / layer.crop.height }, { scaleX: 1 / layer.crop.width }, { scaleY: 1 / layer.crop.height }]}>
+    {image ? <SkiaImage image={image} x={0} y={0} width={contentFrame.width} height={contentFrame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
   </Group>
   );
 };
