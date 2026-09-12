@@ -1,5 +1,66 @@
 import type { AssetReference } from '@journalcollage/editor-core';
 
+// Font metadata is product catalog data, not editor-document data.  The
+// mini-program remains the single source for the CDN file names and families.
+const { fontTable } = require('../../../miniprogram-spike/miniprogram/config/font-table') as {
+  fontTable: readonly Readonly<{
+    id: string;
+    groupId: string;
+    label: string;
+    variantLabel: string;
+    previewText: string;
+    family: string;
+    fallback: string;
+    url: string;
+  }>[],
+};
+
+export type TextFont = Readonly<{
+  id: string;
+  groupId: string;
+  label: string;
+  variantId: string;
+  variantLabel: string;
+  previewText: string;
+  family: string;
+  fallbackFamily: string;
+  supportsCjk: boolean;
+  remoteSource?: string;
+  reference: AssetReference;
+}>;
+
+export const systemTextFont: TextFont = {
+  id: 'system', groupId: 'system', label: 'System', variantId: 'system',
+  variantLabel: 'Regular', previewText: 'System', family: 'sans-serif',
+  fallbackFamily: 'sans-serif', supportsCjk: true, reference: { id: 'font://system', kind: 'font', revision: '1' },
+};
+
+export const textFonts: readonly TextFont[] = [
+  systemTextFont,
+  ...fontTable.map((font) => ({
+    id: font.groupId,
+    groupId: font.groupId,
+    label: font.label,
+    variantId: font.id,
+    variantLabel: font.variantLabel,
+    previewText: font.previewText,
+    family: font.family,
+    fallbackFamily: font.fallback,
+    supportsCjk: /^(kose_regular|xinyugong_regular|kurewa_gothic_regular|qingsong_handwriting_regular)$/.test(font.id),
+    remoteSource: font.url,
+    reference: { id: `font://${font.id}`, kind: 'font' as const, revision: '1' },
+  })),
+];
+
+export const getTextFont = (variantId: string): TextFont =>
+  textFonts.find((font) => font.variantId === variantId) ?? systemTextFont;
+
+export const getTextFontGroups = (): readonly TextFont[] =>
+  textFonts.filter((font, index, all) => all.findIndex((candidate) => candidate.groupId === font.groupId) === index);
+
+export const getTextFontVariants = (fontId: string): readonly TextFont[] =>
+  textFonts.filter((font) => font.groupId === fontId);
+
 declare const require: (path: string) => unknown;
 
 export type AssetPackCategory = 'recommended' | 'sticker' | 'tape' | 'note' | 'mixed' | 'frame' | 'paper';

@@ -1,23 +1,26 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Canvas, useCanvasRef, type Transforms3d } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { assetUriMap, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
+import { assetUriMap, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
 import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, type Draft, type EditorCommand, type Effect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type CanvasViewport } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, importLocalImage, loadSavedDraft, loadWorkspace, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
-import { EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls } from './src/product-ui/EditorChrome';
+import { EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
+import { TEXT_EDITOR_PANEL_HEIGHT, TextEditorPanel } from './src/product-ui/TextEditorPanel';
+import { ensureTextFont, resolvedTextFontUri } from './src/product-ui/fonts';
 import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
 import { resolveProductLocale, t } from './src/product-ui/localization';
+import { productColor } from './src/product-ui/tokens';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
 
 const CANVAS_SIZE = { width: 1800, height: 2400 };
@@ -46,7 +49,7 @@ const createFixtureDraft = (): Draft => {
     layers: [
       { id: 'fixture-photo', name: 'Torn photo', type: 'image', asset: { id: 'fixture://photo', kind: 'image' }, frame: { width: 900, height: 680 }, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: 260, y: 340 }, rotation: -0.07 }, opacity: 1, isLocked: false, effects: [{ id: 'shadow', color: '#392F2A', opacity: 0.22, blur: 24, offset: { x: 18, y: 24 } }, { id: 'outline', color: '#FFF8EB', width: 14 }, { id: 'torn-edge', seed: 61, intensity: 28 }] },
       { id: 'fixture-material', name: 'Paper material', type: 'material', asset: { id: 'fixture://paper', kind: 'texture' }, frame: { width: 420, height: 500 }, transform: { ...identityTransform(), position: { x: 1120, y: 760 }, rotation: 0.13 }, opacity: 1, isLocked: false, effects: [{ id: 'shadow', color: '#392F2A', opacity: 0.18, blur: 18, offset: { x: 12, y: 18 } }, { id: 'outline', color: '#FFF8EB', width: 10 }] },
-      { id: 'fixture-title', name: 'Text placeholder', type: 'text', text: 'little moments', frame: { width: 1100, height: 180 }, font: null, fontSize: 86, color: '#49372B', transform: { ...identityTransform(), position: { x: 210, y: 1390 }, rotation: -0.025 }, opacity: 1, isLocked: false, effects: [] },
+      { id: 'fixture-title', name: 'Text placeholder', type: 'text', text: 'little moments', frame: { width: 1100, height: 180 }, fontId: 'system', fontVariantId: 'system', fontSize: 86, color: '#49372B', textAlign: 'left', backgroundColor: null, transform: { ...identityTransform(), position: { x: 210, y: 1390 }, rotation: -0.025 }, opacity: 1, isLocked: false, effects: [] },
       { id: 'fixture-brush', name: 'Texture brush', type: 'brush', brush: { id: 'fixture://lace-stamp', kind: 'brush' }, frame: { width: 1320, height: 310 }, points: [{ x: 80, y: 130 }, { x: 250, y: 80 }, { x: 460, y: 150 }, { x: 690, y: 95 }, { x: 930, y: 165 }, { x: 1220, y: 100 }], size: 44, spacing: 24, jitter: 28, seed: 32, color: '#BA786D', transform: { ...identityTransform(), position: { x: 200, y: 1720 }, rotation: 0.03 }, opacity: 1, isLocked: false, effects: [] },
     ],
   };
@@ -93,10 +96,18 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [backgroundDrawerOpen, setBackgroundDrawerOpen] = useState(false);
   const [customPolkaBackgroundOpen, setCustomPolkaBackgroundOpen] = useState(false);
   const [assetDrawerHeight, setAssetDrawerHeight] = useState(0);
+  const [textEdit, setTextEdit] = useState<Readonly<{ layerId: string; initialText: string; text: string; created: boolean }> | null>(null);
+  const [fontRevision, setFontRevision] = useState(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialPackItemsAdded = useRef(false);
+  const textLayerSequence = useRef(0);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
+  const renderedDraft = useMemo(() => textEdit === null ? state.present : {
+    ...state.present,
+    layers: state.present.layers.map((layer) => layer.id === textEdit.layerId && layer.type === 'text' ? { ...layer, text: textEdit.text } : layer),
+  }, [state.present, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
     const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
@@ -105,6 +116,17 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   // Local pattern assets intentionally win over the procedural SVG cache: the
   // paper renderer repeats these PNGs instead of falling back to dot marks.
   const assetUris = useMemo(() => ({ ...remoteAssetUriMap(), ...assetUriMap(catalog), ...localPolkaPatternUris }), [catalog]);
+
+  useEffect(() => {
+    const updateKeyboard = (event: KeyboardEvent) => setKeyboardHeight(Math.max(0, window.height - event.endCoordinates.screenY));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKeyboardHeight(0));
+    const change = Keyboard.addListener('keyboardWillChangeFrame', updateKeyboard);
+    // Android emits the Did events; subscribing to both keeps the panel at the
+    // same visual anchor on the shared editor surface.
+    const show = Keyboard.addListener('keyboardDidShow', updateKeyboard);
+    const didHide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => { hide.remove(); change.remove(); show.remove(); didHide.remove(); };
+  }, [window.height]);
 
   useEffect(() => {
     const workspacePromise = restoreSavedDraftId ? loadSavedDraft(restoreSavedDraftId) : loadWorkspace();
@@ -320,6 +342,47 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       { text: t(locale, 'editor.source.cancel'), style: 'cancel' },
     ]);
   }, [locale, pickPhoto]);
+  const addText = useCallback(() => {
+    // Do not reuse an editor session or a native TextInput instance when a
+    // second text layer is created quickly after the first one.
+    textLayerSequence.current += 1;
+    const id = `text-${Date.now()}-${textLayerSequence.current}`;
+    setTextEdit(null);
+    const layer = {
+      id, name: 'Text', type: 'text' as const, text: '', frame: { width: 1240, height: 220 },
+      fontId: 'system', fontVariantId: 'system', fontSize: 92, color: '#111111', textAlign: 'center' as const, backgroundColor: null,
+      transform: { ...identityTransform(), position: { x: 280, y: 1090 } }, opacity: 1, isLocked: false, effects: [],
+    };
+    dispatch({ type: 'command', command: { type: 'layer.add', layer } });
+    setTextEdit({ layerId: id, initialText: '', text: '', created: true });
+  }, []);
+  const finishTextEditing = useCallback(() => {
+    if (textEdit === null) return;
+    const text = textEdit.text.trim();
+    if (text.length === 0 && textEdit.created) {
+      dispatch({ type: 'command', command: { type: 'layer.delete', layerId: textEdit.layerId } });
+    } else if (text !== textEdit.initialText) {
+      dispatch({ type: 'command', command: { type: 'text.content.set', layerId: textEdit.layerId, text } });
+    }
+    // Completing text input returns to neutral editing, matching the primary
+    // toolbar state. A later canvas tap deliberately reselects this layer.
+    dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+    setTextEdit(null);
+  }, [textEdit]);
+  const cancelTextEditing = useCallback(() => {
+    if (textEdit?.created) dispatch({ type: 'command', command: { type: 'layer.delete', layerId: textEdit.layerId } });
+    setTextEdit(null);
+  }, [textEdit]);
+  const beginTextEditing = useCallback((layer: Extract<Draft['layers'][number], { type: 'text' }>) => {
+    setTextEdit({ layerId: layer.id, initialText: layer.text, text: layer.text, created: false });
+    void ensureTextFont(layer.fontVariantId).then(() => setFontRevision((value) => value + 1));
+  }, []);
+  const updateTextStyle = useCallback((layerId: string, change: { fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null; opacity?: number }) => {
+    const { opacity, ...style } = change;
+    if (Object.keys(style).length > 0) dispatch({ type: 'command', command: { type: 'text.style.set', layerId, ...style } });
+    if (opacity !== undefined) dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId, opacity } });
+    if (change.fontVariantId !== undefined) void ensureTextFont(change.fontVariantId).then(() => setFontRevision((value) => value + 1));
+  }, []);
   const initialPhotoRequested = useRef(false);
   useEffect(() => {
     if (initialEntry !== 'photo' || !workspaceReady || initialPhotoRequested.current) return;
@@ -406,7 +469,11 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   }, [exportCanvasRef]);
   const isTablet = window.width >= 768;
   const drawerOpen = assetDrawerOpen || backgroundDrawerOpen;
-  const canvasBottomOverlay = drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  // Keep the paper at its normal editing scale while the keyboard is up. The
+  // mini-program only lifts the canvas enough to retain the text selection,
+  // rather than shrinking it into the remaining keyboard-free rectangle.
+  const canvasBottomOverlay = textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const textCanvasOffset = textEdit !== null && keyboardHeight > 0 ? Math.min(120, Math.round(keyboardHeight * 0.35)) : 0;
   const previewSize = useMemo(() => {
     const maxWidth = Math.max(1, window.width - 56);
     const editorHeight = Math.max(1, window.height - insets.top - 56);
@@ -433,8 +500,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const canvasBackgroundAsset = state.present.canvas.backgroundAsset;
   const canvasBackgroundPaper = canvasBackgroundAsset ? proceduralPaperForReferenceId(canvasBackgroundAsset.id) : undefined;
   const canvasBackgroundUri = canvasBackgroundAsset ? assetUris[canvasBackgroundAsset.id] : undefined;
-  const scene = <SkiaEditorScene draft={state.present} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} surfaceColor="#FAFAF8" />;
-  const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
+  // Skia receives cached font files directly as Typeface sources. The Draft
+  // remains limited to stable font IDs and never observes these local URIs.
+  const fontUris = useMemo(() => Object.fromEntries(renderedDraft.layers.filter((layer) => layer.type === 'text').flatMap((layer) => { const uri = resolvedTextFontUri(layer.fontVariantId); return uri ? [[layer.fontVariantId, uri] as const] : []; })), [fontRevision, renderedDraft.layers]);
+  const fontSupportsCjk = useMemo(() => Object.fromEntries(renderedDraft.layers.filter((layer) => layer.type === 'text').map((layer) => [layer.fontVariantId, getTextFont(layer.fontVariantId).supportsCjk])), [renderedDraft.layers]);
+  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} surfaceColor="#FAFAF8" />;
+  const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
   const imageLayerToolbar = selectedLayer?.type === 'image' ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
@@ -448,6 +519,16 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     onEffects={() => toggleEffect('torn-edge')}
     onScissors={() => {}}
     onEmboss={() => {}}
+  /> : null;
+  const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale}
+    onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
+    onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
+    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
+    onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
+    onEditText={() => beginTextEditing(selectedLayer)}
+    onShadow={() => toggleEffect('shadow')}
+    onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
+    onOutline={() => toggleEffect('outline')}
   /> : null;
   const imageSelectionControls = selectedLayer?.type === 'image' ? <ImageSelectionControls
     isLocked={selectedLayer.isLocked}
@@ -471,8 +552,8 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
           <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace]}>
             {canvas}
             {imageSelectionControls}
-            {selectedLayer === null && !drawerOpen && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={() => toggleEffect('torn-edge')} />}
-            {imageLayerToolbar ?? (selectedLayer !== null && inspector)}
+            {selectedLayer === null && !drawerOpen && textEdit === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={() => toggleEffect('torn-edge')} onText={addText} />}
+            {imageLayerToolbar ?? textLayerToolbar ?? (selectedLayer !== null && inspector)}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
               <AssetDrawer initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
@@ -481,9 +562,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
               <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
               <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: '#F7F3ED', asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} />
             </>}
+            {textEdit !== null && selectedLayer?.type === 'text' && <TextEditorPanel key={textEdit.layerId} bottomInset={insets.bottom} keyboardHeight={keyboardHeight} layer={selectedLayer} locale={locale} text={textEdit.text} onCancel={cancelTextEditing} onChangeText={(text) => setTextEdit((current) => current === null ? null : { ...current, text })} onDone={finishTextEditing} onStyleChange={(change) => updateTextStyle(selectedLayer.id, change)} />}
           </View>
         )}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
+        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -492,9 +574,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
 
 const HistoryButton = ({ label, disabled, onPress }: { label: string; disabled: boolean; onPress: () => void }) => <Pressable disabled={disabled} onPress={onPress} style={[styles.historyButton, disabled && styles.historyButtonDisabled]}><Text style={[styles.historyButtonText, disabled && styles.historyButtonTextDisabled]}>{label}</Text></Pressable>;
 const EditorHeader = ({ pastCount, futureCount, onUndo, onRedo, onExport, onSave, onExit }: { pastCount: number; futureCount: number; onUndo: () => void; onRedo: () => void; onExport: () => void; onSave: () => void; onExit: () => void }) => <View style={styles.header}><View style={a3Styles.headerCopy}><Text style={styles.eyebrow}>JOURNAL COLLAGE · A3</Text><Text numberOfLines={1} style={styles.title}>New collage</Text></View><View style={styles.history}><HistoryButton label="Close" disabled={false} onPress={onExit} /><HistoryButton label="↶" disabled={pastCount === 0} onPress={onUndo} /><HistoryButton label="↷" disabled={futureCount === 0} onPress={onRedo} /><HistoryButton label="Save" disabled={false} onPress={onSave} /><HistoryButton label="Share" disabled={false} onPress={onExport} /></View></View>;
-const EditorCanvas = ({ bottomOverlay, children, frame, gesture, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous>; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
+const EditorCanvas = ({ bottomOverlay, children, frame, gesture, keyboardOffset, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous>; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
   <View style={[a3Styles.canvasStage, bottomOverlay > 0 ? a3Styles.canvasStageWithSheet : { paddingBottom: 104 }]}>
-    <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, frame]}>
+    <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, frame, keyboardOffset > 0 && { transform: [{ translateY: -keyboardOffset }] }]}>
       <View onLayout={onLayout} style={a3Styles.canvasMeasurement}>
         <GestureDetector gesture={gesture}>
           <Canvas style={styles.canvas}>{children}</Canvas>

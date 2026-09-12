@@ -11,6 +11,7 @@ import {
   RoundedRect,
   Skia,
   Text,
+  useFont,
   useImage,
   type Transforms3d,
 } from '@shopify/react-native-skia';
@@ -75,6 +76,9 @@ type SkiaEditorSceneProps = Readonly<{
   assetUris?: Readonly<Record<string, string>>;
   proceduralPapers?: Readonly<Record<string, ProceduralPaperPaint>>;
   proceduralStickers?: Readonly<Record<string, ProceduralStickerPaint>>;
+  /** Native adapter resolved font files; never stored in a Draft. */
+  fontUris?: Readonly<Record<string, string>>;
+  fontSupportsCjk?: Readonly<Record<string, boolean>>;
   /** Canvas-owned paper/background input resolved from Draft.canvas.backgroundAsset. */
   canvasBackgroundUri?: string;
   canvasBackgroundPaper?: ProceduralPaperPaint;
@@ -88,7 +92,7 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7' }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7' }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -102,6 +106,8 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           assetUri={layer.type === 'image' ? assetUris[layer.asset.id] : undefined}
           proceduralPaper={layer.type === 'image' ? proceduralPapers[layer.asset.id] : undefined}
           proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
+          fontUri={layer.type === 'text' ? fontUris[layer.fontVariantId] : undefined}
+          fontSupportsCjk={layer.type === 'text' ? fontSupportsCjk[layer.fontVariantId] : undefined}
         />
       ))}
     </Group>
@@ -128,13 +134,14 @@ type SkiaLayerProps = Readonly<{
   assetUri?: string;
   proceduralPaper?: ProceduralPaperPaint;
   proceduralSticker?: ProceduralStickerPaint;
+  fontUri?: string;
+  fontSupportsCjk?: boolean;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk }: SkiaLayerProps) => {
   const { frame } = layer;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
-  const font = layer.type === 'text' ? matchFont({ fontFamily: 'sans-serif', fontSize: layer.fontSize }) : null;
   const tornEdge = effectFor(layer.effects, 'torn-edge');
   const shadow = effectFor(layer.effects, 'shadow');
   const outline = effectFor(layer.effects, 'outline');
@@ -150,7 +157,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
         {layer.type === 'image' && <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
         {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
         {layer.type === 'brush' && <BrushPlaceholder layer={layer} />}
-        {layer.type === 'text' && <><RoundedRect x={0} y={0} width={frame.width} height={frame.height} r={20} color="#FFFDF9" /><Text x={34} y={frame.height / 2 + layer.fontSize / 3} text={layer.text} font={font} color={layer.color} /></>}
+        {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
       </Group>
       {outline && <Path path={shapePath} color={outline.color} style="stroke" strokeWidth={outline.width} />}
       {selected && (
@@ -164,6 +171,34 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
       )}
     </Group>
   );
+};
+
+const TextLayerContent = ({ layer, fontSupportsCjk = false, fontUri }: Readonly<{ layer: Extract<Layer, { type: 'text' }>; fontSupportsCjk?: boolean; fontUri?: string }>) => {
+  const downloadedFont = useFont(fontUri, layer.fontSize);
+  // PingFang SC is the iOS system CJK face. matchFont falls back to the
+  // platform default on other targets, so the document stays cross-platform.
+  const systemFont = matchFont({ fontFamily: 'PingFang SC', fontSize: layer.fontSize });
+  const decorativeFont = downloadedFont ?? systemFont;
+  const runs = splitTextRuns(layer.text, fontSupportsCjk ? decorativeFont : systemFont, decorativeFont);
+  const padding = 34;
+  const width = runs.reduce((total, run) => total + run.font.measureText(run.text).width, 0);
+  const x = layer.textAlign === 'right' ? layer.frame.width - padding - width : layer.textAlign === 'center' ? (layer.frame.width - width) / 2 : padding;
+  let cursor = x;
+  return <>
+    {layer.backgroundColor !== null && <RoundedRect x={0} y={0} width={layer.frame.width} height={layer.frame.height} r={20} color={layer.backgroundColor} />}
+    {runs.map((run, index) => { const runX = cursor; cursor += run.font.measureText(run.text).width; return <Text key={`${index}-${run.text}`} x={runX} y={layer.frame.height / 2 + layer.fontSize / 3} text={run.text} font={run.font} color={layer.color} />; })}
+  </>;
+};
+
+const splitTextRuns = (text: string, cjkFont: ReturnType<typeof matchFont>, latinFont: ReturnType<typeof matchFont>) => {
+  const isCjk = (character: string) => /[\u3000-\u303f\u3400-\u9fff\uff00-\uffef]/.test(character);
+  return Array.from(text).reduce<{ text: string; font: ReturnType<typeof matchFont>; cjk: boolean }[]>((runs, character) => {
+    const cjk = isCjk(character);
+    const previous = runs[runs.length - 1];
+    if (previous && previous.cjk === cjk) previous.text += character;
+    else runs.push({ text: character, font: cjk ? cjkFont : latinFont, cjk });
+    return runs;
+  }, []);
 };
 
 const ImagePlaceholder = ({ layer, assetUri, proceduralPaper, proceduralSticker }: { layer: Extract<Layer, { type: 'image' }>; assetUri?: string; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {

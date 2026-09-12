@@ -26,6 +26,10 @@ const validateLayer = (layer: Layer, index: number, ids: Set<string>, issues: Va
   }
   if (!Number.isFinite(layer.opacity) || layer.opacity < 0 || layer.opacity > 1) issues.push({ path: `${path}.opacity`, message: 'Opacity must be between 0 and 1.' });
   if (!isFiniteSize(layer.frame)) issues.push({ path: `${path}.frame`, message: 'Layer frame must be positive finite values.' });
+  if (layer.type === 'text') {
+    if (!layer.fontId || !layer.fontVariantId) issues.push({ path: `${path}.font`, message: 'Text layers must retain stable font and variant ids.' });
+    if (!Number.isFinite(layer.fontSize) || layer.fontSize < 12 || layer.fontSize > 320) issues.push({ path: `${path}.fontSize`, message: 'Text font size must be within the supported range.' });
+  }
   if (layer.type === 'image' && (!Number.isFinite(layer.crop.x) || !Number.isFinite(layer.crop.y) || layer.crop.x < 0 || layer.crop.y < 0 || layer.crop.width <= 0 || layer.crop.height <= 0 || layer.crop.x + layer.crop.width > 1 || layer.crop.y + layer.crop.height > 1)) {
     issues.push({ path: `${path}.crop`, message: 'Image crop must be a normalized rectangle within the source image.' });
   }

@@ -32,13 +32,13 @@ const HeaderAction = ({ direction, disabled, onPress }: Readonly<{ direction: 'r
   </Pressable>
 );
 
-export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onMaterial, onPhoto, onScissors }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void }>) => (
+export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onMaterial, onPhoto, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void; onText: () => void }>) => (
   <View style={[styles.toolbar, { bottom: 24 + bottomInset }]}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarTrack}>
       <EditorTool asset="asset://ui/editor/tool/image" compact={locale === 'zh-Hans'} label="editor.tool.image" locale={locale} onPress={onPhoto} />
       <EditorTool asset="asset://ui/editor/tool/material" compact={locale === 'zh-Hans'} label="editor.tool.material" locale={locale} onPress={onMaterial} />
       <EditorTool asset="asset://ui/editor/tool/background" compact={locale === 'zh-Hans'} label="editor.tool.background" locale={locale} onPress={onBackground} wide />
-      <EditorTool asset="asset://ui/editor/tool/text" compact={locale === 'zh-Hans'} label="editor.tool.text" locale={locale} />
+      <EditorTool asset="asset://ui/editor/tool/text" compact={locale === 'zh-Hans'} label="editor.tool.text" locale={locale} onPress={onText} />
       <EditorTool asset="asset://ui/editor/tool/scissors" compact={locale === 'zh-Hans'} label="editor.tool.scissors" locale={locale} onPress={onScissors} wide />
       <EditorTool asset="asset://ui/editor/tool/emboss" compact={locale === 'zh-Hans'} label="editor.tool.emboss" locale={locale} />
       <EditorTool asset="asset://ui/editor/tool/brush" compact={locale === 'zh-Hans'} label="editor.tool.brush" locale={locale} small />
@@ -84,6 +84,34 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCrop, onD
   </View>
 );
 
+/** Mirrors the mini-program selected-text state: normal layer actions plus a
+ * persistent edit-text link in the panel header. */
+export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDown, onEditText, onOpacity, onOutline, onShadow, onUp }: Readonly<{
+  bottomInset?: number;
+  locale: ProductLocale;
+  onCopy: () => void;
+  onDelete: () => void;
+  onDown: () => void;
+  onEditText: () => void;
+  onOpacity: () => void;
+  onOutline: () => void;
+  onShadow: () => void;
+  onUp: () => void;
+}>) => (
+  <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.text.edit')} hitSlop={8} onPress={onEditText}><Text style={styles.textEditLink}>{t(locale, 'editor.text.edit')}</Text></Pressable></View>
+    <View style={[styles.layerActions, styles.textLayerActions]}>
+      <LayerAction asset="asset://ui/editor/layer/move-up" label="editor.layer.up" locale={locale} onPress={onUp} style={styles.textLayerAction} />
+      <LayerAction asset="asset://ui/editor/layer/move-down" label="editor.layer.down" locale={locale} onPress={onDown} style={styles.textLayerAction} />
+      <LayerAction icon="copy" label="editor.layer.copy" locale={locale} onPress={onCopy} style={styles.textLayerAction} />
+      <LayerAction asset="asset://ui/editor/layer/delete" label="editor.layer.delete" locale={locale} onPress={onDelete} style={styles.textLayerAction} />
+      <LayerAction icon="shadow" label="editor.layer.shadow" locale={locale} onPress={onShadow} style={styles.textLayerAction} />
+      <LayerAction icon="opacity" label="editor.layer.opacity" locale={locale} onPress={onOpacity} style={styles.textLayerAction} />
+      <LayerAction icon="outline" label="editor.layer.outline" locale={locale} onPress={onOutline} style={styles.textLayerAction} />
+    </View>
+  </View>
+);
+
 export const ImageSelectionControls = ({ isLocked, lockStyle, onReplace, onToggleLock, replaceStyle }: Readonly<{
   isLocked: boolean;
   lockStyle: ViewStyle;
@@ -103,8 +131,8 @@ export const ImageSelectionControls = ({ isLocked, lockStyle, onReplace, onToggl
 
 type LayerActionIconKind = 'copy' | 'crop' | 'shadow' | 'opacity' | 'corner' | 'outline' | 'effects' | 'scissors' | 'emboss';
 
-const LayerAction = ({ asset, icon, label, locale, onPress }: Readonly<{ asset?: ProductAssetId; icon?: LayerActionIconKind; label: ProductCopyKey; locale: ProductLocale; onPress?: () => void }>) => (
-  <Pressable accessibilityLabel={t(locale, label)} accessibilityRole="button" onPress={onPress} style={styles.layerAction}>
+const LayerAction = ({ asset, icon, label, locale, onPress, style }: Readonly<{ asset?: ProductAssetId; icon?: LayerActionIconKind; label: ProductCopyKey; locale: ProductLocale; onPress?: () => void; style?: ViewStyle }>) => (
+  <Pressable accessibilityLabel={t(locale, label)} accessibilityRole="button" onPress={onPress} style={[styles.layerAction, style]}>
     {asset ? <Image source={resolveProductAsset(asset)} style={styles.layerActionImage} /> : icon ? <LayerActionIcon kind={icon} /> : null}
     <Text numberOfLines={1} style={styles.layerActionLabel}>{t(locale, label)}</Text>
   </Pressable>
@@ -168,10 +196,16 @@ const styles = StyleSheet.create({
   toolLabel: { color: productColor.secondaryText, fontSize: 12, lineHeight: 16, marginTop: -3, textAlign: 'center', width: '100%' },
   layerToolbar: { backgroundColor: productColor.surface, borderTopColor: productColor.divider, borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: 18, borderTopRightRadius: 18, bottom: 0, height: 160, left: 0, position: 'absolute', right: 0, shadowColor: productColor.ink, shadowOffset: { height: -8, width: 0 }, shadowOpacity: 0.06, shadowRadius: 22 },
   layerToolbarHead: { height: 34, justifyContent: 'center', paddingHorizontal: 20 },
+  textLayerToolbarHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   layerToolbarTitle: { color: productColor.ink, fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  textEditLink: { color: productColor.ink, fontSize: 13, fontWeight: '600' },
   layerActions: { marginHorizontal: 12 },
   layerActionRow: { flexDirection: 'row', height: 54 },
   layerActionRowSecond: { marginTop: 9 },
+  textLayerActions: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 0, width: '100%' },
+  // Override the generic action's `flex: 1`; otherwise Yoga assigns every
+  // action the full row width before wrapping it.
+  textLayerAction: { flex: 0, flexBasis: '16.66%', flexGrow: 0, flexShrink: 0, maxWidth: '16.66%', width: '16.66%' },
   layerAction: { alignItems: 'center', flex: 1, height: 54, justifyContent: 'flex-start', minWidth: 0 },
   layerActionImage: { height: 24, resizeMode: 'contain', width: 24 },
   layerActionLabel: { color: productColor.ink, fontSize: 11, lineHeight: 15, marginTop: 3, textAlign: 'center', width: '100%' },

@@ -11,6 +11,8 @@ export type EditorCommand =
   | Readonly<{ type: 'layer.effects.set'; layerId: string; effects: readonly Effect[] }>
   | Readonly<{ type: 'layer.crop.set'; layerId: string; crop: Rect }>
   | Readonly<{ type: 'layer.opacity.set'; layerId: string; opacity: number }>
+  | Readonly<{ type: 'text.content.set'; layerId: string; text: string }>
+  | Readonly<{ type: 'text.style.set'; layerId: string; fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null }>
   | Readonly<{ type: 'layer.lock.set'; layerId: string; isLocked: boolean }>
   | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference }>
   | Readonly<{ type: 'canvas.background.set'; background: string; asset: AssetReference | null }>
@@ -69,6 +71,27 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
     case 'layer.opacity.set':
       if (layerIndex < 0 || command.opacity < 0 || command.opacity > 1 || draft.layers[layerIndex].opacity === command.opacity) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, opacity: command.opacity } : layer) });
+    case 'text.content.set': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'text' || layer.text === command.text) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'text' ? { ...candidate, text: command.text } : candidate) });
+    }
+    case 'text.style.set': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'text') return { draft, changed: false };
+      if (command.fontSize !== undefined && (!Number.isFinite(command.fontSize) || command.fontSize < 12 || command.fontSize > 320)) return { draft, changed: false };
+      const next = {
+        ...layer,
+        ...(command.fontId !== undefined ? { fontId: command.fontId } : {}),
+        ...(command.fontVariantId !== undefined ? { fontVariantId: command.fontVariantId } : {}),
+        ...(command.fontSize !== undefined ? { fontSize: command.fontSize } : {}),
+        ...(command.color !== undefined ? { color: command.color } : {}),
+        ...(command.textAlign !== undefined ? { textAlign: command.textAlign } : {}),
+        ...(command.backgroundColor !== undefined ? { backgroundColor: command.backgroundColor } : {}),
+      };
+      if (JSON.stringify(layer) === JSON.stringify(next)) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'text' ? next : candidate) });
+    }
     case 'image.asset.replace': {
       const layer = draft.layers[layerIndex];
       if (layerIndex < 0 || layer.type !== 'image' || layer.asset.id === command.asset.id) return { draft, changed: false };

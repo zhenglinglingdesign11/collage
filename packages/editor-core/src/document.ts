@@ -39,9 +39,13 @@ export type TextLayer = LayerBase & Readonly<{
   type: 'text';
   text: string;
   frame: Size;
-  font: AssetReference | null;
+  /** Stable catalog identities only; platform family names stay in the resolver. */
+  fontId: string;
+  fontVariantId: string;
   fontSize: number;
   color: string;
+  textAlign: 'left' | 'center' | 'right';
+  backgroundColor: string | null;
 }>;
 
 export type MaterialLayer = LayerBase & Readonly<{
