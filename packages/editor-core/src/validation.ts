@@ -8,6 +8,9 @@ export const validateDraft = (draft: Draft): readonly ValidationIssue[] => {
   if (draft.schemaVersion !== 1) issues.push({ path: 'schemaVersion', message: 'Unsupported draft schema version.' });
   if (!draft.id) issues.push({ path: 'id', message: 'Draft id is required.' });
   if (!isFiniteSize(draft.canvas.size)) issues.push({ path: 'canvas.size', message: 'Canvas size must be positive finite values.' });
+  if (draft.canvas.backgroundAsset && (!draft.canvas.backgroundAsset.id || !draft.canvas.backgroundAsset.kind)) {
+    issues.push({ path: 'canvas.backgroundAsset', message: 'Background asset must have a stable id and kind.' });
+  }
   const layerIds = new Set<string>();
   draft.layers.forEach((layer, index) => validateLayer(layer, index, layerIds, issues));
   if (draft.selectedLayerId && !layerIds.has(draft.selectedLayerId)) issues.push({ path: 'selectedLayerId', message: 'Selected layer must exist.' });

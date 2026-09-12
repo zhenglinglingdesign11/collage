@@ -68,7 +68,12 @@ export type Layer = ImageLayer | TextLayer | MaterialLayer | BrushLayer;
 export type Draft = Readonly<{
   schemaVersion: typeof DRAFT_SCHEMA_VERSION;
   id: string;
-  canvas: Readonly<{ size: Size; background: string }>;
+  /**
+   * Background assets are canvas-owned, rather than image layers.  The draft
+   * keeps only the stable asset reference; platform URLs and cache locations
+   * remain resolver data.
+   */
+  canvas: Readonly<{ size: Size; background: string; backgroundAsset?: AssetReference }>;
   layers: readonly Layer[];
   selectedLayerId: string | null;
   createdAt: string;

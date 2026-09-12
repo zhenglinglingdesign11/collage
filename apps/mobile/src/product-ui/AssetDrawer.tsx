@@ -14,20 +14,38 @@ const categories: readonly Readonly<{ id: AssetPackCategory; label: string }>[] 
 const intoRows = <T,>(items: readonly T[], columns: number): readonly (readonly T[])[] =>
   Array.from({ length: Math.ceil(items.length / columns) }, (_, index) => items.slice(index * columns, (index + 1) * columns));
 
-const solidPaperColors = ['#FFFAF2', '#F6EAD8', '#EFE2CB', '#F8E7E4', '#F2D9DF', '#EADCF8', '#DFE8FF', '#D7F0ED', '#DFEEDD', '#FFF2B8', '#FFD9BF', '#ECEFF3', '#D8D1C5', '#C8D7CC', '#B8D8D6'] as const;
-const polkaBackgrounds = ['transparent', '#FDF7EC', '#FFFFFF', '#F5DFD8', '#D7DBC9', '#EAF1F6', '#F7F7F5'] as const;
-const polkaForegrounds = ['#B79B75', '#111111', '#FFFFFF', '#D94A38', '#B45D79', '#5F806F', '#6D9BC3', '#8FE3CF', '#A9D8FF', '#C9B7FF', '#FFF08A', '#FF9FB7'] as const;
+type ColorTarget = 'paper.background' | 'polka.background' | 'polka.foreground' | 'shape.fill' | 'shape.stroke';
+const colorOptions: Readonly<Record<ColorTarget, readonly string[]>> = {
+  // Large paper surfaces stay pale and low-saturation so photos and layered
+  // stickers remain legible. The final four add cool-blue, jade, plum and
+  // persimmon moods without turning the sheet into an accent object.
+  'paper.background': ['#FFFAF2', '#ECEFF3', '#F6EAD8', '#EFE2CB', '#D8D1C5', '#FFF2B8', '#FFD9BF', '#F9ECE0', '#F8E7E4', '#F4B8C4', '#F2D9DF', '#EADCF8', '#F0E7F3', '#DFE8FF', '#E8F1FB', '#D7F0ED', '#E1F0E8', '#DFEEDD', '#C8D7CC', '#B8D8D6'],
+  // Polka backgrounds are deliberately a compact subset of paper colors;
+  // a strong foreground needs a quiet field beneath it.
+  'polka.background': ['transparent', '#FFFFFF', '#FDF7EC', '#F7F7F5', '#F9ECE0', '#F5DFD8', '#F0E7F3', '#EAF1F6', '#E8F1FB', '#E1F0E8', '#D7DBC9'],
+  // Detail colors combine dependable ink tones with youthful, high-energy
+  // accents suitable for stickers, collage marks and social posts.
+  'polka.foreground': ['#111111', '#FFFFFF', '#B79B75', '#FFF08A', '#B8D83D', '#F16A3A', '#D94A38', '#B45D79', '#FF9FB7', '#5F806F', '#58A88A', '#86CDBB', '#8FE3CF', '#6D9BC3', '#A9D8FF', '#C9B7FF', '#3A2038'],
+  'shape.fill': ['transparent', '#ffffff', '#f2dfc6', '#d7c1a7', '#fff2b8', '#ffd9bf', '#f4b8c4', '#f7c8df', '#F16A3A', '#FF8FBA', '#cfe6bf', '#B8D83D', '#d7f0ed', '#bfe8db', '#58A88A', '#dfe8ff', '#b9d7ff', '#9EC5E8', '#eadcf8', '#B9A4F5', '#3A2038', '#111111'],
+  'shape.stroke': ['', '#ffffff', '#111111', '#c79a62', '#7C9C19', '#D95328', '#d94a38', '#b45d79', '#5f806f', '#3F8F73', '#86cdbb', '#6d9bc3', '#4C80B8', '#8b79bd', '#3A2038'],
+};
+const colorsFor = (target: ColorTarget): readonly string[] => colorOptions[target];
+const isWhiteColor = (color: string): boolean => color.toLowerCase() === '#ffffff';
+const solidPaperColors = colorsFor('paper.background');
+const polkaBackgrounds = colorsFor('polka.background');
+const polkaForegrounds = colorsFor('polka.foreground');
 const polkaShapes = ['circle', 'square', 'diamond', 'heart', 'star', 'cross'] as const;
 type PolkaCustom = { background: string; foreground: string; shape: typeof polkaShapes[number]; radius: number; gap: number; style: 'solid' | 'soft' | 'outline'; opacity: number; offset: 'grid' | 'staggered' };
 const basicShapeTypes = ['circle', 'square', 'triangle', 'heart', 'star', 'sparkle', 'flower', 'raindrop', 'diamond', 'rounded', 'cross', 'tag'] as const;
-const basicShapeFills = ['transparent', '#f4b8c4', '#ffd9bf', '#f2dfc6', '#fff2b8', '#d7f0ed', '#bfe8db', '#dfe8ff', '#b9d7ff', '#eadcf8', '#f7c8df', '#cfe6bf', '#d7c1a7', '#ffffff', '#111111'] as const;
-const basicShapeStrokes = ['', '#111111', '#ffffff', '#d94a38', '#b45d79', '#5f806f', '#86cdbb', '#6d9bc3', '#8b79bd', '#c79a62'] as const;
+const basicShapeFills = colorsFor('shape.fill');
+const basicShapeStrokes = colorsFor('shape.stroke');
 const basicShapeTextures = [
   'https://assets.zllarchi.site/effects/shape-textures-01.png', 'https://assets.zllarchi.site/effects/shape-textures-02.png', 'https://assets.zllarchi.site/effects/shape-textures-03.png', 'https://assets.zllarchi.site/effects/shape-textures-04.png', 'https://assets.zllarchi.site/effects/shape-textures-05.png',
 ] as const;
 type BasicShapeCustom = ProceduralSticker;
 
-export const AssetDrawer = ({ onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = remoteAssetPacks }: Readonly<{
+export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = remoteAssetPacks }: Readonly<{
+  initialCustomPolkaPaper?: boolean;
   onAddItem: (item: RemotePackItem) => void;
   onAddCustomPolkaPaper: (paper: PolkaCustom) => void;
   onAddCustomSolidPaper: (color: string) => void;
@@ -40,7 +58,7 @@ export const AssetDrawer = ({ onAddItem, onAddCustomPolkaPaper, onAddCustomSolid
   const [category, setCategory] = useState<AssetPackCategory>('recommended');
   const [activePack, setActivePack] = useState<RemoteAssetPack | null>(null);
   const [customSolidPaper, setCustomSolidPaper] = useState(false);
-  const [customPolkaPaper, setCustomPolkaPaper] = useState(false);
+  const [customPolkaPaper, setCustomPolkaPaper] = useState(initialCustomPolkaPaper);
   const [customBasicShape, setCustomBasicShape] = useState<null | boolean>(null);
   const [customColor, setCustomColor] = useState<string>(solidPaperColors[0]);
   const [polka, setPolka] = useState<PolkaCustom>({ background: '#FDF7EC', foreground: polkaForegrounds[0], shape: 'circle', radius: 5, gap: 32, style: 'solid', opacity: 0.64, offset: 'grid' });
@@ -61,14 +79,14 @@ export const AssetDrawer = ({ onAddItem, onAddCustomPolkaPaper, onAddCustomSolid
       {customSolidPaper ? <View style={styles.customPaperPanel}>
         <View style={[styles.customPaperPreview, { backgroundColor: customColor }]} />
         <Text style={styles.customTitle}>Choose a color</Text>
-        <View style={styles.colorGrid}>{solidPaperColors.map((color) => <Pressable accessibilityLabel={`Use ${color}`} key={color} onPress={() => setCustomColor(color)} style={[styles.colorSwatch, { backgroundColor: color }, color === customColor && styles.colorSwatchSelected]} />)}</View>
+        <ColorPickerGrid target="paper.background" selected={customColor} onSelect={setCustomColor} />
         <Pressable accessibilityLabel="Add custom paper" onPress={() => { onAddCustomSolidPaper(customColor); setCustomSolidPaper(false); }} style={styles.addCustomButton}><Text style={styles.addCustomButtonText}>Add paper</Text></Pressable>
       </View> : customPolkaPaper ? <View style={styles.polkaPanel}>
         <PolkaPreview paper={polka} />
         <ScrollView style={styles.polkaOptions} showsVerticalScrollIndicator={false}>
           <OptionRow label="Shape" options={polkaShapes} selected={polka.shape} onSelect={(shape) => setPolka((value) => ({ ...value, shape: shape as typeof polkaShapes[number] }))} />
-          <PolkaColorRow label="Background" colors={polkaBackgrounds} selected={polka.background} onSelect={(background) => setPolka((value) => ({ ...value, background }))} />
-          <PolkaColorRow label="Pattern" colors={polkaForegrounds} selected={polka.foreground} onSelect={(foreground) => setPolka((value) => ({ ...value, foreground }))} />
+          <ColorPickerRow label="Background" target="polka.background" selected={polka.background} onSelect={(background) => setPolka((value) => ({ ...value, background }))} />
+          <ColorPickerRow label="Pattern" target="polka.foreground" selected={polka.foreground} onSelect={(foreground) => setPolka((value) => ({ ...value, foreground }))} />
           <OptionRow label="Size" options={['5', '9', '15']} selected={String(polka.radius)} onSelect={(value) => setPolka((state) => ({ ...state, radius: Number(value) }))} />
           <OptionRow label="Density" options={['Sparse', 'Medium', 'Dense']} selected={polka.gap === 72 ? 'Sparse' : polka.gap === 32 ? 'Dense' : 'Medium'} onSelect={(value) => setPolka((state) => ({ ...state, gap: value === 'Sparse' ? 72 : value === 'Dense' ? 32 : 48 }))} />
           <OptionRow label="Style" options={['solid', 'soft', 'outline']} selected={polka.style} onSelect={(style) => setPolka((state) => ({ ...state, style: style as typeof state.style }))} />
@@ -115,12 +133,14 @@ const PolkaPreview = ({ paper }: Readonly<{ paper: PolkaCustom }>) => {
     return <Text key={index} style={[styles.polkaPreviewMark, { color: paper.foreground, fontSize, left: x * scale - fontSize / 2, lineHeight: fontSize + 1, opacity: paper.style === 'soft' ? paper.opacity * 0.58 : paper.opacity, top: y * scale - fontSize / 2 }]}>{symbol}</Text>;
   })}</View>;
 };
-const PolkaColorRow = ({ label, colors, onSelect, selected }: Readonly<{ label: string; colors: readonly string[]; selected: string; onSelect: (value: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{colors.map((color) => <Pressable key={color} onPress={() => onSelect(color)} style={[styles.colorSwatch, color === 'transparent' ? styles.transparentSwatch : { backgroundColor: color }, color === selected && styles.colorSwatchSelected]}>{color === 'transparent' && <Text style={styles.transparentMark}>×</Text>}</Pressable>)}</ScrollView></View>;
+const ColorPickerRow = ({ label, target, onSelect, selected }: Readonly<{ label: string; target: ColorTarget; selected: string; onSelect: (value: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{colorsFor(target).map((color) => <ColorSwatch color={color} key={color} selected={color === selected} onPress={() => onSelect(color)} />)}</ScrollView></View>;
+const ColorPickerGrid = ({ target, onSelect, selected }: Readonly<{ target: ColorTarget; selected: string; onSelect: (value: string) => void }>) => <View style={styles.colorGrid}>{colorsFor(target).map((color) => <ColorSwatch color={color} key={color} selected={color === selected} onPress={() => onSelect(color)} />)}</View>;
+const ColorSwatch = ({ color, selected, onPress }: Readonly<{ color: string; selected: boolean; onPress: () => void }>) => <Pressable accessibilityLabel={color === 'transparent' ? 'Use transparent color' : `Use ${color}`} onPress={onPress} style={[styles.colorSwatch, color === 'transparent' ? styles.transparentSwatch : { backgroundColor: color }, isWhiteColor(color) && styles.whiteSwatch, selected && styles.colorSwatchSelected]}>{color === 'transparent' && <Text style={styles.transparentMark}>×</Text>}</Pressable>;
 const OptionRow = ({ label, options, onSelect, selected }: Readonly<{ label: string; options: readonly string[]; selected: string; onSelect: (value: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{options.map((option) => <Pressable key={option} onPress={() => onSelect(option)} style={[styles.optionChip, option === selected && styles.optionChipActive]}><Text style={[styles.optionText, option === selected && styles.optionTextActive]}>{option}</Text></Pressable>)}</ScrollView></View>;
 
 const ChoiceRow = ({ label, choices, selected, onSelect }: Readonly<{ label: string; choices: readonly Readonly<{ value: string; label: string }>[]; selected: string; onSelect: (value: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>{label}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{choices.map((choice) => <Pressable key={choice.value} onPress={() => onSelect(choice.value)} style={[styles.optionChip, choice.value === selected && styles.optionChipActive]}><Text style={[styles.optionText, choice.value === selected && styles.optionTextActive]}>{choice.label}</Text></Pressable>)}</ScrollView></View>;
 
-const StrokeRow = ({ selected, onSelect }: Readonly<{ selected: string; onSelect: (color: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>Stroke</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{basicShapeStrokes.map((color) => <Pressable key={color || 'none'} accessibilityLabel={color ? `Use ${color} stroke` : 'No stroke'} onPress={() => onSelect(color)} style={[styles.strokeSwatch, color === selected && styles.strokeSwatchSelected]}>{color ? <View style={[styles.strokeDot, { backgroundColor: color }]} /> : <Text style={styles.strokeNone}>×</Text>}</Pressable>)}</ScrollView></View>;
+const StrokeRow = ({ selected, onSelect }: Readonly<{ selected: string; onSelect: (color: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>Stroke</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{colorsFor('shape.stroke').map((color) => <Pressable key={color || 'none'} accessibilityLabel={color ? `Use ${color} stroke` : 'No stroke'} onPress={() => onSelect(color)} style={[styles.strokeSwatch, color === selected && styles.strokeSwatchSelected]}>{color ? <View style={[styles.strokeDot, { backgroundColor: color }, isWhiteColor(color) && styles.whiteStrokeDot]} /> : <Text style={styles.strokeNone}>×</Text>}</Pressable>)}</ScrollView></View>;
 
 const TextureRow = ({ selected, onSelect }: Readonly<{ selected: string; onSelect: (source: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>Texture</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{basicShapeTextures.map((source, index) => <Pressable key={source} accessibilityLabel={`Use texture ${index + 1}`} onPress={() => onSelect(source)} style={[styles.textureSwatch, source === selected && styles.textureSwatchSelected]}><CachedRemoteImage cacheKey={`shape-texture-${index + 1}`} source={source} style={styles.textureImage} /></Pressable>)}</ScrollView></View>;
 
@@ -131,7 +151,7 @@ const BasicShapeCustomPanel = ({ material, value, onChange, onAdd }: Readonly<{ 
     <View style={styles.basicShapePreview}>{material ? <CachedProceduralStickerPreview cacheKey={`custom-shape-texture-${basicShapeTextures.indexOf((value.textureSource ?? basicShapeTextures[0]) as typeof basicShapeTextures[number]) + 1}`} sticker={{ ...value, fillColor: '#FFFFFF', textureSource: value.textureSource ?? basicShapeTextures[0], strokeColor: undefined, strokeWidth: 0 }} size={{ width: 112, height: 112 }} /> : <ProceduralStickerPreview sticker={{ ...value, textureSource: undefined }} size={{ width: 112, height: 112 }} />}</View>
     <ScrollView style={styles.polkaOptions} showsVerticalScrollIndicator={false}>
       <ChoiceRow label="Shape" choices={shapeChoices} selected={value.shape} onSelect={(shape) => set({ shape: shape as BasicShapeCustom['shape'] })} />
-      {material ? <TextureRow selected={value.textureSource ?? basicShapeTextures[0]} onSelect={(textureSource) => set({ textureSource })} /> : <PolkaColorRow label="Fill" colors={basicShapeFills} selected={value.fillColor} onSelect={(fillColor) => set({ fillColor })} />}
+      {material ? <TextureRow selected={value.textureSource ?? basicShapeTextures[0]} onSelect={(textureSource) => set({ textureSource })} /> : <ColorPickerRow label="Fill" target="shape.fill" selected={value.fillColor} onSelect={(fillColor) => set({ fillColor })} />}
       {!material && <><StrokeRow selected={value.strokeColor ?? ''} onSelect={(strokeColor) => set({ strokeColor, strokeWidth: strokeColor && !value.strokeWidth ? 3 : strokeColor ? value.strokeWidth : 0 })} /><ChoiceRow label="Width" choices={[{ value: '0', label: 'None' }, { value: '3', label: 'Thin' }, { value: '6', label: 'Medium' }, { value: '10', label: 'Bold' }]} selected={String(value.strokeWidth ?? 0)} onSelect={(strokeWidth) => set({ strokeWidth: Number(strokeWidth) })} /></>}
       <ChoiceRow label="Opacity" choices={[{ value: '0.38', label: 'Light' }, { value: '0.64', label: 'Medium' }, { value: '0.82', label: 'Soft' }, { value: '1', label: 'Full' }]} selected={String(value.opacity)} onSelect={(opacity) => set({ opacity: Number(opacity) })} />
       <ChoiceRow label="Count" choices={['1', '3', '6', '9'].map((count) => ({ value: count, label: count }))} selected={String(value.count)} onSelect={(count) => set({ count: Number(count) as BasicShapeCustom['count'] })} />
@@ -174,12 +194,14 @@ const styles = StyleSheet.create({
   customTitle: { alignSelf: 'flex-start', color: productColor.ink, fontSize: 15, fontWeight: '600', marginBottom: 12, marginTop: 18 },
   colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, width: '100%' },
   colorSwatch: { borderColor: 'transparent', borderRadius: 999, borderWidth: 2, height: 32, width: 32 },
+  whiteSwatch: { borderColor: '#D8D4CD' },
   transparentSwatch: { alignItems: 'center', backgroundColor: '#F1EFEB', borderColor: '#D8D4CD', justifyContent: 'center' },
   transparentMark: { color: productColor.secondaryText, fontSize: 21, fontWeight: '400', lineHeight: 25 },
   colorSwatchSelected: { borderColor: productColor.ink },
   strokeSwatch: { alignItems: 'center', backgroundColor: productColor.weakSurface, borderColor: 'transparent', borderRadius: 999, borderWidth: 2, height: 32, justifyContent: 'center', width: 32 },
   strokeSwatchSelected: { borderColor: productColor.ink },
   strokeDot: { borderRadius: 99, height: 18, width: 18 },
+  whiteStrokeDot: { borderColor: '#D8D4CD', borderWidth: StyleSheet.hairlineWidth },
   strokeNone: { color: productColor.secondaryText, fontSize: 22, fontWeight: '400', lineHeight: 24 },
   textureSwatch: { borderColor: 'transparent', borderRadius: 7, borderWidth: 2, height: 36, overflow: 'hidden', width: 46 },
   textureSwatchSelected: { borderColor: productColor.ink },

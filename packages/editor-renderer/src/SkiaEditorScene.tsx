@@ -75,6 +75,9 @@ type SkiaEditorSceneProps = Readonly<{
   assetUris?: Readonly<Record<string, string>>;
   proceduralPapers?: Readonly<Record<string, ProceduralPaperPaint>>;
   proceduralStickers?: Readonly<Record<string, ProceduralStickerPaint>>;
+  /** Canvas-owned paper/background input resolved from Draft.canvas.backgroundAsset. */
+  canvasBackgroundUri?: string;
+  canvasBackgroundPaper?: ProceduralPaperPaint;
   showSelection?: boolean;
   /** Preview-only stage color. It is deliberately not stored in the Draft. */
   surfaceColor?: string;
@@ -85,18 +88,11 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, showSelection = true, surfaceColor = '#D9D2C7' }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7' }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
-      <RoundedRect
-        x={0}
-        y={0}
-        width={draft.canvas.size.width}
-        height={draft.canvas.size.height}
-        r={4}
-        color={draft.canvas.background}
-      />
+      <CanvasBackground frame={draft.canvas.size} color={draft.canvas.background} paper={canvasBackgroundPaper} assetUri={canvasBackgroundUri} />
       {draft.layers.map((layer) => (
         <SkiaLayer
           key={layer.id}
@@ -111,6 +107,19 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
     </Group>
   </>
 );
+
+/**
+ * Canvas backgrounds intentionally bypass the layer renderer: they cannot be
+ * selected, reordered, or accidentally exported with layer transforms.
+ */
+const CanvasBackground = ({ frame, color, paper, assetUri }: Readonly<{ frame: { width: number; height: number }; color: string; paper?: ProceduralPaperPaint; assetUri?: string }>) => {
+  const image = useImage(paper === undefined ? assetUri : undefined);
+  if (paper !== undefined) return <ProceduralPaperLayer frame={frame} paper={paper} patternImageUri={assetUri} />;
+  return <>
+    <RoundedRect x={0} y={0} width={frame.width} height={frame.height} r={4} color={color} />
+    {image && <SkiaImage image={image} x={0} y={0} width={frame.width} height={frame.height} fit="cover" />}
+  </>;
+};
 
 type SkiaLayerProps = Readonly<{
   layer: Layer;
@@ -248,7 +257,7 @@ const ProceduralPaperLayer = ({ frame, paper, patternImageUri }: { frame: { widt
   return <>
     <Rect x={0} y={0} width={frame.width} height={frame.height} color={paper.background} />
     {paper.pattern === 'line' && marks.map((mark, index) => <Rect key={index} x={0} y={mark.y} width={frame.width} height={2} color={foreground} opacity={opacity} />)}
-    {paper.pattern === 'square' && marks.map((mark, index) => <><Rect key={`h-${index}`} x={0} y={mark.y} width={frame.width} height={2} color={foreground} opacity={opacity} />{mark.x !== undefined && <Rect key={`v-${index}`} x={mark.x} y={0} width={2} height={frame.height} color={foreground} opacity={opacity} />}</>)}
+    {paper.pattern === 'square' && marks.map((mark, index) => <Group key={`square-${index}`}><Rect x={0} y={mark.y} width={frame.width} height={2} color={foreground} opacity={opacity} />{mark.x !== undefined && <Rect x={mark.x} y={0} width={2} height={frame.height} color={foreground} opacity={opacity} />}</Group>)}
     {(paper.pattern === 'dot' || paper.pattern === 'polka') && marks.map((mark, index) => <PaperMark key={index} cx={mark.x ?? 0} cy={mark.y} color={foreground} image={patternImage} opacity={opacity} outline={paper.style === 'outline'} radius={paper.pattern === 'polka' ? (paper.radius ?? 9) * 1.45 : 4} shape={paper.shape ?? 'circle'} />)}
   </>;
 };

@@ -20,10 +20,7 @@ const previewKind = (item: RemotePackItem): RemoteAssetPack['proceduralPreview']
 const Paper = ({ item, kind }: Readonly<{ item: RemotePackItem; kind: RemoteAssetPack['proceduralPreview'] }>) => {
   const paper = item.paper ?? fallbackPaper;
   return <View style={[styles.paper, { backgroundColor: paper.background }]}>
-    {kind === 'polka-paper' && <ProceduralPaperPreview paper={paper} patternImageUri={paper.imageAsset ? localPatternUris[paper.imageAsset] : undefined} size={{ width: 64, height: 84 }} />}
-    {kind === 'grid-paper' && <View pointerEvents="none" style={paper.pattern === 'line' ? styles.lines : paper.pattern === 'dot' ? styles.dotGrid : styles.grid}>
-      {paper.pattern === 'dot' ? Array.from({ length: 25 }, (_, index) => <View key={index} style={styles.gridDot} />) : Array.from({ length: paper.pattern === 'line' ? 7 : 9 }, (_, index) => <View key={index} style={paper.pattern === 'line' ? styles.line : styles.gridCell} />)}
-    </View>}
+    {(kind === 'polka-paper' || kind === 'grid-paper') && <ProceduralPaperPreview paper={paper} patternImageUri={paper.imageAsset ? localPatternUris[paper.imageAsset] : undefined} size={{ width: 64, height: 84 }} />}
   </View>
 };
 

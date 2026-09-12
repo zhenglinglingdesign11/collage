@@ -10,11 +10,12 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { assetUriMap, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
 import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, type Draft, type EditorCommand, type Effect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type CanvasViewport } from '@journalcollage/editor-renderer';
-import { cacheRemotePackItem, importLocalImage, loadWorkspace, saveExportPng, saveWorkspace } from './src/localWorkspace';
+import { cacheRemotePackItem, importLocalImage, loadSavedDraft, loadWorkspace, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
 import { EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls } from './src/product-ui/EditorChrome';
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
+import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
 import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
 import { resolveProductLocale, t } from './src/product-ui/localization';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
@@ -67,13 +68,13 @@ const editorReducer = (state: EditorState, action: EditorAction): EditorState =>
   return { past: [...state.past, state.present], present: result.draft, future: [] };
 };
 
-const EditorWorkspace = (props: { initialEntry: CreateEntry; onExit: () => void }) => (
+const EditorWorkspace = (props: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
   </SafeAreaProvider>
 );
 
-const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: CreateEntry; onExit: () => void }) => {
+const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSavedDraftId, onExit, onInitialPackItemsConsumed, onOpenAssets }: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const locale = resolveProductLocale();
@@ -89,9 +90,12 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
   const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
   const [canvasFrame, setCanvasFrame] = useState({ x: 0, y: 0 });
   const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
+  const [backgroundDrawerOpen, setBackgroundDrawerOpen] = useState(false);
+  const [customPolkaBackgroundOpen, setCustomPolkaBackgroundOpen] = useState(false);
   const [assetDrawerHeight, setAssetDrawerHeight] = useState(0);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialPackItemsAdded = useRef(false);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
@@ -103,7 +107,8 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
   const assetUris = useMemo(() => ({ ...remoteAssetUriMap(), ...assetUriMap(catalog), ...localPolkaPatternUris }), [catalog]);
 
   useEffect(() => {
-    void loadWorkspace().then((workspace) => {
+    const workspacePromise = restoreSavedDraftId ? loadSavedDraft(restoreSavedDraftId) : loadWorkspace();
+    void workspacePromise.then((workspace) => {
       if (initialEntry === 'restore' && workspace !== null) {
         const migration = migrateDraft(workspace.draft);
         if (migration.ok) {
@@ -112,21 +117,7 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
         }
       }
     }).finally(() => setWorkspaceReady(true));
-  }, [initialEntry]);
-  useEffect(() => {
-    if (!workspaceReady) return;
-    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-    // Persist only settled editor state. Gesture frames stay in shared values and
-    // a command commit produces one debounced on-disk update.
-    saveTimer.current = setTimeout(() => {
-      saveTimer.current = null;
-      void saveWorkspace({ draft: state.present, catalog });
-    }, 350);
-    return () => {
-      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
-    };
-  }, [catalog, state.present, workspaceReady]);
-
+  }, [initialEntry, restoreSavedDraftId]);
   // Renderer-only values: no Draft or React state update occurs while fingers move.
   const positionX = useSharedValue(0);
   const positionY = useSharedValue(0);
@@ -222,7 +213,9 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
       dispatch({ type: 'command', command: {
         type: 'layer.add',
         layer: {
-          id: `pack-layer-${Date.now()}`,
+          // A detail-pack multi-add can resolve several cached assets in the
+          // same millisecond; item identity keeps every resulting layer unique.
+          id: `pack-layer-${Date.now()}-${item.id}`,
           name: item.id,
           type: 'image',
           asset: item.reference,
@@ -238,6 +231,34 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
       Alert.alert('Material unavailable', 'This material could not be downloaded. Please try again.');
     }
   }, [catalog]);
+  useEffect(() => {
+    if (!workspaceReady || initialPackItems.length === 0 || initialPackItemsAdded.current) return;
+    initialPackItemsAdded.current = true;
+    initialPackItems.forEach((item) => { void addRemotePackItem(item); });
+    onInitialPackItemsConsumed?.();
+  }, [addRemotePackItem, initialPackItems, onInitialPackItemsConsumed, workspaceReady]);
+  const applyBackgroundItem = useCallback(async (item: RemotePackItem) => {
+    try {
+      // Resolve through the same R2 cache used by material previews and layers
+      // before committing the reference. A Draft still contains no URL/path.
+      const record = await cacheRemotePackItem(item, catalog);
+      setCatalog((current) => upsertAsset(current, record));
+      const paper = proceduralPaperForReferenceId(item.reference.id);
+      dispatch({ type: 'command', command: {
+        type: 'canvas.background.set',
+        background: paper?.background ?? '#FDFDFB',
+        asset: item.reference,
+      } });
+    } catch {
+      Alert.alert('Background unavailable', 'This paper could not be downloaded. Please try again.');
+    }
+  }, [catalog]);
+  const openAssetsFromEditor = useCallback(async () => {
+    // The Assets tab is a separate product surface. Persist first so returning
+    // through the pending transfer route restores this exact canvas.
+    await saveWorkspace({ draft: state.present, catalog });
+    onOpenAssets();
+  }, [catalog, onOpenAssets, state.present]);
   const commitImportedPhotos = useCallback(async (assets: readonly ImagePicker.ImagePickerAsset[], replaceLayerId: string | null = null) => {
     try {
       const records = await Promise.all(assets.map((source) => importLocalImage({ uri: source.uri, width: source.width, height: source.height, mimeType: source.mimeType ?? null })));
@@ -318,6 +339,46 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
       Alert.alert('Export ready', 'Your PNG is ready to save or share from this device.');
     }
   }, [exportCanvasRef]);
+  const requestExit = useCallback(() => {
+    const hasCreativeContent = state.present.layers.length > 0
+      || state.present.canvas.backgroundAsset !== undefined
+      || state.present.canvas.background !== '#F7F3ED';
+    const leave = () => {
+      if (saveTimer.current !== null) {
+        clearTimeout(saveTimer.current);
+        saveTimer.current = null;
+      }
+      onExit();
+    };
+    if (!hasCreativeContent) {
+      leave();
+      return;
+    }
+    const saveAndLeave = () => {
+        if (saveTimer.current !== null) {
+          clearTimeout(saveTimer.current);
+          saveTimer.current = null;
+        }
+        void saveWorkspace({ draft: state.present, catalog }, { markAsSaved: true }).then(() => {
+          onExit();
+        }).catch(() => {
+          Alert.alert('Could not save draft', 'Please check available storage and try again.');
+        });
+    };
+    const showSavePrompt = (willPrune: boolean) => Alert.alert(
+      willPrune ? 'Save draft and remove oldest?' : 'Save draft?',
+      willPrune
+        ? 'You have reached the 20-draft limit. Saving this new draft will remove your oldest saved draft.'
+        : 'Save this collage so you can continue editing it later.',
+      [
+        { text: 'Save draft', onPress: saveAndLeave },
+        { text: 'Keep editing', style: 'cancel' },
+        // Keep the destructive escape hatch at the visual bottom of the iOS alert.
+        { text: 'Don’t save', style: 'destructive', onPress: leave },
+      ],
+    );
+    void wouldPruneOldestSavedDraft(state.present.id).then(showSavePrompt).catch(() => showSavePrompt(false));
+  }, [catalog, onExit, state.present]);
   const savePngToPhotoLibrary = useCallback(async () => {
     const mediaLibrary = loadMediaLibrary();
     if (mediaLibrary === null) {
@@ -344,7 +405,8 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
     }
   }, [exportCanvasRef]);
   const isTablet = window.width >= 768;
-  const canvasBottomOverlay = assetDrawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const drawerOpen = assetDrawerOpen || backgroundDrawerOpen;
+  const canvasBottomOverlay = drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
   const previewSize = useMemo(() => {
     const maxWidth = Math.max(1, window.width - 56);
     const editorHeight = Math.max(1, window.height - insets.top - 56);
@@ -368,7 +430,10 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
     const sticker = proceduralStickerForReferenceId(layer.asset.id);
     return sticker ? [[layer.asset.id, sticker] as const] : [];
   })), [state.present.layers]);
-  const scene = <SkiaEditorScene draft={state.present} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} surfaceColor="#FAFAF8" />;
+  const canvasBackgroundAsset = state.present.canvas.backgroundAsset;
+  const canvasBackgroundPaper = canvasBackgroundAsset ? proceduralPaperForReferenceId(canvasBackgroundAsset.id) : undefined;
+  const canvasBackgroundUri = canvasBackgroundAsset ? assetUris[canvasBackgroundAsset.id] : undefined;
+  const scene = <SkiaEditorScene draft={state.present} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} surfaceColor="#FAFAF8" />;
   const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
   const imageLayerToolbar = selectedLayer?.type === 'image' ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
@@ -395,7 +460,7 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <ProductEditorHeader canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={exportPng} onExit={onExit} />
+        <ProductEditorHeader canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={exportPng} onExit={requestExit} />
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -406,15 +471,19 @@ const EditorWorkspaceContent = ({ initialEntry, onExit }: { initialEntry: Create
           <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace]}>
             {canvas}
             {imageSelectionControls}
-            {selectedLayer === null && !assetDrawerOpen && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={() => toggleEffect('torn-edge')} />}
+            {selectedLayer === null && !drawerOpen && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={() => toggleEffect('torn-edge')} />}
             {imageLayerToolbar ?? (selectedLayer !== null && inspector)}
             {assetDrawerOpen && <>
-              <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <AssetDrawer onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => setAssetDrawerOpen(false)} />
+              <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
+              <AssetDrawer initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
+            </>}
+            {backgroundDrawerOpen && <>
+              <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
+              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: '#F7F3ED', asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} />
             </>}
           </View>
         )}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} showSelection={false} /></Canvas>
+        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -486,17 +555,21 @@ export default function App() {
   const [tab, setTab] = useState<ProductTab>('create');
   const [editing, setEditing] = useState(false);
   const [editorEntry, setEditorEntry] = useState<CreateEntry>('blank');
+  const [assetsDetailOpen, setAssetsDetailOpen] = useState(false);
+  const [assetsEntryContext, setAssetsEntryContext] = useState<'create' | 'editor' | null>(null);
+  const [pendingPackItems, setPendingPackItems] = useState<readonly RemotePackItem[]>([]);
+  const [restoreSavedDraftId, setRestoreSavedDraftId] = useState<string | null>(null);
   const locale = resolveProductLocale();
 
-  if (editing) return <EditorWorkspace initialEntry={editorEntry} onExit={() => setEditing(false)} />;
+  if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} restoreSavedDraftId={restoreSavedDraftId} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
 
   return (
-    <ProductAppShell activeTab={tab} locale={locale} onTabChange={setTab}>
+    <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTab(nextTab); }}>
       <StatusBar style="dark" />
       {tab === 'create'
-        ? <CreateHome locale={locale} onOpenAssets={() => setTab('assets')} onOpenEditor={(entry) => { setEditorEntry(entry); setEditing(true); }} />
+        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId) => { setRestoreSavedDraftId(savedDraftId ?? null); setEditorEntry(entry); setEditing(true); }} />
         : tab === 'assets'
-          ? <AssetsLibrary />
+          ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { setPendingPackItems(items); if (assetsEntryContext !== 'editor') setRestoreSavedDraftId(null); setEditorEntry(assetsEntryContext === 'editor' ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
           : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
     </ProductAppShell>
   );

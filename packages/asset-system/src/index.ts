@@ -111,6 +111,20 @@ const virtualNotePacks: readonly RemoteAssetPack[] = [
       proceduralPaper('local-background-paper-materials', 'plain-cream', { background: '#f4efe5', pattern: 'solid' }),
       proceduralPaper('local-background-paper-materials', 'plain-pink', { background: '#f5dfd8', pattern: 'solid' }),
       proceduralPaper('local-background-paper-materials', 'plain-sage', { background: '#d7dbc9', pattern: 'solid' }),
+      // Expanded shared paper palette. These IDs are used by both Notes and
+      // the canvas background drawer, keeping the two surfaces in lockstep.
+      proceduralPaper('local-background-paper-materials', 'plain-cloud', { background: '#eceff3', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-oat', { background: '#f6ead8', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-kraft', { background: '#efe2cb', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-butter', { background: '#fff2b8', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-peach', { background: '#ffd9bf', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-blush', { background: '#f8e7e4', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-rose', { background: '#f4b8c4', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-lilac', { background: '#eadcf8', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-sky', { background: '#dfe8ff', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-mint', { background: '#d7f0ed', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-moss', { background: '#dfeedd', pattern: 'solid' }),
+      proceduralPaper('local-background-paper-materials', 'plain-teal', { background: '#b8d8d6', pattern: 'solid' }),
     ],
   },
   {
@@ -233,6 +247,21 @@ export const remoteAssetPacks: readonly RemoteAssetPack[] = [
   ...virtualStickerPacks,
   ...miniProgramRemoteAssetPacks.filter((pack) => !notePackIdsPlacedFirst.has(pack.id)),
 ].filter((pack): pack is RemoteAssetPack => pack !== undefined);
+
+/**
+ * The mini-program's background sheet is a curated view of the same paper
+ * inventory shown under Notes.  Keep this mapping here so clients do not
+ * duplicate R2 URLs or accidentally turn background resources into layers.
+ */
+export type BackgroundMaterialCategory = 'plain' | 'polka' | 'grid' | 'paper' | 'pattern';
+export const backgroundMaterialPacks: Readonly<Record<Exclude<BackgroundMaterialCategory, 'plain' | 'polka'>, readonly RemoteAssetPack[]>> = {
+  grid: remoteAssetPacks.filter((pack) => pack.id === 'paper-02' || pack.id === 'paper-04'),
+  paper: remoteAssetPacks.filter((pack) => pack.id === 'paper-05'),
+  pattern: remoteAssetPacks.filter((pack) => pack.id === 'paper-01' || pack.id === 'paper-03'),
+};
+
+export const backgroundPaperPack = (category: Extract<BackgroundMaterialCategory, 'plain' | 'polka'>): RemoteAssetPack =>
+  remoteAssetPacks.find((pack) => pack.id === (category === 'plain' ? 'local-background-paper-materials' : 'polka-paper-materials'))!;
 
 /** Matches the mini-program's fixed Recommended order; virtual packs stay category-only. */
 export const recommendedRemoteAssetPackIds = new Set([

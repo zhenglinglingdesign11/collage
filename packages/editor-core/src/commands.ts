@@ -13,6 +13,7 @@ export type EditorCommand =
   | Readonly<{ type: 'layer.opacity.set'; layerId: string; opacity: number }>
   | Readonly<{ type: 'layer.lock.set'; layerId: string; isLocked: boolean }>
   | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference }>
+  | Readonly<{ type: 'canvas.background.set'; background: string; asset: AssetReference | null }>
   | Readonly<{ type: 'layer.select'; layerId: string | null }>;
 
 export type CommandResult = Readonly<{ draft: Draft; changed: boolean }>;
@@ -72,6 +73,17 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       const layer = draft.layers[layerIndex];
       if (layerIndex < 0 || layer.type !== 'image' || layer.asset.id === command.asset.id) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image' ? { ...candidate, asset: command.asset, crop: { x: 0, y: 0, width: 1, height: 1 } } : candidate) });
+    }
+    case 'canvas.background.set': {
+      const currentAsset = draft.canvas.backgroundAsset;
+      if (draft.canvas.background === command.background && currentAsset?.id === command.asset?.id) return { draft, changed: false };
+      const { backgroundAsset: _backgroundAsset, ...canvas } = draft.canvas;
+      return touch({
+        ...draft,
+        canvas: command.asset === null
+          ? { ...canvas, background: command.background }
+          : { ...canvas, background: command.background, backgroundAsset: command.asset },
+      });
     }
     case 'layer.select':
       if (command.layerId !== null && !draft.layers.some((layer) => layer.id === command.layerId)) return { draft, changed: false };

@@ -32,12 +32,12 @@ const HeaderAction = ({ direction, disabled, onPress }: Readonly<{ direction: 'r
   </Pressable>
 );
 
-export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onMaterial, onPhoto, onScissors }: Readonly<{ bottomInset?: number; locale: ProductLocale; onMaterial: () => void; onPhoto: () => void; onScissors: () => void }>) => (
+export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onMaterial, onPhoto, onScissors }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void }>) => (
   <View style={[styles.toolbar, { bottom: 24 + bottomInset }]}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarTrack}>
       <EditorTool asset="asset://ui/editor/tool/image" compact={locale === 'zh-Hans'} label="editor.tool.image" locale={locale} onPress={onPhoto} />
       <EditorTool asset="asset://ui/editor/tool/material" compact={locale === 'zh-Hans'} label="editor.tool.material" locale={locale} onPress={onMaterial} />
-      <EditorTool asset="asset://ui/editor/tool/background" compact={locale === 'zh-Hans'} label="editor.tool.background" locale={locale} wide />
+      <EditorTool asset="asset://ui/editor/tool/background" compact={locale === 'zh-Hans'} label="editor.tool.background" locale={locale} onPress={onBackground} wide />
       <EditorTool asset="asset://ui/editor/tool/text" compact={locale === 'zh-Hans'} label="editor.tool.text" locale={locale} />
       <EditorTool asset="asset://ui/editor/tool/scissors" compact={locale === 'zh-Hans'} label="editor.tool.scissors" locale={locale} onPress={onScissors} wide />
       <EditorTool asset="asset://ui/editor/tool/emboss" compact={locale === 'zh-Hans'} label="editor.tool.emboss" locale={locale} />
