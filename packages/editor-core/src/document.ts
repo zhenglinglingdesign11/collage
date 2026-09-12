@@ -19,6 +19,20 @@ export type Effect =
   | Readonly<{ id: 'outline'; width: number; color: string }>
   | Readonly<{ id: 'torn-edge'; seed: number; intensity: number }>;
 
+export type BrushCutStroke = Readonly<{ size: number; points: readonly Point[] }>;
+
+export type BrushCutMask = Readonly<{
+  mode: 'include' | 'exclude';
+  /** Strokes are stored in original content coordinates so result and remainder share one mask. */
+  strokes: readonly BrushCutStroke[];
+  /**
+   * Holes within an include mask. This lets an already extracted fragment be
+   * split again without restoring pixels outside that fragment.
+   */
+  excludeStrokes?: readonly BrushCutStroke[];
+  coordinateSpace?: 'content';
+}>;
+
 type LayerBase = Readonly<{
   id: string;
   name?: string;
@@ -45,6 +59,8 @@ export type ImageLayer = LayerBase & Readonly<{
   clipPath?: readonly Point[];
   /** Intersected clip paths for repeated cuts of concave fragments. */
   clipPaths?: readonly (readonly Point[])[];
+  /** Semantic alpha-mask strokes used by the freehand scissors tool. */
+  brushCutMask?: BrushCutMask;
   /** Stable lineage for repeated cuts; never contains a platform file path. */
   cutFragment?: Readonly<{ sourceLayerId: string; operationId: string; style: 'straight' | 'wave' }>;
 }>;

@@ -77,6 +77,8 @@ const copy = {
     'editor.cut.comingSoonBody': 'This cut method is next in the editor roadmap.',
     'editor.cut.selectHint': 'Select an image layer to start cutting.',
     'editor.cut.dismiss': 'Dismiss cut options',
+    'editor.cut.clear': 'Clear strokes',
+    'editor.cut.hollow': 'Hollow original',
   },
   'zh-Hans': {
     'tab.create': '创作',
@@ -154,6 +156,8 @@ const copy = {
     'editor.cut.comingSoonBody': '该剪刀功能将作为下一步编辑能力提供。',
     'editor.cut.selectHint': '请先在画布上选择图片图层。',
     'editor.cut.dismiss': '收起剪刀选项',
+    'editor.cut.clear': '清空涂抹',
+    'editor.cut.hollow': '镂空原图',
   },
 } as const;
 

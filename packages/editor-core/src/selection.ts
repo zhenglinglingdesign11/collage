@@ -27,7 +27,30 @@ export const pointInLayerSpace = (point: Point, layer: Layer): Point => {
 export const layerContainsPoint = (layer: Layer, point: Point): boolean => {
   if (layer.isLocked || layer.opacity <= 0) return false;
   const local = pointInLayerSpace(point, layer);
-  return local.x >= 0 && local.x <= layer.frame.width && local.y >= 0 && local.y <= layer.frame.height;
+  if (local.x < 0 || local.x > layer.frame.width || local.y < 0 || local.y > layer.frame.height) return false;
+  if (layer.type !== 'image' || layer.brushCutMask === undefined) return true;
+  const contentFrame = layer.contentFrame ?? { x: 0, y: 0 };
+  const maskPoint = layer.brushCutMask.coordinateSpace === 'content'
+    ? { x: local.x - contentFrame.x, y: local.y - contentFrame.y }
+    : local;
+  const painted = layer.brushCutMask.strokes.some((stroke) => strokeContainsPoint(stroke, maskPoint));
+  const excluded = (layer.brushCutMask.excludeStrokes ?? []).some((stroke) => strokeContainsPoint(stroke, maskPoint));
+  return layer.brushCutMask.mode === 'include' ? painted && !excluded : !painted;
+};
+
+const strokeContainsPoint = (stroke: { size: number; points: readonly Point[] }, point: Point): boolean => {
+  const radius = stroke.size / 2;
+  if (stroke.points.length === 1) return Math.hypot(point.x - stroke.points[0].x, point.y - stroke.points[0].y) <= radius;
+  return stroke.points.slice(1).some((end, index) => distanceToSegment(point, stroke.points[index], end) <= radius);
+};
+
+const distanceToSegment = (point: Point, start: Point, end: Point): number => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  if (lengthSquared === 0) return Math.hypot(point.x - start.x, point.y - start.y);
+  const progress = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared));
+  return Math.hypot(point.x - (start.x + progress * dx), point.y - (start.y + progress * dy));
 };
 
 /** Later layers are painted above earlier layers, so inspect in reverse order. */

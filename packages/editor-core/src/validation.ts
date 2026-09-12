@@ -42,4 +42,7 @@ const validateLayer = (layer: Layer, index: number, ids: Set<string>, issues: Va
   if (layer.type === 'image' && layer.contentFrame && (!Number.isFinite(layer.contentFrame.x) || !Number.isFinite(layer.contentFrame.y) || !isFiniteSize(layer.contentFrame))) {
     issues.push({ path: `${path}.contentFrame`, message: 'Image content frame must contain finite dimensions.' });
   }
+  if (layer.type === 'image' && layer.brushCutMask && [...layer.brushCutMask.strokes, ...(layer.brushCutMask.excludeStrokes ?? [])].some((stroke) => !Number.isFinite(stroke.size) || stroke.size <= 0 || stroke.points.length === 0 || stroke.points.some((point) => !isFinitePoint(point)))) {
+    issues.push({ path: `${path}.brushCutMask`, message: 'Brush cut masks must contain finite non-empty strokes.' });
+  }
 };

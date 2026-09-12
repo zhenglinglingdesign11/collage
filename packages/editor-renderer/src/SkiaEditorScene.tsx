@@ -6,18 +6,21 @@ import {
   Fill,
   Group,
   Image as SkiaImage,
+  Mask,
   matchFont,
   Path,
   Rect,
   RoundedRect,
   Skia,
+  StrokeCap,
+  StrokeJoin,
   Text,
   useFont,
   useImage,
   type Transforms3d,
 } from '@shopify/react-native-skia';
-import { useMemo } from 'react';
-import type { Draft, Effect, Layer, Point } from '@journalcollage/editor-core';
+import { useMemo, type ReactNode } from 'react';
+import type { BrushCutMask, BrushCutStroke, Draft, Effect, Layer, Point } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
@@ -29,10 +32,13 @@ export type CanvasViewport = Readonly<{
 export type ActiveLayerPresentation = Readonly<{
   layerId: string | null;
   transform: SharedValue<Transforms3d>;
+  /** Shared values are only authoritative while a gesture is in progress. */
+  isInteracting?: boolean;
 }>;
 
 /** Ephemeral interaction state. It is intentionally not persisted in Draft. */
 export type StraightCutPreview = Readonly<{ layerId: string; start: Point; end: Point; style: 'straight' | 'wave' }>;
+export type BrushCutPreview = Readonly<{ layerId: string; strokes: readonly BrushCutStroke[] }>;
 
 /** Product asset metadata supplied at render time; never persisted in a Draft. */
 export type ProceduralPaperPaint = Readonly<{
@@ -90,6 +96,7 @@ type SkiaEditorSceneProps = Readonly<{
   /** Preview-only stage color. It is deliberately not stored in the Draft. */
   surfaceColor?: string;
   straightCutPreview?: StraightCutPreview | null;
+  brushCutPreview?: BrushCutPreview | null;
 }>;
 
 /**
@@ -97,7 +104,7 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -107,13 +114,14 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           key={layer.id}
           layer={layer}
           selected={showSelection && draft.selectedLayerId === layer.id}
-          transform={activeLayer.layerId === layer.id ? activeLayer.transform : layerTransform(layer)}
+          transform={activeLayer.isInteracting === true && activeLayer.layerId === layer.id ? activeLayer.transform : layerTransform(layer)}
           assetUri={layer.type === 'image' ? assetUris[layer.asset.id] : undefined}
           proceduralPaper={layer.type === 'image' ? proceduralPapers[layer.asset.id] : undefined}
           proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
           fontUri={layer.type === 'text' ? fontUris[layer.fontVariantId] : undefined}
           fontSupportsCjk={layer.type === 'text' ? fontSupportsCjk[layer.fontVariantId] : undefined}
           straightCutPreview={straightCutPreview?.layerId === layer.id ? straightCutPreview : null}
+          brushCutPreview={brushCutPreview?.layerId === layer.id ? brushCutPreview : null}
         />
       ))}
     </Group>
@@ -143,9 +151,10 @@ type SkiaLayerProps = Readonly<{
   fontUri?: string;
   fontSupportsCjk?: boolean;
   straightCutPreview: StraightCutPreview | null;
+  brushCutPreview: BrushCutPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview, brushCutPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
@@ -175,6 +184,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
         <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="rgba(255,255,255,0.94)" />
         <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
       </>}
+      {brushCutPreview && <Path path={makeBrushStrokePath({ mode: 'include', strokes: brushCutPreview.strokes })} color="rgba(217,74,56,0.62)" />}
       {outline && <Path path={shapePath} color={outline.color} style="stroke" strokeWidth={outline.width} />}
       {selected && (
         <>
@@ -191,7 +201,23 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
 
 const ImageLayerContent = ({ layer, assetUri, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ layer: Extract<Layer, { type: 'image' }>; assetUri?: string; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {
   const content = <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
-  return clipPaths.reduceRight((child, points, index) => <Group key={`${index}-${points.length}`} clip={makePolygonPath(points)}>{child}</Group>, content);
+  const clipped = clipPaths.reduceRight((child, points, index) => <Group key={`${index}-${points.length}`} clip={makePolygonPath(points)}>{child}</Group>, content);
+  const contentFrame = layer.contentFrame ?? { x: 0, y: 0 };
+  return layer.brushCutMask ? <BrushCutMaskedContent mask={layer.brushCutMask} offset={layer.brushCutMask.coordinateSpace === 'content' ? contentFrame : undefined}>{clipped}</BrushCutMaskedContent> : clipped;
+};
+
+const BrushCutMaskedContent = ({ children, mask, offset }: Readonly<{ children: ReactNode; mask: BrushCutMask; offset?: Point }>) => {
+  const strokePath = useMemo(() => makeBrushStrokePath(mask, offset), [mask, offset]);
+  const excludedPath = useMemo(() => makeBrushStrokePath({ mode: 'exclude', strokes: mask.excludeStrokes ?? [] }, offset), [mask.excludeStrokes, offset]);
+  if (mask.mode === 'include') {
+    // Build b − d in the alpha mask itself. Clearing the image content inside
+    // a nested offscreen layer can leave an opaque white surface on iOS.
+    const alphaMask = mask.excludeStrokes?.length
+      ? <Group layer><Path path={strokePath} color="#FFFFFF" /><Path blendMode="clear" path={excludedPath} color="#000000" /></Group>
+      : <Path path={strokePath} color="#FFFFFF" />;
+    return <Mask mode="alpha" mask={alphaMask}><>{children}</></Mask>;
+  }
+  return <Group layer><>{children}</><Path blendMode="clear" path={strokePath} color="#000000" /></Group>;
 };
 
 const makePolygonPath = (points: readonly Point[]) => {
@@ -199,6 +225,18 @@ const makePolygonPath = (points: readonly Point[]) => {
   points.forEach((point, index) => index === 0 ? path.moveTo(point.x, point.y) : path.lineTo(point.x, point.y));
   path.close();
   return path;
+};
+
+const makeBrushStrokePath = (mask: BrushCutMask, offset: Point = { x: 0, y: 0 }) => {
+  const output = Skia.Path.Make();
+  mask.strokes.forEach((stroke) => {
+    const path = Skia.Path.Make();
+    stroke.points.forEach((point, index) => index === 0 ? path.moveTo(point.x + offset.x, point.y + offset.y) : path.lineTo(point.x + offset.x, point.y + offset.y));
+    if (stroke.points.length === 1) path.lineTo(stroke.points[0].x + offset.x + 0.01, stroke.points[0].y + offset.y + 0.01);
+    const stroked = path.stroke({ width: stroke.size, cap: StrokeCap.Round, join: StrokeJoin.Round });
+    if (stroked) output.addPath(stroked);
+  });
+  return output;
 };
 
 const makeStraightCutPath = (start: Point, end: Point) => {
@@ -262,6 +300,10 @@ const ImagePlaceholder = ({ layer, assetUri, proceduralPaper, proceduralSticker 
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
   if (proceduralPaper !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralPaperLayer frame={contentFrame} paper={proceduralPaper} patternImageUri={assetUri} /></Group>;
   if (proceduralSticker !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralStickerLayer frame={contentFrame} sticker={proceduralSticker} textureUri={assetUri} /></Group>;
+  // A cut produces new fragment keys that remount this component. During the
+  // one-frame `useImage` reload, a resolved URI is still a real image—not a
+  // missing asset—so never replace it with the fixture artwork.
+  if (assetUri !== undefined && image === null) return null;
   return (
   <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }, { translateX: -layer.crop.x * contentFrame.width / layer.crop.width }, { translateY: -layer.crop.y * contentFrame.height / layer.crop.height }, { scaleX: 1 / layer.crop.width }, { scaleY: 1 / layer.crop.height }]}>
     {image ? <SkiaImage image={image} x={0} y={0} width={contentFrame.width} height={contentFrame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
