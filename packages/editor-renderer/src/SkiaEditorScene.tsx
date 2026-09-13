@@ -9,6 +9,7 @@ import {
   Mask,
   matchFont,
   Path,
+  PathOp,
   Rect,
   RoundedRect,
   Skia,
@@ -20,7 +21,8 @@ import {
   type Transforms3d,
 } from '@shopify/react-native-skia';
 import { useMemo, type ReactNode } from 'react';
-import type { BrushCutMask, BrushCutStroke, Draft, Effect, Layer, Point } from '@journalcollage/editor-core';
+import { visibleBoundsForLayer } from '@journalcollage/editor-core';
+import type { BrushCutMask, BrushCutStroke, Draft, Effect, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
@@ -39,6 +41,8 @@ export type ActiveLayerPresentation = Readonly<{
 /** Ephemeral interaction state. It is intentionally not persisted in Draft. */
 export type StraightCutPreview = Readonly<{ layerId: string; start: Point; end: Point; style: 'straight' | 'wave' }>;
 export type BrushCutPreview = Readonly<{ layerId: string; strokes: readonly BrushCutStroke[] }>;
+/** Preview-only mask chrome for a full-screen tool. It never enters a Draft or export. */
+export type VisibilityMaskPreview = Readonly<{ layerId: string; mask: VisibilityMask }>;
 
 /** Product asset metadata supplied at render time; never persisted in a Draft. */
 export type ProceduralPaperPaint = Readonly<{
@@ -97,6 +101,7 @@ type SkiaEditorSceneProps = Readonly<{
   surfaceColor?: string;
   straightCutPreview?: StraightCutPreview | null;
   brushCutPreview?: BrushCutPreview | null;
+  visibilityMaskPreview?: VisibilityMaskPreview | null;
 }>;
 
 /**
@@ -104,7 +109,7 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -122,6 +127,7 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           fontSupportsCjk={layer.type === 'text' ? fontSupportsCjk[layer.fontVariantId] : undefined}
           straightCutPreview={straightCutPreview?.layerId === layer.id ? straightCutPreview : null}
           brushCutPreview={brushCutPreview?.layerId === layer.id ? brushCutPreview : null}
+          visibilityMaskPreview={visibilityMaskPreview?.layerId === layer.id ? visibilityMaskPreview : null}
         />
       ))}
     </Group>
@@ -152,10 +158,12 @@ type SkiaLayerProps = Readonly<{
   fontSupportsCjk?: boolean;
   straightCutPreview: StraightCutPreview | null;
   brushCutPreview: BrushCutPreview | null;
+  visibilityMaskPreview: VisibilityMaskPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview, brushCutPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview, brushCutPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
+  const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
   const tornEdge = effectFor(layer.effects, 'torn-edge');
@@ -167,6 +175,8 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
   );
   const cutPaths = useMemo(() => layer.type !== 'image' ? [] : layer.clipPaths ?? (layer.clipPath ? [layer.clipPath] : []), [layer]);
   const previewPath = useMemo(() => straightCutPreview ? (straightCutPreview.style === 'wave' ? makeWaveCutPath(straightCutPreview.start, straightCutPreview.end, frame) : makeStraightCutPath(straightCutPreview.start, straightCutPreview.end)) : null, [frame, straightCutPreview]);
+  const visibilityPreviewPath = useMemo(() => visibilityMaskPreview ? compileVisibilityMaskPath(visibilityMaskPreview.mask, frame) : null, [frame, visibilityMaskPreview]);
+  const visibilityPreviewBounds = visibilityMaskPreview?.mask.type === 'shape' ? visibilityMaskPreview.mask.bounds : null;
 
   return (
     <Group transform={transform} origin={{ x: frame.width / 2, y: frame.height / 2 }} opacity={layer.opacity}>
@@ -185,14 +195,17 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
         <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
       </>}
       {brushCutPreview && <Path path={makeBrushStrokePath({ mode: 'include', strokes: brushCutPreview.strokes })} color="rgba(217,74,56,0.62)" />}
+      {visibilityPreviewPath && <><Path path={visibilityPreviewPath} color="rgba(217,74,56,0.18)" /><Path path={visibilityPreviewPath} color="#111111" style="stroke" strokeWidth={4} />
+        {visibilityPreviewBounds && <><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /></>}
+      </>}
       {outline && <Path path={shapePath} color={outline.color} style="stroke" strokeWidth={outline.width} />}
-      {selected && (
+      {selectionBounds && (
         <>
-          <Rect x={-8} y={-8} width={frame.width + 16} height={frame.height + 16} color="#111111" style="stroke" strokeWidth={6} />
-          <Rect x={-14} y={-14} width={16} height={16} color="#111111" />
-          <Rect x={frame.width - 2} y={-14} width={16} height={16} color="#111111" />
-          <Rect x={-14} y={frame.height - 2} width={16} height={16} color="#111111" />
-          <Rect x={frame.width - 2} y={frame.height - 2} width={16} height={16} color="#111111" />
+          <Rect x={selectionBounds.x - 8} y={selectionBounds.y - 8} width={selectionBounds.width + 16} height={selectionBounds.height + 16} color="#111111" style="stroke" strokeWidth={6} />
+          <Rect x={selectionBounds.x - 14} y={selectionBounds.y - 14} width={16} height={16} color="#111111" />
+          <Rect x={selectionBounds.x + selectionBounds.width - 2} y={selectionBounds.y - 14} width={16} height={16} color="#111111" />
+          <Rect x={selectionBounds.x - 14} y={selectionBounds.y + selectionBounds.height - 2} width={16} height={16} color="#111111" />
+          <Rect x={selectionBounds.x + selectionBounds.width - 2} y={selectionBounds.y + selectionBounds.height - 2} width={16} height={16} color="#111111" />
         </>
       )}
     </Group>
@@ -203,7 +216,99 @@ const ImageLayerContent = ({ layer, assetUri, clipPaths, proceduralPaper, proced
   const content = <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
   const clipped = clipPaths.reduceRight((child, points, index) => <Group key={`${index}-${points.length}`} clip={makePolygonPath(points)}>{child}</Group>, content);
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0 };
-  return layer.brushCutMask ? <BrushCutMaskedContent mask={layer.brushCutMask} offset={layer.brushCutMask.coordinateSpace === 'content' ? contentFrame : undefined}>{clipped}</BrushCutMaskedContent> : clipped;
+  const legacyMasked = layer.brushCutMask ? <BrushCutMaskedContent mask={layer.brushCutMask} offset={layer.brushCutMask.coordinateSpace === 'content' ? contentFrame : undefined}>{clipped}</BrushCutMaskedContent> : clipped;
+  // During the compatibility window the old scissors fields and the new
+  // generic expression are both active. Nesting the masks makes their
+  // intersection explicit, so an emboss cannot reveal legacy-cut pixels.
+  return layer.visibilityMask ? <VisibilityMaskedContent mask={layer.visibilityMask} frame={layer.frame}>{legacyMasked}</VisibilityMaskedContent> : legacyMasked;
+};
+
+/**
+ * Converts a persisted visibility expression to one Skia alpha path. This is
+ * intentionally renderer-only: Drafts contain only JSON-friendly semantics.
+ */
+export const compileVisibilityMaskPath = (mask: VisibilityMask, frame: { width: number; height: number }) => {
+  const fullFrame = () => {
+    const path = Skia.Path.Make();
+    path.addRect({ x: 0, y: 0, width: frame.width, height: frame.height });
+    return path;
+  };
+  const combine = (left: ReturnType<typeof Skia.Path.Make>, right: ReturnType<typeof Skia.Path.Make>, operation: PathOp) =>
+    Skia.Path.MakeFromOp(left, right, operation) ?? left;
+  const compile = (expression: VisibilityMask): ReturnType<typeof Skia.Path.Make> => {
+    switch (expression.type) {
+      case 'all': return fullFrame();
+      case 'shape': return makeVisibilityShapePath(expression.shape, expression.bounds);
+      case 'polygon': return makePolygonPath(expression.points);
+      case 'brush': return makeBrushStrokePath({ mode: 'include', strokes: expression.strokes });
+      case 'intersect': return expression.masks.slice(1).reduce(
+        (path, child) => combine(path, compile(child), PathOp.Intersect),
+        compile(expression.masks[0]),
+      );
+      case 'subtract': return combine(compile(expression.base), compile(expression.cut), PathOp.Difference);
+    }
+  };
+  return compile(mask);
+};
+
+const VisibilityMaskedContent = ({ children, frame, mask }: Readonly<{ children: ReactNode; frame: { width: number; height: number }; mask: VisibilityMask }>) => {
+  const path = useMemo(() => compileVisibilityMaskPath(mask, frame), [frame.height, frame.width, mask]);
+  return <Mask mode="alpha" mask={<Path path={path} color="#FFFFFF" />}>{children}</Mask>;
+};
+
+const makeVisibilityShapePath = (shape: Extract<VisibilityMask, { type: 'shape' }>['shape'], bounds: { x: number; y: number; width: number; height: number }) => {
+  const path = Skia.Path.Make();
+  const { x, y, width, height } = bounds;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  if (shape === 'rect') { path.addRect(bounds); return path; }
+  if (shape === 'circle') { path.addOval(bounds); return path; }
+  if (shape === 'heart') {
+    // Mirrors the mini-program heart: matched shoulders, a restrained notch
+    // and one centred bottom point. It stays wholly inside `bounds`.
+    path.moveTo(cx, y + height * 0.90);
+    path.cubicTo(x + width * 0.43, y + height * 0.84, x + width * 0.07, y + height * 0.62, x + width * 0.07, y + height * 0.35);
+    path.cubicTo(x + width * 0.07, y + height * 0.20, x + width * 0.19, y + height * 0.14, x + width * 0.32, y + height * 0.14);
+    path.cubicTo(x + width * 0.42, y + height * 0.14, x + width * 0.48, y + height * 0.24, cx, y + height * 0.34);
+    path.cubicTo(x + width * 0.52, y + height * 0.24, x + width * 0.58, y + height * 0.14, x + width * 0.68, y + height * 0.14);
+    path.cubicTo(x + width * 0.81, y + height * 0.14, x + width * 0.93, y + height * 0.20, x + width * 0.93, y + height * 0.35);
+    path.cubicTo(x + width * 0.93, y + height * 0.62, x + width * 0.57, y + height * 0.84, cx, y + height * 0.90);
+    path.close();
+    return path;
+  }
+  if (shape === 'star') {
+    for (let index = 0; index < 10; index += 1) {
+      const angle = -Math.PI / 2 + index * Math.PI / 5;
+      const radius = index % 2 === 0 ? Math.min(width, height) / 2 : Math.min(width, height) * 0.21;
+      const point = { x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+      if (index === 0) path.moveTo(point.x, point.y); else path.lineTo(point.x, point.y);
+    }
+    path.close();
+    return path;
+  }
+  if (shape === 'tag') {
+    path.moveTo(x, y);
+    path.lineTo(x + width * 0.82, y);
+    path.lineTo(x + width, y + height * 0.18);
+    path.lineTo(x + width, y + height);
+    path.lineTo(x, y + height);
+    path.close();
+    return path;
+  }
+  // The mini-program uses a crisp, alternating postage edge rather than a
+  // sinusoidal scallop. Keep those normalized stops exactly in the renderer.
+  const stops = [
+    [0.07, 0], [0.13, 0.05], [0.20, 0], [0.27, 0.05], [0.34, 0], [0.41, 0.05], [0.48, 0], [0.55, 0.05], [0.62, 0], [0.69, 0.05], [0.76, 0], [0.83, 0.05], [0.93, 0],
+    [1, 0.07], [0.95, 0.13], [1, 0.20], [0.95, 0.27], [1, 0.34], [0.95, 0.41], [1, 0.48], [0.95, 0.55], [1, 0.62], [0.95, 0.69], [1, 0.76], [0.95, 0.83], [1, 0.93],
+    [0.93, 1], [0.83, 0.95], [0.76, 1], [0.69, 0.95], [0.62, 1], [0.55, 0.95], [0.48, 1], [0.41, 0.95], [0.34, 1], [0.27, 0.95], [0.20, 1], [0.13, 0.95], [0.07, 1],
+    [0, 0.93], [0.05, 0.83], [0, 0.76], [0.05, 0.69], [0, 0.62], [0.05, 0.55], [0, 0.48], [0.05, 0.41], [0, 0.34], [0.05, 0.27], [0, 0.20], [0.05, 0.13], [0, 0.07],
+  ] as const;
+  stops.forEach(([relativeX, relativeY], index) => {
+    const point = { x: x + width * relativeX, y: y + height * relativeY };
+    if (index === 0) path.moveTo(point.x, point.y); else path.lineTo(point.x, point.y);
+  });
+  path.close();
+  return path;
 };
 
 const BrushCutMaskedContent = ({ children, mask, offset }: Readonly<{ children: ReactNode; mask: BrushCutMask; offset?: Point }>) => {

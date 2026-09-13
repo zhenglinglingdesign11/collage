@@ -1,6 +1,7 @@
-import type { AssetReference, BrushCutStroke, Draft, Effect, Layer } from './document';
+import type { AssetReference, BrushCutStroke, Draft, Effect, Layer, VisibilityMask } from './document';
 import type { Point, Rect, Transform } from './geometry';
-import { splitPolygonByLine, splitPolygonByWave, waveCutSidesForFrame } from './straightCut';
+import { splitPolygonByLine, waveCutSidesForFrame } from './straightCut';
+import { isValidVisibilityMask } from './validation';
 
 /** Every persistent editor mutation is an explicit, serializable command. */
 export type EditorCommand =
@@ -14,6 +15,12 @@ export type EditorCommand =
   | Readonly<{ type: 'image.cut.straight'; layerId: string; start: Point; end: Point; firstLayerId: string; secondLayerId: string; operationId: string; gap: number; style: 'straight' | 'wave' }>
   | Readonly<{ type: 'image.cut.brush'; layerId: string; cutLayerId: string; operationId: string; strokes: readonly BrushCutStroke[]; hollowOriginal: boolean }>
   | Readonly<{ type: 'image.cut.brush.update'; layerId: string; strokes: readonly BrushCutStroke[] }>
+  /**
+   * Splits the current visible area into the selected mask and its remainder.
+   * Both descendants keep the immutable source asset and are therefore safe
+   * targets for later emboss or scissors operations.
+   */
+  | Readonly<{ type: 'image.mask.split'; layerId: string; resultLayerId: string; remainderLayerId: string; operationId: string; mask: VisibilityMask; resultOffset?: Point }>
   | Readonly<{ type: 'layer.opacity.set'; layerId: string; opacity: number }>
   | Readonly<{ type: 'text.content.set'; layerId: string; text: string }>
   | Readonly<{ type: 'text.style.set'; layerId: string; fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null }>
@@ -74,16 +81,17 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       if (layerIndex < 0 || layer.type !== 'image' || layer.isLocked) return { draft, changed: false };
       if (![command.start.x, command.start.y, command.end.x, command.end.y, command.gap].every(Number.isFinite)) return { draft, changed: false };
       if (command.firstLayerId === command.secondLayerId || draft.layers.some((candidate) => candidate.id !== layer.id && (candidate.id === command.firstLayerId || candidate.id === command.secondLayerId))) return { draft, changed: false };
-      const sourcePolygon = layer.clipPath ?? [
+      // New straight and wave cuts are visibility expressions, not tight
+      // bitmap fragments. Keeping the same local content frame is essential:
+      // a preceding emboss mask and the next scissors mask then share exactly
+      // one coordinate system.
+      const sourcePolygon = [
         { x: 0, y: 0 }, { x: layer.frame.width, y: 0 },
         { x: layer.frame.width, y: layer.frame.height }, { x: 0, y: layer.frame.height },
       ];
-      const stackWaveClip = command.style === 'wave' && (layer.cutFragment?.style === 'wave' || layer.clipPaths !== undefined);
-      const pieces = stackWaveClip
+      const pieces = command.style === 'wave'
         ? waveCutSidesForFrame(layer.frame, command.start, command.end)
-        : command.style === 'wave'
-          ? splitPolygonByWave(sourcePolygon, command.start, command.end)
-          : splitPolygonByLine(sourcePolygon, command.start, command.end);
+        : splitPolygonByLine(sourcePolygon, command.start, command.end);
       if (pieces === null) return { draft, changed: false };
       const sourceLayerId = layer.cutFragment?.sourceLayerId ?? layer.id;
       const gap = Math.max(0, Math.min(80, command.gap));
@@ -96,12 +104,8 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       const sin = Math.sin(layer.transform.rotation);
       const canvasNormal = { x: scaledNormal.x * cos - scaledNormal.y * sin, y: scaledNormal.x * sin + scaledNormal.y * cos };
       const offset = { x: canvasNormal.x * gap / 2, y: canvasNormal.y * gap / 2 };
-      const first = stackWaveClip
-        ? makeStackedWaveFragment(layer, pieces[0], command.firstLayerId, `${layer.name ?? 'Image'} · 1`, sourceLayerId, command.operationId, offset)
-        : makeStraightCutFragment(layer, pieces[0], command.firstLayerId, `${layer.name ?? 'Image'} · 1`, sourceLayerId, command.operationId, command.style, offset);
-      const second = stackWaveClip
-        ? makeStackedWaveFragment(layer, pieces[1], command.secondLayerId, `${layer.name ?? 'Image'} · 2`, sourceLayerId, command.operationId, { x: -offset.x, y: -offset.y })
-        : makeStraightCutFragment(layer, pieces[1], command.secondLayerId, `${layer.name ?? 'Image'} · 2`, sourceLayerId, command.operationId, command.style, { x: -offset.x, y: -offset.y });
+      const first = makeVisibilityCutFragment(layer, pieces[0], command.firstLayerId, `${layer.name ?? 'Image'} · 1`, sourceLayerId, command.operationId, command.style, offset);
+      const second = makeVisibilityCutFragment(layer, pieces[1], command.secondLayerId, `${layer.name ?? 'Image'} · 2`, sourceLayerId, command.operationId, command.style, { x: -offset.x, y: -offset.y });
       return touch({ ...draft, layers: [...draft.layers.slice(0, layerIndex), first, second, ...draft.layers.slice(layerIndex + 1)], selectedLayerId: first.id });
     }
     case 'image.cut.brush': {
@@ -109,47 +113,13 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       if (layerIndex < 0 || layer.type !== 'image' || layer.isLocked || draft.layers.some((candidate) => candidate.id !== layer.id && candidate.id === command.cutLayerId)) return { draft, changed: false };
       if (!validBrushStrokes(command.strokes, layer.frame, layer.contentFrame)) return { draft, changed: false };
       const sourceLayerId = layer.cutFragment?.sourceLayerId ?? layer.id;
-      // A freshly extracted region cannot remain exactly over the new hole:
-      // the two layers then visually reconstruct the source and make every
-      // later cut look like a no-op. Give each result a deterministic, small
-      // canvas-space separation while retaining its source-space mask.
-      const cutLayer = makeBrushCutFragment(
-        layer,
-        command.cutLayerId,
-        `${layer.name ?? 'Image'} · cut`,
-        sourceLayerId,
-        command.operationId,
-        command.strokes,
-        undefined,
-        brushCutResultOffset(draft.layers, sourceLayerId),
-      );
+      const brushMask: VisibilityMask = { type: 'brush', strokes: toLayerStrokes(command.strokes, layer.contentFrame) };
+      const base: VisibilityMask = layer.visibilityMask ?? { type: 'all' };
+      // As with straight cuts, both descendants retain the same source frame.
+      // This keeps a brush cut composable with an earlier emboss or later cut.
+      const cutLayer = makeVisibilityBrushCutFragment(layer, command.cutLayerId, `${layer.name ?? 'Image'} · cut`, sourceLayerId, command.operationId, base, brushMask, brushCutResultOffset(draft.layers, sourceLayerId));
       if (!command.hollowOriginal) return touch({ ...draft, layers: [...draft.layers.slice(0, layerIndex + 1), cutLayer, ...draft.layers.slice(layerIndex + 1)], selectedLayerId: cutLayer.id });
-      // Splitting an already extracted fragment (b) must hollow b itself,
-      // rather than merely placing a new d above it. Preserve its primary
-      // include mask and accumulate an inner exclusion for every later cut.
-      if (layer.brushCutMask?.mode === 'include') {
-        const existingExcludes = toContentStrokes(
-          layer.brushCutMask.excludeStrokes ?? [],
-          layer.brushCutMask.coordinateSpace,
-          layer.contentFrame,
-        );
-        const remainder = {
-          ...layer,
-          brushCutMask: {
-            ...layer.brushCutMask,
-            strokes: toContentStrokes(layer.brushCutMask.strokes, layer.brushCutMask.coordinateSpace, layer.contentFrame),
-            excludeStrokes: [...existingExcludes, ...command.strokes],
-            coordinateSpace: 'content' as const,
-          },
-        };
-        return touch({ ...draft, layers: [...draft.layers.slice(0, layerIndex), remainder, cutLayer, ...draft.layers.slice(layerIndex + 1)], selectedLayerId: cutLayer.id });
-      }
-      // Each brush invocation owns only its new cut layer. The selected source
-      // keeps an exclude union so prior independent cut results remain holes.
-      const existingExclude = layer.brushCutMask?.mode === 'exclude'
-        ? toContentStrokes(layer.brushCutMask.strokes, layer.brushCutMask.coordinateSpace, layer.contentFrame)
-        : [];
-      const remainder = { ...layer, brushCutMask: { mode: 'exclude' as const, strokes: [...existingExclude, ...command.strokes], coordinateSpace: 'content' as const }, cutFragment: { sourceLayerId, operationId: command.operationId, style: 'straight' as const } };
+      const remainder = { ...layer, visibilityMask: { type: 'subtract' as const, base, cut: brushMask }, cutFragment: { sourceLayerId, operationId: command.operationId, style: 'mask' as const } };
       return touch({ ...draft, layers: [...draft.layers.slice(0, layerIndex), remainder, cutLayer, ...draft.layers.slice(layerIndex + 1)], selectedLayerId: cutLayer.id });
     }
     case 'image.cut.brush.update': {
@@ -171,6 +141,41 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
         if (remainder !== undefined && candidate.id === remainder.id) return { ...candidate, brushCutMask: { mode: 'exclude' as const, strokes: command.strokes, coordinateSpace: 'content' as const } };
         return candidate;
       }), selectedLayerId: layer.id });
+    }
+    case 'image.mask.split': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'image' || layer.isLocked) return { draft, changed: false };
+      if (!command.operationId || command.resultLayerId === command.remainderLayerId) return { draft, changed: false };
+      if (draft.layers.some((candidate) => candidate.id !== layer.id && (candidate.id === command.resultLayerId || candidate.id === command.remainderLayerId))) return { draft, changed: false };
+      if (!isValidVisibilityMask(command.mask, layer.frame)) return { draft, changed: false };
+      if (command.resultOffset !== undefined && (!Number.isFinite(command.resultOffset.x) || !Number.isFinite(command.resultOffset.y))) return { draft, changed: false };
+
+      // Keep the expression in content coordinates. Existing legacy scissors
+      // fields are intentionally copied to both descendants; a renderer that
+      // reads both systems will intersect them, so a new emboss can never
+      // restore pixels that an older scissors operation already removed.
+      const sourceLayerId = layer.cutFragment?.sourceLayerId ?? layer.id;
+      const base: VisibilityMask = layer.visibilityMask ?? { type: 'all' };
+      const remainder = {
+        ...layer,
+        id: command.remainderLayerId,
+        name: `${layer.name ?? 'Image'} · remainder`,
+        visibilityMask: { type: 'subtract' as const, base, cut: command.mask },
+        cutFragment: { sourceLayerId, operationId: command.operationId, style: 'mask' as const },
+      };
+      const offset = command.resultOffset ?? { x: 0, y: 0 };
+      const result = {
+        ...layer,
+        id: command.resultLayerId,
+        name: `${layer.name ?? 'Image'} · mask`,
+        transform: {
+          ...layer.transform,
+          position: { x: layer.transform.position.x + offset.x, y: layer.transform.position.y + offset.y },
+        },
+        visibilityMask: { type: 'intersect' as const, masks: [base, command.mask] },
+        cutFragment: { sourceLayerId, operationId: command.operationId, style: 'mask' as const },
+      };
+      return touch({ ...draft, layers: [...draft.layers.slice(0, layerIndex), remainder, result, ...draft.layers.slice(layerIndex + 1)], selectedLayerId: result.id });
     }
     case 'layer.lock.set':
       if (layerIndex < 0 || draft.layers[layerIndex].isLocked === command.isLocked) return { draft, changed: false };
@@ -249,6 +254,33 @@ const makeStraightCutFragment = (layer: Extract<Layer, { type: 'image' }>, polyg
   };
 };
 
+/**
+ * The shared-mask equivalent of a straight-cut fragment. Unlike the legacy
+ * helper above, it deliberately retains the source frame: every subsequent
+ * emboss, scissors, renderer, and hit-test operation uses the same local
+ * coordinate system.
+ */
+const makeVisibilityCutFragment = (layer: Extract<Layer, { type: 'image' }>, polygon: readonly Point[], id: string, name: string, sourceLayerId: string, operationId: string, style: 'straight' | 'wave', nudge: Point) => {
+  const base: VisibilityMask = layer.visibilityMask ?? { type: 'all' };
+  return {
+    ...layer,
+    id,
+    name,
+    transform: { ...layer.transform, position: { x: layer.transform.position.x + nudge.x, y: layer.transform.position.y + nudge.y } },
+    visibilityMask: { type: 'intersect' as const, masks: [base, { type: 'polygon' as const, points: polygon }] },
+    cutFragment: { sourceLayerId, operationId, style },
+  };
+};
+
+const makeVisibilityBrushCutFragment = (layer: Extract<Layer, { type: 'image' }>, id: string, name: string, sourceLayerId: string, operationId: string, base: VisibilityMask, brush: VisibilityMask, nudge: Point) => ({
+  ...layer,
+  id,
+  name,
+  transform: { ...layer.transform, position: { x: layer.transform.position.x + nudge.x, y: layer.transform.position.y + nudge.y } },
+  visibilityMask: { type: 'intersect' as const, masks: [base, brush] },
+  cutFragment: { sourceLayerId, operationId, style: 'mask' as const },
+});
+
 /** Creates a tight, still non-destructive fragment around the visible brush strokes. */
 const makeBrushCutFragment = (layer: Extract<Layer, { type: 'image' }>, id: string, name: string, sourceLayerId: string, operationId: string, strokes: readonly BrushCutStroke[], contentBounds?: Rect, nudge: Point = { x: 0, y: 0 }) => {
   const bounds = brushStrokeBounds(strokes, layer.frame, layer.contentFrame, contentBounds);
@@ -302,6 +334,12 @@ const toContentStrokes = (strokes: readonly BrushCutStroke[], coordinateSpace: '
   if (coordinateSpace === 'content') return strokes;
   const offset = contentFrame ?? { x: 0, y: 0 };
   return strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x - offset.x, y: point.y - offset.y })) }));
+};
+
+/** Converts the legacy brush session's content coordinates into layer-local mask coordinates. */
+const toLayerStrokes = (strokes: readonly BrushCutStroke[], contentFrame?: Rect): readonly BrushCutStroke[] => {
+  const offset = contentFrame ?? { x: 0, y: 0 };
+  return strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + offset.x, y: point.y + offset.y })) }));
 };
 
 const brushStrokeBounds = (strokes: readonly BrushCutStroke[], frame: { width: number; height: number }, contentFrame?: Rect, contentBounds?: Rect): Rect => {

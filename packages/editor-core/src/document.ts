@@ -1,6 +1,6 @@
 import type { Point, Rect, Size, Transform } from './geometry';
 
-export const DRAFT_SCHEMA_VERSION = 1 as const;
+export const DRAFT_SCHEMA_VERSION = 2 as const;
 
 export type AssetKind = 'image' | 'font' | 'texture' | 'brush';
 
@@ -33,6 +33,30 @@ export type BrushCutMask = Readonly<{
   coordinateSpace?: 'content';
 }>;
 
+/**
+ * Stable shape identifiers for masks that are part of a document. Renderer
+ * implementations own the actual paths; a Draft never contains a Skia path
+ * or a platform-specific clipping object.
+ */
+export type MaskShapeId = 'circle' | 'rect' | 'heart' | 'star' | 'tag' | 'stamp';
+
+/**
+ * A platform-neutral expression describing the visible pixels of an image
+ * layer. Coordinates are layer-content coordinates (the same coordinates used
+ * by clip paths and brush-cut masks), never screen coordinates.
+ *
+ * Legacy `clipPath`, `clipPaths`, and `brushCutMask` remain readable while
+ * they are migrated. Renderers must intersect those legacy masks with this
+ * expression when both are present.
+ */
+export type VisibilityMask =
+  | Readonly<{ type: 'all' }>
+  | Readonly<{ type: 'shape'; shape: MaskShapeId; bounds: Rect }>
+  | Readonly<{ type: 'polygon'; points: readonly Point[] }>
+  | Readonly<{ type: 'brush'; strokes: readonly BrushCutStroke[] }>
+  | Readonly<{ type: 'intersect'; masks: readonly VisibilityMask[] }>
+  | Readonly<{ type: 'subtract'; base: VisibilityMask; cut: VisibilityMask }>;
+
 type LayerBase = Readonly<{
   id: string;
   name?: string;
@@ -61,8 +85,14 @@ export type ImageLayer = LayerBase & Readonly<{
   clipPaths?: readonly (readonly Point[])[];
   /** Semantic alpha-mask strokes used by the freehand scissors tool. */
   brushCutMask?: BrushCutMask;
+  /**
+   * General, non-destructive visible-area expression used by tools such as
+   * emboss. It deliberately coexists with legacy scissors fields until their
+   * migration is complete.
+   */
+  visibilityMask?: VisibilityMask;
   /** Stable lineage for repeated cuts; never contains a platform file path. */
-  cutFragment?: Readonly<{ sourceLayerId: string; operationId: string; style: 'straight' | 'wave' }>;
+  cutFragment?: Readonly<{ sourceLayerId: string; operationId: string; style: 'straight' | 'wave' | 'mask' }>;
 }>;
 
 export type TextLayer = LayerBase & Readonly<{

@@ -32,7 +32,7 @@ const HeaderAction = ({ direction, disabled, onPress }: Readonly<{ direction: 'r
   </Pressable>
 );
 
-export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onMaterial, onPhoto, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void; onText: () => void }>) => (
+export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onEmboss, onMaterial, onPhoto, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onEmboss: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void; onText: () => void }>) => (
   <View style={[styles.toolbar, { bottom: 24 + bottomInset }]}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarTrack}>
       <EditorTool asset="asset://ui/editor/tool/image" compact={locale === 'zh-Hans'} label="editor.tool.image" locale={locale} onPress={onPhoto} />
@@ -40,7 +40,7 @@ export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, on
       <EditorTool asset="asset://ui/editor/tool/background" compact={locale === 'zh-Hans'} label="editor.tool.background" locale={locale} onPress={onBackground} wide />
       <EditorTool asset="asset://ui/editor/tool/text" compact={locale === 'zh-Hans'} label="editor.tool.text" locale={locale} onPress={onText} />
       <EditorTool asset="asset://ui/editor/tool/scissors" compact={locale === 'zh-Hans'} label="editor.tool.scissors" locale={locale} onPress={onScissors} wide />
-      <EditorTool asset="asset://ui/editor/tool/emboss" compact={locale === 'zh-Hans'} label="editor.tool.emboss" locale={locale} />
+      <EditorTool asset="asset://ui/editor/tool/emboss" compact={locale === 'zh-Hans'} label="editor.tool.emboss" locale={locale} onPress={onEmboss} />
       <EditorTool asset="asset://ui/editor/tool/brush" compact={locale === 'zh-Hans'} label="editor.tool.brush" locale={locale} small />
     </ScrollView>
   </View>
