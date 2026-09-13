@@ -1,6 +1,6 @@
 import type { Point, Rect, Size, Transform } from './geometry';
 
-export const DRAFT_SCHEMA_VERSION = 2 as const;
+export const DRAFT_SCHEMA_VERSION = 3 as const;
 
 export type AssetKind = 'image' | 'font' | 'texture' | 'brush';
 
@@ -12,6 +12,54 @@ export type AssetReference = Readonly<{
   id: string;
   kind: AssetKind;
   revision?: string;
+}>;
+
+/**
+ * A catalog-owned brush description.  It is deliberately separate from a
+ * Draft: the catalog may map this stable identity to a bundled, cached, or
+ * remote material without leaking an implementation URI into a work.
+ */
+export type BrushDefinition = Readonly<{
+  id: string;
+  revision: string;
+  renderer: 'path' | 'stamps' | 'texture-stamps' | 'procedural' | 'animated';
+  /** Stable renderer recipe; asset art may evolve without changing document semantics. */
+  recipe: 'plain' | 'crayon' | 'marker' | 'stitch' | 'knit' | 'beads' | 'lace' | 'bow';
+  supports: Readonly<{
+    color: boolean;
+    pressure: boolean;
+    rotation: 'fixed' | 'tangent';
+    animation: boolean;
+  }>;
+  defaults: Readonly<{ size: number; spacing: number; jitter: number; opacity: number }>;
+  constraints: Readonly<{ minSize: number; maxSize: number; minSpacing: number; maxSpacing: number }>;
+  asset?: AssetReference;
+}>;
+
+/** Optional input attributes keep stylus and time-based brushes forward-compatible. */
+export type BrushPoint = Point & Readonly<{
+  pressure?: number;
+  timestamp?: number;
+  tiltX?: number;
+  tiltY?: number;
+}>;
+
+export type BrushStroke = Readonly<{
+  id: string;
+  /** Omitted legacy values are paint marks. Erase marks clear prior marks in this layer only. */
+  mode?: 'paint' | 'erase';
+  brushId: string;
+  brushRevision: string;
+  points: readonly BrushPoint[];
+  style: Readonly<{
+    /** Null means the selected material owns its color. */
+    color: string | null;
+    size: number;
+    spacing: number;
+    jitter: number;
+    seed: number;
+    opacity: number;
+  }>;
 }>;
 
 export type Effect =
@@ -114,17 +162,11 @@ export type MaterialLayer = LayerBase & Readonly<{
   frame: Size;
 }>;
 
-/** Persisted brush geometry; renderer caches any paths or texture atlases separately. */
+/** Persisted brush geometry; renderer caches paths, Pictures, and atlases separately. */
 export type BrushLayer = LayerBase & Readonly<{
   type: 'brush';
-  brush: AssetReference;
   frame: Size;
-  points: readonly Point[];
-  size: number;
-  spacing: number;
-  jitter: number;
-  seed: number;
-  color: string;
+  strokes: readonly BrushStroke[];
 }>;
 
 export type Layer = ImageLayer | TextLayer | MaterialLayer | BrushLayer;

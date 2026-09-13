@@ -4,10 +4,14 @@ import { resolveProductAsset, type ProductAssetId } from './assets';
 import { t, type ProductCopyKey, type ProductLocale } from './localization';
 import { productColor } from './tokens';
 
-export const EditorHeader = ({ canRedo, canUndo, locale, onExit, onExport, onRedo, onUndo }: Readonly<{
+export const EditorHeader = ({ actionsDisabled = false, canRedo, canUndo, locale, onActionUnavailable, onExit, onExport, onRedo, onUndo }: Readonly<{
+  /** An uncommitted tool session owns its own undo/confirm lifecycle. */
+  actionsDisabled?: boolean;
   canRedo: boolean;
   canUndo: boolean;
   locale: ProductLocale;
+  /** Keeps session-owned actions visually unavailable while explaining why. */
+  onActionUnavailable?: () => void;
   onExit: () => void;
   onExport: () => void;
   onRedo: () => void;
@@ -17,22 +21,22 @@ export const EditorHeader = ({ canRedo, canUndo, locale, onExit, onExport, onRed
     <Pressable accessibilityLabel="Back" accessibilityRole="button" hitSlop={8} onPress={onExit} style={[styles.headerIconButton, styles.headerBack]}><BackGlyph /></Pressable>
     <View pointerEvents="none" style={styles.ratioAnchor}><View style={styles.ratioPill}><Text style={styles.ratioLabel}>3:4</Text></View></View>
     <View style={styles.headerActions}>
-      <HeaderAction disabled={!canUndo} direction="undo" onPress={onUndo} />
-      <HeaderAction disabled={!canRedo} direction="redo" onPress={onRedo} />
-      <Pressable accessibilityLabel={t(locale, 'editor.export')} accessibilityRole="button" onPress={onExport} style={styles.exportButton}>
+      <HeaderAction disabled={actionsDisabled || !canUndo} direction="undo" onDisabledPress={actionsDisabled ? onActionUnavailable : undefined} onPress={onUndo} />
+      <HeaderAction disabled={actionsDisabled || !canRedo} direction="redo" onDisabledPress={actionsDisabled ? onActionUnavailable : undefined} onPress={onRedo} />
+      <Pressable accessibilityLabel={t(locale, 'editor.export')} accessibilityRole="button" disabled={actionsDisabled && onActionUnavailable === undefined} onPress={actionsDisabled ? onActionUnavailable : onExport} style={[styles.exportButton, actionsDisabled && styles.headerIconDisabled]}>
         <Text style={styles.exportLabel}>{t(locale, 'editor.export')}</Text>
       </Pressable>
     </View>
   </View>
 );
 
-const HeaderAction = ({ direction, disabled, onPress }: Readonly<{ direction: 'redo' | 'undo'; disabled: boolean; onPress: () => void }>) => (
-  <Pressable accessibilityLabel={direction} accessibilityRole="button" disabled={disabled} hitSlop={8} onPress={onPress} style={[styles.headerIconButton, disabled && styles.headerIconDisabled]}>
+const HeaderAction = ({ direction, disabled, onDisabledPress, onPress }: Readonly<{ direction: 'redo' | 'undo'; disabled: boolean; onDisabledPress?: () => void; onPress: () => void }>) => (
+  <Pressable accessibilityLabel={direction} accessibilityRole="button" disabled={disabled && onDisabledPress === undefined} hitSlop={8} onPress={disabled ? onDisabledPress : onPress} style={[styles.headerIconButton, disabled && styles.headerIconDisabled]}>
     <HistoryGlyph direction={direction} />
   </Pressable>
 );
 
-export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onEmboss, onMaterial, onPhoto, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onEmboss: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void; onText: () => void }>) => (
+export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onBrush, onEmboss, onMaterial, onPhoto, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onBrush: () => void; onEmboss: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void; onText: () => void }>) => (
   <View style={[styles.toolbar, { bottom: 24 + bottomInset }]}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarTrack}>
       <EditorTool asset="asset://ui/editor/tool/image" compact={locale === 'zh-Hans'} label="editor.tool.image" locale={locale} onPress={onPhoto} />
@@ -41,7 +45,7 @@ export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, on
       <EditorTool asset="asset://ui/editor/tool/text" compact={locale === 'zh-Hans'} label="editor.tool.text" locale={locale} onPress={onText} />
       <EditorTool asset="asset://ui/editor/tool/scissors" compact={locale === 'zh-Hans'} label="editor.tool.scissors" locale={locale} onPress={onScissors} wide />
       <EditorTool asset="asset://ui/editor/tool/emboss" compact={locale === 'zh-Hans'} label="editor.tool.emboss" locale={locale} onPress={onEmboss} />
-      <EditorTool asset="asset://ui/editor/tool/brush" compact={locale === 'zh-Hans'} label="editor.tool.brush" locale={locale} small />
+      <EditorTool asset="asset://ui/editor/tool/brush" compact={locale === 'zh-Hans'} label="editor.tool.brush" locale={locale} onPress={onBrush} small />
     </ScrollView>
   </View>
 );
@@ -108,6 +112,38 @@ export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, on
       <LayerAction icon="shadow" label="editor.layer.shadow" locale={locale} onPress={onShadow} style={styles.textLayerAction} />
       <LayerAction icon="opacity" label="editor.layer.opacity" locale={locale} onPress={onOpacity} style={styles.textLayerAction} />
       <LayerAction icon="outline" label="editor.layer.outline" locale={locale} onPress={onOutline} style={styles.textLayerAction} />
+    </View>
+  </View>
+);
+
+/** Product-layer controls for persisted decorative strokes. The legacy A1
+ * inspector must never be used as an editing surface for a BrushLayer. */
+export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDown, onEdit, onEffects, onOpacity, onShadow, onUp }: Readonly<{
+  bottomInset?: number;
+  locale: ProductLocale;
+  onCopy: () => void;
+  onDelete: () => void;
+  onDown: () => void;
+  onEdit: () => void;
+  onEffects: () => void;
+  onOpacity: () => void;
+  onShadow: () => void;
+  onUp: () => void;
+}>) => (
+  <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.brush.edit')} hitSlop={8} onPress={onEdit}><Text style={styles.textEditLink}>{t(locale, 'editor.brush.edit')}</Text></Pressable></View>
+    <View style={styles.layerActions}>
+      <View style={styles.layerActionRow}>
+        <LayerAction asset="asset://ui/editor/layer/move-up" label="editor.layer.up" locale={locale} onPress={onUp} />
+        <LayerAction asset="asset://ui/editor/layer/move-down" label="editor.layer.down" locale={locale} onPress={onDown} />
+        <LayerAction icon="copy" label="editor.layer.copy" locale={locale} onPress={onCopy} />
+        <LayerAction asset="asset://ui/editor/layer/delete" label="editor.layer.delete" locale={locale} onPress={onDelete} />
+        <LayerAction icon="shadow" label="editor.layer.shadow" locale={locale} onPress={onShadow} />
+        <LayerAction icon="opacity" label="editor.layer.opacity" locale={locale} onPress={onOpacity} />
+      </View>
+      <View style={[styles.layerActionRow, styles.layerActionRowSecond, styles.brushLayerActionRowSecond]}>
+        <LayerAction icon="effects" label="editor.layer.effects" locale={locale} onPress={onEffects} style={styles.brushLayerSecondAction} />
+      </View>
     </View>
   </View>
 );
@@ -202,6 +238,8 @@ const styles = StyleSheet.create({
   layerActions: { marginHorizontal: 12 },
   layerActionRow: { flexDirection: 'row', height: 54 },
   layerActionRowSecond: { marginTop: 9 },
+  brushLayerActionRowSecond: { justifyContent: 'flex-start' },
+  brushLayerSecondAction: { flex: 0, flexBasis: '16.66%', flexGrow: 0, flexShrink: 0, maxWidth: '16.66%', width: '16.66%' },
   textLayerActions: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: 0, width: '100%' },
   // Override the generic action's `flex: 1`; otherwise Yoga assigns every
   // action the full row width before wrapping it.

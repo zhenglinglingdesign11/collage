@@ -79,7 +79,7 @@ test('undo and redo retain an identical serialized mask split', () => {
   assert.equal(JSON.stringify(redone), JSON.stringify(after));
 });
 
-test('v1 scissors fields migrate to v2 and restore after serialization', () => {
+test('v1 scissors fields migrate to v3 and restore after serialization', () => {
   const legacy = {
     ...makeDraft(),
     schemaVersion: 1,
@@ -88,11 +88,108 @@ test('v1 scissors fields migrate to v2 and restore after serialization', () => {
   const migrated = core.migrateDraft(JSON.parse(JSON.stringify(legacy)));
   assert.equal(migrated.ok, true);
   const layer = migrated.draft.layers[0];
-  assert.equal(migrated.draft.schemaVersion, 2);
+  assert.equal(migrated.draft.schemaVersion, 3);
   assert.equal(layer.clipPath, undefined);
   assert.equal(layer.brushCutMask, undefined);
   assert.equal(layer.visibilityMask.type, 'intersect');
   const restored = core.migrateDraft(JSON.parse(JSON.stringify(migrated.draft)));
   assert.equal(restored.ok, true);
   assert.deepEqual(restored.draft, migrated.draft);
+});
+
+test('v2 single-stroke brush layers migrate to v3 without changing their paint semantics', () => {
+  const v2 = {
+    ...makeDraft(),
+    schemaVersion: 2,
+    layers: [{
+      id: 'legacy-brush', name: 'Lace', type: 'brush', brush: { id: 'brush://builtin/lace', kind: 'brush', revision: '4' },
+      frame: { width: 400, height: 300 }, points: [{ x: 20, y: 30 }, { x: 180, y: 120 }],
+      size: 36, spacing: 18, jitter: 4, seed: 17, color: '#BA786D',
+      transform: core.identityTransform(), opacity: 0.8, isLocked: false, effects: [],
+    }], selectedLayerId: 'legacy-brush',
+  };
+  const migrated = core.migrateDraft(JSON.parse(JSON.stringify(v2)));
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.draft.schemaVersion, 3);
+  const layer = migrated.draft.layers[0];
+  assert.equal(layer.type, 'brush');
+  assert.equal(layer.brush, undefined);
+  assert.equal(layer.points, undefined);
+  assert.equal(layer.strokes.length, 1);
+  assert.deepEqual(layer.strokes[0], {
+    id: 'legacy-brush:stroke:0', mode: 'paint', brushId: 'brush://builtin/lace', brushRevision: '4',
+    points: [{ x: 20, y: 30 }, { x: 180, y: 120 }],
+    style: { color: '#BA786D', size: 36, spacing: 18, jitter: 4, seed: 17, opacity: 1 },
+  });
+  assert.deepEqual(core.validateDraft(migrated.draft), []);
+});
+
+test('v3 validates brush stroke safety and catalog constraints', () => {
+  const draft = {
+    ...makeDraft(),
+    layers: [{
+      id: 'brush', type: 'brush', frame: { width: 400, height: 300 }, transform: core.identityTransform(), opacity: 1, isLocked: false, effects: [],
+      strokes: [{ id: 'stroke', brushId: 'brush://builtin/marker', brushRevision: '1', points: [{ x: 10, y: 20, pressure: 0.5, timestamp: 1 }, { x: 100, y: 40, pressure: 0.8, timestamp: 2 }], style: { color: '#111111', size: 12, spacing: 4, jitter: 0, seed: 1, opacity: 1 } }],
+    }], selectedLayerId: 'brush',
+  };
+  assert.deepEqual(core.validateDraft(draft), []);
+  assert.deepEqual(core.validateBrushDefinition({
+    id: 'brush://builtin/marker', revision: '1', renderer: 'path', recipe: 'marker', supports: { color: true, pressure: true, rotation: 'tangent', animation: false },
+    defaults: { size: 12, spacing: 4, jitter: 0, opacity: 1 }, constraints: { minSize: 1, maxSize: 80, minSpacing: 1, maxSpacing: 40 },
+  }), []);
+  const invalid = { ...draft, layers: [{ ...draft.layers[0], strokes: [{ ...draft.layers[0].strokes[0], points: [{ x: 10, y: 20, timestamp: 3 }, { x: 100, y: 40, timestamp: 2 }], style: { ...draft.layers[0].strokes[0].style, spacing: 0 } }] }] };
+  assert.ok(core.validateDraft(invalid).length > 0);
+});
+
+test('decorative brush commands append and undo one completed stroke at a time', () => {
+  const first = { id: 'stroke-1', brushId: 'brush://builtin/plain', brushRevision: '1', points: [{ x: 10, y: 20 }, { x: 60, y: 40 }], style: { color: '#111111', size: 12, spacing: 4, jitter: 0, seed: 1, opacity: 1 } };
+  const second = { id: 'stroke-2', brushId: 'brush://builtin/beads', brushRevision: '1', points: [{ x: 90, y: 50 }, { x: 160, y: 90 }], style: { color: '#BA786D', size: 20, spacing: 18, jitter: 0, seed: 2, opacity: 1 } };
+  const base = { ...makeDraft(), layers: [{ id: 'brush', type: 'brush', frame: { width: 400, height: 300 }, strokes: [first], transform: core.identityTransform(), opacity: 1, isLocked: false, effects: [] }], selectedLayerId: 'brush' };
+  const appended = run(base, { type: 'brush.stroke.append', layerId: 'brush', stroke: second });
+  assert.deepEqual(appended.layers[0].strokes.map((stroke) => stroke.id), ['stroke-1', 'stroke-2']);
+  const undone = run(appended, { type: 'brush.stroke.undo', layerId: 'brush' });
+  assert.deepEqual(undone.layers[0].strokes.map((stroke) => stroke.id), ['stroke-1']);
+  const removed = run(undone, { type: 'brush.stroke.undo', layerId: 'brush' });
+  assert.equal(removed.layers.length, 0);
+  assert.equal(removed.selectedLayerId, null);
+});
+
+test('confirmed brush-layer editing replaces strokes without selecting the layer', () => {
+  const first = { id: 'stroke-1', brushId: 'brush://builtin/plain', brushRevision: '1', points: [{ x: 10, y: 20 }], style: { color: '#111111', size: 12, spacing: 4, jitter: 0, seed: 1, opacity: 1 } };
+  const replacement = { ...first, id: 'stroke-2', points: [{ x: 110, y: 120 }] };
+  const base = { ...makeDraft(), layers: [{ id: 'brush', type: 'brush', frame: { width: 400, height: 300 }, strokes: [first], transform: core.identityTransform(), opacity: 1, isLocked: false, effects: [] }], selectedLayerId: null };
+  const edited = run(base, { type: 'brush.layer.replace', layerId: 'brush', strokes: [first, replacement] });
+  assert.deepEqual(edited.layers[0].strokes.map((stroke) => stroke.id), ['stroke-1', 'stroke-2']);
+  assert.equal(edited.selectedLayerId, null);
+});
+
+test('erase strokes remain serializable, undoable, and clear only an earlier brush footprint', () => {
+  const paint = { id: 'paint', mode: 'paint', brushId: 'brush://builtin/plain', brushRevision: '1', points: [{ x: 20, y: 80 }, { x: 180, y: 80 }], style: { color: '#111111', size: 24, spacing: 4, jitter: 0, seed: 1, opacity: 1 } };
+  const erase = { id: 'erase', mode: 'erase', brushId: 'brush://builtin/plain', brushRevision: '1', points: [{ x: 100, y: 80 }], style: { color: null, size: 48, spacing: 4, jitter: 0, seed: 2, opacity: 1 } };
+  const base = { ...makeDraft(), layers: [{ id: 'brush', type: 'brush', frame: { width: 400, height: 300 }, strokes: [paint], transform: core.identityTransform(), opacity: 1, isLocked: false, effects: [] }], selectedLayerId: null };
+  const erased = run(base, { type: 'brush.stroke.append', layerId: 'brush', stroke: erase });
+  assert.equal(core.layerContainsPoint(erased.layers[0], { x: 100, y: 80 }), false);
+  assert.equal(core.layerContainsPoint(erased.layers[0], { x: 35, y: 80 }), true);
+  const restored = run(erased, { type: 'brush.stroke.undo', layerId: 'brush' });
+  assert.equal(core.layerContainsPoint(restored.layers[0], { x: 100, y: 80 }), true);
+});
+
+test('an unselected brush creation and later stroke appends preserve the default editor state', () => {
+  const first = { id: 'stroke-1', brushId: 'brush://builtin/plain', brushRevision: '1', points: [{ x: 10, y: 20 }], style: { color: '#111111', size: 12, spacing: 4, jitter: 0, seed: 1, opacity: 1 } };
+  const brush = { id: 'brush', type: 'brush', frame: { width: 400, height: 300 }, strokes: [first], transform: core.identityTransform(), opacity: 1, isLocked: false, effects: [] };
+  const created = run({ ...makeDraft(), selectedLayerId: null }, { type: 'layer.add', layer: brush, select: false });
+  assert.equal(created.selectedLayerId, null);
+  const appended = run(created, { type: 'brush.stroke.append', layerId: 'brush', stroke: { ...first, id: 'stroke-2', points: [{ x: 100, y: 100 }] } });
+  assert.equal(appended.selectedLayerId, null);
+});
+
+test('decorative brush selection follows its painted footprint, not its canvas-sized frame', () => {
+  const brush = {
+    id: 'brush', type: 'brush', frame: { width: 1800, height: 2400 }, transform: core.identityTransform(), opacity: 1, isLocked: false, effects: [],
+    strokes: [{ id: 'bow', brushId: 'brush://builtin/bow', brushRevision: '1', points: [{ x: 100, y: 200 }, { x: 240, y: 220 }], style: { color: '#D94A38', size: 30, spacing: 42, jitter: 0, seed: 1, opacity: 1 } }],
+  };
+  const bounds = core.visibleBoundsForLayer(brush);
+  assert.ok(bounds.width < 300 && bounds.height < 150);
+  assert.equal(core.layerContainsPoint(brush, { x: 170, y: 210 }), true);
+  assert.equal(core.layerContainsPoint(brush, { x: 1200, y: 1800 }), false);
 });

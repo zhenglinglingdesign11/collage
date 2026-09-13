@@ -7,15 +7,16 @@ import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimate
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { assetUriMap, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, pointInLayerSpace, visibleBoundsForLayer, type BrushCutStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
+import { assetUriMap, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
+import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, pointInLayerSpace, visibleBoundsForLayer, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type StraightCutPreview } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, importLocalImage, loadSavedDraft, loadWorkspace, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
-import { EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
+import { BrushLayerToolbar, EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
+import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPanel';
 import { TEXT_EDITOR_PANEL_HEIGHT, TextEditorPanel } from './src/product-ui/TextEditorPanel';
 import { ensureTextFont, resolvedTextFontUri } from './src/product-ui/fonts';
 import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
@@ -29,6 +30,9 @@ const localPolkaPatternUris: Readonly<Record<string, string>> = {
   'asset://pack/polka-paper-materials/pattern-local-7': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/7.png')).uri,
   'asset://pack/polka-paper-materials/pattern-local-1': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/1.png')).uri,
 };
+const brushAssetUris: Readonly<Record<string, string>> = {
+  'asset://brush/bow/standard': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/brushes/bow-brush.png')).uri,
+};
 type EditorState = Readonly<{ past: readonly Draft[]; present: Draft; future: readonly Draft[] }>;
 type EditorAction = Readonly<{ type: 'command'; command: EditorCommand }> | Readonly<{ type: 'undo' }> | Readonly<{ type: 'redo' }> | Readonly<{ type: 'hydrate'; draft: Draft }>;
 type MediaLibraryModule = typeof import('expo-media-library/legacy');
@@ -39,6 +43,8 @@ type StraightCutSession = Readonly<{ layerId: string; start: Point; end: Point; 
  * Keep the exact layer selected at entry as the immutable editing source.
  */
 type BrushCutSession = Readonly<{ layer: ImageLayer; strokes: readonly BrushCutStroke[]; hollowOriginal: boolean }>;
+/** UI-only input buffer. It never enters a Draft until the user chooses Done. */
+type DecorativeBrushSession = Readonly<{ kind: 'create' | 'edit'; layerId: string; sourceLayer?: BrushLayer; strokes: readonly BrushStroke[]; redoStrokes: readonly BrushStroke[]; activeStroke: BrushStroke | null; brushId: string; brushRevision: string; color: string; size: number; spacing: number; jitter: number; opacity: number; isErasing: boolean }>;
 type EmbossSession = Readonly<{ layer: ImageLayer; shape: MaskShapeId; bounds: Rect; initialBounds: Rect; aspectLocked: boolean }>;
 type EmbossDrag = Readonly<{ session: EmbossSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
 type CutStyle = 'straight' | 'wave' | 'free' | 'subject';
@@ -60,7 +66,7 @@ const createFixtureDraft = (): Draft => {
       { id: 'fixture-photo', name: 'Torn photo', type: 'image', asset: { id: 'fixture://photo', kind: 'image' }, frame: { width: 900, height: 680 }, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: 260, y: 340 }, rotation: -0.07 }, opacity: 1, isLocked: false, effects: [{ id: 'shadow', color: '#392F2A', opacity: 0.22, blur: 24, offset: { x: 18, y: 24 } }, { id: 'outline', color: '#FFF8EB', width: 14 }, { id: 'torn-edge', seed: 61, intensity: 28 }] },
       { id: 'fixture-material', name: 'Paper material', type: 'material', asset: { id: 'fixture://paper', kind: 'texture' }, frame: { width: 420, height: 500 }, transform: { ...identityTransform(), position: { x: 1120, y: 760 }, rotation: 0.13 }, opacity: 1, isLocked: false, effects: [{ id: 'shadow', color: '#392F2A', opacity: 0.18, blur: 18, offset: { x: 12, y: 18 } }, { id: 'outline', color: '#FFF8EB', width: 10 }] },
       { id: 'fixture-title', name: 'Text placeholder', type: 'text', text: 'little moments', frame: { width: 1100, height: 180 }, fontId: 'system', fontVariantId: 'system', fontSize: 86, color: '#49372B', textAlign: 'left', backgroundColor: null, transform: { ...identityTransform(), position: { x: 210, y: 1390 }, rotation: -0.025 }, opacity: 1, isLocked: false, effects: [] },
-      { id: 'fixture-brush', name: 'Texture brush', type: 'brush', brush: { id: 'fixture://lace-stamp', kind: 'brush' }, frame: { width: 1320, height: 310 }, points: [{ x: 80, y: 130 }, { x: 250, y: 80 }, { x: 460, y: 150 }, { x: 690, y: 95 }, { x: 930, y: 165 }, { x: 1220, y: 100 }], size: 44, spacing: 24, jitter: 28, seed: 32, color: '#BA786D', transform: { ...identityTransform(), position: { x: 200, y: 1720 }, rotation: 0.03 }, opacity: 1, isLocked: false, effects: [] },
+      { id: 'fixture-brush', name: 'Lace brush', type: 'brush', frame: { width: 1320, height: 310 }, strokes: [{ id: 'fixture-brush:stroke:0', brushId: 'brush://builtin/lace', brushRevision: '1', points: [{ x: 80, y: 130 }, { x: 250, y: 80 }, { x: 460, y: 150 }, { x: 690, y: 95 }, { x: 930, y: 165 }, { x: 1220, y: 100 }], style: { color: '#BA786D', size: 44, spacing: 24, jitter: 28, seed: 32, opacity: 1 } }], transform: { ...identityTransform(), position: { x: 200, y: 1720 }, rotation: 0.03 }, opacity: 1, isLocked: false, effects: [] },
     ],
   };
 };
@@ -113,19 +119,24 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [cutPaletteOpen, setCutPaletteOpen] = useState(false);
   const [pendingCutStyle, setPendingCutStyle] = useState<CutStyle | null>(null);
   const [brushCut, setBrushCut] = useState<BrushCutSession | null>(null);
+  const [decorativeBrush, setDecorativeBrush] = useState<DecorativeBrushSession | null>(null);
   const [emboss, setEmboss] = useState<EmbossSession | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
   const [cutHint, setCutHint] = useState<string | null>(null);
+  const [headerFeedback, setHeaderFeedback] = useState<string | null>(null);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialPackItemsAdded = useRef(false);
   const textLayerSequence = useRef(0);
   const cutHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const brushCutRef = useRef<BrushCutSession | null>(null);
+  const decorativeBrushRef = useRef<DecorativeBrushSession | null>(null);
   const embossRef = useRef<EmbossSession | null>(null);
   const embossDragRef = useRef<EmbossDrag | null>(null);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
   brushCutRef.current = brushCut;
+  decorativeBrushRef.current = decorativeBrush;
   embossRef.current = emboss;
   const renderedDraft = useMemo(() => {
     const withTextPreview = textEdit === null ? state.present : {
@@ -145,6 +156,18 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       selectedLayerId: brushCut.layer.id,
       layers: [brushCut.layer],
     };
+    if (decorativeBrush !== null) {
+      const previewStrokes = decorativeBrush.activeStroke === null ? decorativeBrush.strokes : [...decorativeBrush.strokes, decorativeBrush.activeStroke];
+      return {
+        ...withTextPreview,
+        // Brush Session uses a paint-only preview. Selection chrome belongs to
+        // normal editing, never to an in-progress decorative stroke.
+        selectedLayerId: null,
+        layers: [...withTextPreview.layers.filter((layer) => layer.id !== decorativeBrush.layerId), decorativeBrush.kind === 'edit' && decorativeBrush.sourceLayer
+          ? { ...decorativeBrush.sourceLayer, strokes: previewStrokes }
+          : { id: decorativeBrush.layerId, name: 'Brush', type: 'brush' as const, frame: CANVAS_SIZE, strokes: previewStrokes, transform: identityTransform(), opacity: 1, isLocked: false, effects: [] }],
+      };
+    }
     if (emboss !== null) return {
       ...withTextPreview,
       canvas: { ...withTextPreview.canvas, background: '#FDFDFB' },
@@ -155,7 +178,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       layers: [emboss.layer],
     };
     return withTextPreview;
-  }, [brushCut, emboss, state.present, straightCut, textEdit]);
+  }, [brushCut, decorativeBrush, emboss, state.present, straightCut, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
     const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
@@ -248,9 +271,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   // `onBegin` fires as soon as a finger touches the canvas, including an
   // ordinary tap. Keep shared transforms dormant until a gesture is actually
   // active so selecting a cut fragment cannot momentarily move its siblings.
-  const pan = Gesture.Pan().minDistance(8).enabled(selectedLayerId !== null && straightCut === null && brushCut === null).onStart(() => { runOnJS(beginTransformGesture)(); startX.value = positionX.value; startY.value = positionY.value; }).onUpdate((event) => { positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
-  const pinch = Gesture.Pinch().enabled(selectedLayerId !== null && straightCut === null && brushCut === null).onStart(() => { runOnJS(beginTransformGesture)(); startScaleX.value = scaleX.value; startScaleY.value = scaleY.value; }).onUpdate((event) => { const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
-  const rotate = Gesture.Rotation().enabled(selectedLayerId !== null && straightCut === null && brushCut === null).onStart(() => { runOnJS(beginTransformGesture)(); startRotation.value = rotation.value; }).onUpdate((event) => { rotation.value = startRotation.value + event.rotation; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
+  const pan = Gesture.Pan().minDistance(8).enabled(selectedLayerId !== null && straightCut === null && brushCut === null && decorativeBrush === null).onStart(() => { runOnJS(beginTransformGesture)(); startX.value = positionX.value; startY.value = positionY.value; }).onUpdate((event) => { positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
+  const pinch = Gesture.Pinch().enabled(selectedLayerId !== null && straightCut === null && brushCut === null && decorativeBrush === null).onStart(() => { runOnJS(beginTransformGesture)(); startScaleX.value = scaleX.value; startScaleY.value = scaleY.value; }).onUpdate((event) => { const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
+  const rotate = Gesture.Rotation().enabled(selectedLayerId !== null && straightCut === null && brushCut === null && decorativeBrush === null).onStart(() => { runOnJS(beginTransformGesture)(); startRotation.value = rotation.value; }).onUpdate((event) => { rotation.value = startRotation.value + event.rotation; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
   const ordinaryGesture = Gesture.Simultaneous(tap, pan, pinch, rotate);
   const onCanvasLayout = useCallback((event: LayoutChangeEvent) => setSurfaceSize(event.nativeEvent.layout), []);
   const onCanvasFrameLayout = useCallback((event: LayoutChangeEvent) => setCanvasFrame(event.nativeEvent.layout), []);
@@ -297,7 +320,15 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     setCutHint(message);
     cutHintTimer.current = setTimeout(() => { setCutHint(null); cutHintTimer.current = null; }, 2200);
   }, []);
-  useEffect(() => () => { if (cutHintTimer.current !== null) clearTimeout(cutHintTimer.current); }, []);
+  const showHeaderFeedback = useCallback((message: string) => {
+    if (headerFeedbackTimer.current !== null) clearTimeout(headerFeedbackTimer.current);
+    setHeaderFeedback(message);
+    headerFeedbackTimer.current = setTimeout(() => { setHeaderFeedback(null); headerFeedbackTimer.current = null; }, 1600);
+  }, []);
+  useEffect(() => () => {
+    if (cutHintTimer.current !== null) clearTimeout(cutHintTimer.current);
+    if (headerFeedbackTimer.current !== null) clearTimeout(headerFeedbackTimer.current);
+  }, []);
   const openCutPalette = useCallback(() => {
     setAssetDrawerOpen(false);
     setBackgroundDrawerOpen(false);
@@ -447,6 +478,65 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     dispatch({ type: 'command', command: { type: 'image.cut.brush', layerId: brushCut.layer.id, cutLayerId: `image-brush-cut-${id}`, operationId: `brush-cut-${id}`, strokes: brushCut.strokes, hollowOriginal: brushCut.hollowOriginal } });
     setBrushCut(null);
   }, [brushCut]);
+  const beginDecorativeBrush = useCallback(() => {
+    setAssetDrawerOpen(false); setBackgroundDrawerOpen(false); setCutPaletteOpen(false); setTextEdit(null);
+    dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+    const definition = brushDefinitions[0];
+    setDecorativeBrush({ kind: 'create', layerId: `brush-layer-${Date.now()}`, strokes: [], redoStrokes: [], activeStroke: null, brushId: definition.id, brushRevision: definition.revision, color: '#111111', size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, opacity: definition.defaults.opacity, isErasing: false });
+  }, []);
+  const beginExistingDecorativeBrush = useCallback((layer: BrushLayer) => {
+    if (layer.isLocked) return;
+    setAssetDrawerOpen(false); setBackgroundDrawerOpen(false); setCutPaletteOpen(false); setTextEdit(null);
+    const lastPaint = [...layer.strokes].reverse().find((stroke) => stroke.mode !== 'erase') ?? layer.strokes.at(-1)!;
+    const definition = brushDefinitions.find((candidate) => candidate.id === lastPaint.brushId) ?? brushDefinitions[0];
+    setDecorativeBrush({ kind: 'edit', layerId: layer.id, sourceLayer: layer, strokes: layer.strokes, redoStrokes: [], activeStroke: null, brushId: lastPaint.brushId, brushRevision: lastPaint.brushRevision, color: lastPaint.style.color ?? '#111111', size: lastPaint.style.size, spacing: lastPaint.style.spacing, jitter: lastPaint.style.jitter, opacity: lastPaint.style.opacity, isErasing: false });
+    // Keep a catalog fallback ready for a legacy brush id while preserving its
+    // existing stroke metadata rather than coercing it to a new brush type.
+    if (definition.id !== lastPaint.brushId) setDecorativeBrush((current) => current ? { ...current, brushId: definition.id, brushRevision: definition.revision } : null);
+  }, []);
+  const appendDecorativeBrushPoint = useCallback((screenX: number, screenY: number, begin: boolean) => {
+    const session = decorativeBrushRef.current;
+    if (session === null || viewport.scale === 0) return;
+    const canvasPoint = { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale };
+    const frame = session.sourceLayer?.frame ?? CANVAS_SIZE;
+    const localPoint = session.sourceLayer ? pointInLayerSpace(canvasPoint, session.sourceLayer) : canvasPoint;
+    const point = { x: Math.max(0, Math.min(frame.width, localPoint.x)), y: Math.max(0, Math.min(frame.height, localPoint.y)) };
+    setDecorativeBrush((current) => {
+      if (current === null) return null;
+      if (begin) return { ...current, activeStroke: { id: `${current.layerId}:stroke:${current.strokes.length}`, mode: current.isErasing ? 'erase' : 'paint', brushId: current.brushId, brushRevision: current.brushRevision, points: [{ ...point, timestamp: Date.now() }], style: { color: current.color, size: current.size, spacing: current.spacing, jitter: current.jitter, seed: current.strokes.length + 1, opacity: current.opacity } } };
+      const stroke = current.activeStroke;
+      const last = stroke?.points.at(-1);
+      if (stroke === null || (last !== undefined && Math.hypot(last.x - point.x, last.y - point.y) < 3)) return current;
+      return { ...current, activeStroke: { ...stroke, points: [...stroke.points, { ...point, timestamp: Date.now() }] } };
+    });
+  }, [viewport]);
+  const completeDecorativeBrushStroke = useCallback(() => setDecorativeBrush((current) => current?.activeStroke === null || current === null ? current : { ...current, strokes: [...current.strokes, current.activeStroke], redoStrokes: [], activeStroke: null }), []);
+  const undoDecorativeBrushStroke = useCallback(() => setDecorativeBrush((current) => {
+    if (current === null) return null;
+    if (current.activeStroke !== null) return { ...current, activeStroke: null };
+    const stroke = current.strokes.at(-1);
+    return stroke === undefined ? current : { ...current, strokes: current.strokes.slice(0, -1), redoStrokes: [...current.redoStrokes, stroke] };
+  }), []);
+  const redoDecorativeBrushStroke = useCallback(() => setDecorativeBrush((current) => {
+    if (current === null || current.activeStroke !== null) return current;
+    const stroke = current.redoStrokes.at(-1);
+    return stroke === undefined ? current : { ...current, strokes: [...current.strokes, stroke], redoStrokes: current.redoStrokes.slice(0, -1) };
+  }), []);
+  const finishDecorativeBrush = useCallback(() => {
+    if (decorativeBrush === null || !decorativeBrush.strokes.some((stroke) => stroke.mode !== 'erase')) return;
+    if (decorativeBrush.kind === 'edit') {
+      dispatch({ type: 'command', command: { type: 'brush.layer.replace', layerId: decorativeBrush.layerId, strokes: decorativeBrush.strokes } });
+    } else {
+      const [first, ...rest] = decorativeBrush.strokes;
+      dispatch({ type: 'command', command: { type: 'layer.add', select: false, layer: { id: decorativeBrush.layerId, name: 'Brush', type: 'brush', frame: CANVAS_SIZE, strokes: [first], transform: identityTransform(), opacity: 1, isLocked: false, effects: [] } }});
+      rest.forEach((stroke) => dispatch({ type: 'command', command: { type: 'brush.stroke.append', layerId: decorativeBrush.layerId, stroke } }));
+    }
+    // A completed brush is artwork, not an inspector target. This remains as
+    // a defensive no-op if the session began with no selected layer.
+    dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+    setDecorativeBrush(null);
+  }, [decorativeBrush]);
+  const decorativeBrushPan = Gesture.Pan().enabled(decorativeBrush !== null).onBegin((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, true); }).onUpdate((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false); }).onFinalize((_event, success) => { if (success) runOnJS(completeDecorativeBrushStroke)(); else runOnJS(undoDecorativeBrushStroke)(); });
   const beginEmboss = useCallback(() => {
     if (selectedLayer?.type !== 'image') {
       Alert.alert(t(locale, 'editor.emboss.unavailableTitle'), t(locale, 'editor.emboss.unavailableBody'));
@@ -518,7 +608,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   }, [embossPoint, viewport.scale]);
   const endEmbossDrag = useCallback(() => { embossDragRef.current = null; }, []);
   const embossPan = Gesture.Pan().enabled(emboss !== null).onBegin((event) => { runOnJS(beginEmbossDrag)(event.x, event.y); }).onUpdate((event) => { runOnJS(moveEmbossDrag)(event.x, event.y); }).onFinalize(() => { runOnJS(endEmbossDrag)(); });
-  const gesture = straightCut !== null ? Gesture.Simultaneous(cutPan, cutRotate) : brushCut !== null ? brushPan : emboss !== null ? embossPan : ordinaryGesture;
+  const gesture = straightCut !== null ? Gesture.Simultaneous(cutPan, cutRotate) : brushCut !== null ? brushPan : decorativeBrush !== null ? decorativeBrushPan : emboss !== null ? embossPan : ordinaryGesture;
   const confirmEmboss = useCallback(() => {
     if (emboss === null) return;
     const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -780,7 +870,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   // Keep the paper at its normal editing scale while the keyboard is up. The
   // mini-program only lifts the canvas enough to retain the text selection,
   // rather than shrinking it into the remaining keyboard-free rectangle.
-  const canvasBottomOverlay = emboss !== null ? 176 : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const canvasBottomOverlay = emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
   const textCanvasOffset = textEdit !== null && keyboardHeight > 0 ? Math.min(120, Math.round(keyboardHeight * 0.35)) : 0;
   const previewSize = useMemo(() => {
     const maxWidth = Math.max(1, window.width - 56);
@@ -816,7 +906,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     const contentFrame = brushCut.layer.contentFrame ?? { x: 0, y: 0 };
     return { layerId: brushCut.layer.id, strokes: brushCut.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + contentFrame.x, y: point.y + contentFrame.y })) })) } as BrushCutPreview;
   })();
-  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
+  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
   const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} immersive={brushCut !== null || emboss !== null} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
   const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
@@ -831,6 +921,16 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     onEffects={() => toggleEffect('torn-edge')}
     onScissors={openCutPalette}
     onEmboss={beginEmboss}
+  /> : null;
+  const brushLayerToolbar = selectedLayer?.type === 'brush' && straightCut === null && emboss === null ? <BrushLayerToolbar bottomInset={insets.bottom} locale={locale}
+    onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
+    onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
+    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
+    onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
+    onEdit={() => beginExistingDecorativeBrush(selectedLayer)}
+    onEffects={() => toggleEffect('torn-edge')}
+    onShadow={() => toggleEffect('shadow')}
+    onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
   /> : null;
   const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
@@ -854,7 +954,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
-        {brushCut === null && emboss === null && <ProductEditorHeader canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={exportPng} onExit={requestExit} />}
+        {brushCut === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} />}
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -864,11 +964,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
         ) : (
           <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace, brushCut !== null && a3Styles.brushEditorWorkspace, emboss !== null && a3Styles.embossEditorWorkspace]}>
             {canvas}
+            {headerFeedback !== null && <View pointerEvents="none" style={a3Styles.headerFeedback}><Text style={a3Styles.cutHintText}>{headerFeedback}</Text></View>}
             {brushCut !== null && <BrushCutHeader locale={locale} hasStrokes={brushCut.strokes.length > 0} onCancel={cancelBrushCut} onConfirm={confirmBrushCut} />}
             {emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
-            {straightCut === null && brushCut === null && emboss === null && imageSelectionControls}
-            {selectedLayer === null && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
-            {straightCut === null && brushCut === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? (selectedLayer !== null && inspector))}
+            {straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && imageSelectionControls}
+            {selectedLayer === null && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onBrush={beginDecorativeBrush} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
+            {straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? brushLayerToolbar ?? (selectedLayer !== null && inspector))}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
               <AssetDrawer initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
@@ -882,11 +983,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
             {cutPaletteOpen && straightCut === null && <CutPalette bottomInset={insets.bottom} hasSelectedLayer={selectedLayer !== null} locale={locale} onClose={() => setCutPaletteOpen(false)} onSelect={selectCutStyle} />}
             {straightCut !== null && <StraightCutActions bottomInset={insets.bottom} locale={locale} onCancel={cancelStraightCut} onConfirm={confirmStraightCut} />}
             {brushCut !== null && <BrushCutPanel bottomInset={insets.bottom} locale={locale} hasStrokes={brushCut.strokes.length > 0} hollowOriginal={brushCut.hollowOriginal} showHollowOption onClear={clearBrushCut} onToggleHollow={toggleBrushHollow} />}
+            {decorativeBrush !== null && <BrushPanel bottomInset={insets.bottom} brushAssetUris={brushAssetUris} brushId={decorativeBrush.brushId} color={decorativeBrush.color} definitions={brushDefinitions} hasPaintStrokes={decorativeBrush.strokes.some((stroke) => stroke.mode !== 'erase')} hasRedo={decorativeBrush.redoStrokes.length > 0} hasStrokes={decorativeBrush.strokes.length > 0 || decorativeBrush.activeStroke !== null} isErasing={decorativeBrush.isErasing} locale={locale} onBrushChange={(definition) => setDecorativeBrush((current) => current ? { ...current, brushId: definition.id, brushRevision: definition.revision, size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, opacity: definition.defaults.opacity, isErasing: false } : null)} onCancel={() => setDecorativeBrush(null)} onClear={() => setDecorativeBrush((current) => current ? { ...current, strokes: [], redoStrokes: [], activeStroke: null } : null)} onColorChange={(color) => setDecorativeBrush((current) => current ? { ...current, color } : null)} onDone={finishDecorativeBrush} onEraserToggle={() => setDecorativeBrush((current) => current ? { ...current, isErasing: !current.isErasing } : null)} onRedo={redoDecorativeBrushStroke} onSizeChange={(size) => setDecorativeBrush((current) => current ? { ...current, size } : null)} onUndo={undoDecorativeBrushStroke} size={decorativeBrush.size} />}
             {cutHint !== null && <View pointerEvents="none" style={[a3Styles.cutHint, { bottom: 112 + insets.bottom }]}><Text style={a3Styles.cutHintText}>{cutHint}</Text></View>}
           </View>
         )}
         {isTablet && emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
+        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -1037,6 +1139,7 @@ const a3Styles = StyleSheet.create({
   cutPaletteClose: { alignItems: 'center', backgroundColor: '#F2F1EE', borderRadius: 10, height: 20, justifyContent: 'center', position: 'absolute', right: -7, top: -7, width: 20 },
   cutPaletteCloseText: { color: '#6F6F6F', fontSize: 17, fontWeight: '400', lineHeight: 19 },
   cutHint: { alignSelf: 'center', backgroundColor: 'rgba(17,17,17,0.88)', borderRadius: 18, left: 32, paddingHorizontal: 16, paddingVertical: 10, position: 'absolute', right: 32, zIndex: 10 },
+  headerFeedback: { alignSelf: 'center', backgroundColor: 'rgba(17,17,17,0.88)', borderRadius: 18, paddingHorizontal: 16, paddingVertical: 10, position: 'absolute', top: 12, zIndex: 14 },
   cutHintText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600', textAlign: 'center' },
   straightCutActions: { alignSelf: 'center', backgroundColor: 'transparent', borderRadius: 999, flexDirection: 'row', height: 44, left: '25%', position: 'absolute', right: '25%', zIndex: 7 },
   straightCutAction: { alignItems: 'center', flex: 1, justifyContent: 'center' },

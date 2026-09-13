@@ -22,7 +22,7 @@ import {
 } from '@shopify/react-native-skia';
 import { useMemo, type ReactNode } from 'react';
 import { visibleBoundsForLayer } from '@journalcollage/editor-core';
-import type { BrushCutMask, BrushCutStroke, Draft, Effect, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
+import type { BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
@@ -83,11 +83,47 @@ export const ProceduralStickerPreview = ({ sticker, size, textureUri }: Readonly
   </Canvas>
 );
 
+/** Uses the production stroke renderer for catalog UI, preventing preview art
+ * from drifting away from the canvas/export implementation. */
+export const DecorativeBrushPreview = ({ assetUri, color, definition, previewStyle, size = { width: 42, height: 28 } }: Readonly<{ assetUri?: string; color: string; definition: BrushDefinition; previewStyle?: Pick<BrushStroke['style'], 'jitter' | 'opacity' | 'seed' | 'size' | 'spacing'>; size?: { width: number; height: number } }>) => {
+  const isDecorative = !['plain', 'marker', 'crayon'].includes(definition.recipe);
+  const sourceStyle = previewStyle ?? { size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, seed: 17, opacity: definition.defaults.opacity };
+  // A crayon preview is the exact pending brush, scaled as a whole to fit the
+  // tile. Scaling the group keeps particle radius, spacing and jitter in the
+  // same proportion as the canvas rather than inventing a second recipe.
+  const previewScale = isDecorative ? 0.5 : definition.recipe === 'crayon' ? Math.min(1, (size.height - 4) / Math.max(1, sourceStyle.size + sourceStyle.jitter * 2)) : 1;
+  const logicalSize = { width: size.width / previewScale, height: size.height / previewScale };
+  const center = { x: logicalSize.width / 2, y: logicalSize.height / 2 };
+  // Path brushes retain a short stroke. Decorative recipes deliberately show
+  // three repeated units, just as a user sees them after laying down a mark.
+  const isPathLike = definition.recipe === 'plain' || definition.recipe === 'marker' || definition.recipe === 'crayon';
+  const previewSize = ({ plain: 6, crayon: sourceStyle.size, marker: 12, stitch: 12, knit: 12, beads: 16, lace: 14, bow: 8 } as const)[definition.recipe];
+  // Offset the logical path so the three samples sit at 1/6, 1/2 and 5/6 of
+  // the visible tile; decorative bounds therefore never clip at either edge.
+  // Crayon needs a longer real path than ink: its fibres only become legible
+  // once the deterministic stamps have room to overlap and drift.
+  const pathHalfLength = definition.recipe === 'crayon' ? Math.max(sourceStyle.size * 2.2, sourceStyle.spacing * 7) : 12;
+  const startX = isDecorative ? -logicalSize.width / 6 : center.x - pathHalfLength;
+  const endX = isDecorative ? logicalSize.width * 5 / 6 : center.x + pathHalfLength;
+  const stroke: BrushStroke = {
+    id: `preview:${definition.id}`,
+    brushId: definition.id,
+    brushRevision: definition.revision,
+    points: [{ x: startX, y: center.y }, { x: endX, y: center.y }],
+    style: { color, size: previewSize, spacing: definition.recipe === 'crayon' ? sourceStyle.spacing : definition.defaults.spacing, jitter: definition.recipe === 'crayon' ? sourceStyle.jitter : definition.defaults.jitter, seed: sourceStyle.seed, opacity: definition.recipe === 'crayon' ? sourceStyle.opacity : definition.defaults.opacity },
+  };
+  return <Canvas style={{ height: size.height, width: size.width }}><Group transform={isDecorative ? [{ scale: previewScale }] : undefined}><BrushStrokeContent brushAssetUri={assetUri} definition={definition} sampleSpacing={isDecorative ? logicalSize.width / 3 : undefined} stroke={stroke} /></Group></Canvas>;
+};
+
 type SkiaEditorSceneProps = Readonly<{
   draft: Draft;
   viewport: CanvasViewport;
   activeLayer: ActiveLayerPresentation;
   assetUris?: Readonly<Record<string, string>>;
+  /** Resolved bitmap stamps for catalog brushes; never stored in a Draft. */
+  brushAssetUris?: Readonly<Record<string, string>>;
+  /** Catalog-owned definitions resolved by the product layer; never persisted in Draft. */
+  brushDefinitions?: Readonly<Record<string, BrushDefinition>>;
   proceduralPapers?: Readonly<Record<string, ProceduralPaperPaint>>;
   proceduralStickers?: Readonly<Record<string, ProceduralStickerPaint>>;
   /** Native adapter resolved font files; never stored in a Draft. */
@@ -109,7 +145,7 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -121,6 +157,8 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           selected={showSelection && draft.selectedLayerId === layer.id}
           transform={activeLayer.isInteracting === true && activeLayer.layerId === layer.id ? activeLayer.transform : layerTransform(layer)}
           assetUri={layer.type === 'image' ? assetUris[layer.asset.id] : undefined}
+          brushAssetUris={brushAssetUris}
+          brushDefinitions={brushDefinitions}
           proceduralPaper={layer.type === 'image' ? proceduralPapers[layer.asset.id] : undefined}
           proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
           fontUri={layer.type === 'text' ? fontUris[layer.fontVariantId] : undefined}
@@ -152,6 +190,8 @@ type SkiaLayerProps = Readonly<{
   selected: boolean;
   transform: Transforms3d | SharedValue<Transforms3d>;
   assetUri?: string;
+  brushAssetUris: Readonly<Record<string, string>>;
+  brushDefinitions: Readonly<Record<string, BrushDefinition>>;
   proceduralPaper?: ProceduralPaperPaint;
   proceduralSticker?: ProceduralStickerPaint;
   fontUri?: string;
@@ -161,7 +201,7 @@ type SkiaLayerProps = Readonly<{
   visibilityMaskPreview: VisibilityMaskPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview, brushCutPreview, visibilityMaskPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview, brushCutPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
@@ -184,7 +224,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, proceduralPaper, proc
       <Group clip={shapePath}>
         {layer.type === 'image' && <ImageLayerContent layer={layer} assetUri={assetUri} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
         {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
-        {layer.type === 'brush' && <BrushPlaceholder layer={layer} />}
+        {layer.type === 'brush' && <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />}
         {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
       </Group>
       {previewPath && <>
@@ -557,9 +597,47 @@ const MaterialPlaceholder = ({ layer }: { layer: Extract<Layer, { type: 'materia
   </>
 );
 
-const BrushPlaceholder = ({ layer }: { layer: Extract<Layer, { type: 'brush' }> }) => {
-  const stamps = useMemo(() => makeBrushStamps(layer), [layer]);
-  return <>{stamps.map((stamp, index) => <Circle key={`${stamp.x}-${stamp.y}-${index}`} cx={stamp.x} cy={stamp.y} r={stamp.radius} color={layer.color} opacity={stamp.opacity} />)}</>;
+/**
+ * Drafts only carry brush ids and deterministic stroke inputs. The product
+ * supplies the catalog definition, while this shared Scene turns both into
+ * draw operations for preview, thumbnail, and export alike.
+ */
+const BrushLayerContent = ({ assetUris, definitions, layer }: Readonly<{ assetUris: Readonly<Record<string, string>>; definitions: Readonly<Record<string, BrushDefinition>>; layer: Extract<Layer, { type: 'brush' }> }>) => (
+  // `layer` gives clear-blend strokes an isolated surface. Their ordering is
+  // preserved, so a later painted mark can intentionally cover an erase mark.
+  <Group layer>{layer.strokes.map((stroke) => stroke.mode === 'erase'
+    ? <BrushEraserContent key={stroke.id} stroke={stroke} />
+    : <BrushStrokeContent brushAssetUri={definitions[stroke.brushId]?.asset ? assetUris[definitions[stroke.brushId].asset!.id] : undefined} definition={definitions[stroke.brushId]} key={stroke.id} stroke={stroke} />)}</Group>
+);
+
+const BrushEraserContent = ({ stroke }: Readonly<{ stroke: BrushStroke }>) => {
+  const path = useMemo(() => makeBrushPath(stroke), [stroke]);
+  const radius = Math.max(1, stroke.style.size / 2);
+  if (stroke.points.length === 1) return <Circle blendMode="clear" cx={stroke.points[0].x} cy={stroke.points[0].y} r={radius} color="#000000" />;
+  return <Path blendMode="clear" path={path} color="#000000" strokeCap="round" strokeJoin="round" style="stroke" strokeWidth={stroke.style.size} />;
+};
+
+const BrushStrokeContent = ({ brushAssetUri, definition, sampleSpacing, stroke }: Readonly<{ brushAssetUri?: string; definition?: BrushDefinition; sampleSpacing?: number; stroke: BrushStroke }>) => {
+  const recipe = definition?.recipe ?? 'plain';
+  const path = useMemo(() => makeBrushPath(stroke), [stroke]);
+  const crayonFibres = useMemo(() => makeCrayonFibres(stroke), [stroke]);
+  const structuralSamples = useMemo(() => sampleBrushPath(stroke.points, sampleSpacing ?? (recipe === 'stitch'
+    // A stitch's round caps add half a stroke width at both ends. Enforce a
+    // gap beyond that visible footprint, especially for small sizes.
+    ? Math.max(stroke.style.spacing, 13, stroke.style.size * 2.5)
+    : recipe === 'knit' ? Math.max(14, stroke.style.size * 2.2)
+      : recipe === 'beads' ? Math.max(9, stroke.style.size * 1.65)
+        : recipe === 'lace' ? Math.max(14, stroke.style.size * 2.05)
+          : Math.max(28, stroke.style.size * 3.2))), [recipe, sampleSpacing, stroke.points, stroke.style.size, stroke.style.spacing]);
+  const stampImage = useImage(brushAssetUri);
+  const color = stroke.style.color ?? '#111111';
+  if (recipe === 'plain' || recipe === 'marker') return <Path path={path} color={color} opacity={stroke.style.opacity * (recipe === 'marker' ? 0.55 : 1)} strokeCap="round" strokeJoin="round" style="stroke" strokeWidth={stroke.style.size} />;
+  if (recipe === 'stitch') return <>{structuralSamples.map((sample) => <Path key={sample.index} path={makeStitchPath(sample, stroke.style.size)} color={color} opacity={stroke.style.opacity} strokeCap="round" style="stroke" strokeWidth={Math.max(2, stroke.style.size * 0.5)} />)}</>;
+  if (recipe === 'knit') return <>{structuralSamples.map((sample) => <Path key={sample.index} path={makeKnitPath(sample, stroke.style.size)} color={color} opacity={stroke.style.opacity} strokeCap="round" strokeJoin="round" style="stroke" strokeWidth={Math.max(1.4, stroke.style.size * 0.34)} />)}</>;
+  if (recipe === 'crayon') return <>{crayonFibres.map((fibre, index) => <Path key={index} path={makeCrayonFibrePath(fibre)} color={color} opacity={fibre.opacity} strokeCap="round" style="stroke" strokeWidth={fibre.width} />)}</>;
+  if (recipe === 'beads') return <>{structuralSamples.map((sample) => <Group key={sample.index} opacity={stroke.style.opacity}><Circle cx={sample.x} cy={sample.y} r={Math.max(2.5, stroke.style.size * 0.5)} color={color} /><Circle cx={sample.x - stroke.style.size * 0.14} cy={sample.y - stroke.style.size * 0.14} r={Math.max(1.2, stroke.style.size * 0.12)} color="#FFFFFF" opacity={0.62} /></Group>)}</>;
+  if (recipe === 'lace') return <>{structuralSamples.map((sample) => <LaceStamp color={color} index={sample.index} key={sample.index} opacity={stroke.style.opacity} sample={sample} size={stroke.style.size} />)}</>;
+  return <>{structuralSamples.map((sample) => <BowStamp color={color} image={stampImage} index={sample.index} key={sample.index} opacity={stroke.style.opacity} sample={sample} size={stroke.style.size} />)}</>;
 };
 
 const effectFor = <Id extends Effect['id']>(effects: readonly Effect[], id: Id): Extract<Effect, { id: Id }> | undefined => effects.find((effect): effect is Extract<Effect, { id: Id }> => effect.id === id);
@@ -585,24 +663,116 @@ const makeLayerPath = (width: number, height: number, seed?: number, intensity?:
   return path;
 };
 
-const makeBrushStamps = (layer: Extract<Layer, { type: 'brush' }>) => {
-  const random = seeded(layer.seed);
-  const stamps: Array<{ x: number; y: number; radius: number; opacity: number }> = [];
-  for (let index = 1; index < layer.points.length; index += 1) {
-    const from = layer.points[index - 1];
-    const to = layer.points[index];
+const makeBrushPath = (stroke: BrushStroke) => {
+  const path = Skia.Path.Make();
+  stroke.points.forEach((point, index) => index === 0 ? path.moveTo(point.x, point.y) : path.lineTo(point.x, point.y));
+  return path;
+};
+
+type BrushSample = Readonly<{ x: number; y: number; angle: number; index: number }>;
+type CrayonFibre = Readonly<{ from: Point; opacity: number; to: Point; width: number }>;
+
+/** Carries remaining distance across segments, so a corner never resets spacing. */
+const sampleBrushPath = (points: readonly Point[], spacing: number): readonly BrushSample[] => {
+  if (points.length < 2) return points.length === 1 ? [{ x: points[0].x, y: points[0].y, angle: 0, index: 0 }] : [];
+  const samples: BrushSample[] = [];
+  let carry = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const start = points[index - 1]; const end = points[index];
+    const dx = end.x - start.x; const dy = end.y - start.y; const length = Math.hypot(dx, dy);
+    if (length <= 0.01) continue;
+    const angle = Math.atan2(dy, dx); let distance = spacing - carry;
+    while (distance <= length) { const progress = distance / length; samples.push({ x: start.x + dx * progress, y: start.y + dy * progress, angle, index: samples.length }); distance += spacing; }
+    carry = length - (distance - spacing);
+    if (carry >= spacing) carry = 0;
+  }
+  if (samples.length === 0) { const start = points[0]; const end = points.at(-1)!; samples.push({ x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, angle: Math.atan2(end.y - start.y, end.x - start.x), index: 0 }); }
+  return samples;
+};
+
+/**
+ * Dry wax has directional, partially overlapping fibres—not opaque circular
+ * stamps. Keeping these deterministic makes the canvas, export and catalog
+ * preview visually identical at every scale.
+ */
+const makeCrayonFibres = (stroke: BrushStroke): readonly CrayonFibre[] => {
+  const random = seeded(stroke.style.seed);
+  const fibres: CrayonFibre[] = [];
+  if (stroke.points.length === 1) {
+    const point = stroke.points[0];
+    return Array.from({ length: 7 }, () => {
+      const angle = random() * Math.PI;
+      const length = stroke.style.size * (0.36 + random() * 0.24);
+      const normal = { x: Math.cos(angle), y: Math.sin(angle) };
+      const offset = (random() - 0.5) * stroke.style.size * 0.52;
+      const center = { x: point.x + normal.y * offset, y: point.y - normal.x * offset };
+      return { from: { x: center.x - normal.x * length / 2, y: center.y - normal.y * length / 2 }, to: { x: center.x + normal.x * length / 2, y: center.y + normal.y * length / 2 }, width: Math.max(0.7, stroke.style.size * (0.035 + random() * 0.035)), opacity: stroke.style.opacity * (0.18 + random() * 0.23) };
+    });
+  }
+  for (let index = 1; index < stroke.points.length; index += 1) {
+    const from = stroke.points[index - 1];
+    const to = stroke.points[index];
     const dx = to.x - from.x;
     const dy = to.y - from.y;
     const distance = Math.hypot(dx, dy);
-    const count = Math.max(1, Math.ceil(distance / layer.spacing));
+    const count = Math.max(1, Math.ceil(distance / Math.max(1, stroke.style.spacing * 0.62)));
     for (let stamp = 0; stamp <= count; stamp += 1) {
       const progress = stamp / count;
       const normal = distance === 0 ? { x: 0, y: 0 } : { x: -dy / distance, y: dx / distance };
-      const drift = (random() - 0.5) * layer.jitter;
-      stamps.push({ x: from.x + dx * progress + normal.x * drift, y: from.y + dy * progress + normal.y * drift, radius: layer.size * (0.28 + random() * 0.22), opacity: 0.35 + random() * 0.35 });
+      const tangent = distance === 0 ? { x: 1, y: 0 } : { x: dx / distance, y: dy / distance };
+      // Several thin wax fibres at each interval preserve the uneven edge and
+      // paper-show-through of a real crayon mark.
+      for (let fibre = 0; fibre < 4; fibre += 1) {
+        const drift = (random() - 0.5) * (stroke.style.size * 0.82 + stroke.style.jitter);
+        const length = stroke.style.spacing * (0.72 + random() * 0.72);
+        const center = { x: from.x + dx * progress + normal.x * drift, y: from.y + dy * progress + normal.y * drift };
+        fibres.push({
+          from: { x: center.x - tangent.x * length / 2, y: center.y - tangent.y * length / 2 },
+          to: { x: center.x + tangent.x * length / 2, y: center.y + tangent.y * length / 2 },
+          width: Math.max(0.7, stroke.style.size * (0.025 + random() * 0.04)),
+          opacity: stroke.style.opacity * (0.14 + random() * 0.24),
+        });
+      }
     }
   }
-  return stamps;
+  return fibres;
+};
+
+const makeCrayonFibrePath = (fibre: CrayonFibre) => {
+  const path = Skia.Path.Make();
+  path.moveTo(fibre.from.x, fibre.from.y); path.lineTo(fibre.to.x, fibre.to.y);
+  return path;
+};
+
+const pointAt = (sample: BrushSample, horizontal: number, vertical: number) => ({ x: sample.x + horizontal * Math.cos(sample.angle) - vertical * Math.sin(sample.angle), y: sample.y + horizontal * Math.sin(sample.angle) + vertical * Math.cos(sample.angle) });
+
+const makeStitchPath = (sample: BrushSample, size: number) => {
+  const path = Skia.Path.Make();
+  const length = Math.max(7, size * 1.25); const start = pointAt(sample, -length / 2, 0); const end = pointAt(sample, length / 2, 0);
+  path.moveTo(start.x, start.y); path.lineTo(end.x, end.y);
+  return path;
+};
+
+const makeKnitPath = (sample: BrushSample, size: number) => {
+  const path = Skia.Path.Make();
+  const length = Math.max(9, size * 1.45); const spread = Math.max(4, size * 0.55); const left = pointAt(sample, -spread, -length / 2); const right = pointAt(sample, spread, -length / 2); const bottom = pointAt(sample, 0, length / 2);
+  path.moveTo(left.x, left.y); path.lineTo(bottom.x, bottom.y); path.moveTo(right.x, right.y); path.lineTo(bottom.x, bottom.y);
+  return path;
+};
+
+const LaceStamp = ({ color, index, opacity, sample, size }: Readonly<{ color: string; index: number; opacity: number; sample: BrushSample; size: number }>) => {
+  const radius = Math.max(5, size * 0.9); const path = Skia.Path.Make(); const start = pointAt(sample, -radius, radius * 0.12); const end = pointAt(sample, radius, radius * 0.12); const controlLeft = pointAt(sample, -radius, -radius * 0.44); const controlRight = pointAt(sample, radius, -radius * 0.44);
+  path.moveTo(start.x, start.y); path.cubicTo(controlLeft.x, controlLeft.y, controlRight.x, controlRight.y, end.x, end.y);
+  const left = pointAt(sample, -radius * 0.46, radius * 0.08); const right = pointAt(sample, radius * 0.46, radius * 0.08); const top = pointAt(sample, 0, -radius * 0.28); const dot = Math.max(1.4, size * 0.16);
+  return <Group opacity={opacity}><Path path={path} color={color} style="stroke" strokeCap="round" strokeWidth={Math.max(1.4, size * 0.24)} /><Circle cx={left.x} cy={left.y} r={dot} color={color} /><Circle cx={right.x} cy={right.y} r={dot} color={color} />{index % 2 === 0 && <Circle cx={top.x} cy={top.y} r={Math.max(1.3, size * 0.14)} color={color} />}</Group>;
+};
+
+const BowStamp = ({ color, image, index, opacity, sample, size }: Readonly<{ color: string; image: ReturnType<typeof useImage>; index: number; opacity: number; sample: BrushSample; size: number }>) => {
+  const stampSize = Math.max(24, size * 3.4); const rotation = sample.angle + (index % 2 === 0 ? -0.16 : 0.16);
+  if (image) return <Group opacity={opacity} origin={{ x: sample.x, y: sample.y }} transform={[{ rotate: rotation }]}><SkiaImage image={image} x={sample.x - stampSize / 2} y={sample.y - stampSize / 2} width={stampSize} height={stampSize} fit="contain" /></Group>;
+  const rotated = { ...sample, angle: rotation }; const center = { x: sample.x, y: sample.y }; const left = pointAt(rotated, -stampSize * 0.42, 0); const right = pointAt(rotated, stampSize * 0.42, 0); const path = Skia.Path.Make();
+  path.moveTo(center.x, center.y); path.cubicTo(left.x, left.y - stampSize * 0.34, left.x - stampSize * 0.15, left.y + stampSize * 0.22, center.x, center.y + stampSize * 0.05); path.cubicTo(right.x + stampSize * 0.15, right.y + stampSize * 0.22, right.x, right.y - stampSize * 0.34, center.x, center.y); path.close();
+  return <Group opacity={opacity}><Path path={path} color={color} /><Circle cx={center.x} cy={center.y} r={Math.max(2, stampSize * 0.12)} color={color} /></Group>;
 };
 
 const seeded = (seed: number) => {

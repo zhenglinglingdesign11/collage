@@ -28,6 +28,14 @@ export const layerContainsPoint = (layer: Layer, point: Point): boolean => {
   if (layer.isLocked || layer.opacity <= 0) return false;
   const local = pointInLayerSpace(point, layer);
   if (local.x < 0 || local.x > layer.frame.width || local.y < 0 || local.y > layer.frame.height) return false;
+  if (layer.type === 'brush') {
+    // Match the renderer's ordered compositing: an eraser only clears marks
+    // below it, while a later paint mark can restore a selectable footprint.
+    return layer.strokes.reduce((visible, stroke) => {
+      if (!decorativeBrushStrokeContainsPoint(stroke, local)) return visible;
+      return stroke.mode === 'erase' ? false : true;
+    }, false);
+  }
   if (layer.type !== 'image') return true;
   if (layer.visibilityMask !== undefined && !visibilityMaskContainsPoint(layer.visibilityMask, local)) return false;
   if (layer.brushCutMask === undefined) return true;
@@ -78,6 +86,7 @@ export const visibilityMaskBounds = (mask: VisibilityMask, frame: { width: numbe
 /** Shared by overlays and renderers so selection chrome matches hit testing. */
 export const visibleBoundsForLayer = (layer: Layer): Rect => {
   const full = { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
+  if (layer.type === 'brush') return decorativeBrushBounds(layer.strokes);
   if (layer.type !== 'image') return full;
   let bounds = layer.visibilityMask === undefined ? full : visibilityMaskBounds(layer.visibilityMask, layer.frame);
   const legacyPaths = layer.clipPaths ?? (layer.clipPath ? [layer.clipPath] : []);
@@ -88,6 +97,31 @@ export const visibleBoundsForLayer = (layer: Layer): Rect => {
   }
   return bounds;
 };
+
+/**
+ * Decorative stamps can extend beyond a line's nominal half-width (bows are
+ * the largest). Keep selection and hit testing tied to their real painted
+ * footprint instead of the canvas-sized container used by BrushLayer.
+ */
+const decorativeBrushBounds = (strokes: Extract<Layer, { type: 'brush' }>['strokes']): Rect => {
+  const extents = strokes.filter((stroke) => stroke.mode !== 'erase').flatMap((stroke) => stroke.points.map((point) => {
+    const radius = decorativeBrushRadius(stroke);
+    return { left: point.x - radius, top: point.y - radius, right: point.x + radius, bottom: point.y + radius };
+  }));
+  if (extents.length === 0) return { x: 0, y: 0, width: 0.001, height: 0.001 };
+  const left = Math.min(...extents.map((extent) => extent.left)); const top = Math.min(...extents.map((extent) => extent.top));
+  return { x: left, y: top, width: Math.max(0.001, Math.max(...extents.map((extent) => extent.right)) - left), height: Math.max(0.001, Math.max(...extents.map((extent) => extent.bottom)) - top) };
+};
+
+const decorativeBrushStrokeContainsPoint = (stroke: Extract<Layer, { type: 'brush' }>['strokes'][number], point: Point): boolean => {
+  // Erase marks are a round clear path, rather than a decorative stamp; their
+  // hit radius must match the renderer's actual stroke cap.
+  const radius = stroke.mode === 'erase' ? Math.max(1, stroke.style.size / 2) : decorativeBrushRadius(stroke);
+  if (stroke.points.length === 1) return Math.hypot(point.x - stroke.points[0].x, point.y - stroke.points[0].y) <= radius;
+  return stroke.points.slice(1).some((end, index) => distanceToSegment(point, stroke.points[index], end) <= radius);
+};
+
+const decorativeBrushRadius = (stroke: Extract<Layer, { type: 'brush' }>['strokes'][number]): number => Math.max(1, stroke.style.size * 1.7);
 
 const shapeContainsPoint = (shape: Extract<VisibilityMask, { type: 'shape' }>['shape'], bounds: { x: number; y: number; width: number; height: number }, point: Point): boolean => {
   const { x, y, width, height } = bounds;

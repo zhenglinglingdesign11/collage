@@ -10,14 +10,14 @@ export type MigrationResult =
  * import boundary for untrusted stored JSON prevents ad-hoc migrations later.
  */
 export const migrateDraft = (raw: unknown): MigrationResult => {
-  if (!isRecord(raw) || (raw.schemaVersion !== 1 && raw.schemaVersion !== DRAFT_SCHEMA_VERSION)) {
+  if (!isRecord(raw) || (raw.schemaVersion !== 1 && raw.schemaVersion !== 2 && raw.schemaVersion !== DRAFT_SCHEMA_VERSION)) {
     return { ok: false, issues: [{ path: 'schemaVersion', message: 'Unsupported or missing draft schema version.' }] };
   }
   // v2 makes visibility expressions the only persisted cut representation.
   // Old paths and brush masks are converted at this one import boundary, so
   // renderers and future commands never need to guess which system owns a
   // layer's visible pixels.
-  const draft = normalizeLegacyMasks(normalizeTextLayers(raw)) as Draft;
+  const draft = normalizeBrushLayers(normalizeLegacyMasks(normalizeTextLayers(raw))) as Draft;
   const issues = validateDraft(draft);
   return issues.length === 0 ? { ok: true, draft, migrated: JSON.stringify(raw) !== JSON.stringify(draft) } : { ok: false, issues };
 };
@@ -85,6 +85,39 @@ const normalizeTextLayers = (raw: Record<string, unknown>): Record<string, unkno
     return next;
   });
   return changed ? { ...raw, layers } : raw;
+};
+
+/** v3 groups independent brush marks in a layer and versions their renderer contract. */
+const normalizeBrushLayers = (raw: Record<string, unknown>): Record<string, unknown> => {
+  if (!Array.isArray(raw.layers)) return raw;
+  let changed = false;
+  const layers = raw.layers.map((layer) => {
+    if (!isRecord(layer) || layer.type !== 'brush' || Array.isArray(layer.strokes)) return layer;
+    const legacyBrush = isRecord(layer.brush) ? layer.brush : undefined;
+    const brushId = typeof legacyBrush?.id === 'string' && legacyBrush.id.length > 0 ? legacyBrush.id : 'brush://legacy/default';
+    const brushRevision = typeof legacyBrush?.revision === 'string' && legacyBrush.revision.length > 0 ? legacyBrush.revision : 'legacy';
+    const { brush: _brush, points, size, spacing, jitter, seed, color, ...next } = layer;
+    changed = true;
+    return {
+      ...next,
+      strokes: [{
+        id: `${typeof layer.id === 'string' ? layer.id : 'brush'}:stroke:0`,
+        mode: 'paint',
+        brushId,
+        brushRevision,
+        points: Array.isArray(points) ? points : [],
+        style: {
+          color: typeof color === 'string' ? color : null,
+          size: typeof size === 'number' ? size : 1,
+          spacing: typeof spacing === 'number' ? spacing : 1,
+          jitter: typeof jitter === 'number' ? jitter : 0,
+          seed: typeof seed === 'number' ? seed : 0,
+          opacity: 1,
+        },
+      }],
+    };
+  });
+  return changed ? { ...raw, schemaVersion: DRAFT_SCHEMA_VERSION, layers } : raw;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

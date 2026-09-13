@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import { recommendedRemoteAssetPackIds, remoteAssetPacks, type AssetPackCategory, type ProceduralSticker, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
+import { colorsFor, recommendedRemoteAssetPackIds, remoteAssetPacks, type AssetPackCategory, type ProceduralSticker, type ProductColorTarget, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
 import { productColor } from './tokens';
 import { CachedProceduralStickerPreview, ProceduralItemPreview, ProceduralPackPreview } from './ProceduralMaterialPreview';
 import { CachedRemoteImage } from './CachedRemoteImage';
@@ -14,22 +14,7 @@ const categories: readonly Readonly<{ id: AssetPackCategory; label: string }>[] 
 const intoRows = <T,>(items: readonly T[], columns: number): readonly (readonly T[])[] =>
   Array.from({ length: Math.ceil(items.length / columns) }, (_, index) => items.slice(index * columns, (index + 1) * columns));
 
-type ColorTarget = 'paper.background' | 'polka.background' | 'polka.foreground' | 'shape.fill' | 'shape.stroke';
-const colorOptions: Readonly<Record<ColorTarget, readonly string[]>> = {
-  // Large paper surfaces stay pale and low-saturation so photos and layered
-  // stickers remain legible. The final four add cool-blue, jade, plum and
-  // persimmon moods without turning the sheet into an accent object.
-  'paper.background': ['#FFFAF2', '#ECEFF3', '#F6EAD8', '#EFE2CB', '#D8D1C5', '#FFF2B8', '#FFD9BF', '#F9ECE0', '#F8E7E4', '#F4B8C4', '#F2D9DF', '#EADCF8', '#F0E7F3', '#DFE8FF', '#E8F1FB', '#D7F0ED', '#E1F0E8', '#DFEEDD', '#C8D7CC', '#B8D8D6'],
-  // Polka backgrounds are deliberately a compact subset of paper colors;
-  // a strong foreground needs a quiet field beneath it.
-  'polka.background': ['transparent', '#FFFFFF', '#FDF7EC', '#F7F7F5', '#F9ECE0', '#F5DFD8', '#F0E7F3', '#EAF1F6', '#E8F1FB', '#E1F0E8', '#D7DBC9'],
-  // Detail colors combine dependable ink tones with youthful, high-energy
-  // accents suitable for stickers, collage marks and social posts.
-  'polka.foreground': ['#111111', '#FFFFFF', '#B79B75', '#FFF08A', '#B8D83D', '#F16A3A', '#D94A38', '#B45D79', '#FF9FB7', '#5F806F', '#58A88A', '#86CDBB', '#8FE3CF', '#6D9BC3', '#A9D8FF', '#C9B7FF', '#3A2038'],
-  'shape.fill': ['transparent', '#ffffff', '#f2dfc6', '#d7c1a7', '#fff2b8', '#ffd9bf', '#f4b8c4', '#f7c8df', '#F16A3A', '#FF8FBA', '#cfe6bf', '#B8D83D', '#d7f0ed', '#bfe8db', '#58A88A', '#dfe8ff', '#b9d7ff', '#9EC5E8', '#eadcf8', '#B9A4F5', '#3A2038', '#111111'],
-  'shape.stroke': ['', '#ffffff', '#111111', '#c79a62', '#7C9C19', '#D95328', '#d94a38', '#b45d79', '#5f806f', '#3F8F73', '#86cdbb', '#6d9bc3', '#4C80B8', '#8b79bd', '#3A2038'],
-};
-const colorsFor = (target: ColorTarget): readonly string[] => colorOptions[target];
+type ColorTarget = Exclude<ProductColorTarget, 'brush.stroke'>;
 const isWhiteColor = (color: string): boolean => color.toLowerCase() === '#ffffff';
 const solidPaperColors = colorsFor('paper.background');
 const polkaBackgrounds = colorsFor('polka.background');

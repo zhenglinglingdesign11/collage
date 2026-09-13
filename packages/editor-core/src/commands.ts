@@ -1,16 +1,23 @@
-import type { AssetReference, BrushCutStroke, Draft, Effect, Layer, VisibilityMask } from './document';
+import type { AssetReference, BrushCutStroke, BrushStroke, Draft, Effect, Layer, VisibilityMask } from './document';
 import type { Point, Rect, Transform } from './geometry';
 import { splitPolygonByLine, waveCutSidesForFrame } from './straightCut';
-import { isValidVisibilityMask } from './validation';
+import { isValidVisibilityMask, validateDraft } from './validation';
 
 /** Every persistent editor mutation is an explicit, serializable command. */
 export type EditorCommand =
-  | Readonly<{ type: 'layer.add'; layer: Layer }>
+  | Readonly<{ type: 'layer.add'; layer: Layer; select?: boolean }>
   | Readonly<{ type: 'layer.delete'; layerId: string }>
   | Readonly<{ type: 'layer.duplicate'; layerId: string; duplicate: Layer }>
   | Readonly<{ type: 'layer.reorder'; layerId: string; toIndex: number }>
   | Readonly<{ type: 'layer.transform'; layerId: string; transform: Transform }>
   | Readonly<{ type: 'layer.effects.set'; layerId: string; effects: readonly Effect[] }>
+  /** Appends one completed decorative stroke; pointer-move samples never enter history. */
+  | Readonly<{ type: 'brush.stroke.append'; layerId: string; stroke: BrushStroke }>
+  /** Replaces a completed BrushLayer after its isolated editing session is confirmed. */
+  | Readonly<{ type: 'brush.layer.replace'; layerId: string; strokes: readonly BrushStroke[] }>
+  /** Removes the last completed stroke, deleting the layer when it becomes empty. */
+  | Readonly<{ type: 'brush.stroke.undo'; layerId: string }>
+  | Readonly<{ type: 'brush.layer.clear'; layerId: string }>
   | Readonly<{ type: 'layer.crop.set'; layerId: string; crop: Rect }>
   | Readonly<{ type: 'image.cut.straight'; layerId: string; start: Point; end: Point; firstLayerId: string; secondLayerId: string; operationId: string; gap: number; style: 'straight' | 'wave' }>
   | Readonly<{ type: 'image.cut.brush'; layerId: string; cutLayerId: string; operationId: string; strokes: readonly BrushCutStroke[]; hollowOriginal: boolean }>
@@ -38,7 +45,7 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
   switch (command.type) {
     case 'layer.add':
       if (draft.layers.some((layer) => layer.id === command.layer.id)) return { draft, changed: false };
-      return touch({ ...draft, layers: [...draft.layers, command.layer], selectedLayerId: command.layer.id });
+      return touch({ ...draft, layers: [...draft.layers, command.layer], selectedLayerId: command.select === false ? draft.selectedLayerId : command.layer.id });
     case 'layer.delete':
       if (layerIndex < 0) return { draft, changed: false };
       return touch({
@@ -69,6 +76,33 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       if (layerIndex < 0) return { draft, changed: false };
       if (JSON.stringify(draft.layers[layerIndex].effects) === JSON.stringify(command.effects)) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, effects: command.effects } : layer) });
+    case 'brush.stroke.append': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'brush' || layer.isLocked || layer.strokes.some((stroke) => stroke.id === command.stroke.id)) return { draft, changed: false };
+      const nextLayer = { ...layer, strokes: [...layer.strokes, command.stroke] };
+      // Reuse Draft validation at the mutation boundary so only valid portable
+      // points and styles can enter history from a native gesture session.
+      if (validateDraftAfterBrushMutation(draft, layerIndex, nextLayer)) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? nextLayer : candidate) });
+    }
+    case 'brush.layer.replace': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'brush' || layer.isLocked || command.strokes.length === 0) return { draft, changed: false };
+      const nextLayer = { ...layer, strokes: command.strokes };
+      if (JSON.stringify(layer.strokes) === JSON.stringify(command.strokes) || validateDraftAfterBrushMutation(draft, layerIndex, nextLayer)) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? nextLayer : candidate) });
+    }
+    case 'brush.stroke.undo': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'brush' || layer.isLocked) return { draft, changed: false };
+      if (layer.strokes.length === 1) return touch({ ...draft, layers: draft.layers.filter((candidate) => candidate.id !== layer.id), selectedLayerId: null });
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? { ...layer, strokes: layer.strokes.slice(0, -1) } : candidate), selectedLayerId: layer.id });
+    }
+    case 'brush.layer.clear': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'brush' || layer.isLocked) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.filter((candidate) => candidate.id !== layer.id), selectedLayerId: draft.selectedLayerId === layer.id ? null : draft.selectedLayerId });
+    }
     case 'layer.crop.set': {
       const layer = draft.layers[layerIndex];
       if (layerIndex < 0 || layer.type !== 'image') return { draft, changed: false };
@@ -226,6 +260,9 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       return { draft: { ...draft, selectedLayerId: command.layerId }, changed: true };
   }
 };
+
+const validateDraftAfterBrushMutation = (draft: Draft, layerIndex: number, layer: Extract<Layer, { type: 'brush' }>): boolean =>
+  validateDraft({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? layer : candidate) }).length > 0;
 
 const makeStraightCutFragment = (layer: Extract<Layer, { type: 'image' }>, polygon: readonly Point[], id: string, name: string, sourceLayerId: string, operationId: string, style: 'straight' | 'wave', nudge: Point) => {
   const bounds = polygonBounds(polygon);

@@ -243,7 +243,7 @@ ApplyEffect
 RemoveEffect
 MoveLayer
 SetTextContent
-AddBrushStroke
+BrushStrokeAppend / BrushStrokeUndo / BrushLayerClear / BrushLayerReplace
 ReplaceSource
 GroupLayers
 UngroupLayers
@@ -257,18 +257,23 @@ UngroupLayers
 手势结束 → 提交一次 UpdateTransform Command → 写入历史和草稿
 ```
 
-笔刷保存语义笔画而非立刻烘焙成位图：
+笔刷保存语义笔画而非立刻烘焙成位图。一个 `BrushLayer` 包含可单独撤销的 `strokes[]`；每条笔画固定其笔刷版本，确保未来更新素材、算法或图集后，旧 Draft 仍可复现：
 
 ```text
 BrushStroke
-├── brushId
+├── id
+├── mode: paint | erase（省略时按 paint 兼容旧草稿）
+├── brushId / brushRevision
 ├── points
-├── size / spacing / jitter
-├── seed
-└── color / material
+│   └── x / y / pressure? / timestamp? / tilt?
+└── style
+    ├── color? / size / spacing / jitter
+    └── seed / opacity
 ```
 
-复杂笔刷、花边和缝线需要缓存 Path、Picture 或纹理 Atlas，避免每帧重新构建大量 React 子组件。
+`erase` 不是破坏性地改写既有 points，而是与 paint 一样按顺序存入同一 `BrushLayer`。共享渲染器在该图层的离屏合成表面中以 clear 混合执行它，因此单笔撤销、跨端重放和后续图层编辑都使用同一语义；它不会擦除下方的图片或其他图层。
+
+`BrushDefinition` 属于素材目录而不是 Draft，包含稳定 ID、revision、renderer 类型、可用能力、默认值、约束与可选 brush Asset。复杂笔刷、花边和缝线需要缓存 Path、Picture 或纹理 Atlas，避免每帧重新构建大量 React 子组件。动态笔刷可读取可选时间戳与渲染时间，但静态导出必须使用定义明确的 poster frame。
 
 ## 8. 资源系统
 

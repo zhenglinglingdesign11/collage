@@ -1,5 +1,8 @@
 import type { AssetReference } from '@journalcollage/editor-core';
 
+export * from './brushes';
+export * from './colors';
+
 // Font metadata is product catalog data, not editor-document data.  The
 // mini-program remains the single source for the CDN file names and families.
 const { fontTable } = require('../../../miniprogram-spike/miniprogram/config/font-table') as {
