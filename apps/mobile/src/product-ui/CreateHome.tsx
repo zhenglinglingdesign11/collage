@@ -5,12 +5,17 @@ import { useSharedValue } from 'react-native-reanimated';
 import { assetUriMap, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap } from '@journalcollage/asset-system';
 import type { Draft } from '@journalcollage/editor-core';
 import { SkiaEditorScene } from '@journalcollage/editor-renderer';
-import { loadSavedDrafts, type SavedDraft, type StoredWorkspace } from '../localWorkspace';
+import { cacheRemoteResource, loadSavedDrafts, resolvedRemoteResourceUri, type SavedDraft, type StoredWorkspace } from '../localWorkspace';
 import { resolveProductAsset } from './assets';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
 
 export type CreateEntry = 'blank' | 'photo' | 'restore';
+const LACE_FRAME_SOURCES = {
+  'wide-hole': { cacheKey: 'effect-frame-lace-center-wide-hole', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-center-01.png' },
+  'classic-doily': { cacheKey: 'effect-frame-lace-center-classic-doily', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-doily-frame-transparent.png' },
+  'foil-crumpled': { cacheKey: 'effect-frame-foil-center-crumpled', source: 'https://assets.zllarchi.site/effects/foil-frame-02-compress.png' },
+} as const;
 
 export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
   locale: ProductLocale;
@@ -18,10 +23,23 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
   onOpenEditor: (entry: CreateEntry, savedDraftId?: string) => void;
 }>) => {
   const [savedDrafts, setSavedDrafts] = useState<readonly SavedDraft[]>([]);
+  const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
+    const uri = resolvedRemoteResourceUri(frame.cacheKey, frame.source);
+    return uri ? [[id, uri]] : [];
+  })));
 
   useEffect(() => {
     let active = true;
     void loadSavedDrafts().then((drafts) => { if (active) setSavedDrafts(drafts); });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    Object.entries(LACE_FRAME_SOURCES).forEach(([id, frame]) => {
+      void cacheRemoteResource(frame.cacheKey, frame.source).then((uri) => {
+        if (active) setLaceFrameUris((current) => ({ ...current, [id]: uri }));
+      }).catch(() => undefined);
+    });
     return () => { active = false; };
   }, []);
 
@@ -49,7 +67,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
           <SectionTitle>{t(locale, 'create.recentDrafts')}</SectionTitle>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalTrack}>
             {savedDrafts.map((savedDraft) => <Pressable key={savedDraft.id} accessibilityRole="button" accessibilityLabel={t(locale, 'create.recentDrafts')} onPress={() => onOpenEditor('restore', savedDraft.id)} style={styles.recentCard}>
-              <RecentDraftArtwork workspace={savedDraft.workspace} />
+              <RecentDraftArtwork laceFrameUris={laceFrameUris} workspace={savedDraft.workspace} />
             </Pressable>)}
           </ScrollView>
         </>
@@ -88,7 +106,7 @@ const PaperStackGlyph = () => <View style={styles.paperGlyph}><View style={style
 const DotPaper = () => <View pointerEvents="none" style={styles.dotPaper}>{Array.from({ length: 42 }, (_, index) => <View key={index} style={styles.dot} />)}</View>;
 
 /** A real renderer-backed thumbnail, rather than a static placeholder artwork. */
-const RecentDraftArtwork = ({ workspace }: Readonly<{ workspace: StoredWorkspace }>) => {
+const RecentDraftArtwork = ({ laceFrameUris, workspace }: Readonly<{ laceFrameUris: Readonly<Record<string, string>>; workspace: StoredWorkspace }>) => {
   const inactiveTransform = useSharedValue<Transforms3d>([]);
   const { draft, catalog } = workspace;
   const assetUris = { ...remoteAssetUriMap(), ...assetUriMap(catalog), ...recentLocalPolkaUris };
@@ -110,6 +128,8 @@ const RecentDraftArtwork = ({ workspace }: Readonly<{ workspace: StoredWorkspace
         surfaceColor="#FFFDF9"
         tornPaperEdgeAtlasUri={recentTornPaperEdgeAtlasUri}
         tornPaperFiberFringeUri={recentTornPaperFiberFringeUri}
+        laceFrameFallback={false}
+        laceFrameUris={laceFrameUris}
         viewport={{ scale, x: (86 - draft.canvas.size.width * scale) / 2, y: (110 - draft.canvas.size.height * scale) / 2 }}
       />
     </Canvas>

@@ -35,7 +35,10 @@ export const EFFECT_CATALOG: Readonly<Record<string, EffectDefinition>> = {
   },
   'paper.torn-edge': {
     type: 'paper.torn-edge', version: 1, stage: 'geometry', category: 'structure', label: 'Torn edge', supportedLayers: ['image', 'material'], maxInstances: 1,
-    validateParams: (params) => finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed) && finite(params.intensity, 0, 500),
+    // edgeWidth arrived after v4 launch. Keep it optional so migrated drafts
+    // retain their old rendering fallback while new drafts can separate paper
+    // thickness from the jaggedness of the tear contour.
+    validateParams: (params) => finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed) && finite(params.intensity, 0, 500) && (params.edgeWidth === undefined || finite(params.edgeWidth, 2, 100)),
   },
   'shape.round-corners': {
     type: 'shape.round-corners', version: 1, stage: 'geometry', category: 'structure', editorEntry: 'layer-control', label: 'Corners', supportedLayers: ['image', 'text', 'material'], maxInstances: 1,
@@ -51,7 +54,19 @@ export const EFFECT_CATALOG: Readonly<Record<string, EffectDefinition>> = {
   },
   'frame.lace-center': {
     type: 'frame.lace-center', version: 1, stage: 'overlay', category: 'structure', label: 'Lace frame', supportedLayers: ['image', 'material'], maxInstances: 1,
-    validateParams: (params) => color(params.color) && finite(params.opacity, 0, 1) && finite(params.scale, 0.2, 1),
+    // `scale` is the aperture size. `contentScale` is deliberately the same
+    // semantic range as the mini-program: it controls how much of the source
+    // is visible inside that aperture, rather than resizing the lace artwork.
+    // Keep the newer fields optional so existing v4 drafts remain valid.
+    validateParams: (params) => color(params.color) && finite(params.opacity, 0, 1) && finite(params.scale, 0.2, 1)
+      && (params.frameId === undefined || params.frameId === 'wide-hole' || params.frameId === 'classic-doily')
+      && (params.contentScale === undefined || finite(params.contentScale, 0.65, 1.8)),
+  },
+  'frame.foil-center': {
+    type: 'frame.foil-center', version: 1, stage: 'overlay', category: 'structure', label: 'Foil frame', supportedLayers: ['image', 'material'], maxInstances: 1,
+    validateParams: (params) => color(params.color) && finite(params.opacity, 0, 1) && finite(params.scale, 0.2, 1)
+      && (params.frameId === undefined || params.frameId === 'foil-crumpled')
+      && (params.contentScale === undefined || finite(params.contentScale, 0.65, 1.8)),
   },
   'material.grain': {
     type: 'material.grain', version: 1, stage: 'overlay', category: 'texture', label: 'Paper grain', supportedLayers: ['image', 'text', 'material'], maxInstances: 1,

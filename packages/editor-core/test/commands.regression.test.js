@@ -152,7 +152,8 @@ test('structure effects retain portable catalog parameters', () => {
     { instanceId: 'corner', type: 'shape.round-corners', version: 1, enabled: true, stage: 'geometry', params: { radius: 24 } },
     { instanceId: 'tape', type: 'attachment.tape', version: 1, enabled: true, stage: 'overlay', params: { placement: 'double-corners', color: '#E9D28A', opacity: 0.72 } },
     { instanceId: 'float', type: 'paper.float', version: 1, enabled: true, stage: 'underlay', params: { color: '#392F2A', opacity: 0.18, blur: 30, offset: { x: 12, y: 24 } } },
-    { instanceId: 'lace', type: 'frame.lace-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', opacity: 0.95, scale: 0.82 } },
+    { instanceId: 'lace', type: 'frame.lace-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', opacity: 0.95, frameId: 'classic-doily', scale: 0.82, contentScale: 1.35 } },
+    { instanceId: 'foil', type: 'frame.foil-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFFFFF', opacity: 1, frameId: 'foil-crumpled', scale: 0.82, contentScale: 1.35 } },
   ];
   assert.deepEqual(core.validateDraft({ ...makeDraft(), layers: [{ ...makeImage(), effects }] }), []);
 });

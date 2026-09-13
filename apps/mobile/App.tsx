@@ -10,7 +10,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { assetUriMap, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
 import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, pointInLayerSpace, visibleBoundsForLayer, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type StraightCutPreview } from '@journalcollage/editor-renderer';
-import { cacheRemotePackItem, importLocalImage, loadSavedDraft, loadWorkspace, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
+import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
 import { EffectSheet } from './src/product-ui/EffectSheet';
@@ -23,7 +23,7 @@ const effectInstance = (instanceId: string, type: BuiltinEffectType): Effect => 
     ? { instanceId, type, version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', width: 12 } }
     : type === 'shape.round-corners'
       ? { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { radius: 28 } }
-      : { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { seed: 41, intensity: 24 } };
+      : { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { seed: 41, intensity: 24, edgeWidth: 16 } };
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
 import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPanel';
@@ -45,6 +45,11 @@ const brushAssetUris: Readonly<Record<string, string>> = {
 };
 const tornPaperEdgeAtlasUri = Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/textures/torn-paper-edge-atlas.png')).uri;
 const tornPaperFiberFringeUri = Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/textures/torn-paper-fiber-fringe.png')).uri;
+const LACE_FRAME_SOURCES = {
+  'wide-hole': { cacheKey: 'effect-frame-lace-center-wide-hole', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-center-01.png' },
+  'classic-doily': { cacheKey: 'effect-frame-lace-center-classic-doily', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-doily-frame-transparent.png' },
+  'foil-crumpled': { cacheKey: 'effect-frame-foil-center-crumpled', source: 'https://assets.zllarchi.site/effects/foil-frame-02-compress.png' },
+} as const;
 type EditorState = Readonly<{ past: readonly Draft[]; present: Draft; future: readonly Draft[] }>;
 type EditorAction = Readonly<{ type: 'command'; command: EditorCommand }> | Readonly<{ type: 'undo' }> | Readonly<{ type: 'redo' }> | Readonly<{ type: 'hydrate'; draft: Draft }>;
 type MediaLibraryModule = typeof import('expo-media-library/legacy');
@@ -117,6 +122,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     future: [],
   }));
   const [catalog, setCatalog] = useState<AssetCatalog>(() => emptyAssetCatalog());
+  const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
+    const uri = resolvedRemoteResourceUri(frame.cacheKey, frame.source);
+    return uri ? [[id, uri]] : [];
+  })));
   const [workspaceReady, setWorkspaceReady] = useState(false);
   const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
   const [canvasFrame, setCanvasFrame] = useState({ x: 0, y: 0 });
@@ -147,6 +156,15 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const textLayerSequence = useRef(0);
   const cutHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    let active = true;
+    Object.entries(LACE_FRAME_SOURCES).forEach(([id, frame]) => {
+      void cacheRemoteResource(frame.cacheKey, frame.source).then((uri) => {
+        if (active) setLaceFrameUris((current) => ({ ...current, [id]: uri }));
+      }).catch(() => undefined);
+    });
+    return () => { active = false; };
+  }, []);
   const brushCutRef = useRef<BrushCutSession | null>(null);
   const decorativeBrushRef = useRef<DecorativeBrushSession | null>(null);
   const embossRef = useRef<EmbossSession | null>(null);
@@ -964,7 +982,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     const contentFrame = brushCut.layer.contentFrame ?? { x: 0, y: 0 };
     return { layerId: brushCut.layer.id, strokes: brushCut.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + contentFrame.x, y: point.y + contentFrame.y })) })) } as BrushCutPreview;
   })();
-  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
+  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
   const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} immersive={brushCut !== null || emboss !== null} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
   const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
@@ -1053,7 +1071,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
           <View pointerEvents="auto" style={a3Styles.assetDrawerBackdrop} />
           <EffectSheet bottomInset={insets.bottom} effects={effectSheetBaseEffects ?? selectedLayer.effects} layer={selectedLayer} locale={locale} onCancel={closeEffectSheet} onCommit={commitEffectSheet} onPreview={(effects) => setEffectPreview({ layerId: selectedLayer.id, effects })} />
         </>}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} showSelection={false} /></Canvas>
+        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
