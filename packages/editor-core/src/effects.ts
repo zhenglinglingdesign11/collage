@@ -17,6 +17,7 @@ export type EffectDefinition = Readonly<{
 const finite = (value: EffectValue | undefined, min: number, max: number): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
 const color = (value: EffectValue | undefined): value is string => typeof value === 'string' && value.length > 0 && value.length <= 64;
+const oneOf = (value: EffectValue | undefined, values: readonly string[]): boolean => typeof value === 'string' && values.includes(value);
 const point = (value: EffectValue | undefined): boolean => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const candidate = value as Readonly<Record<string, EffectValue>>;
@@ -71,6 +72,30 @@ export const EFFECT_CATALOG: Readonly<Record<string, EffectDefinition>> = {
   'material.grain': {
     type: 'material.grain', version: 1, stage: 'overlay', category: 'texture', label: 'Paper grain', supportedLayers: ['image', 'text', 'material'], maxInstances: 1,
     validateParams: (params) => color(params.color) && finite(params.intensity, 0, 1) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
+  },
+  'print.cyanotype': {
+    type: 'print.cyanotype', version: 1, stage: 'content', category: 'texture', label: 'Cyanotype', supportedLayers: ['image'], maxInstances: 1,
+    validateParams: (params) => oneOf(params.tone, ['prussian', 'teal', 'violet', 'rose', 'mono']) && oneOf(params.intensity, ['soft', 'standard', 'deep']) && oneOf(params.paper, ['cool', 'warm', 'aged', 'gray']) && oneOf(params.grain, ['low', 'medium', 'high']) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
+  },
+  'print.screen': {
+    type: 'print.screen', version: 1, stage: 'content', category: 'texture', label: 'Screen print', supportedLayers: ['image'], maxInstances: 1,
+    validateParams: (params) => oneOf(params.palette, ['red-blue', 'orange-blue', 'pink-green', 'black-cream', 'purple-yellow']) && oneOf(params.strength, ['soft', 'standard', 'bold']) && oneOf(params.halftone, ['none', 'fine', 'medium', 'coarse']) && oneOf(params.offset, ['none', 'slight', 'strong']) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
+  },
+  'print.riso': {
+    type: 'print.riso', version: 1, stage: 'content', category: 'texture', label: 'Riso print', supportedLayers: ['image'], maxInstances: 1,
+    validateParams: (params) => oneOf(params.palette, ['pink-blue', 'orange-teal', 'purple-yellow', 'red-black', 'green-pink']) && oneOf(params.mode, ['duo', 'three']) && oneOf(params.ink, ['light', 'standard', 'dense']) && oneOf(params.offset, ['none', 'slight', 'strong']) && oneOf(params.grain, ['low', 'medium', 'high']) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
+  },
+  'art.botanical-plate': {
+    type: 'art.botanical-plate', version: 1, stage: 'content', category: 'texture', label: 'Botanical plate', supportedLayers: ['image'], maxInstances: 1,
+    validateParams: (params) => oneOf(params.tone, ['blueprint', 'sage', 'sepia']) && oneOf(params.detail, ['soft', 'medium', 'etched']) && oneOf(params.frame, ['on', 'off']) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
+  },
+  'art.pixel-embroidery': {
+    type: 'art.pixel-embroidery', version: 1, stage: 'content', category: 'texture', label: 'Pixel embroidery', supportedLayers: ['image'], maxInstances: 1,
+    validateParams: (params) => finite(params.grid, 24, 140) && Number.isInteger(params.grid) && finite(params.colors, 2, 32) && Number.isInteger(params.colors) && oneOf(params.style, ['pixel', 'stitch', 'mixed']) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
+  },
+  'art.matisse-cutout': {
+    type: 'art.matisse-cutout', version: 1, stage: 'content', category: 'texture', label: 'Matisse cutout', supportedLayers: ['image'], maxInstances: 1,
+    validateParams: (params) => finite(params.detail, 32, 100) && oneOf(params.palette, ['vivid', 'earth', 'soft']) && finite(params.seed, -2147483648, 2147483647) && Number.isInteger(params.seed),
   },
 };
 

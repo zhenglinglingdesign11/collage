@@ -6,6 +6,7 @@ import {
   Fill,
   Group,
   Image as SkiaImage,
+  ImageShader,
   Mask,
   matchFont,
   Path,
@@ -13,6 +14,7 @@ import {
   Rect,
   RoundedRect,
   Skia,
+  Shader,
   StrokeCap,
   StrokeJoin,
   Text,
@@ -226,6 +228,11 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
   const effectPlan = useMemo(() => compileEffectPlan(layer.effects), [layer.effects]);
+  const contentEvaluation = useMemo(() => evaluateContentEffects(effectPlan.content), [effectPlan.content]);
+  // New edits make texture recipes exclusive. This also gives old documents
+  // with multiple texture instances deterministic single-recipe rendering.
+  const activeTextureEffect = useMemo(() => [...layer.effects].reverse().find((effect) => effect.enabled && isTextureRecipe(effect)) ?? null, [layer.effects]);
+  const activePrintEffect = activeTextureEffect && isRuntimePrintEffect(activeTextureEffect) ? activeTextureEffect : null;
   const visibilityMask = layer.type === 'image' ? layer.visibilityMask : undefined;
   const tornEdge = effectPlan.geometry.find((effect) => effect.type === 'paper.torn-edge');
   const corners = effectPlan.geometry.find((effect) => effect.type === 'shape.round-corners');
@@ -262,12 +269,14 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
       {attachments.map((effect) => <TapeContactShadow effect={effect} key={effect.instanceId} path={effectivePath} />)}
       {/* Keep the aperture in layer coordinates; only its content may zoom. */}
       <Group clip={contentPath}>
-        <Group transform={centerFrame ? [{ scale: laceContentZoom(centerFrame) }] : []} origin={{ x: frame.width / 2, y: frame.height / 2 }}>
-          {layer.type === 'image' && <ImageLayerContent layer={layer} assetUri={assetUri} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
-          {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
-          {layer.type === 'brush' && <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />}
-          {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
-        </Group>
+        <ContentEffectStage evaluation={contentEvaluation}>
+          <Group transform={centerFrame ? [{ scale: laceContentZoom(centerFrame) }] : []} origin={{ x: frame.width / 2, y: frame.height / 2 }}>
+            {layer.type === 'image' && <ImageLayerContent contentEffects={activePrintEffect ? [activePrintEffect] : []} layer={layer} assetUri={assetUri} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
+            {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
+            {layer.type === 'brush' && <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />}
+            {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
+          </Group>
+        </ContentEffectStage>
       </Group>
       {previewPath && <>
         <Path path={previewPath} color="rgba(17,17,17,0.78)" strokeCap="round" style="stroke" strokeWidth={10}><DashPathEffect intervals={[34, 28]} /></Path>
@@ -280,7 +289,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
       {visibilityPreviewPath && <><Path path={visibilityPreviewPath} color="rgba(217,74,56,0.18)" /><Path path={visibilityPreviewPath} color="#111111" style="stroke" strokeWidth={4} />
         {visibilityPreviewBounds && <><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /></>}
       </>}
-      {effectPlan.overlay.map((effect) => <OverlayEffect effect={effect} frame={frame} key={effect.instanceId} laceFrameFallback={laceFrameFallback} laceFrameUri={laceFrameUri} laceFrameUris={laceFrameUris} path={effectivePath} />)}
+      {effectPlan.overlay.map((effect) => effect.type === 'material.grain' && activeTextureEffect?.instanceId !== effect.instanceId ? null : <OverlayEffect effect={effect} frame={frame} key={effect.instanceId} laceFrameFallback={laceFrameFallback} laceFrameUri={laceFrameUri} laceFrameUris={laceFrameUris} path={effectivePath} />)}
       {floatingEffects.map((effect) => <FloatingPaperRim effect={effect} key={effect.instanceId} path={effectivePath} />)}
       {/* Fibres sit above an optional outline, otherwise that solid stroke hides the scan. */}
       {tornEdge && <TornPaperEdge edgeAtlasUri={tornPaperEdgeAtlasUri} effect={tornEdge} fiberFringeUri={tornPaperFiberFringeUri} frame={frame} path={effectivePath} />}
@@ -297,8 +306,8 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
   );
 };
 
-const ImageLayerContent = ({ layer, assetUri, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ layer: Extract<Layer, { type: 'image' }>; assetUri?: string; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {
-  const content = <ImagePlaceholder layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
+const ImageLayerContent = ({ contentEffects, layer, assetUri, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {
+  const content = <ImagePlaceholder contentEffects={contentEffects} layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
   const clipped = clipPaths.reduceRight((child, points, index) => <Group key={`${index}-${points.length}`} clip={makePolygonPath(points)}>{child}</Group>, content);
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0 };
   const legacyMasked = layer.brushCutMask ? <BrushCutMaskedContent mask={layer.brushCutMask} offset={layer.brushCutMask.coordinateSpace === 'content' ? contentFrame : undefined}>{clipped}</BrushCutMaskedContent> : clipped;
@@ -485,7 +494,7 @@ const splitTextRuns = (text: string, cjkFont: ReturnType<typeof matchFont>, lati
   }, []);
 };
 
-const ImagePlaceholder = ({ layer, assetUri, proceduralPaper, proceduralSticker }: { layer: Extract<Layer, { type: 'image' }>; assetUri?: string; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {
+const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, proceduralSticker }: { contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {
   const image = useImage(assetUri);
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
   if (proceduralPaper !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralPaperLayer frame={contentFrame} paper={proceduralPaper} patternImageUri={assetUri} /></Group>;
@@ -496,7 +505,7 @@ const ImagePlaceholder = ({ layer, assetUri, proceduralPaper, proceduralSticker 
   if (assetUri !== undefined && image === null) return null;
   return (
   <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }, { translateX: -layer.crop.x * contentFrame.width / layer.crop.width }, { translateY: -layer.crop.y * contentFrame.height / layer.crop.height }, { scaleX: 1 / layer.crop.width }, { scaleY: 1 / layer.crop.height }]}>
-    {image ? <SkiaImage image={image} x={0} y={0} width={contentFrame.width} height={contentFrame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
+    {image && contentEffects.some(isRuntimePrintEffect) ? <PrintEffectImage effects={contentEffects} frame={contentFrame} image={image} /> : image ? <SkiaImage image={image} x={0} y={0} width={contentFrame.width} height={contentFrame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
   </Group>
   );
 };
@@ -695,6 +704,180 @@ export const compileEffectPlan = (effects: readonly Effect[]): EffectPlan => {
   const plan: Record<EffectStage, Effect[]> = { geometry: [], underlay: [], content: [], overlay: [], 'post-composite': [] };
   effects.forEach((effect) => { if (effect.enabled) plan[effect.stage].push(effect); });
   return plan;
+};
+
+export type ContentEffectEvaluation = Readonly<{
+  effects: readonly Effect[];
+  requiresDerivedAsset: boolean;
+  rendererKinds: readonly ('shader' | 'derived')[];
+}>;
+
+const contentRendererKind = (effect: Effect): 'shader' | 'derived' | null => {
+  if (effect.type === 'print.cyanotype' || effect.type === 'print.screen' || effect.type === 'print.riso') return 'shader';
+  if (effect.type === 'art.botanical-plate' || effect.type === 'art.pixel-embroidery' || effect.type === 'art.matisse-cutout') return 'derived';
+  return null;
+};
+
+/**
+ * Content effects are evaluated after source masking/cropping and before every
+ * overlay. Recipes consume this stable, ordered plan without ever mutating the
+ * source asset in a Draft; unsupported recipes remain transparent pass-throughs.
+ */
+export const evaluateContentEffects = (effects: readonly Effect[]): ContentEffectEvaluation => {
+  const rendererKinds = effects.map(contentRendererKind).filter((kind): kind is 'shader' | 'derived' => kind !== null);
+  return { effects, rendererKinds, requiresDerivedAsset: rendererKinds.includes('derived') };
+};
+
+const ContentEffectStage = ({ children, evaluation }: Readonly<{ children: ReactNode; evaluation: ContentEffectEvaluation }>) => {
+  // The explicit stage is live now, while individual recipes land in separate
+  // passes. Keeping the group also preserves its local coordinate system.
+  void evaluation;
+  return <Group>{children}</Group>;
+};
+
+type CyanotypePalette = Readonly<{ ink: string; paper: string }>;
+
+const cyanotypePalettes: Readonly<Record<string, CyanotypePalette>> = {
+  prussian: { ink: '#2B3E8C', paper: '#F8F9F6' },
+  teal: { ink: '#1C6976', paper: '#F4F7F1' },
+  violet: { ink: '#584592', paper: '#F6F2F7' },
+  rose: { ink: '#9F4868', paper: '#F8F1EE' },
+  mono: { ink: '#363A3E', paper: '#F3F2ED' },
+};
+
+const cyanotypePaper = (effect: Effect, palette: CyanotypePalette): string => {
+  if (effect.params.paper === 'warm') return '#F4EBD9';
+  if (effect.params.paper === 'aged') return '#E4D5B7';
+  if (effect.params.paper === 'gray') return '#DCE0DD';
+  return palette.paper;
+};
+
+const hexChannels = (hex: string): readonly [number, number, number] => {
+  const value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex.slice(1) : '000000';
+  return [parseInt(value.slice(0, 2), 16) / 255, parseInt(value.slice(2, 4), 16) / 255, parseInt(value.slice(4, 6), 16) / 255];
+};
+
+/* The source child is sampled directly, so its crop transform remains exactly
+ * the same as an unfiltered image layer. Ink coverage is the effect, not a tint. */
+const cyanotypeRuntimeEffect = Skia.RuntimeEffect.Make(`
+  uniform shader source;
+  uniform float3 paper;
+  uniform float3 ink;
+  uniform float contrast;
+  uniform float gamma;
+  uniform float depth;
+  uniform float grain;
+  uniform float seed;
+  uniform float2 size;
+
+  float hash(float2 p) { return fract(sin(dot(p + seed, float2(127.1, 311.7))) * 43758.5453123); }
+  float noise(float2 p) {
+    float2 i = floor(p); float2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + float2(1.0, 0.0)), f.x), mix(hash(i + float2(0.0, 1.0)), hash(i + float2(1.0, 1.0)), f.x), f.y) - 0.5;
+  }
+
+  half4 main(float2 p) {
+    half4 sampled = source.eval(p);
+    if (sampled.a <= 0.0) return sampled;
+    float3 rgb = sampled.rgb / max(float(sampled.a), 0.0001);
+    float luminance = dot(rgb, float3(0.2126, 0.7152, 0.0722));
+    float exposed = clamp((luminance - 0.5) * contrast + 0.5, 0.0, 1.0);
+    float tone = 1.0 - exposed;
+    float cloud = noise(p / 96.0) * 0.08 * grain;
+    float pulp = noise(p / float2(23.0, 19.0)) * 0.048 * grain;
+    float fibre = (noise(p * float2(0.18, 0.05)) * 0.65 + noise(p * float2(0.04, -0.22)) * 0.35) * 0.052 * grain;
+    float sediment = (noise(p / 7.5) + hash(floor(p))) * 0.075 * grain;
+    float ordered = (hash(mod(floor(p), 4.0)) - 0.5) * 0.11 * grain;
+    float coverage = pow(clamp(tone + ordered + sediment * (0.34 + tone * 0.62) + cloud * 0.28, 0.0, 1.0), gamma) * depth;
+    float edge = min(min(p.x, p.y), min(size.x - p.x, size.y - p.y));
+    coverage = clamp(coverage - (1.0 - smoothstep(0.0, max(12.0, min(size.x, size.y) * 0.045), edge)) * 0.018 * grain + pulp * tone * 0.24, 0.0, 1.0);
+    float3 paperTone = clamp(paper + cloud + pulp + fibre * (1.0 - coverage * 0.48), 0.0, 1.0);
+    float3 result = mix(paperTone, ink, coverage);
+    return half4(half3(result) * sampled.a, sampled.a);
+  }
+`);
+
+const screenRuntimeEffect = Skia.RuntimeEffect.Make(`
+  uniform shader source; uniform float3 paper; uniform float3 inkA; uniform float3 inkB;
+  uniform float contrast; uniform float dotSize; uniform float offset; uniform float strength;
+  float tone(half4 c) { float3 rgb = c.rgb / max(float(c.a), 0.0001); return 1.0 - clamp((dot(rgb, float3(0.2126, 0.7152, 0.0722)) - 0.5) * contrast + 0.5, 0.0, 1.0); }
+  float dotMask(float2 p, float coverage) { if (dotSize <= 0.0) return coverage; float2 cell = fract(p / dotSize) - 0.5; float r = sqrt(coverage) * 0.46; return length(cell) < r ? 1.0 : 0.0; }
+  half4 main(float2 p) {
+    half4 sampled = source.eval(p); if (sampled.a <= 0.0) return sampled;
+    // Shadow and highlight plates deliberately occupy different tonal bands.
+    float shadowTone = tone(source.eval(p - float2(offset, offset * 0.35)));
+    float lightTone = tone(source.eval(p + float2(offset, -offset * 0.45)));
+    float a = dotMask(p, smoothstep(0.08, 0.9, shadowTone));
+    float b = dotMask(p + float2(dotSize * 0.5, dotSize * 0.32), smoothstep(0.12, 0.88, 1.0 - lightTone));
+    float3 result = mix(paper, inkA, clamp(a * strength, 0.0, 1.0));
+    result = mix(result, inkB, clamp(b * strength * 0.72, 0.0, 1.0));
+    return half4(half3(result) * sampled.a, sampled.a);
+  }
+`);
+
+const risoRuntimeEffect = Skia.RuntimeEffect.Make(`
+  uniform shader source; uniform float3 paper; uniform float3 inkA; uniform float3 inkB; uniform float3 inkC;
+  uniform float contrast; uniform float offset; uniform float density; uniform float grain; uniform float threeColor; uniform float seed;
+  float hash(float2 p) { return fract(sin(dot(p + seed, float2(41.13, 289.91))) * 24634.6345); }
+  float tone(half4 c) { float3 rgb = c.rgb / max(float(c.a), 0.0001); return 1.0 - clamp((dot(rgb, float3(0.2126, 0.7152, 0.0722)) - 0.5) * contrast + 0.5, 0.0, 1.0); }
+  float inkNoise(float2 p, float salt) { return (hash(floor(p * (1.0 + salt * 0.07)) + salt * 71.0) - 0.5) * 0.18 * grain; }
+  half4 main(float2 p) {
+    half4 sampled = source.eval(p); if (sampled.a <= 0.0) return sampled;
+    // Each stencil is a separate tonal decision and separate ink-noise field.
+    float darkTone = tone(source.eval(p - float2(offset, offset * 0.45)));
+    float midTone = tone(source.eval(p + float2(offset * 0.7, -offset)));
+    float lightTone = tone(source.eval(p + float2(-offset * 0.35, offset * 0.65)));
+    float dark = clamp(smoothstep(0.34, 0.93, darkTone) + inkNoise(p, 1.0), 0.0, 1.0) * density;
+    float mid = clamp(smoothstep(0.12, 0.52, midTone) * (1.0 - smoothstep(0.62, 0.94, midTone)) + inkNoise(p, 2.0), 0.0, 1.0) * density;
+    float light = clamp(smoothstep(0.12, 0.82, 1.0 - lightTone) + inkNoise(p, 3.0), 0.0, 1.0) * density * threeColor;
+    float3 result = mix(paper, inkA, clamp(dark, 0.0, 1.0));
+    result = mix(result, inkB, clamp(mid * 0.88, 0.0, 1.0));
+    result = mix(result, inkC, clamp(light * 0.62, 0.0, 1.0));
+    return half4(half3(result) * sampled.a, sampled.a);
+  }
+`);
+
+const screenPalettes: Readonly<Record<string, readonly [string, string]>> = {
+  'red-blue': ['#D94E4A', '#2753A4'], 'orange-blue': ['#E77936', '#2464A2'], 'pink-green': ['#D9558B', '#397D63'], 'black-cream': ['#222222', '#E9D8AF'], 'purple-yellow': ['#70479B', '#D5A832'],
+};
+const risoPalettes: Readonly<Record<string, readonly [string, string, string]>> = {
+  'pink-blue': ['#E65C8E', '#355EAD', '#F3C854'], 'orange-teal': ['#E77638', '#167E81', '#E6C54F'], 'purple-yellow': ['#70469B', '#D9AE35', '#E66C72'], 'red-black': ['#C74642', '#242428', '#E5BE45'], 'green-pink': ['#4E8A66', '#DA628E', '#E8C44B'],
+};
+
+const isTextureRecipe = (effect: Effect): boolean => ['material.grain', 'print.cyanotype', 'print.screen', 'print.riso', 'art.botanical-plate', 'art.pixel-embroidery', 'art.matisse-cutout'].includes(effect.type);
+const isRuntimePrintEffect = (effect: Effect): boolean => effect.type === 'print.cyanotype' || effect.type === 'print.screen' || effect.type === 'print.riso';
+const sourceShader = (frame: { width: number; height: number }, image: NonNullable<ReturnType<typeof useImage>>) => <ImageShader fit="cover" image={image} rect={{ x: 0, y: 0, width: frame.width, height: frame.height }} tx="clamp" ty="clamp" />;
+
+const cyanotypeShader = (effect: Effect, child: ReactNode, frame: { width: number; height: number }) => {
+  const palette = cyanotypePalettes[stringParam(effect, 'tone')] ?? cyanotypePalettes.prussian;
+  const intensity = effect.params.intensity === 'soft' ? { contrast: 1.12, gamma: 0.96, depth: 0.82 } : effect.params.intensity === 'deep' ? { contrast: 1.42, gamma: 0.76, depth: 1.16 } : { contrast: 1.28, gamma: 0.84, depth: 1 };
+  const grain = effect.params.grain === 'low' ? 0.6 : effect.params.grain === 'high' ? 1.65 : 1;
+  return cyanotypeRuntimeEffect ? <Shader key={effect.instanceId} source={cyanotypeRuntimeEffect} uniforms={{ paper: hexChannels(cyanotypePaper(effect, palette)), ink: hexChannels(palette.ink), ...intensity, grain, seed: numberParam(effect, 'seed'), size: { x: frame.width, y: frame.height } }}>{child}</Shader> : child;
+};
+
+const screenShader = (effect: Effect, child: ReactNode) => {
+  const [inkA, inkB] = screenPalettes[stringParam(effect, 'palette')] ?? screenPalettes['red-blue'];
+  const strength = effect.params.strength === 'soft' ? { contrast: 1.04, strength: 0.68 } : effect.params.strength === 'bold' ? { contrast: 1.38, strength: 1 } : { contrast: 1.2, strength: 0.84 };
+  const dotSize = effect.params.halftone === 'fine' ? 4 : effect.params.halftone === 'medium' ? 7 : effect.params.halftone === 'coarse' ? 12 : 0;
+  const offset = effect.params.offset === 'slight' ? 1.8 : effect.params.offset === 'strong' ? 4.2 : 0;
+  return screenRuntimeEffect ? <Shader key={effect.instanceId} source={screenRuntimeEffect} uniforms={{ paper: [0.965, 0.95, 0.9], inkA: hexChannels(inkA), inkB: hexChannels(inkB), ...strength, dotSize, offset }}>{child}</Shader> : child;
+};
+
+const risoShader = (effect: Effect, child: ReactNode) => {
+  const [inkA, inkB, inkC] = risoPalettes[stringParam(effect, 'palette')] ?? risoPalettes['pink-blue'];
+  const density = effect.params.ink === 'light' ? 0.72 : effect.params.ink === 'dense' ? 1.13 : 0.92;
+  const offset = effect.params.offset === 'slight' ? 2.4 : effect.params.offset === 'strong' ? 5.2 : 0;
+  const grain = effect.params.grain === 'low' ? 0.5 : effect.params.grain === 'high' ? 1.5 : 1;
+  return risoRuntimeEffect ? <Shader key={effect.instanceId} source={risoRuntimeEffect} uniforms={{ paper: [0.96, 0.93, 0.85], inkA: hexChannels(inkA), inkB: hexChannels(inkB), inkC: hexChannels(inkC), contrast: 1.15, offset, density, grain, threeColor: effect.params.mode === 'three' ? 1 : 0, seed: numberParam(effect, 'seed') }}>{child}</Shader> : child;
+};
+
+const PrintEffectImage = ({ effects, frame, image }: Readonly<{ effects: readonly Effect[]; frame: { width: number; height: number }; image: NonNullable<ReturnType<typeof useImage>> }>) => {
+  const shader = effects.filter(isRuntimePrintEffect).reduce<ReactNode>((child, effect) => {
+    if (effect.type === 'print.cyanotype') return cyanotypeShader(effect, child, frame);
+    if (effect.type === 'print.screen') return screenShader(effect, child);
+    return risoShader(effect, child);
+  }, sourceShader(frame, image));
+  return <Rect x={0} y={0} width={frame.width} height={frame.height}>{shader}</Rect>;
 };
 
 const effectParam = (effect: Effect | undefined, path: string): unknown => path.split('.').reduce<unknown>((value, key) =>

@@ -147,13 +147,19 @@ test('a structurally valid future effect survives validation for a newer rendere
   assert.deepEqual(core.validateDraft(draft), []);
 });
 
-test('structure effects retain portable catalog parameters', () => {
+test('catalog effects retain portable catalog parameters', () => {
   const effects = [
     { instanceId: 'corner', type: 'shape.round-corners', version: 1, enabled: true, stage: 'geometry', params: { radius: 24 } },
     { instanceId: 'tape', type: 'attachment.tape', version: 1, enabled: true, stage: 'overlay', params: { placement: 'double-corners', color: '#E9D28A', opacity: 0.72 } },
     { instanceId: 'float', type: 'paper.float', version: 1, enabled: true, stage: 'underlay', params: { color: '#392F2A', opacity: 0.18, blur: 30, offset: { x: 12, y: 24 } } },
     { instanceId: 'lace', type: 'frame.lace-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', opacity: 0.95, frameId: 'classic-doily', scale: 0.82, contentScale: 1.35 } },
     { instanceId: 'foil', type: 'frame.foil-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFFFFF', opacity: 1, frameId: 'foil-crumpled', scale: 0.82, contentScale: 1.35 } },
+    { instanceId: 'cyanotype', type: 'print.cyanotype', version: 1, enabled: true, stage: 'content', params: { tone: 'prussian', intensity: 'standard', paper: 'cool', grain: 'medium', seed: 23 } },
+    { instanceId: 'screen', type: 'print.screen', version: 1, enabled: true, stage: 'content', params: { palette: 'red-blue', strength: 'standard', halftone: 'medium', offset: 'slight', seed: 23 } },
+    { instanceId: 'riso', type: 'print.riso', version: 1, enabled: true, stage: 'content', params: { palette: 'pink-blue', mode: 'duo', ink: 'standard', offset: 'slight', grain: 'medium', seed: 23 } },
+    { instanceId: 'botanical', type: 'art.botanical-plate', version: 1, enabled: true, stage: 'content', params: { tone: 'sage', detail: 'etched', frame: 'on', seed: 23 } },
+    { instanceId: 'embroidery', type: 'art.pixel-embroidery', version: 1, enabled: true, stage: 'content', params: { grid: 72, colors: 8, style: 'pixel', seed: 23 } },
+    { instanceId: 'matisse', type: 'art.matisse-cutout', version: 1, enabled: true, stage: 'content', params: { detail: 64, palette: 'vivid', seed: 23 } },
   ];
   assert.deepEqual(core.validateDraft({ ...makeDraft(), layers: [{ ...makeImage(), effects }] }), []);
 });
