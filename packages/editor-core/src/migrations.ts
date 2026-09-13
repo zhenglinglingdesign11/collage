@@ -10,16 +10,37 @@ export type MigrationResult =
  * import boundary for untrusted stored JSON prevents ad-hoc migrations later.
  */
 export const migrateDraft = (raw: unknown): MigrationResult => {
-  if (!isRecord(raw) || (raw.schemaVersion !== 1 && raw.schemaVersion !== 2 && raw.schemaVersion !== DRAFT_SCHEMA_VERSION)) {
+  if (!isRecord(raw) || (raw.schemaVersion !== 1 && raw.schemaVersion !== 2 && raw.schemaVersion !== 3 && raw.schemaVersion !== DRAFT_SCHEMA_VERSION)) {
     return { ok: false, issues: [{ path: 'schemaVersion', message: 'Unsupported or missing draft schema version.' }] };
   }
   // v2 makes visibility expressions the only persisted cut representation.
   // Old paths and brush masks are converted at this one import boundary, so
   // renderers and future commands never need to guess which system owns a
   // layer's visible pixels.
-  const draft = normalizeBrushLayers(normalizeLegacyMasks(normalizeTextLayers(raw))) as Draft;
+  const draft = normalizeEffects(normalizeBrushLayers(normalizeLegacyMasks(normalizeTextLayers(raw)))) as Draft;
   const issues = validateDraft(draft);
   return issues.length === 0 ? { ok: true, draft, migrated: JSON.stringify(raw) !== JSON.stringify(draft) } : { ok: false, issues };
+};
+
+/** v4 gives effects stable instance identities, explicit stages and versions. */
+const normalizeEffects = (raw: Record<string, unknown>): Record<string, unknown> => {
+  if (!Array.isArray(raw.layers)) return raw.schemaVersion === DRAFT_SCHEMA_VERSION ? raw : { ...raw, schemaVersion: DRAFT_SCHEMA_VERSION };
+  let changed = raw.schemaVersion !== DRAFT_SCHEMA_VERSION;
+  const layers = raw.layers.map((layer) => {
+    if (!isRecord(layer) || !Array.isArray(layer.effects)) return layer;
+    const effects = layer.effects.map((effect, index) => {
+      if (!isRecord(effect)) return effect;
+      if (typeof effect.instanceId === 'string' && typeof effect.type === 'string') return effect;
+      const instanceId = `legacy-effect-${typeof layer.id === 'string' ? layer.id : 'layer'}-${index}`;
+      if (effect.id === 'shadow') return { instanceId, type: 'light.shadow', version: 1, enabled: true, stage: 'underlay', params: { color: effect.color, opacity: effect.opacity, blur: effect.blur, offset: effect.offset } };
+      if (effect.id === 'outline') return { instanceId, type: 'edge.outline', version: 1, enabled: true, stage: 'overlay', params: { color: effect.color, width: effect.width } };
+      if (effect.id === 'torn-edge') return { instanceId, type: 'paper.torn-edge', version: 1, enabled: true, stage: 'geometry', params: { seed: effect.seed, intensity: effect.intensity } };
+      return effect;
+    });
+    changed ||= JSON.stringify(effects) !== JSON.stringify(layer.effects);
+    return effects === layer.effects ? layer : { ...layer, effects };
+  });
+  return changed ? { ...raw, schemaVersion: DRAFT_SCHEMA_VERSION, layers } : raw;
 };
 
 const normalizeLegacyMasks = (raw: Record<string, unknown>): Record<string, unknown> => {

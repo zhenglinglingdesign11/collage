@@ -1,11 +1,12 @@
-import type { BrushDefinition, BrushPoint, BrushStroke, Draft, Layer, VisibilityMask } from './document';
+import type { BrushDefinition, BrushPoint, BrushStroke, Draft, Effect, EffectTrack, EffectValue, Layer, VisibilityMask } from './document';
+import { effectDefinitionFor, effectValueDepth, isEffectSupportedByLayer } from './effects';
 import { isFinitePoint, isFiniteSize, type Size } from './geometry';
 
 export type ValidationIssue = Readonly<{ path: string; message: string }>;
 
 export const validateDraft = (draft: Draft): readonly ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
-  if (draft.schemaVersion !== 3) issues.push({ path: 'schemaVersion', message: 'Unsupported draft schema version.' });
+  if (draft.schemaVersion !== 4) issues.push({ path: 'schemaVersion', message: 'Unsupported draft schema version.' });
   if (!draft.id) issues.push({ path: 'id', message: 'Draft id is required.' });
   if (!isFiniteSize(draft.canvas.size)) issues.push({ path: 'canvas.size', message: 'Canvas size must be positive finite values.' });
   if (draft.canvas.backgroundAsset && (!draft.canvas.backgroundAsset.id || !draft.canvas.backgroundAsset.kind)) {
@@ -26,6 +27,7 @@ const validateLayer = (layer: Layer, index: number, ids: Set<string>, issues: Va
   }
   if (!Number.isFinite(layer.opacity) || layer.opacity < 0 || layer.opacity > 1) issues.push({ path: `${path}.opacity`, message: 'Opacity must be between 0 and 1.' });
   if (!isFiniteSize(layer.frame)) issues.push({ path: `${path}.frame`, message: 'Layer frame must be positive finite values.' });
+  validateEffects(layer, `${path}.effects`, issues);
   if (layer.type === 'text') {
     if (!layer.fontId || !layer.fontVariantId) issues.push({ path: `${path}.font`, message: 'Text layers must retain stable font and variant ids.' });
     if (!Number.isFinite(layer.fontSize) || layer.fontSize < 12 || layer.fontSize > 320) issues.push({ path: `${path}.fontSize`, message: 'Text font size must be within the supported range.' });
@@ -52,6 +54,64 @@ const validateLayer = (layer: Layer, index: number, ids: Set<string>, issues: Va
     if (layer.strokes.length === 0) issues.push({ path: `${path}.strokes`, message: 'Brush layers must contain at least one stroke.' });
     layer.strokes.forEach((stroke, strokeIndex) => validateBrushStroke(stroke, layer.frame, `${path}.strokes[${strokeIndex}]`, issues));
   }
+};
+
+const validateEffects = (layer: Layer, path: string, issues: ValidationIssue[]): void => {
+  if (layer.effects.length > 24) issues.push({ path, message: 'Layers may contain at most 24 effects.' });
+  const instanceIds = new Set<string>();
+  const typeCounts = new Map<string, number>();
+  layer.effects.forEach((effect, index) => {
+    const effectPath = `${path}[${index}]`;
+    if (!effect.instanceId || instanceIds.has(effect.instanceId)) issues.push({ path: `${effectPath}.instanceId`, message: 'Effect instance ids must be unique and non-empty.' });
+    instanceIds.add(effect.instanceId);
+    const definition = effectDefinitionFor(effect.type);
+    if (!definition) {
+      // Forward-compatible effects remain in the Draft even if this app
+      // cannot edit or render them. Structural limits still protect Core.
+      if (!effect.type || effect.type.length > 128 || !Number.isInteger(effect.version) || effect.version < 1 || !['geometry', 'underlay', 'content', 'overlay', 'post-composite'].includes(effect.stage) || typeof effect.enabled !== 'boolean') {
+        issues.push({ path: effectPath, message: 'Unknown effects must retain a valid portable envelope.' });
+      }
+      if (Object.keys(effect.params).length > 24 || Object.values(effect.params).some((value) => effectValueDepth(value) > 8)) issues.push({ path: `${effectPath}.params`, message: 'Effect parameters exceed portable document limits.' });
+      validateEffectInputs(effect, `${effectPath}.inputs`, issues);
+      validateEffectAnimation(effect.animation, `${effectPath}.animation`, issues);
+      return;
+    }
+    typeCounts.set(effect.type, (typeCounts.get(effect.type) ?? 0) + 1);
+    if (!Number.isInteger(effect.version) || !isEffectSupportedByLayer(effect, layer)) issues.push({ path: effectPath, message: 'Effect version, stage, or layer compatibility is invalid.' });
+    if (!definition.validateParams(effect.params)) issues.push({ path: `${effectPath}.params`, message: 'Effect parameters do not match the catalog definition.' });
+    if (Object.keys(effect.params).length > 24 || Object.values(effect.params).some((value) => effectValueDepth(value) > 8)) issues.push({ path: `${effectPath}.params`, message: 'Effect parameters exceed portable document limits.' });
+    validateEffectInputs(effect, `${effectPath}.inputs`, issues);
+    validateEffectAnimation(effect.animation, `${effectPath}.animation`, issues);
+  });
+  typeCounts.forEach((count, type) => {
+    const maximum = effectDefinitionFor(type)?.maxInstances;
+    if (maximum !== undefined && count > maximum) issues.push({ path, message: `${type} may only be applied ${maximum} time(s) per layer.` });
+  });
+};
+
+const validateEffectInputs = (effect: Effect, path: string, issues: ValidationIssue[]): void => {
+  if (!effect.inputs) return;
+  if (Object.keys(effect.inputs).length > 8) issues.push({ path, message: 'Effects may reference at most eight assets.' });
+  Object.entries(effect.inputs).forEach(([key, asset]) => {
+    if (!key || !asset.id || !asset.kind) issues.push({ path: `${path}.${key}`, message: 'Effect inputs must be stable asset references.' });
+  });
+};
+
+const validateEffectAnimation = (animation: Readonly<Record<string, EffectTrack>> | undefined, path: string, issues: ValidationIssue[]): void => {
+  if (!animation) return;
+  if (Object.keys(animation).length > 12) issues.push({ path, message: 'Effects may animate at most twelve parameters.' });
+  Object.entries(animation).forEach(([key, track]) => {
+    if (!['step', 'linear', 'cubic-bezier'].includes(track.interpolation) || track.keyframes.length === 0 || track.keyframes.length > 120) {
+      issues.push({ path: `${path}.${key}`, message: 'Effect tracks require a bounded supported interpolation and keyframes.' });
+      return;
+    }
+    let previous = -1;
+    track.keyframes.forEach((frame, index) => {
+      if (!Number.isFinite(frame.timeMs) || frame.timeMs < 0 || frame.timeMs <= previous || effectValueDepth(frame.value) > 8) issues.push({ path: `${path}.${key}.keyframes[${index}]`, message: 'Effect keyframes need strictly increasing finite times and portable values.' });
+      previous = frame.timeMs;
+      if (frame.easing && (frame.easing.length !== 4 || frame.easing.some((value) => !Number.isFinite(value)))) issues.push({ path: `${path}.${key}.keyframes[${index}].easing`, message: 'Effect cubic-bezier easing needs four finite values.' });
+    });
+  });
 };
 
 export const validateBrushDefinition = (definition: BrushDefinition): readonly ValidationIssue[] => {

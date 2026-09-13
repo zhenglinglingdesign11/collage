@@ -22,7 +22,7 @@ import {
 } from '@shopify/react-native-skia';
 import { useMemo, type ReactNode } from 'react';
 import { visibleBoundsForLayer } from '@journalcollage/editor-core';
-import type { BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
+import type { BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, EffectStage, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
@@ -132,6 +132,9 @@ type SkiaEditorSceneProps = Readonly<{
   /** Canvas-owned paper/background input resolved from Draft.canvas.backgroundAsset. */
   canvasBackgroundUri?: string;
   canvasBackgroundPaper?: ProceduralPaperPaint;
+  /** Product-owned torn-paper scans. The effect contract stays asset-free. */
+  tornPaperEdgeAtlasUri?: string;
+  tornPaperFiberFringeUri?: string;
   showSelection?: boolean;
   /** Preview-only stage color. It is deliberately not stored in the Draft. */
   surfaceColor?: string;
@@ -145,7 +148,7 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -163,6 +166,8 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
           fontUri={layer.type === 'text' ? fontUris[layer.fontVariantId] : undefined}
           fontSupportsCjk={layer.type === 'text' ? fontSupportsCjk[layer.fontVariantId] : undefined}
+          tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri}
+          tornPaperFiberFringeUri={tornPaperFiberFringeUri}
           straightCutPreview={straightCutPreview?.layerId === layer.id ? straightCutPreview : null}
           brushCutPreview={brushCutPreview?.layerId === layer.id ? brushCutPreview : null}
           visibilityMaskPreview={visibilityMaskPreview?.layerId === layer.id ? visibilityMaskPreview : null}
@@ -196,23 +201,39 @@ type SkiaLayerProps = Readonly<{
   proceduralSticker?: ProceduralStickerPaint;
   fontUri?: string;
   fontSupportsCjk?: boolean;
+  tornPaperEdgeAtlasUri?: string;
+  tornPaperFiberFringeUri?: string;
   straightCutPreview: StraightCutPreview | null;
   brushCutPreview: BrushCutPreview | null;
   visibilityMaskPreview: VisibilityMaskPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, straightCutPreview, brushCutPreview, visibilityMaskPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, straightCutPreview, brushCutPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
-  const tornEdge = effectFor(layer.effects, 'torn-edge');
-  const shadow = effectFor(layer.effects, 'shadow');
-  const outline = effectFor(layer.effects, 'outline');
+  const effectPlan = useMemo(() => compileEffectPlan(layer.effects), [layer.effects]);
+  const visibilityMask = layer.type === 'image' ? layer.visibilityMask : undefined;
+  const tornEdge = effectPlan.geometry.find((effect) => effect.type === 'paper.torn-edge');
+  const corners = effectPlan.geometry.find((effect) => effect.type === 'shape.round-corners');
+  const shadows = effectPlan.underlay.filter((effect) => effect.type === 'light.shadow');
+  const floatingEffects = effectPlan.underlay.filter((effect) => effect.type === 'paper.float');
+  const attachments = effectPlan.overlay.filter((effect) => effect.type === 'attachment.tape');
   const shapePath = useMemo(
-    () => makeLayerPath(frame.width, frame.height, tornEdge?.seed, tornEdge?.intensity),
-    [frame.height, frame.width, tornEdge?.intensity, tornEdge?.seed],
+    () => makeLayerPath(frame.width, frame.height, numberParam(tornEdge, 'seed'), numberParam(tornEdge, 'intensity')),
+    [frame.height, frame.width, tornEdge],
   );
+  const geometryPath = useMemo(() => {
+    if (!corners) return shapePath;
+    const rounded = Skia.Path.Make();
+    rounded.addRRect({ rect: { x: 0, y: 0, width: frame.width, height: frame.height }, rx: numberParam(corners, 'radius'), ry: numberParam(corners, 'radius') });
+    return Skia.Path.MakeFromOp(shapePath, rounded, PathOp.Intersect) ?? shapePath;
+  }, [corners, frame.height, frame.width, shapePath]);
+  const effectivePath = useMemo(() => {
+    if (!visibilityMask) return geometryPath;
+    return Skia.Path.MakeFromOp(geometryPath, compileVisibilityMaskPath(visibilityMask, frame), PathOp.Intersect) ?? geometryPath;
+  }, [frame, geometryPath, visibilityMask]);
   const cutPaths = useMemo(() => layer.type !== 'image' ? [] : layer.clipPaths ?? (layer.clipPath ? [layer.clipPath] : []), [layer]);
   const previewPath = useMemo(() => straightCutPreview ? (straightCutPreview.style === 'wave' ? makeWaveCutPath(straightCutPreview.start, straightCutPreview.end, frame) : makeStraightCutPath(straightCutPreview.start, straightCutPreview.end)) : null, [frame, straightCutPreview]);
   const visibilityPreviewPath = useMemo(() => visibilityMaskPreview ? compileVisibilityMaskPath(visibilityMaskPreview.mask, frame) : null, [frame, visibilityMaskPreview]);
@@ -220,8 +241,10 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
 
   return (
     <Group transform={transform} origin={{ x: frame.width / 2, y: frame.height / 2 }} opacity={layer.opacity}>
-      {shadow && <Group transform={[{ translateX: shadow.offset.x }, { translateY: shadow.offset.y }]} opacity={shadow.opacity}><Path path={shapePath} color={shadow.color}><BlurMask blur={shadow.blur} style="normal" /></Path></Group>}
-      <Group clip={shapePath}>
+      {shadows.map((shadow) => <Group key={shadow.instanceId} transform={[{ translateX: numberParam(shadow, 'offset.x') }, { translateY: numberParam(shadow, 'offset.y') }]} opacity={numberParam(shadow, 'opacity')}><Path path={effectivePath} color={stringParam(shadow, 'color')}><BlurMask blur={numberParam(shadow, 'blur')} style="normal" /></Path></Group>)}
+      {floatingEffects.map((effect) => <FloatingPaperUnderlay effect={effect} key={effect.instanceId} path={effectivePath} />)}
+      {attachments.map((effect) => <TapeContactShadow effect={effect} key={effect.instanceId} path={effectivePath} />)}
+      <Group clip={effectivePath}>
         {layer.type === 'image' && <ImageLayerContent layer={layer} assetUri={assetUri} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
         {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
         {layer.type === 'brush' && <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />}
@@ -238,7 +261,10 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
       {visibilityPreviewPath && <><Path path={visibilityPreviewPath} color="rgba(217,74,56,0.18)" /><Path path={visibilityPreviewPath} color="#111111" style="stroke" strokeWidth={4} />
         {visibilityPreviewBounds && <><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /></>}
       </>}
-      {outline && <Path path={shapePath} color={outline.color} style="stroke" strokeWidth={outline.width} />}
+      {effectPlan.overlay.map((effect) => <OverlayEffect effect={effect} frame={frame} key={effect.instanceId} path={effectivePath} />)}
+      {floatingEffects.map((effect) => <FloatingPaperRim effect={effect} key={effect.instanceId} path={effectivePath} />)}
+      {/* Fibres sit above an optional outline, otherwise that solid stroke hides the scan. */}
+      {tornEdge && <TornPaperEdge edgeAtlasUri={tornPaperEdgeAtlasUri} effect={tornEdge} fiberFringeUri={tornPaperFiberFringeUri} frame={frame} path={effectivePath} />}
       {selectionBounds && (
         <>
           <Rect x={selectionBounds.x - 8} y={selectionBounds.y - 8} width={selectionBounds.width + 16} height={selectionBounds.height + 16} color="#111111" style="stroke" strokeWidth={6} />
@@ -640,7 +666,161 @@ const BrushStrokeContent = ({ brushAssetUri, definition, sampleSpacing, stroke }
   return <>{structuralSamples.map((sample) => <BowStamp color={color} image={stampImage} index={sample.index} key={sample.index} opacity={stroke.style.opacity} sample={sample} size={stroke.style.size} />)}</>;
 };
 
-const effectFor = <Id extends Effect['id']>(effects: readonly Effect[], id: Id): Extract<Effect, { id: Id }> | undefined => effects.find((effect): effect is Extract<Effect, { id: Id }> => effect.id === id);
+export type EffectPlan = Readonly<Record<EffectStage, readonly Effect[]>>;
+
+/**
+ * Renderer-only compilation of portable effect instances. Effects retain
+ * Draft order within a stage, while stage order is fixed by the scene.
+ */
+export const compileEffectPlan = (effects: readonly Effect[]): EffectPlan => {
+  const plan: Record<EffectStage, Effect[]> = { geometry: [], underlay: [], content: [], overlay: [], 'post-composite': [] };
+  effects.forEach((effect) => { if (effect.enabled) plan[effect.stage].push(effect); });
+  return plan;
+};
+
+const effectParam = (effect: Effect | undefined, path: string): unknown => path.split('.').reduce<unknown>((value, key) =>
+  value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>)[key] : undefined, effect?.params);
+const numberParam = (effect: Effect | undefined, path: string): number => {
+  const value = effectParam(effect, path);
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+};
+const stringParam = (effect: Effect | undefined, path: string): string => {
+  const value = effectParam(effect, path);
+  return typeof value === 'string' ? value : '#000000';
+};
+
+const OverlayEffect = ({ effect, frame, path }: Readonly<{ effect: Effect; frame: { width: number; height: number }; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  if (effect.type === 'edge.outline') return <Path path={path} color={stringParam(effect, 'color')} style="stroke" strokeWidth={numberParam(effect, 'width')} />;
+  if (effect.type === 'material.grain') return <GrainOverlay effect={effect} frame={frame} path={path} />;
+  if (effect.type === 'attachment.tape') return <TapeOverlay effect={effect} frame={frame} />;
+  if (effect.type === 'frame.lace-center') return <LaceOverlay effect={effect} frame={frame} path={path} />;
+  return null;
+};
+
+const GrainOverlay = ({ effect, frame, path }: Readonly<{ effect: Effect; frame: { width: number; height: number }; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  const grain = useMemo(() => makeGrainPath(frame.width, frame.height, numberParam(effect, 'seed')), [effect, frame.height, frame.width]);
+  return <Group clip={path}><Path path={grain} color={stringParam(effect, 'color')} opacity={numberParam(effect, 'intensity')} /></Group>;
+};
+
+/** A raised sheet needs three depth cues: occlusion, directional cast, and ambient falloff. */
+const FloatingPaperUnderlay = ({ effect, path }: Readonly<{ effect: Effect; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  const opacity = numberParam(effect, 'opacity');
+  const blur = Math.max(2, numberParam(effect, 'blur'));
+  const offsetX = numberParam(effect, 'offset.x');
+  const offsetY = numberParam(effect, 'offset.y');
+  const color = stringParam(effect, 'color');
+  return <>
+    {/* The narrow dark gap tells the eye that the cut-out is no longer touching the page. */}
+    <Group transform={[{ translateX: offsetX * 0.18 }, { translateY: offsetY * 0.2 }]} opacity={Math.min(0.36, opacity * 1.18 + 0.06)}>
+      <Path path={path} color={color}><BlurMask blur={Math.max(2.5, blur * 0.1)} style="normal" /></Path>
+    </Group>
+    {/* A darker offset mass creates the cast direction and perceived elevation. */}
+    <Group transform={[{ translateX: offsetX * 0.78 }, { translateY: offsetY * 0.82 }]} opacity={Math.min(0.3, opacity * 1.05 + 0.05)}>
+      <Path path={path} color={color}><BlurMask blur={Math.max(5, blur * 0.38)} style="normal" /></Path>
+    </Group>
+    {/* The far, soft tail anchors the object in the shared physical surface. */}
+    <Group transform={[{ translateX: offsetX * 1.22 }, { translateY: offsetY * 1.28 }]} opacity={Math.min(0.22, opacity * 0.88 + 0.035)}>
+      <Path path={path} color={color}><BlurMask blur={Math.max(10, blur * 1.38)} style="normal" /></Path>
+    </Group>
+  </>;
+};
+
+/** A warm, hairline underside makes the lifted rim readable even on a pale canvas. */
+const FloatingPaperRim = ({ effect, path }: Readonly<{ effect: Effect; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  const opacity = numberParam(effect, 'opacity');
+  const offsetX = numberParam(effect, 'offset.x');
+  const offsetY = numberParam(effect, 'offset.y');
+  return <Group transform={[{ translateX: offsetX * 0.1 }, { translateY: offsetY * 0.12 }]} opacity={Math.min(0.24, opacity * 0.82 + 0.035)}>
+    <Path path={path} color="#8A796B" style="stroke" strokeWidth={1.35} />
+  </Group>;
+};
+
+/** Tape pins the sheet down, so it gets a short, concentrated contact shadow. */
+const TapeContactShadow = ({ effect, path }: Readonly<{ effect: Effect; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  const opacity = numberParam(effect, 'opacity');
+  return <Group transform={[{ translateY: 3.5 }]} opacity={opacity * 0.16}>
+    <Path path={path} color="#2D251F"><BlurMask blur={5} style="normal" /></Path>
+  </Group>;
+};
+
+const TapeOverlay = ({ effect, frame }: Readonly<{ effect: Effect; frame: { width: number; height: number } }>) => {
+  const placement = stringParam(effect, 'placement');
+  const color = stringParam(effect, 'color'); const opacity = numberParam(effect, 'opacity');
+  const tape = (key: string, x: number, y: number, rotation: number) => {
+    const width = frame.width * 0.26; const height = Math.max(18, frame.height * 0.09);
+    return <Group key={key} origin={{ x: x + width / 2, y: y + height / 2 }} transform={[{ rotate: rotation }]} opacity={opacity}>
+      <Rect x={x + 1.2} y={y + 2.2} width={width} height={height} color="#53463B" opacity={0.14}><BlurMask blur={2.2} style="normal" /></Rect>
+      <Rect x={x} y={y} width={width} height={height} color={color} opacity={0.74} />
+      <Rect x={x + 1} y={y + 1} width={width - 2} height={Math.max(1, height * 0.18)} color="#FFFDF4" opacity={0.38} />
+      <Rect x={x} y={y} width={width} height={height} color="#9F8F73" opacity={0.18} style="stroke" strokeWidth={0.8} />
+      <Path path={makeTapeFibrePath(x, y, width, height)} color="#796B59" opacity={0.12} strokeCap="round" style="stroke" strokeWidth={0.65} />
+    </Group>;
+  };
+  if (placement === 'top') return tape('top', frame.width * 0.37, -frame.height * 0.025, -0.04);
+  if (placement === 'cross') return <>{tape('a', frame.width * 0.08, -frame.height * 0.025, 0.12)}{tape('b', frame.width * 0.08, -frame.height * 0.025, -0.12)}</>;
+  return <>{tape('left', frame.width * 0.04, -frame.height * 0.025, -0.12)}{tape('right', frame.width * 0.70, -frame.height * 0.025, 0.12)}</>;
+};
+
+const LaceOverlay = ({ effect, frame, path }: Readonly<{ effect: Effect; frame: { width: number; height: number }; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  const scale = numberParam(effect, 'scale'); const inset = Math.min(frame.width, frame.height) * (1 - scale) / 2;
+  const lace = useMemo(() => makeLacePath(frame.width, frame.height, inset), [frame.height, frame.width, inset]);
+  return <Group clip={path} opacity={numberParam(effect, 'opacity')}><Path path={lace} color={stringParam(effect, 'color')} style="stroke" strokeWidth={Math.max(3, Math.min(frame.width, frame.height) * 0.022)} /></Group>;
+};
+
+/**
+ * A torn edge is more than a clipped zig-zag. The same deterministic seed
+ * produces a compressed paper cross-section. Product surfaces can provide
+ * scanned paper-edge and fibre atlases; the deterministic paths remain as a
+ * compact fallback for hosts that do not bundle those assets.
+ */
+const TornPaperEdge = ({ edgeAtlasUri, effect, fiberFringeUri, frame, path }: Readonly<{ edgeAtlasUri?: string; effect: Effect; fiberFringeUri?: string; frame: { width: number; height: number }; path: ReturnType<typeof Skia.Path.Make> }>) => {
+  const intensity = Math.max(2, numberParam(effect, 'intensity'));
+  const fibres = useMemo(() => makeTornFibrePath(frame.width, frame.height, numberParam(effect, 'seed'), intensity), [effect, frame.height, frame.width, intensity]);
+  const edgeAtlas = useImage(edgeAtlasUri);
+  const fiberFringe = useImage(fiberFringeUri);
+  const edgeWidth = Math.max(0.7, Math.min(3, intensity * 0.055));
+  const hasScannedMaterial = edgeAtlas !== null || fiberFringe !== null;
+  return <>
+    {/* A hairline gives the scan a little depth; it must not become a white outline. */}
+    <Path path={path} color="#58483B" opacity={hasScannedMaterial ? 0.1 : 0.18} style="stroke" strokeWidth={edgeWidth} />
+    <Path path={path} color="#F5EBDD" opacity={hasScannedMaterial ? 0.2 : 0.52} style="stroke" strokeWidth={edgeWidth * 0.48} />
+    {/* Scanned transparent pixels intentionally cross the contour by a few px. */}
+    {edgeAtlas && <TornPaperAtlasBands image={edgeAtlas} frame={frame} intensity={intensity} opacity={0.46} seed={numberParam(effect, 'seed')} />}
+    {fiberFringe && <TornPaperAtlasBands image={fiberFringe} frame={frame} intensity={intensity} opacity={0.9} seed={numberParam(effect, 'seed') + 37} />}
+    <Group clip={path}>
+      {/* Preserve a little deterministic breakup where a host has no bundled scan. */}
+      <Path path={fibres.dark} color="#675042" opacity={hasScannedMaterial ? 0.1 : 0.25} strokeCap="round" style="stroke" strokeWidth={Math.max(0.55, edgeWidth * 0.2)} />
+      <Path path={fibres.light} color="#FFF9ED" opacity={hasScannedMaterial ? 0.16 : 0.68} strokeCap="round" style="stroke" strokeWidth={Math.max(0.5, edgeWidth * 0.15)} />
+      <Path path={fibres.pulp} color="#E7D6BD" opacity={hasScannedMaterial ? 0.2 : 0.62} />
+    </Group>
+  </>;
+};
+
+/**
+ * Repeats a transparent scanned atlas as short strips on all four edges.
+ * Multiple interrupted strips avoid the regular, printed-border look while
+ * letting the bitmap carry real cellulose fibres at editor and export scale.
+ */
+const TornPaperAtlasBands = ({ frame, image, intensity, opacity, seed }: Readonly<{ frame: { width: number; height: number }; image: NonNullable<ReturnType<typeof useImage>>; intensity: number; opacity: number; seed: number }>) => {
+  const random = useMemo(() => seeded(seed), [seed]);
+  const thickness = Math.max(11, Math.min(34, intensity * 1.05));
+  const bands = useMemo(() => {
+    const horizontal = (edge: 'top' | 'bottom') => Array.from({ length: 3 }, (_, index) => {
+      const width = frame.width * (0.27 + random() * 0.16);
+      return { edge, height: thickness * (0.72 + random() * 0.42), rotation: (random() - 0.5) * 0.05, width, x: Math.min(frame.width - width, random() * frame.width * 0.84), y: edge === 'top' ? -thickness * 0.52 : frame.height - thickness * 0.48 };
+    });
+    const vertical = (edge: 'left' | 'right') => Array.from({ length: 3 }, (_, index) => {
+      const width = frame.height * (0.25 + random() * 0.17);
+      return { edge, height: thickness * (0.72 + random() * 0.42), rotation: Math.PI / 2 + (random() - 0.5) * 0.05, width, x: edge === 'left' ? -width / 2 + thickness * 0.14 : frame.width - width / 2 - thickness * 0.14, y: Math.min(frame.height - width, random() * frame.height * 0.84) + width / 2 - thickness / 2 };
+    });
+    return [...horizontal('top'), ...horizontal('bottom'), ...vertical('left'), ...vertical('right')];
+  }, [frame.height, frame.width, random, thickness]);
+  return <>
+    {bands.map((band, index) => <Group key={`${band.edge}-${index}`} opacity={opacity * (0.8 + (index % 3) * 0.08)} origin={{ x: band.x + band.width / 2, y: band.y + band.height / 2 }} transform={[{ rotate: band.rotation }]}>
+      <SkiaImage image={image} x={band.x} y={band.y} width={band.width} height={band.height} fit="fill" />
+    </Group>)}
+  </>;
+};
 
 /** Stable product parameters become a renderer-specific edge path. */
 const makeLayerPath = (width: number, height: number, seed?: number, intensity?: number) => {
@@ -660,6 +840,77 @@ const makeLayerPath = (width: number, height: number, seed?: number, intensity?:
   path.lineTo(0, height);
   for (let y = height - step; y > 0; y -= step) path.lineTo((random() - 0.5) * intensity, y);
   path.close();
+  return path;
+};
+
+const makeTornFibrePath = (width: number, height: number, seed: number, intensity: number) => {
+  const random = seeded(seed + 971);
+  const dark = Skia.Path.Make();
+  const light = Skia.Path.Make();
+  const pulp = Skia.Path.Make();
+  const inset = Math.max(3, Math.min(28, intensity * 0.82));
+  const count = Math.max(20, Math.min(150, Math.round((width + height) / Math.max(20, Math.min(width, height) / 18))));
+  const strand = (edge: 'bottom' | 'left' | 'right' | 'top', position: number) => {
+    const length = inset * (0.35 + random() * 1.15);
+    const wobble = (random() - 0.5) * intensity * 0.55;
+    const split = random() > 0.58;
+    let startX = position; let startY = inset; let endX = position + wobble; let endY = -inset;
+    if (edge === 'bottom') { startY = height - inset; endY = height + inset; }
+    if (edge === 'left') { startX = inset; startY = position; endX = -inset; endY = position + wobble; }
+    if (edge === 'right') { startX = width - inset; startY = position; endX = width + inset; endY = position + wobble; }
+    const dx = endX - startX; const dy = endY - startY;
+    const scale = length / Math.max(1, Math.hypot(dx, dy));
+    const fibreEndX = startX + dx * scale;
+    const fibreEndY = startY + dy * scale;
+    dark.moveTo(startX, startY); dark.lineTo(fibreEndX, fibreEndY);
+    if (split) {
+      const branch = 0.45 + random() * 0.35;
+      light.moveTo(startX + dx * branch * scale, startY + dy * branch * scale);
+      light.lineTo(fibreEndX + (random() - 0.5) * inset * 0.6, fibreEndY + (random() - 0.5) * inset * 0.6);
+    }
+    if (random() > 0.62) pulp.addCircle(startX + (random() - 0.5) * 3, startY + (random() - 0.5) * 3, 0.5 + random() * 1.4);
+  };
+  for (let index = 0; index < count; index += 1) {
+    const edge = index % 4;
+    if (edge === 0) strand('top', random() * width);
+    else if (edge === 1) strand('right', random() * height);
+    else if (edge === 2) strand('bottom', random() * width);
+    else strand('left', random() * height);
+  }
+  return { dark, light, pulp };
+};
+
+/** Quiet longitudinal strands stop a translucent tape strip from reading as flat plastic. */
+const makeTapeFibrePath = (x: number, y: number, width: number, height: number) => {
+  const path = Skia.Path.Make();
+  const count = Math.max(2, Math.floor(height / 7));
+  for (let index = 1; index <= count; index += 1) {
+    const baseline = y + height * index / (count + 1);
+    path.moveTo(x + width * 0.06, baseline);
+    path.lineTo(x + width * 0.94, baseline + (index % 2 === 0 ? 0.6 : -0.6));
+  }
+  return path;
+};
+
+/** Deterministic dots keep grain identical on preview, thumbnail and export. */
+const makeGrainPath = (width: number, height: number, seed: number) => {
+  const path = Skia.Path.Make();
+  const random = seeded(seed);
+  const count = Math.max(80, Math.min(900, Math.round(width * height / 2200)));
+  for (let index = 0; index < count; index += 1) {
+    const radius = 0.35 + random() * 0.95;
+    path.addCircle(random() * width, random() * height, radius);
+  }
+  return path;
+};
+
+const makeLacePath = (width: number, height: number, inset: number) => {
+  const path = Skia.Path.Make();
+  const x = inset; const y = inset; const w = Math.max(1, width - inset * 2); const h = Math.max(1, height - inset * 2);
+  path.addRRect({ rect: { x, y, width: w, height: h }, rx: Math.min(w, h) * 0.08, ry: Math.min(w, h) * 0.08 });
+  const spacing = Math.max(18, Math.min(w, h) / 12);
+  for (let cursor = x + spacing / 2; cursor < x + w; cursor += spacing) { path.addCircle(cursor, y, spacing * 0.23); path.addCircle(cursor, y + h, spacing * 0.23); }
+  for (let cursor = y + spacing / 2; cursor < y + h; cursor += spacing) { path.addCircle(x, cursor, spacing * 0.23); path.addCircle(x + w, cursor, spacing * 0.23); }
   return path;
 };
 

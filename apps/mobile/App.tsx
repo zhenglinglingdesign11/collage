@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Canvas, Path, Skia, useCanvasRef, type Transforms3d } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimated';
@@ -13,14 +13,24 @@ import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type Straig
 import { cacheRemotePackItem, importLocalImage, loadSavedDraft, loadWorkspace, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
+import { EffectSheet } from './src/product-ui/EffectSheet';
 import { BrushLayerToolbar, EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
+
+type BuiltinEffectType = 'light.shadow' | 'edge.outline' | 'paper.torn-edge' | 'shape.round-corners';
+const effectInstance = (instanceId: string, type: BuiltinEffectType): Effect => type === 'light.shadow'
+  ? { instanceId, type, version: 1, enabled: true, stage: 'underlay', params: { color: '#392F2A', opacity: 0.22, blur: 22, offset: { x: 16, y: 20 } } }
+  : type === 'edge.outline'
+    ? { instanceId, type, version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', width: 12 } }
+    : type === 'shape.round-corners'
+      ? { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { radius: 28 } }
+      : { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { seed: 41, intensity: 24 } };
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
 import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPanel';
 import { TEXT_EDITOR_PANEL_HEIGHT, TextEditorPanel } from './src/product-ui/TextEditorPanel';
 import { ensureTextFont, resolvedTextFontUri } from './src/product-ui/fonts';
 import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
-import { resolveProductLocale, t } from './src/product-ui/localization';
+import { resolveProductLocale, t, type ProductCopyKey } from './src/product-ui/localization';
 import { productColor } from './src/product-ui/tokens';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
 
@@ -33,6 +43,8 @@ const localPolkaPatternUris: Readonly<Record<string, string>> = {
 const brushAssetUris: Readonly<Record<string, string>> = {
   'asset://brush/bow/standard': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/brushes/bow-brush.png')).uri,
 };
+const tornPaperEdgeAtlasUri = Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/textures/torn-paper-edge-atlas.png')).uri;
+const tornPaperFiberFringeUri = Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/textures/torn-paper-fiber-fringe.png')).uri;
 type EditorState = Readonly<{ past: readonly Draft[]; present: Draft; future: readonly Draft[] }>;
 type EditorAction = Readonly<{ type: 'command'; command: EditorCommand }> | Readonly<{ type: 'undo' }> | Readonly<{ type: 'redo' }> | Readonly<{ type: 'hydrate'; draft: Draft }>;
 type MediaLibraryModule = typeof import('expo-media-library/legacy');
@@ -63,8 +75,8 @@ const createFixtureDraft = (): Draft => {
   return {
     ...draft,
     layers: [
-      { id: 'fixture-photo', name: 'Torn photo', type: 'image', asset: { id: 'fixture://photo', kind: 'image' }, frame: { width: 900, height: 680 }, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: 260, y: 340 }, rotation: -0.07 }, opacity: 1, isLocked: false, effects: [{ id: 'shadow', color: '#392F2A', opacity: 0.22, blur: 24, offset: { x: 18, y: 24 } }, { id: 'outline', color: '#FFF8EB', width: 14 }, { id: 'torn-edge', seed: 61, intensity: 28 }] },
-      { id: 'fixture-material', name: 'Paper material', type: 'material', asset: { id: 'fixture://paper', kind: 'texture' }, frame: { width: 420, height: 500 }, transform: { ...identityTransform(), position: { x: 1120, y: 760 }, rotation: 0.13 }, opacity: 1, isLocked: false, effects: [{ id: 'shadow', color: '#392F2A', opacity: 0.18, blur: 18, offset: { x: 12, y: 18 } }, { id: 'outline', color: '#FFF8EB', width: 10 }] },
+      { id: 'fixture-photo', name: 'Torn photo', type: 'image', asset: { id: 'fixture://photo', kind: 'image' }, frame: { width: 900, height: 680 }, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: 260, y: 340 }, rotation: -0.07 }, opacity: 1, isLocked: false, effects: [{ ...effectInstance('fixture-photo:shadow', 'light.shadow'), params: { color: '#392F2A', opacity: 0.22, blur: 24, offset: { x: 18, y: 24 } } }, { ...effectInstance('fixture-photo:outline', 'edge.outline'), params: { color: '#FFF8EB', width: 14 } }, { ...effectInstance('fixture-photo:torn', 'paper.torn-edge'), params: { seed: 61, intensity: 28 } }] },
+      { id: 'fixture-material', name: 'Paper material', type: 'material', asset: { id: 'fixture://paper', kind: 'texture' }, frame: { width: 420, height: 500 }, transform: { ...identityTransform(), position: { x: 1120, y: 760 }, rotation: 0.13 }, opacity: 1, isLocked: false, effects: [{ ...effectInstance('fixture-material:shadow', 'light.shadow'), params: { color: '#392F2A', opacity: 0.18, blur: 18, offset: { x: 12, y: 18 } } }, { ...effectInstance('fixture-material:outline', 'edge.outline'), params: { color: '#FFF8EB', width: 10 } }] },
       { id: 'fixture-title', name: 'Text placeholder', type: 'text', text: 'little moments', frame: { width: 1100, height: 180 }, fontId: 'system', fontVariantId: 'system', fontSize: 86, color: '#49372B', textAlign: 'left', backgroundColor: null, transform: { ...identityTransform(), position: { x: 210, y: 1390 }, rotation: -0.025 }, opacity: 1, isLocked: false, effects: [] },
       { id: 'fixture-brush', name: 'Lace brush', type: 'brush', frame: { width: 1320, height: 310 }, strokes: [{ id: 'fixture-brush:stroke:0', brushId: 'brush://builtin/lace', brushRevision: '1', points: [{ x: 80, y: 130 }, { x: 250, y: 80 }, { x: 460, y: 150 }, { x: 690, y: 95 }, { x: 930, y: 165 }, { x: 1220, y: 100 }], style: { color: '#BA786D', size: 44, spacing: 24, jitter: 28, seed: 32, opacity: 1 } }], transform: { ...identityTransform(), position: { x: 200, y: 1720 }, rotation: 0.03 }, opacity: 1, isLocked: false, effects: [] },
     ],
@@ -110,6 +122,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [canvasFrame, setCanvasFrame] = useState({ x: 0, y: 0 });
   const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
   const [backgroundDrawerOpen, setBackgroundDrawerOpen] = useState(false);
+  const [effectSheetOpen, setEffectSheetOpen] = useState(false);
+  const [effectSheetBaseEffects, setEffectSheetBaseEffects] = useState<readonly Effect[] | null>(null);
+  const [layerEffectControl, setLayerEffectControl] = useState<Readonly<{ layerId: string; type: 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners' }> | null>(null);
+  const [effectPreview, setEffectPreview] = useState<Readonly<{ layerId: string; effects: readonly Effect[] }> | null>(null);
   const [customPolkaBackgroundOpen, setCustomPolkaBackgroundOpen] = useState(false);
   const [assetDrawerHeight, setAssetDrawerHeight] = useState(0);
   const [textEdit, setTextEdit] = useState<Readonly<{ layerId: string; initialText: string; text: string; created: boolean }> | null>(null);
@@ -118,6 +134,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [straightCut, setStraightCut] = useState<StraightCutSession | null>(null);
   const [cutPaletteOpen, setCutPaletteOpen] = useState(false);
   const [pendingCutStyle, setPendingCutStyle] = useState<CutStyle | null>(null);
+  const [pendingEmbossSelection, setPendingEmbossSelection] = useState(false);
   const [brushCut, setBrushCut] = useState<BrushCutSession | null>(null);
   const [decorativeBrush, setDecorativeBrush] = useState<DecorativeBrushSession | null>(null);
   const [emboss, setEmboss] = useState<EmbossSession | null>(null);
@@ -143,42 +160,46 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       ...state.present,
       layers: state.present.layers.map((layer) => layer.id === textEdit.layerId && layer.type === 'text' ? { ...layer, text: textEdit.text } : layer),
     };
+    const withEffectPreview = effectPreview === null ? withTextPreview : {
+      ...withTextPreview,
+      layers: withTextPreview.layers.map((layer) => layer.id === effectPreview.layerId ? { ...layer, effects: effectPreview.effects } : layer),
+    };
     // Straight cut is a focused, ephemeral editing surface. Other layers stay
     // untouched in the document, but must not visually interfere with the
     // selected source while its cut line is positioned.
-    if (straightCut !== null) return { ...withTextPreview, layers: withTextPreview.layers.filter((layer) => layer.id === straightCut.layerId) };
+    if (straightCut !== null) return { ...withEffectPreview, layers: withEffectPreview.layers.filter((layer) => layer.id === straightCut.layerId) };
     // Freehand cutting is likewise a single-layer editor. Rendering the
     // session snapshot is deliberate: a remainder (c) and its extracted
     // sibling (b) share an asset but are distinct editable layers.
     if (brushCut !== null) return {
-      ...withTextPreview,
-      canvas: { ...withTextPreview.canvas, background: '#FAFAF8' },
+      ...withEffectPreview,
+      canvas: { ...withEffectPreview.canvas, background: '#FAFAF8' },
       selectedLayerId: brushCut.layer.id,
       layers: [brushCut.layer],
     };
     if (decorativeBrush !== null) {
       const previewStrokes = decorativeBrush.activeStroke === null ? decorativeBrush.strokes : [...decorativeBrush.strokes, decorativeBrush.activeStroke];
       return {
-        ...withTextPreview,
+        ...withEffectPreview,
         // Brush Session uses a paint-only preview. Selection chrome belongs to
         // normal editing, never to an in-progress decorative stroke.
         selectedLayerId: null,
-        layers: [...withTextPreview.layers.filter((layer) => layer.id !== decorativeBrush.layerId), decorativeBrush.kind === 'edit' && decorativeBrush.sourceLayer
+        layers: [...withEffectPreview.layers.filter((layer) => layer.id !== decorativeBrush.layerId), decorativeBrush.kind === 'edit' && decorativeBrush.sourceLayer
           ? { ...decorativeBrush.sourceLayer, strokes: previewStrokes }
           : { id: decorativeBrush.layerId, name: 'Brush', type: 'brush' as const, frame: CANVAS_SIZE, strokes: previewStrokes, transform: identityTransform(), opacity: 1, isLocked: false, effects: [] }],
       };
     }
     if (emboss !== null) return {
-      ...withTextPreview,
-      canvas: { ...withTextPreview.canvas, background: '#FDFDFB' },
+      ...withEffectPreview,
+      canvas: { ...withEffectPreview.canvas, background: '#FDFDFB' },
       selectedLayerId: emboss.layer.id,
       // The full-screen tool previews the unmodified selected image. The
       // temporary mask chrome is rendered separately by Skia; only Done
       // commits the split, so users can still judge the surrounding pixels.
       layers: [emboss.layer],
     };
-    return withTextPreview;
-  }, [brushCut, decorativeBrush, emboss, state.present, straightCut, textEdit]);
+    return withEffectPreview;
+  }, [brushCut, decorativeBrush, effectPreview, emboss, state.present, straightCut, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
     const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
@@ -278,29 +299,52 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const onCanvasLayout = useCallback((event: LayoutChangeEvent) => setSurfaceSize(event.nativeEvent.layout), []);
   const onCanvasFrameLayout = useCallback((event: LayoutChangeEvent) => setCanvasFrame(event.nativeEvent.layout), []);
   const selectLayer = useCallback((layerId: string) => dispatch({ type: 'command', command: { type: 'layer.select', layerId } }), []);
-  const setEffects = useCallback((effects: readonly Effect[]) => {
+  const toggleEffect = useCallback((effectType: BuiltinEffectType) => {
     if (selectedLayer === null) return;
-    dispatch({ type: 'command', command: { type: 'layer.effects.set', layerId: selectedLayer.id, effects } });
+    const existing = selectedLayer.effects.find((effect) => effect.type === effectType);
+    if (existing) return dispatch({ type: 'command', command: { type: 'layer.effect.remove', layerId: selectedLayer.id, instanceId: existing.instanceId } });
+    dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(`effect-${Date.now()}`, effectType) } });
   }, [selectedLayer]);
-  const toggleEffect = useCallback((effectId: Effect['id']) => {
-    if (selectedLayer === null) return;
-    const existing = selectedLayer.effects.find((effect) => effect.id === effectId);
-    if (existing) return setEffects(selectedLayer.effects.filter((effect) => effect.id !== effectId));
-    const defaults: Record<Effect['id'], Effect> = {
-      shadow: { id: 'shadow', color: '#392F2A', opacity: 0.22, blur: 22, offset: { x: 16, y: 20 } },
-      outline: { id: 'outline', color: '#FFF8EB', width: 12 },
-      'torn-edge': { id: 'torn-edge', seed: 41, intensity: 24 },
-    };
-    setEffects([...selectedLayer.effects, defaults[effectId]]);
-  }, [selectedLayer, setEffects]);
   const updateTornEdge = useCallback((change: 'less' | 'more' | 'reroll') => {
     if (selectedLayer === null) return;
-    setEffects(selectedLayer.effects.map((effect) => effect.id !== 'torn-edge' ? effect : {
-      ...effect,
-      intensity: change === 'less' ? Math.max(2, effect.intensity - 4) : change === 'more' ? Math.min(70, effect.intensity + 4) : effect.intensity,
-      seed: change === 'reroll' ? effect.seed + 1 : effect.seed,
-    }));
-  }, [selectedLayer, setEffects]);
+    const effect = selectedLayer.effects.find((candidate) => candidate.type === 'paper.torn-edge');
+    if (!effect) return;
+    const intensity = typeof effect.params.intensity === 'number' ? effect.params.intensity : 24;
+    const seed = typeof effect.params.seed === 'number' ? effect.params.seed : 41;
+    dispatch({ type: 'command', command: { type: 'layer.effect.patch', layerId: selectedLayer.id, instanceId: effect.instanceId, params: { ...effect.params, intensity: change === 'less' ? Math.max(2, intensity - 4) : change === 'more' ? Math.min(70, intensity + 4) : intensity, seed: change === 'reroll' ? seed + 1 : seed } } });
+  }, [selectedLayer]);
+  const openEffectSheet = useCallback(() => {
+    if (selectedLayer === null || selectedLayer.isLocked) return;
+    setEffectSheetBaseEffects(selectedLayer.effects);
+    setEffectPreview({ layerId: selectedLayer.id, effects: selectedLayer.effects });
+    setEffectSheetOpen(true);
+  }, [selectedLayer]);
+  const openLayerEffectControl = useCallback((effectType: 'edge.outline' | 'light.shadow' | 'shape.round-corners') => {
+    if (selectedLayer === null || selectedLayer.isLocked) return;
+    if (layerEffectControl?.layerId === selectedLayer.id && layerEffectControl.type === effectType) {
+      setLayerEffectControl(null);
+      return;
+    }
+    const existing = selectedLayer.effects.find((effect) => effect.type === effectType);
+    if (!existing) dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(`effect-${Date.now()}`, effectType) } });
+    setLayerEffectControl({ layerId: selectedLayer.id, type: effectType });
+  }, [layerEffectControl, selectedLayer]);
+  const openLayerOpacityControl = useCallback(() => {
+    if (selectedLayer === null || selectedLayer.isLocked) return;
+    if (layerEffectControl?.layerId === selectedLayer.id && layerEffectControl.type === 'opacity') {
+      setLayerEffectControl(null);
+      return;
+    }
+    setLayerEffectControl({ layerId: selectedLayer.id, type: 'opacity' });
+  }, [layerEffectControl, selectedLayer]);
+  const closeEffectSheet = useCallback(() => { setEffectPreview(null); setEffectSheetBaseEffects(null); setEffectSheetOpen(false); }, []);
+  const commitEffectSheet = useCallback((effects: readonly Effect[]) => {
+    if (selectedLayer === null) return;
+    // One completed Sheet session is one undo step; its intermediate slider
+    // positions existed only in renderer preview state.
+    dispatch({ type: 'command', command: { type: 'layer.effects.set', layerId: selectedLayer.id, effects } });
+    closeEffectSheet();
+  }, [closeEffectSheet, selectedLayer]);
   const updateCrop = useCallback((action: 'in' | 'out' | 'left' | 'right' | 'reset') => {
     if (selectedLayer?.type !== 'image') return;
     const crop = selectedLayer.crop;
@@ -539,9 +583,14 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const decorativeBrushPan = Gesture.Pan().enabled(decorativeBrush !== null).onBegin((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, true); }).onUpdate((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false); }).onFinalize((_event, success) => { if (success) runOnJS(completeDecorativeBrushStroke)(); else runOnJS(undoDecorativeBrushStroke)(); });
   const beginEmboss = useCallback(() => {
     if (selectedLayer?.type !== 'image') {
-      Alert.alert(t(locale, 'editor.emboss.unavailableTitle'), t(locale, 'editor.emboss.unavailableBody'));
+      // Match scissors: the primary toolbar can be used before any layer is
+      // selected. Keep the intent alive and enter the tool once the user taps
+      // an image on the canvas.
+      setPendingEmbossSelection(true);
+      showCutHint(t(locale, 'editor.emboss.selectHint'));
       return;
     }
+    setPendingEmbossSelection(false);
     if (selectedLayer.isLocked) {
       Alert.alert(t(locale, 'editor.cut.lockedTitle'), t(locale, 'editor.cut.lockedBody'));
       return;
@@ -558,7 +607,16 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - selectedLayer.frame.width) / 2, y: (CANVAS_SIZE.height - selectedLayer.frame.height) / 2 } },
     };
     setEmboss({ layer: previewLayer, shape: 'circle', bounds, initialBounds: bounds, aspectLocked: true });
-  }, [locale, selectedLayer]);
+  }, [locale, selectedLayer, showCutHint]);
+  useEffect(() => {
+    if (!pendingEmbossSelection || selectedLayer?.type !== 'image') return;
+    if (selectedLayer.isLocked) {
+      setPendingEmbossSelection(false);
+      showCutHint(t(locale, 'editor.cut.lockedBody'));
+      return;
+    }
+    beginEmboss();
+  }, [beginEmboss, pendingEmbossSelection, selectedLayer, showCutHint]);
   const embossPoint = useCallback((x: number, y: number, session: EmbossSession): Point => ({
     x: (x - viewport.x) / viewport.scale - session.layer.transform.position.x,
     y: (y - viewport.y) / viewport.scale - session.layer.transform.position.y,
@@ -866,11 +924,11 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     }
   }, [exportCanvasRef]);
   const isTablet = window.width >= 768;
-  const drawerOpen = assetDrawerOpen || backgroundDrawerOpen;
+  const drawerOpen = assetDrawerOpen || backgroundDrawerOpen || effectSheetOpen;
   // Keep the paper at its normal editing scale while the keyboard is up. The
   // mini-program only lifts the canvas enough to retain the text selection,
   // rather than shrinking it into the remaining keyboard-free rectangle.
-  const canvasBottomOverlay = emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const canvasBottomOverlay = emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : effectSheetOpen ? 286 : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
   const textCanvasOffset = textEdit !== null && keyboardHeight > 0 ? Math.min(120, Math.round(keyboardHeight * 0.35)) : 0;
   const previewSize = useMemo(() => {
     const maxWidth = Math.max(1, window.width - 56);
@@ -906,41 +964,42 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     const contentFrame = brushCut.layer.contentFrame ?? { x: 0, y: 0 };
     return { layerId: brushCut.layer.id, strokes: brushCut.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + contentFrame.x, y: point.y + contentFrame.y })) })) } as BrushCutPreview;
   })();
-  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
+  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
   const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} immersive={brushCut !== null || emboss !== null} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
-  const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale}
+  const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
+    onCorner={() => openLayerEffectControl('shape.round-corners')}
     onCrop={() => updateCrop('in')}
-    onShadow={() => toggleEffect('shadow')}
-    onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
-    onOutline={() => toggleEffect('outline')}
-    onEffects={() => toggleEffect('torn-edge')}
+    onShadow={() => openLayerEffectControl('light.shadow')}
+    onOpacity={openLayerOpacityControl}
+    onOutline={() => openLayerEffectControl('edge.outline')}
+    onEffects={openEffectSheet}
     onScissors={openCutPalette}
     onEmboss={beginEmboss}
   /> : null;
-  const brushLayerToolbar = selectedLayer?.type === 'brush' && straightCut === null && emboss === null ? <BrushLayerToolbar bottomInset={insets.bottom} locale={locale}
+  const brushLayerToolbar = selectedLayer?.type === 'brush' && straightCut === null && emboss === null ? <BrushLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
     onEdit={() => beginExistingDecorativeBrush(selectedLayer)}
-    onEffects={() => toggleEffect('torn-edge')}
-    onShadow={() => toggleEffect('shadow')}
-    onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
+    onEffects={openEffectSheet}
+    onShadow={() => openLayerEffectControl('light.shadow')}
+    onOpacity={openLayerOpacityControl}
   /> : null;
-  const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale}
+  const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
     onEditText={() => beginTextEditing(selectedLayer)}
-    onShadow={() => toggleEffect('shadow')}
-    onOpacity={() => dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: selectedLayer.opacity === 1 ? 0.58 : 1 } })}
-    onOutline={() => toggleEffect('outline')}
+    onShadow={() => openLayerEffectControl('light.shadow')}
+    onOpacity={openLayerOpacityControl}
+    onOutline={() => openLayerEffectControl('edge.outline')}
   /> : null;
   const selectedImageBounds = selectedLayer?.type === 'image' ? visibleBoundsForLayer(selectedLayer) : null;
   const imageSelectionControls = selectedLayer?.type === 'image' && selectedImageBounds !== null ? <ImageSelectionControls
@@ -970,6 +1029,8 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
             {straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && imageSelectionControls}
             {selectedLayer === null && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onBrush={beginDecorativeBrush} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
             {straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? brushLayerToolbar ?? (selectedLayer !== null && inspector))}
+            {layerEffectControl !== null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={() => setLayerEffectControl(null)} style={a3Styles.layerEffectControlBackdrop} />}
+            {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} type={layerEffectControl.type} onChange={(value) => { if (layerEffectControl.type === 'opacity') { dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: value } }); return; } const effect = selectedLayer.effects.find((item) => item.type === layerEffectControl.type); if (!effect) return; const spec = layerEffectControlSpec(layerEffectControl.type); dispatch({ type: 'command', command: { type: 'layer.effect.patch', layerId: selectedLayer.id, instanceId: effect.instanceId, params: { ...effect.params, [spec.param]: value } } }); }} />}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
               <AssetDrawer initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
@@ -988,7 +1049,11 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
           </View>
         )}
         {isTablet && emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} showSelection={false} /></Canvas>
+        {effectSheetOpen && selectedLayer !== null && <>
+          <View pointerEvents="auto" style={a3Styles.assetDrawerBackdrop} />
+          <EffectSheet bottomInset={insets.bottom} effects={effectSheetBaseEffects ?? selectedLayer.effects} layer={selectedLayer} locale={locale} onCancel={closeEffectSheet} onCommit={commitEffectSheet} onPreview={(effects) => setEffectPreview({ layerId: selectedLayer.id, effects })} />
+        </>}
+        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -997,6 +1062,27 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
 
 const HistoryButton = ({ label, disabled, onPress }: { label: string; disabled: boolean; onPress: () => void }) => <Pressable disabled={disabled} onPress={onPress} style={[styles.historyButton, disabled && styles.historyButtonDisabled]}><Text style={[styles.historyButtonText, disabled && styles.historyButtonTextDisabled]}>{label}</Text></Pressable>;
 const EditorHeader = ({ pastCount, futureCount, onUndo, onRedo, onExport, onSave, onExit }: { pastCount: number; futureCount: number; onUndo: () => void; onRedo: () => void; onExport: () => void; onSave: () => void; onExit: () => void }) => <View style={styles.header}><View style={a3Styles.headerCopy}><Text style={styles.eyebrow}>JOURNAL COLLAGE · A3</Text><Text numberOfLines={1} style={styles.title}>New collage</Text></View><View style={styles.history}><HistoryButton label="Close" disabled={false} onPress={onExit} /><HistoryButton label="↶" disabled={pastCount === 0} onPress={onUndo} /><HistoryButton label="↷" disabled={futureCount === 0} onPress={onRedo} /><HistoryButton label="Save" disabled={false} onPress={onSave} /><HistoryButton label="Share" disabled={false} onPress={onExport} /></View></View>;
+type LayerControlKind = 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners';
+const layerEffectControlSpec = (type: LayerControlKind): Readonly<{ label: ProductCopyKey; max: number; min: number; param: 'blur' | 'opacity' | 'radius' | 'width'; step: number }> => {
+  if (type === 'light.shadow') return { label: 'editor.effects.blur', min: 0, max: 80, step: 1, param: 'blur' };
+  if (type === 'edge.outline') return { label: 'editor.effects.width', min: 0, max: 40, step: 1, param: 'width' };
+  if (type === 'opacity') return { label: 'editor.layer.opacity', min: 0, max: 1, step: 0.05, param: 'opacity' };
+  return { label: 'editor.effects.radius', min: 0, max: 160, step: 1, param: 'radius' };
+};
+const LayerEffectControlPanel = ({ bottomInset, effect, locale, onChange, opacity, type }: Readonly<{ bottomInset: number; effect: Effect | null; locale: ReturnType<typeof resolveProductLocale>; onChange: (value: number) => void; opacity: number; type: LayerControlKind }>) => {
+  const [width, setWidth] = useState(1);
+  const spec = layerEffectControlSpec(type);
+  const value = type === 'opacity' ? opacity : effect !== null && typeof effect.params[spec.param] === 'number' ? effect.params[spec.param] as number : spec.min;
+  const setFromEvent = (event: GestureResponderEvent) => {
+    const raw = spec.min + Math.max(0, Math.min(width, event.nativeEvent.locationX)) / width * (spec.max - spec.min);
+    onChange(Math.round(raw / spec.step) * spec.step);
+  };
+  const ratio = Math.max(0, Math.min(1, (value - spec.min) / (spec.max - spec.min)));
+  return <View style={[a3Styles.layerEffectControlPanel, { bottom: 160 + bottomInset }]}>
+    <Text style={a3Styles.layerEffectControlLabel}>{t(locale, spec.label)}</Text>
+    <View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onResponderGrant={setFromEvent} onResponderMove={setFromEvent} onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} style={a3Styles.layerEffectSlider}><View style={[a3Styles.layerEffectSliderFill, { width: `${ratio * 100}%` }]} /><View pointerEvents="none" style={[a3Styles.layerEffectSliderThumb, { left: `${ratio * 100}%` }]} /></View>
+  </View>;
+};
 const EditorCanvas = ({ bottomOverlay, children, frame, gesture, immersive = false, keyboardOffset, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous> | ReturnType<typeof Gesture.Pan>; immersive?: boolean; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
   <View style={[a3Styles.canvasStage, bottomOverlay > 0 && !immersive ? a3Styles.canvasStageWithSheet : { paddingBottom: immersive ? 0 : 104 }]}>
     <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, frame, keyboardOffset > 0 && { transform: [{ translateY: -keyboardOffset }] }]}>
@@ -1084,15 +1170,16 @@ const BrushCutPanel = ({ bottomInset, locale, hasStrokes, hollowOriginal, showHo
 );
 const PhoneToolbar = ({ onPhoto, onEffects }: { onPhoto: () => void; onEffects: () => void }) => <View style={styles.phoneToolbar}><ToolButton label="Photo" onPress={onPhoto} /><ToolButton label="Material" /><ToolButton label="Text" /><ToolButton label="Torn" onPress={onEffects} /></View>;
 const ToolButton = ({ label, onPress }: { label: string; onPress?: () => void }) => <Pressable onPress={onPress} style={styles.toolButton}><View style={styles.toolGlyph} /><Text style={styles.toolLabel}>{label}</Text></Pressable>;
-const Inspector = ({ layer, onToggleEffect, onTornEdgeChange, onCropChange }: { layer: Draft['layers'][number] | null; onToggleEffect: (effect: Effect['id']) => void; onTornEdgeChange: (change: 'less' | 'more' | 'reroll') => void; onCropChange: (action: 'in' | 'out' | 'left' | 'right' | 'reset') => void }) => {
-  const torn = layer?.effects.find((effect) => effect.id === 'torn-edge');
+const Inspector = ({ layer, onToggleEffect, onTornEdgeChange, onCropChange }: { layer: Draft['layers'][number] | null; onToggleEffect: (effect: BuiltinEffectType) => void; onTornEdgeChange: (change: 'less' | 'more' | 'reroll') => void; onCropChange: (action: 'in' | 'out' | 'left' | 'right' | 'reset') => void }) => {
+  const torn = layer?.effects.find((effect) => effect.type === 'paper.torn-edge');
+  const tornIntensity = typeof torn?.params.intensity === 'number' ? torn.params.intensity : 0;
   return <View style={styles.inspector}>
     <Text style={styles.inspectorLabel}>SELECTION</Text>
     <Text style={styles.inspectorValue}>{layer?.name ?? 'Tap a layer to select it'}</Text>
     {layer && <>
       <Text style={a2Styles.controlLabel}>EFFECTS</Text>
-      <View style={a2Styles.chipRow}><EffectChip label="Shadow" active={layer.effects.some((effect) => effect.id === 'shadow')} onPress={() => onToggleEffect('shadow')} /><EffectChip label="Outline" active={layer.effects.some((effect) => effect.id === 'outline')} onPress={() => onToggleEffect('outline')} /><EffectChip label="Torn edge" active={torn !== undefined} onPress={() => onToggleEffect('torn-edge')} /></View>
-      {torn && <View style={a2Styles.parameterRow}><Text style={a2Styles.parameterText}>Edge {torn.intensity}</Text><MiniButton label="−" onPress={() => onTornEdgeChange('less')} /><MiniButton label="+" onPress={() => onTornEdgeChange('more')} /><MiniButton label="Reroll" onPress={() => onTornEdgeChange('reroll')} /></View>}
+      <View style={a2Styles.chipRow}><EffectChip label="Shadow" active={layer.effects.some((effect) => effect.type === 'light.shadow')} onPress={() => onToggleEffect('light.shadow')} /><EffectChip label="Outline" active={layer.effects.some((effect) => effect.type === 'edge.outline')} onPress={() => onToggleEffect('edge.outline')} /><EffectChip label="Torn edge" active={torn !== undefined} onPress={() => onToggleEffect('paper.torn-edge')} /></View>
+      {torn && <View style={a2Styles.parameterRow}><Text style={a2Styles.parameterText}>Edge {tornIntensity}</Text><MiniButton label="−" onPress={() => onTornEdgeChange('less')} /><MiniButton label="+" onPress={() => onTornEdgeChange('more')} /><MiniButton label="Reroll" onPress={() => onTornEdgeChange('reroll')} /></View>}
       {layer.type === 'image' && <><Text style={a2Styles.controlLabel}>CROP</Text><View style={a2Styles.parameterRow}><MiniButton label="Zoom −" onPress={() => onCropChange('out')} /><MiniButton label="Zoom +" onPress={() => onCropChange('in')} /><MiniButton label="←" onPress={() => onCropChange('left')} /><MiniButton label="→" onPress={() => onCropChange('right')} /><MiniButton label="Reset" onPress={() => onCropChange('reset')} /></View></>}
     </>}
     <Text style={styles.inspectorHint}>Draft commands persist effects and crop. Drag · pinch · rotate remains available on canvas.</Text>
@@ -1145,6 +1232,12 @@ const a3Styles = StyleSheet.create({
   straightCutAction: { alignItems: 'center', flex: 1, justifyContent: 'center' },
   straightCutCancel: { color: '#6F6F6F', fontSize: 17, fontWeight: '600' },
   straightCutDone: { color: '#111111', fontSize: 17, fontWeight: '700' },
+  layerEffectControlBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 7 },
+  layerEffectControlPanel: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 54, left: 16, paddingHorizontal: 16, position: 'absolute', right: 16, shadowColor: '#111111', shadowOffset: { height: 5, width: 0 }, shadowOpacity: 0.08, shadowRadius: 12, zIndex: 9 },
+  layerEffectControlLabel: { color: '#111111', fontSize: 13, fontWeight: '700', marginRight: 14 },
+  layerEffectSlider: { backgroundColor: '#E6E4DF', borderRadius: 4, flex: 1, height: 5 },
+  layerEffectSliderFill: { backgroundColor: '#111111', borderRadius: 4, height: 5 },
+  layerEffectSliderThumb: { backgroundColor: '#FFFFFF', borderColor: '#111111', borderRadius: 10, borderWidth: 2, height: 20, marginLeft: -10, marginTop: -7.5, position: 'absolute', width: 20 },
   brushCutPanel: { backgroundColor: 'transparent', bottom: 0, left: 0, minHeight: 94, paddingHorizontal: 20, paddingTop: 14, position: 'absolute', right: 0, zIndex: 8 },
   brushCutHeader: { alignItems: 'center', backgroundColor: '#FFFFFF', flexDirection: 'row', height: 58, justifyContent: 'space-between', left: 0, paddingHorizontal: 20, position: 'absolute', right: 0, top: 0, zIndex: 9 },
   brushCutHeaderAction: { justifyContent: 'center', minWidth: 74 },

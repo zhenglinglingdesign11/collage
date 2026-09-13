@@ -138,7 +138,7 @@ Video Export
 
 换言之，跨端核心负责定义“作品是什么、编辑发生了什么、效果表达什么”；可替换实现负责决定“如何在某个平台画出来、处理出来或导出来”。
 
-`Effect Definition` 只保存产品语义与稳定参数，例如 `tornEdge { seed, intensity }`，不能保存 Skia Shader、Picture 或某个平台滤镜对象。`Image Processing` 可以在未来由云端、Skia 或原生实现替换，但其输入输出必须通过 `Asset Contract` 表达；Draft 不能引用平台临时文件路径或某种具体图像处理实现。
+`Effect Definition` 只保存产品语义与稳定参数，例如 `tornEdge { seed, intensity }`，不能保存 Skia Shader、Picture 或某个平台滤镜对象。`Image Processing` 可以在未来由云端、Skia 或原生实现替换，但其输入输出必须通过 `Asset Contract` 表达；Draft 不能引用平台临时文件路径或某种具体图像处理实现。图层效果的实例身份、分阶段渲染、动画、材质与 AIGC 派生资源边界见 [EFFECT_SYSTEM_ARCHITECTURE.md](EFFECT_SYSTEM_ARCHITECTURE.md)；该文档是后续 Effect schema 升级的专项真源。
 
 当前阶段明确避免：
 

@@ -1,6 +1,6 @@
 import type { Point, Rect, Size, Transform } from './geometry';
 
-export const DRAFT_SCHEMA_VERSION = 3 as const;
+export const DRAFT_SCHEMA_VERSION = 4 as const;
 
 export type AssetKind = 'image' | 'font' | 'texture' | 'brush';
 
@@ -62,10 +62,31 @@ export type BrushStroke = Readonly<{
   }>;
 }>;
 
-export type Effect =
-  | Readonly<{ id: 'shadow'; opacity: number; blur: number; offset: { x: number; y: number }; color: string }>
-  | Readonly<{ id: 'outline'; width: number; color: string }>
-  | Readonly<{ id: 'torn-edge'; seed: number; intensity: number }>;
+/**
+ * Effects remain portable data. Their catalog supplies UI, parameter schemas
+ * and renderer recipes; a Draft never owns a Skia object, URI or cache key.
+ */
+export type EffectStage = 'geometry' | 'underlay' | 'content' | 'overlay' | 'post-composite';
+export type EffectPrimitive = string | number | boolean | null;
+export interface EffectValueObject { readonly [key: string]: EffectValue; }
+export type EffectValue = EffectPrimitive | readonly EffectValue[] | EffectValueObject;
+
+export type EffectTrack = Readonly<{
+  interpolation: 'step' | 'linear' | 'cubic-bezier';
+  keyframes: readonly Readonly<{ timeMs: number; value: EffectValue; easing?: readonly [number, number, number, number] }>[];
+}>;
+
+export type Effect = Readonly<{
+  /** Instance identity, separate from effect type so effects can be stacked. */
+  instanceId: string;
+  type: string;
+  version: number;
+  enabled: boolean;
+  stage: EffectStage;
+  params: Readonly<Record<string, EffectValue>>;
+  inputs?: Readonly<Record<string, AssetReference>>;
+  animation?: Readonly<Record<string, EffectTrack>>;
+}>;
 
 export type BrushCutStroke = Readonly<{ size: number; points: readonly Point[] }>;
 

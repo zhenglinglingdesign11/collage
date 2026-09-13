@@ -1,4 +1,4 @@
-import type { AssetReference, BrushCutStroke, BrushStroke, Draft, Effect, Layer, VisibilityMask } from './document';
+import type { AssetReference, BrushCutStroke, BrushStroke, Draft, Effect, EffectValue, Layer, VisibilityMask } from './document';
 import type { Point, Rect, Transform } from './geometry';
 import { splitPolygonByLine, waveCutSidesForFrame } from './straightCut';
 import { isValidVisibilityMask, validateDraft } from './validation';
@@ -10,6 +10,12 @@ export type EditorCommand =
   | Readonly<{ type: 'layer.duplicate'; layerId: string; duplicate: Layer }>
   | Readonly<{ type: 'layer.reorder'; layerId: string; toIndex: number }>
   | Readonly<{ type: 'layer.transform'; layerId: string; transform: Transform }>
+  | Readonly<{ type: 'layer.effect.add'; layerId: string; effect: Effect; index?: number }>
+  | Readonly<{ type: 'layer.effect.patch'; layerId: string; instanceId: string; params: Readonly<Record<string, EffectValue>> }>
+  | Readonly<{ type: 'layer.effect.move'; layerId: string; instanceId: string; toIndex: number }>
+  | Readonly<{ type: 'layer.effect.remove'; layerId: string; instanceId: string }>
+  | Readonly<{ type: 'layer.effect.enabled.set'; layerId: string; instanceId: string; enabled: boolean }>
+  /** Reserved for imported legacy documents and explicit preset replacement. */
   | Readonly<{ type: 'layer.effects.set'; layerId: string; effects: readonly Effect[] }>
   /** Appends one completed decorative stroke; pointer-move samples never enter history. */
   | Readonly<{ type: 'brush.stroke.append'; layerId: string; stroke: BrushStroke }>
@@ -72,9 +78,50 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
     case 'layer.transform':
       if (layerIndex < 0) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, transform: command.transform } : layer) });
+    case 'layer.effect.add': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.isLocked || layer.effects.some((effect) => effect.instanceId === command.effect.instanceId)) return { draft, changed: false };
+      const index = Math.max(0, Math.min(command.index ?? layer.effects.length, layer.effects.length));
+      const effects = [...layer.effects.slice(0, index), command.effect, ...layer.effects.slice(index)];
+      if (validateEffectsAfterMutation(draft, layerIndex, effects)) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? { ...candidate, effects } : candidate) });
+    }
+    case 'layer.effect.patch': {
+      const layer = draft.layers[layerIndex];
+      const effectIndex = layerIndex < 0 ? -1 : layer.effects.findIndex((effect) => effect.instanceId === command.instanceId);
+      if (layerIndex < 0 || layer.isLocked || effectIndex < 0) return { draft, changed: false };
+      const effects = layer.effects.map((effect, index) => index === effectIndex ? { ...effect, params: command.params } : effect);
+      if (JSON.stringify(effects) === JSON.stringify(layer.effects) || validateEffectsAfterMutation(draft, layerIndex, effects)) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? { ...candidate, effects } : candidate) });
+    }
+    case 'layer.effect.move': {
+      const layer = draft.layers[layerIndex];
+      const effectIndex = layerIndex < 0 ? -1 : layer.effects.findIndex((effect) => effect.instanceId === command.instanceId);
+      if (layerIndex < 0 || layer.isLocked || effectIndex < 0) return { draft, changed: false };
+      const target = Math.max(0, Math.min(command.toIndex, layer.effects.length - 1));
+      if (target === effectIndex) return { draft, changed: false };
+      const effects = [...layer.effects];
+      const [effect] = effects.splice(effectIndex, 1);
+      effects.splice(target, 0, effect);
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? { ...candidate, effects } : candidate) });
+    }
+    case 'layer.effect.remove': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.isLocked || !layer.effects.some((effect) => effect.instanceId === command.instanceId)) return { draft, changed: false };
+      const effects = layer.effects.filter((effect) => effect.instanceId !== command.instanceId);
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? { ...candidate, effects } : candidate) });
+    }
+    case 'layer.effect.enabled.set': {
+      const layer = draft.layers[layerIndex];
+      const effect = layerIndex < 0 ? undefined : layer.effects.find((candidate) => candidate.instanceId === command.instanceId);
+      if (layerIndex < 0 || layer.isLocked || effect === undefined || effect.enabled === command.enabled) return { draft, changed: false };
+      const effects = layer.effects.map((candidate) => candidate.instanceId === command.instanceId ? { ...candidate, enabled: command.enabled } : candidate);
+      return touch({ ...draft, layers: draft.layers.map((candidate, index) => index === layerIndex ? { ...candidate, effects } : candidate) });
+    }
     case 'layer.effects.set':
       if (layerIndex < 0) return { draft, changed: false };
       if (JSON.stringify(draft.layers[layerIndex].effects) === JSON.stringify(command.effects)) return { draft, changed: false };
+      if (validateEffectsAfterMutation(draft, layerIndex, command.effects)) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, effects: command.effects } : layer) });
     case 'brush.stroke.append': {
       const layer = draft.layers[layerIndex];
@@ -423,3 +470,7 @@ const validBrushStrokes = (strokes: readonly BrushCutStroke[], frame: { width: n
   const offset = contentFrame ?? { x: 0, y: 0 };
   return strokes.length > 0 && strokes.every((stroke) => Number.isFinite(stroke.size) && stroke.size > 0 && stroke.points.length > 0 && stroke.points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y) && point.x + offset.x >= 0 && point.y + offset.y >= 0 && point.x + offset.x <= frame.width && point.y + offset.y <= frame.height));
 };
+
+/** Keeps effect mutation validation at the command boundary, like brush edits. */
+const validateEffectsAfterMutation = (draft: Draft, layerIndex: number, effects: readonly Effect[]): boolean =>
+  validateDraft({ ...draft, layers: draft.layers.map((layer, index) => index === layerIndex ? { ...layer, effects } : layer) }).length > 0;

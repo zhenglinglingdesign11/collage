@@ -50,12 +50,14 @@ export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, on
   </View>
 );
 
-export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCrop, onDelete, onDown, onEmboss, onEffects, onOpacity, onOutline, onScissors, onShadow, onUp }: Readonly<{
+export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCorner, onCrop, onDelete, onDismissAdjustment, onDown, onEmboss, onEffects, onOpacity, onOutline, onScissors, onShadow, onUp }: Readonly<{
   bottomInset?: number;
   locale: ProductLocale;
   onCopy: () => void;
+  onCorner: () => void;
   onCrop: () => void;
   onDelete: () => void;
+  onDismissAdjustment: () => void;
   onDown: () => void;
   onEmboss: () => void;
   onEffects: () => void;
@@ -66,6 +68,7 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCrop, onD
   onUp: () => void;
 }>) => (
   <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
+    <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={onDismissAdjustment} style={styles.layerToolbarDismissArea} />
     <View style={styles.layerToolbarHead}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text></View>
     <View style={styles.layerActions}>
       <View style={styles.layerActionRow}>
@@ -78,7 +81,7 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCrop, onD
       </View>
       <View style={[styles.layerActionRow, styles.layerActionRowSecond]}>
         <LayerAction icon="opacity" label="editor.layer.opacity" locale={locale} onPress={onOpacity} />
-        <LayerAction icon="corner" label="editor.layer.corner" locale={locale} />
+        <LayerAction icon="corner" label="editor.layer.corner" locale={locale} onPress={onCorner} />
         <LayerAction icon="outline" label="editor.layer.outline" locale={locale} onPress={onOutline} />
         <LayerAction icon="effects" label="editor.layer.effects" locale={locale} onPress={onEffects} />
         <LayerAction icon="scissors" label="editor.layer.scissors" locale={locale} onPress={onScissors} />
@@ -90,11 +93,12 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCrop, onD
 
 /** Mirrors the mini-program selected-text state: normal layer actions plus a
  * persistent edit-text link in the panel header. */
-export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDown, onEditText, onOpacity, onOutline, onShadow, onUp }: Readonly<{
+export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDismissAdjustment, onDown, onEditText, onOpacity, onOutline, onShadow, onUp }: Readonly<{
   bottomInset?: number;
   locale: ProductLocale;
   onCopy: () => void;
   onDelete: () => void;
+  onDismissAdjustment: () => void;
   onDown: () => void;
   onEditText: () => void;
   onOpacity: () => void;
@@ -103,6 +107,7 @@ export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, on
   onUp: () => void;
 }>) => (
   <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
+    <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={onDismissAdjustment} style={styles.layerToolbarDismissArea} />
     <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.text.edit')} hitSlop={8} onPress={onEditText}><Text style={styles.textEditLink}>{t(locale, 'editor.text.edit')}</Text></Pressable></View>
     <View style={[styles.layerActions, styles.textLayerActions]}>
       <LayerAction asset="asset://ui/editor/layer/move-up" label="editor.layer.up" locale={locale} onPress={onUp} style={styles.textLayerAction} />
@@ -118,11 +123,12 @@ export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, on
 
 /** Product-layer controls for persisted decorative strokes. The legacy A1
  * inspector must never be used as an editing surface for a BrushLayer. */
-export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDown, onEdit, onEffects, onOpacity, onShadow, onUp }: Readonly<{
+export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDismissAdjustment, onDown, onEdit, onEffects, onOpacity, onShadow, onUp }: Readonly<{
   bottomInset?: number;
   locale: ProductLocale;
   onCopy: () => void;
   onDelete: () => void;
+  onDismissAdjustment: () => void;
   onDown: () => void;
   onEdit: () => void;
   onEffects: () => void;
@@ -131,6 +137,7 @@ export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, o
   onUp: () => void;
 }>) => (
   <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
+    <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={onDismissAdjustment} style={styles.layerToolbarDismissArea} />
     <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.brush.edit')} hitSlop={8} onPress={onEdit}><Text style={styles.textEditLink}>{t(locale, 'editor.brush.edit')}</Text></Pressable></View>
     <View style={styles.layerActions}>
       <View style={styles.layerActionRow}>
@@ -230,12 +237,13 @@ const styles = StyleSheet.create({
   toolIcon: { height: 41, opacity: 0.72, width: 41 },
   toolIconSmall: { height: 28, width: 28 },
   toolLabel: { color: productColor.secondaryText, fontSize: 12, lineHeight: 16, marginTop: -3, textAlign: 'center', width: '100%' },
-  layerToolbar: { backgroundColor: productColor.surface, borderTopColor: productColor.divider, borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: 18, borderTopRightRadius: 18, bottom: 0, height: 160, left: 0, position: 'absolute', right: 0, shadowColor: productColor.ink, shadowOffset: { height: -8, width: 0 }, shadowOpacity: 0.06, shadowRadius: 22 },
-  layerToolbarHead: { height: 34, justifyContent: 'center', paddingHorizontal: 20 },
+  layerToolbar: { backgroundColor: productColor.surface, borderTopColor: productColor.divider, borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: 18, borderTopRightRadius: 18, bottom: 0, height: 160, left: 0, position: 'absolute', right: 0, shadowColor: productColor.ink, shadowOffset: { height: -8, width: 0 }, shadowOpacity: 0.06, shadowRadius: 22, zIndex: 8 },
+  layerToolbarDismissArea: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  layerToolbarHead: { height: 34, justifyContent: 'center', paddingHorizontal: 20, zIndex: 1 },
   textLayerToolbarHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   layerToolbarTitle: { color: productColor.ink, fontSize: 16, fontWeight: '700', lineHeight: 22 },
   textEditLink: { color: productColor.ink, fontSize: 13, fontWeight: '600' },
-  layerActions: { marginHorizontal: 12 },
+  layerActions: { marginHorizontal: 12, zIndex: 1 },
   layerActionRow: { flexDirection: 'row', height: 54 },
   layerActionRowSecond: { marginTop: 9 },
   brushLayerActionRowSecond: { justifyContent: 'flex-start' },

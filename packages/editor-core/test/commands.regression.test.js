@@ -79,7 +79,7 @@ test('undo and redo retain an identical serialized mask split', () => {
   assert.equal(JSON.stringify(redone), JSON.stringify(after));
 });
 
-test('v1 scissors fields migrate to v3 and restore after serialization', () => {
+test('v1 scissors fields migrate to v4 and restore after serialization', () => {
   const legacy = {
     ...makeDraft(),
     schemaVersion: 1,
@@ -88,7 +88,7 @@ test('v1 scissors fields migrate to v3 and restore after serialization', () => {
   const migrated = core.migrateDraft(JSON.parse(JSON.stringify(legacy)));
   assert.equal(migrated.ok, true);
   const layer = migrated.draft.layers[0];
-  assert.equal(migrated.draft.schemaVersion, 3);
+  assert.equal(migrated.draft.schemaVersion, 4);
   assert.equal(layer.clipPath, undefined);
   assert.equal(layer.brushCutMask, undefined);
   assert.equal(layer.visibilityMask.type, 'intersect');
@@ -97,7 +97,7 @@ test('v1 scissors fields migrate to v3 and restore after serialization', () => {
   assert.deepEqual(restored.draft, migrated.draft);
 });
 
-test('v2 single-stroke brush layers migrate to v3 without changing their paint semantics', () => {
+test('v2 single-stroke brush layers migrate to v4 without changing their paint semantics', () => {
   const v2 = {
     ...makeDraft(),
     schemaVersion: 2,
@@ -110,7 +110,7 @@ test('v2 single-stroke brush layers migrate to v3 without changing their paint s
   };
   const migrated = core.migrateDraft(JSON.parse(JSON.stringify(v2)));
   assert.equal(migrated.ok, true);
-  assert.equal(migrated.draft.schemaVersion, 3);
+  assert.equal(migrated.draft.schemaVersion, 4);
   const layer = migrated.draft.layers[0];
   assert.equal(layer.type, 'brush');
   assert.equal(layer.brush, undefined);
@@ -122,6 +122,51 @@ test('v2 single-stroke brush layers migrate to v3 without changing their paint s
     style: { color: '#BA786D', size: 36, spacing: 18, jitter: 4, seed: 17, opacity: 1 },
   });
   assert.deepEqual(core.validateDraft(migrated.draft), []);
+});
+
+test('v3 effects migrate to v4 instances without changing their product parameters', () => {
+  const legacy = {
+    ...makeDraft(), schemaVersion: 3,
+    layers: [{ ...makeImage(), effects: [
+      { id: 'shadow', color: '#392F2A', opacity: 0.2, blur: 12, offset: { x: 5, y: 8 } },
+      { id: 'outline', color: '#FFFFFF', width: 4 },
+      { id: 'torn-edge', seed: 9, intensity: 18 },
+    ] }],
+  };
+  const migrated = core.migrateDraft(legacy);
+  assert.equal(migrated.ok, true);
+  assert.deepEqual(migrated.draft.layers[0].effects.map((effect) => [effect.instanceId, effect.type, effect.stage, effect.params]), [
+    ['legacy-effect-image-0', 'light.shadow', 'underlay', { color: '#392F2A', opacity: 0.2, blur: 12, offset: { x: 5, y: 8 } }],
+    ['legacy-effect-image-1', 'edge.outline', 'overlay', { color: '#FFFFFF', width: 4 }],
+    ['legacy-effect-image-2', 'paper.torn-edge', 'geometry', { seed: 9, intensity: 18 }],
+  ]);
+});
+
+test('a structurally valid future effect survives validation for a newer renderer', () => {
+  const draft = { ...makeDraft(), layers: [{ ...makeImage(), effects: [{ instanceId: 'future-1', type: 'future.hologram', version: 2, enabled: true, stage: 'overlay', params: { intensity: 0.7 } }] }] };
+  assert.deepEqual(core.validateDraft(draft), []);
+});
+
+test('structure effects retain portable catalog parameters', () => {
+  const effects = [
+    { instanceId: 'corner', type: 'shape.round-corners', version: 1, enabled: true, stage: 'geometry', params: { radius: 24 } },
+    { instanceId: 'tape', type: 'attachment.tape', version: 1, enabled: true, stage: 'overlay', params: { placement: 'double-corners', color: '#E9D28A', opacity: 0.72 } },
+    { instanceId: 'float', type: 'paper.float', version: 1, enabled: true, stage: 'underlay', params: { color: '#392F2A', opacity: 0.18, blur: 30, offset: { x: 12, y: 24 } } },
+    { instanceId: 'lace', type: 'frame.lace-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', opacity: 0.95, scale: 0.82 } },
+  ];
+  assert.deepEqual(core.validateDraft({ ...makeDraft(), layers: [{ ...makeImage(), effects }] }), []);
+});
+
+test('effect commands add, patch, reorder, disable, and remove one stable instance', () => {
+  const effect = { instanceId: 'shadow-1', type: 'light.shadow', version: 1, enabled: true, stage: 'underlay', params: { color: '#000000', opacity: 0.3, blur: 10, offset: { x: 4, y: 6 } } };
+  let draft = run(makeDraft(), { type: 'layer.effect.add', layerId: 'image', effect });
+  draft = run(draft, { type: 'layer.effect.patch', layerId: 'image', instanceId: 'shadow-1', params: { ...effect.params, blur: 20 } });
+  draft = run(draft, { type: 'layer.effect.add', layerId: 'image', effect: { instanceId: 'outline-1', type: 'edge.outline', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFFFFF', width: 3 } } });
+  draft = run(draft, { type: 'layer.effect.enabled.set', layerId: 'image', instanceId: 'shadow-1', enabled: false });
+  assert.equal(draft.layers[0].effects[0].enabled, false);
+  draft = run(draft, { type: 'layer.effect.move', layerId: 'image', instanceId: 'shadow-1', toIndex: 1 });
+  draft = run(draft, { type: 'layer.effect.remove', layerId: 'image', instanceId: 'shadow-1' });
+  assert.equal(draft.layers[0].effects.length, 1);
 });
 
 test('v3 validates brush stroke safety and catalog constraints', () => {

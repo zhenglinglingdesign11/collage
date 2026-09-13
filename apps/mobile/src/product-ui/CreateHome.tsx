@@ -108,6 +108,8 @@ const RecentDraftArtwork = ({ workspace }: Readonly<{ workspace: StoredWorkspace
         proceduralStickers={proceduralStickers}
         showSelection={false}
         surfaceColor="#FFFDF9"
+        tornPaperEdgeAtlasUri={recentTornPaperEdgeAtlasUri}
+        tornPaperFiberFringeUri={recentTornPaperFiberFringeUri}
         viewport={{ scale, x: (86 - draft.canvas.size.width * scale) / 2, y: (110 - draft.canvas.size.height * scale) / 2 }}
       />
     </Canvas>
@@ -119,6 +121,8 @@ const recentLocalPolkaUris: Readonly<Record<string, string>> = {
   'asset://pack/polka-paper-materials/pattern-local-7': Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/packs/7.png')).uri,
   'asset://pack/polka-paper-materials/pattern-local-1': Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/packs/1.png')).uri,
 };
+const recentTornPaperEdgeAtlasUri = Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/textures/torn-paper-edge-atlas.png')).uri;
+const recentTornPaperFiberFringeUri = Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/textures/torn-paper-fiber-fringe.png')).uri;
 
 const ShowcaseRow = ({ items, onPress }: Readonly<{ items: readonly ('asset://ui/home/showcase/paper-sheet' | 'asset://ui/home/showcase/pack-one' | 'asset://ui/home/showcase/pack-seven' | 'asset://ui/home/showcase/pack-twenty-four')[]; onPress: () => void }>) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.showcaseTrack}>
