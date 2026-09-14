@@ -76,7 +76,7 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
       return touch({ ...draft, layers });
     }
     case 'layer.transform':
-      if (layerIndex < 0) return { draft, changed: false };
+      if (layerIndex < 0 || draft.layers[layerIndex].isLocked) return { draft, changed: false };
       return touch({ ...draft, layers: draft.layers.map((layer) => layer.id === command.layerId ? { ...layer, transform: command.transform } : layer) });
     case 'layer.effect.add': {
       const layer = draft.layers[layerIndex];

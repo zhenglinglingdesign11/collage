@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Canvas, Path, Skia, useCanvasRef, type Transforms3d } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimated';
@@ -8,8 +8,8 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { assetUriMap, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { applyCommand, createDraft, hitTest, identityTransform, migrateDraft, pointInLayerSpace, visibleBoundsForLayer, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
-import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type StraightCutPreview } from '@journalcollage/editor-renderer';
+import { alignmentGuideKey, applyCommand, createDraft, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
+import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
@@ -35,6 +35,11 @@ import { productColor } from './src/product-ui/tokens';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
 
 const CANVAS_SIZE = { width: 1800, height: 2400 };
+// Expo receives fewer/coarser simulator pointer samples than the mini-program.
+// Keep the same anchor semantics while making the visual cue attainable.
+const ALIGNMENT_GUIDE_SCREEN_THRESHOLD = 6;
+const ALIGNMENT_GUIDE_STABLE_MOVES = 2;
+const ROTATION_GUIDE_ANGLE_THRESHOLD = Math.PI / 120;
 const localPolkaPatternUris: Readonly<Record<string, string>> = {
   'asset://pack/polka-paper-materials/pattern-local-24': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/24.png')).uri,
   'asset://pack/polka-paper-materials/pattern-local-7': Image.resolveAssetSource(require('../../miniprogram-spike/miniprogram/assets/packs/7.png')).uri,
@@ -64,7 +69,33 @@ type BrushCutSession = Readonly<{ layer: ImageLayer; strokes: readonly BrushCutS
 type DecorativeBrushSession = Readonly<{ kind: 'create' | 'edit'; layerId: string; sourceLayer?: BrushLayer; strokes: readonly BrushStroke[]; redoStrokes: readonly BrushStroke[]; activeStroke: BrushStroke | null; brushId: string; brushRevision: string; color: string; size: number; spacing: number; jitter: number; opacity: number; isErasing: boolean }>;
 type EmbossSession = Readonly<{ layer: ImageLayer; shape: MaskShapeId; bounds: Rect; initialBounds: Rect; aspectLocked: boolean }>;
 type EmbossDrag = Readonly<{ session: EmbossSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
+type CropRatio = 'free' | 'original' | '1:1' | '4:5' | '3:4' | '4:3' | '9:16' | '16:9';
+type CropSession = Readonly<{ layer: ImageLayer; bounds: Rect; initialBounds: Rect; ratio: CropRatio }>;
+type CropDrag = Readonly<{ session: CropSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
 type CutStyle = 'straight' | 'wave' | 'free' | 'subject';
+
+const cropRatioValue = (ratio: CropRatio, frame: { width: number; height: number }): number | null => ({
+  free: null, original: frame.width / frame.height, '1:1': 1, '4:5': 4 / 5, '3:4': 3 / 4, '4:3': 4 / 3, '9:16': 9 / 16, '16:9': 16 / 9,
+})[ratio];
+const clampCropBounds = (bounds: Rect, minimum = 0.08): Rect => {
+  const width = Math.max(minimum, Math.min(1, bounds.width));
+  const height = Math.max(minimum, Math.min(1, bounds.height));
+  return { width, height, x: Math.max(0, Math.min(1 - width, bounds.x)), y: Math.max(0, Math.min(1 - height, bounds.y)) };
+};
+const cropBoundsForRatio = (bounds: Rect, frame: { width: number; height: number }, ratio: CropRatio): Rect => {
+  // “Original” replaces the removed Reset action: restore the complete source
+  // image, with its natural aspect ratio.
+  if (ratio === 'original') return { x: 0, y: 0, width: 1, height: 1 };
+  const value = cropRatioValue(ratio, frame);
+  if (value === null) return bounds;
+  // Choosing a preset begins with the largest matching rectangle. Its long
+  // edge therefore always reaches the source image's short-edge boundary.
+  const centre = { x: 0.5, y: 0.5 };
+  let width = 1;
+  let height = width * frame.width / (value * frame.height);
+  if (height > 1) { height = 1; width = height * value * frame.height / frame.width; }
+  return clampCropBounds({ x: centre.x - width / 2, y: centre.y - height / 2, width, height });
+};
 
 /** Avoid a startup crash in Expo Go or a development build made before this native module was installed. */
 const loadMediaLibrary = (): MediaLibraryModule | null => {
@@ -134,6 +165,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [effectSheetOpen, setEffectSheetOpen] = useState(false);
   const [effectSheetBaseEffects, setEffectSheetBaseEffects] = useState<readonly Effect[] | null>(null);
   const [layerEffectControl, setLayerEffectControl] = useState<Readonly<{ layerId: string; type: 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners' }> | null>(null);
+  const [layerPanelOpen, setLayerPanelOpen] = useState(false);
   const [effectPreview, setEffectPreview] = useState<Readonly<{ layerId: string; effects: readonly Effect[] }> | null>(null);
   const [customPolkaBackgroundOpen, setCustomPolkaBackgroundOpen] = useState(false);
   const [assetDrawerHeight, setAssetDrawerHeight] = useState(0);
@@ -147,7 +179,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [brushCut, setBrushCut] = useState<BrushCutSession | null>(null);
   const [decorativeBrush, setDecorativeBrush] = useState<DecorativeBrushSession | null>(null);
   const [emboss, setEmboss] = useState<EmbossSession | null>(null);
+  const [crop, setCrop] = useState<CropSession | null>(null);
   const [isTransforming, setIsTransforming] = useState(false);
+  // Presentation-only: these guides are never written to the Draft or export.
+  const [alignmentGuides, setAlignmentGuides] = useState<readonly AlignmentGuide[]>([]);
   const [cutHint, setCutHint] = useState<string | null>(null);
   const [headerFeedback, setHeaderFeedback] = useState<string | null>(null);
   const exportCanvasRef = useCanvasRef();
@@ -156,6 +191,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const textLayerSequence = useRef(0);
   const cutHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const movementGuideState = useRef<AlignmentGuideState>(null);
+  const rotationGuideState = useRef<AlignmentGuideState>(null);
+  const publishedGuideKey = useRef('');
   useEffect(() => {
     let active = true;
     Object.entries(LACE_FRAME_SOURCES).forEach(([id, frame]) => {
@@ -169,10 +207,13 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const decorativeBrushRef = useRef<DecorativeBrushSession | null>(null);
   const embossRef = useRef<EmbossSession | null>(null);
   const embossDragRef = useRef<EmbossDrag | null>(null);
+  const cropRef = useRef<CropSession | null>(null);
+  const cropDragRef = useRef<CropDrag | null>(null);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
   brushCutRef.current = brushCut;
   decorativeBrushRef.current = decorativeBrush;
   embossRef.current = emboss;
+  cropRef.current = crop;
   const renderedDraft = useMemo(() => {
     const withTextPreview = textEdit === null ? state.present : {
       ...state.present,
@@ -207,6 +248,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
           : { id: decorativeBrush.layerId, name: 'Brush', type: 'brush' as const, frame: CANVAS_SIZE, strokes: previewStrokes, transform: identityTransform(), opacity: 1, isLocked: false, effects: [] }],
       };
     }
+    if (crop !== null) return {
+      ...withEffectPreview,
+      canvas: { ...withEffectPreview.canvas, background: '#FDFDFB' },
+      selectedLayerId: null,
+      layers: [{ ...crop.layer, crop: { x: 0, y: 0, width: 1, height: 1 } }],
+    };
     if (emboss !== null) return {
       ...withEffectPreview,
       canvas: { ...withEffectPreview.canvas, background: '#FDFDFB' },
@@ -217,7 +264,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       layers: [emboss.layer],
     };
     return withEffectPreview;
-  }, [brushCut, decorativeBrush, effectPreview, emboss, state.present, straightCut, textEdit]);
+  }, [brushCut, crop, decorativeBrush, effectPreview, emboss, state.present, straightCut, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
     const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
@@ -262,6 +309,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const startScaleX = useSharedValue(1);
   const startScaleY = useSharedValue(1);
   const startRotation = useSharedValue(0);
+  const gestureLayerId = useSharedValue<string | null>(null);
   const straightCutRef = useRef<StraightCutSession | null>(null);
   const straightCutDragRef = useRef<StraightCutSession | null>(null);
   straightCutRef.current = straightCut;
@@ -292,31 +340,86 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     scaleY.value = transform.scale.y;
     rotation.value = transform.rotation;
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: layer?.id ?? null } });
+    setLayerPanelOpen(layer !== null);
   }, [positionX, positionY, rotation, scaleX, scaleY, state.present, viewport]);
+  const prepareDirectTransform = useCallback((screenX: number, screenY: number) => {
+    if (viewport.scale === 0) return;
+    // A straight-cut fragment has a transparent sibling and a deliberately
+    // introduced gap. Retain its committed selection as a fallback so the
+    // fragment can be dragged immediately after confirming the cut.
+    const layer = hitTest(state.present, { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale }) ?? selectedLayer;
+    if (layer === null || layer.isLocked) {
+      gestureLayerId.value = null;
+      if (layer === null) dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+      return;
+    }
+    gestureLayerId.value = layer.id;
+    positionX.value = startX.value = layer.transform.position.x;
+    positionY.value = startY.value = layer.transform.position.y;
+    scaleX.value = startScaleX.value = layer.transform.scale.x;
+    scaleY.value = startScaleY.value = layer.transform.scale.y;
+    rotation.value = startRotation.value = layer.transform.rotation;
+    dispatch({ type: 'command', command: { type: 'layer.select', layerId: layer.id } });
+    setLayerPanelOpen(true);
+    setIsTransforming(true);
+  }, [gestureLayerId, positionX, positionY, rotation, scaleX, scaleY, selectedLayer, startRotation, startScaleX, startScaleY, startX, startY, state.present, viewport]);
   const beginTransformGesture = useCallback(() => setIsTransforming(true), []);
-  const cancelTransformGesture = useCallback(() => setIsTransforming(false), []);
+  const clearAlignmentGuides = useCallback(() => {
+    movementGuideState.current = null;
+    rotationGuideState.current = null;
+    if (publishedGuideKey.current !== '') {
+      publishedGuideKey.current = '';
+      setAlignmentGuides([]);
+    }
+  }, []);
+  const publishAlignmentGuides = useCallback((guides: readonly AlignmentGuide[]) => {
+    const key = alignmentGuideKey(guides);
+    if (key === publishedGuideKey.current) return;
+    publishedGuideKey.current = key;
+    setAlignmentGuides(guides);
+  }, []);
+  const updateMovementAlignment = useCallback((layerId: string, x: number, y: number, nextScaleX: number, nextScaleY: number, nextRotation: number) => {
+    rotationGuideState.current = null;
+    const guides = movementAlignmentGuides(state.present, layerId, { position: { x, y }, scale: { x: nextScaleX, y: nextScaleY }, rotation: nextRotation }, ALIGNMENT_GUIDE_SCREEN_THRESHOLD / Math.max(viewport.scale, 0.001));
+    const stable = stabilizeAlignmentGuides(movementGuideState.current, guides, ALIGNMENT_GUIDE_STABLE_MOVES);
+    movementGuideState.current = stable.state;
+    publishAlignmentGuides(stable.guides);
+  }, [publishAlignmentGuides, state.present, viewport.scale]);
+  const updateRotationAlignment = useCallback((layerId: string, x: number, y: number, nextScaleX: number, nextScaleY: number, nextRotation: number) => {
+    movementGuideState.current = null;
+    const guides = rotationAlignmentGuides(state.present, layerId, { position: { x, y }, scale: { x: nextScaleX, y: nextScaleY }, rotation: nextRotation }, ROTATION_GUIDE_ANGLE_THRESHOLD);
+    const stable = stabilizeAlignmentGuides(rotationGuideState.current, guides, ALIGNMENT_GUIDE_STABLE_MOVES);
+    rotationGuideState.current = stable.state;
+    publishAlignmentGuides(stable.guides);
+  }, [publishAlignmentGuides, state.present]);
+  const cancelTransformGesture = useCallback(() => { clearAlignmentGuides(); setIsTransforming(false); }, [clearAlignmentGuides]);
   const commitActiveTransform = useCallback((layerId: string, x: number, y: number, nextScaleX: number, nextScaleY: number, nextRotation: number) => {
     const transform: Transform = { position: { x, y }, scale: { x: nextScaleX, y: nextScaleY }, rotation: nextRotation };
     dispatch({ type: 'command', command: { type: 'layer.transform', layerId, transform } });
+    clearAlignmentGuides();
     setIsTransforming(false);
-  }, []);
+  }, [clearAlignmentGuides]);
 
   const selectedLayerId = selectedLayer?.id ?? null;
   const commitOnEnd = () => {
     'worklet';
-    if (selectedLayerId !== null) runOnJS(commitActiveTransform)(selectedLayerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value);
+    const layerId = gestureLayerId.value;
+    if (layerId !== null) runOnJS(commitActiveTransform)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value);
+    gestureLayerId.value = null;
   };
   const tap = Gesture.Tap().onEnd((event, success) => { if (success) runOnJS(selectAt)(event.x, event.y); });
   // `onBegin` fires as soon as a finger touches the canvas, including an
   // ordinary tap. Keep shared transforms dormant until a gesture is actually
   // active so selecting a cut fragment cannot momentarily move its siblings.
-  const pan = Gesture.Pan().minDistance(8).enabled(selectedLayerId !== null && straightCut === null && brushCut === null && decorativeBrush === null).onStart(() => { runOnJS(beginTransformGesture)(); startX.value = positionX.value; startY.value = positionY.value; }).onUpdate((event) => { positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
-  const pinch = Gesture.Pinch().enabled(selectedLayerId !== null && straightCut === null && brushCut === null && decorativeBrush === null).onStart(() => { runOnJS(beginTransformGesture)(); startScaleX.value = scaleX.value; startScaleY.value = scaleY.value; }).onUpdate((event) => { const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
-  const rotate = Gesture.Rotation().enabled(selectedLayerId !== null && straightCut === null && brushCut === null && decorativeBrush === null).onStart(() => { runOnJS(beginTransformGesture)(); startRotation.value = rotation.value; }).onUpdate((event) => { rotation.value = startRotation.value + event.rotation; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) runOnJS(cancelTransformGesture)(); });
-  const ordinaryGesture = Gesture.Simultaneous(tap, pan, pinch, rotate);
+  const pan = Gesture.Pan().minDistance(8).enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.x, event.y); }).onUpdate((event) => { const layerId = gestureLayerId.value; if (layerId === null) return; positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; runOnJS(updateMovementAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value); }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  const pinch = Gesture.Pinch().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.focalX, event.focalY); }).onUpdate((event) => { if (gestureLayerId.value === null) return; const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  const rotate = Gesture.Rotation().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.anchorX, event.anchorY); }).onUpdate((event) => { const layerId = gestureLayerId.value; if (layerId === null) return; rotation.value = startRotation.value + event.rotation; runOnJS(updateRotationAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value); }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  // A completed pan/rotation must never also be treated as a canvas tap: that
+  // would clear selection (and its transient alignment guides) on finger-up.
+  const ordinaryGesture = Gesture.Exclusive(Gesture.Simultaneous(pan, pinch, rotate), tap);
   const onCanvasLayout = useCallback((event: LayoutChangeEvent) => setSurfaceSize(event.nativeEvent.layout), []);
   const onCanvasFrameLayout = useCallback((event: LayoutChangeEvent) => setCanvasFrame(event.nativeEvent.layout), []);
-  const selectLayer = useCallback((layerId: string) => dispatch({ type: 'command', command: { type: 'layer.select', layerId } }), []);
+  const selectLayer = useCallback((layerId: string) => { dispatch({ type: 'command', command: { type: 'layer.select', layerId } }); setLayerPanelOpen(true); }, []);
   const toggleEffect = useCallback((effectType: BuiltinEffectType) => {
     if (selectedLayer === null) return;
     const existing = selectedLayer.effects.find((effect) => effect.type === effectType);
@@ -529,6 +632,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     if (session === null) return;
     const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     dispatch({ type: 'command', command: { type: 'image.cut.straight', layerId: session.layerId, start: session.start, end: session.end, firstLayerId: `image-cut-${id}-a`, secondLayerId: `image-cut-${id}-b`, operationId: `${session.style}-cut-${id}`, gap: 18, style: session.style } });
+    setLayerPanelOpen(true);
     setStraightCut(null);
   }, [straightCut]);
   const cancelBrushCut = useCallback(() => setBrushCut(null), []);
@@ -599,6 +703,81 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     setDecorativeBrush(null);
   }, [decorativeBrush]);
   const decorativeBrushPan = Gesture.Pan().enabled(decorativeBrush !== null).onBegin((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, true); }).onUpdate((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false); }).onFinalize((_event, success) => { if (success) runOnJS(completeDecorativeBrushStroke)(); else runOnJS(undoDecorativeBrushStroke)(); });
+  const beginCrop = useCallback(() => {
+    if (selectedLayer?.type !== 'image') return;
+    if (selectedLayer.isLocked) {
+      Alert.alert(t(locale, 'editor.cut.lockedTitle'), t(locale, 'editor.cut.lockedBody'));
+      return;
+    }
+    setAssetDrawerOpen(false);
+    setBackgroundDrawerOpen(false);
+    setCutPaletteOpen(false);
+    setLayerEffectControl(null);
+    // Crop is about the source image, not the composition paper. Present it
+    // almost edge-to-edge while preserving its original aspect ratio.
+    const previewScale = CANVAS_SIZE.width * 0.92 / selectedLayer.frame.width;
+    // Skia scales a layer around its frame centre. Keep the unscaled frame
+    // centred here, so the scaled image remains horizontally centred as well.
+    const previewLayer = { ...selectedLayer, transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - selectedLayer.frame.width) / 2, y: (CANVAS_SIZE.height - selectedLayer.frame.height) / 2 }, scale: { x: previewScale, y: previewScale } } };
+    setCrop({ layer: previewLayer, bounds: selectedLayer.crop, initialBounds: selectedLayer.crop, ratio: 'free' });
+  }, [locale, selectedLayer]);
+  const cropPoint = useCallback((x: number, y: number, session: CropSession): Point => {
+    const point = { x: (x - viewport.x) / viewport.scale, y: (y - viewport.y) / viewport.scale };
+    const origin = { x: session.layer.frame.width / 2, y: session.layer.frame.height / 2 };
+    // This is the inverse of SkiaLayer's transform with `origin` at the
+    // frame centre. It keeps hit testing on the preview handles exact.
+    return {
+      x: (origin.x + (point.x - session.layer.transform.position.x - origin.x) / session.layer.transform.scale.x) / session.layer.frame.width,
+      y: (origin.y + (point.y - session.layer.transform.position.y - origin.y) / session.layer.transform.scale.y) / session.layer.frame.height,
+    };
+  }, [viewport]);
+  const beginCropDrag = useCallback((x: number, y: number) => {
+    const session = cropRef.current;
+    if (session === null || viewport.scale <= 0) return;
+    const point = cropPoint(x, y, session);
+    const { bounds } = session;
+    const threshold = 26 / viewport.scale / Math.max(session.layer.transform.scale.x, session.layer.transform.scale.y) / Math.min(session.layer.frame.width, session.layer.frame.height);
+    const handles: readonly ['tl' | 'tr' | 'br' | 'bl', Point][] = [['tl', { x: bounds.x, y: bounds.y }], ['tr', { x: bounds.x + bounds.width, y: bounds.y }], ['br', { x: bounds.x + bounds.width, y: bounds.y + bounds.height }], ['bl', { x: bounds.x, y: bounds.y + bounds.height }]];
+    const handle = handles.find(([, corner]) => Math.hypot(corner.x - point.x, corner.y - point.y) <= threshold)?.[0];
+    const inside = point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+    cropDragRef.current = handle ? { session, mode: 'resize', handle, start: point } : inside ? { session, mode: 'move', start: point } : null;
+  }, [cropPoint, viewport.scale]);
+  const moveCropDrag = useCallback((x: number, y: number) => {
+    const drag = cropDragRef.current;
+    if (drag === null || viewport.scale <= 0) return;
+    const point = cropPoint(x, y, drag.session);
+    const dx = point.x - drag.start.x;
+    const dy = point.y - drag.start.y;
+    const origin = drag.session.bounds;
+    if (drag.mode === 'move') {
+      setCrop((current) => current === null ? null : { ...current, bounds: clampCropBounds({ ...origin, x: origin.x + dx, y: origin.y + dy }) });
+      return;
+    }
+    let left = origin.x; let right = origin.x + origin.width; let top = origin.y; let bottom = origin.y + origin.height;
+    if (drag.handle?.includes('l')) left += dx; else right += dx;
+    if (drag.handle?.includes('t')) top += dy; else bottom += dy;
+    let next = clampCropBounds({ x: Math.min(left, right), y: Math.min(top, bottom), width: Math.abs(right - left), height: Math.abs(bottom - top) });
+    const ratio = cropRatioValue(drag.session.ratio, drag.session.layer.frame);
+    if (ratio !== null) {
+      const displayWidth = next.width * drag.session.layer.frame.width;
+      const displayHeight = next.height * drag.session.layer.frame.height;
+      const useWidth = Math.abs(dx * drag.session.layer.frame.width) >= Math.abs(dy * drag.session.layer.frame.height);
+      const width = useWidth ? next.width : displayHeight * ratio / drag.session.layer.frame.width;
+      const height = useWidth ? displayWidth / ratio / drag.session.layer.frame.height : next.height;
+      const anchorX = drag.handle?.includes('l') ? origin.x + origin.width : origin.x;
+      const anchorY = drag.handle?.includes('t') ? origin.y + origin.height : origin.y;
+      next = clampCropBounds({ x: drag.handle?.includes('l') ? anchorX - width : anchorX, y: drag.handle?.includes('t') ? anchorY - height : anchorY, width, height });
+    }
+    setCrop((current) => current === null ? null : { ...current, bounds: next });
+  }, [cropPoint, viewport.scale]);
+  const endCropDrag = useCallback(() => { cropDragRef.current = null; }, []);
+  const cropPan = Gesture.Pan().enabled(crop !== null).onBegin((event) => { runOnJS(beginCropDrag)(event.x, event.y); }).onUpdate((event) => { runOnJS(moveCropDrag)(event.x, event.y); }).onFinalize(() => { runOnJS(endCropDrag)(); });
+  const confirmCrop = useCallback(() => {
+    const session = cropRef.current;
+    if (session === null) return;
+    dispatch({ type: 'command', command: { type: 'layer.crop.set', layerId: session.layer.id, crop: clampCropBounds(session.bounds) } });
+    setCrop(null);
+  }, []);
   const beginEmboss = useCallback(() => {
     if (selectedLayer?.type !== 'image') {
       // Match scissors: the primary toolbar can be used before any layer is
@@ -684,7 +863,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   }, [embossPoint, viewport.scale]);
   const endEmbossDrag = useCallback(() => { embossDragRef.current = null; }, []);
   const embossPan = Gesture.Pan().enabled(emboss !== null).onBegin((event) => { runOnJS(beginEmbossDrag)(event.x, event.y); }).onUpdate((event) => { runOnJS(moveEmbossDrag)(event.x, event.y); }).onFinalize(() => { runOnJS(endEmbossDrag)(); });
-  const gesture = straightCut !== null ? Gesture.Simultaneous(cutPan, cutRotate) : brushCut !== null ? brushPan : decorativeBrush !== null ? decorativeBrushPan : emboss !== null ? embossPan : ordinaryGesture;
+  const gesture = straightCut !== null ? Gesture.Simultaneous(cutPan, cutRotate) : brushCut !== null ? brushPan : decorativeBrush !== null ? decorativeBrushPan : crop !== null ? cropPan : emboss !== null ? embossPan : ordinaryGesture;
   const confirmEmboss = useCallback(() => {
     if (emboss === null) return;
     const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
@@ -946,10 +1125,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   // Keep the paper at its normal editing scale while the keyboard is up. The
   // mini-program only lifts the canvas enough to retain the text selection,
   // rather than shrinking it into the remaining keyboard-free rectangle.
-  const canvasBottomOverlay = emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : effectSheetOpen ? 286 : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const canvasBottomOverlay = crop !== null ? 112 : emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : effectSheetOpen ? 286 : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
   const textCanvasOffset = textEdit !== null && keyboardHeight > 0 ? Math.min(120, Math.round(keyboardHeight * 0.35)) : 0;
   const previewSize = useMemo(() => {
-    const maxWidth = Math.max(1, window.width - 56);
+    // The crop session is a focused source-image editor, rather than a paper
+    // composition. Let it use the page width instead of normal canvas gutters.
+    const maxWidth = Math.max(1, window.width - (crop !== null ? 16 : 56));
     const editorHeight = Math.max(1, window.height - insets.top - 56);
     const normalMaxHeight = window.width > 380 ? 520 : 460;
     const maxHeight = canvasBottomOverlay > 0
@@ -960,7 +1141,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       : normalMaxHeight;
     const scale = Math.min(maxWidth / CANVAS_SIZE.width, maxHeight / CANVAS_SIZE.height);
     return { width: Math.round(CANVAS_SIZE.width * scale), height: Math.round(CANVAS_SIZE.height * scale) };
-  }, [canvasBottomOverlay, insets.top, window.height, window.width]);
+  }, [canvasBottomOverlay, crop, insets.top, window.height, window.width]);
   const proceduralPapers = useMemo(() => Object.fromEntries(state.present.layers.flatMap((layer) => {
     if (layer.type !== 'image') return [];
     const paper = proceduralPaperForReferenceId(layer.asset.id);
@@ -982,16 +1163,23 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     const contentFrame = brushCut.layer.contentFrame ?? { x: 0, y: 0 };
     return { layerId: brushCut.layer.id, strokes: brushCut.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + contentFrame.x, y: point.y + contentFrame.y })) })) } as BrushCutPreview;
   })();
-  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={emboss === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
-  const canvas = <EditorCanvas bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} immersive={brushCut !== null || emboss !== null} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
+  const cropPreview = crop === null ? null : { layerId: crop.layer.id, bounds: { x: crop.bounds.x * crop.layer.frame.width, y: crop.bounds.y * crop.layer.frame.height, width: crop.bounds.width * crop.layer.frame.width, height: crop.bounds.height * crop.layer.frame.height } } as CropPreview;
+  const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} alignmentGuides={alignmentGuides} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} showCanvasBackground={crop === null} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={layerPanelOpen && emboss === null && crop === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} cropPreview={cropPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
+  const dismissLayerEditing = useCallback(() => {
+    setLayerEffectControl(null);
+    setLayerPanelOpen(false);
+    if (selectedLayerId !== null) dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+  }, [selectedLayerId]);
+  const canvas = <EditorCanvas bare={crop !== null} bottomOverlay={canvasBottomOverlay} frame={previewSize} gesture={gesture} immersive={brushCut !== null || crop !== null || emboss !== null} keyboardOffset={textCanvasOffset} onFrameLayout={onCanvasFrameLayout} onLayout={onCanvasLayout}>{scene}</EditorCanvas>;
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
-  const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
+  const showLockedLayerFeedback = useCallback(() => showHeaderFeedback(t(locale, 'editor.feedback.unlockLayer')), [locale, showHeaderFeedback]);
+  const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
     onCorner={() => openLayerEffectControl('shape.round-corners')}
-    onCrop={() => updateCrop('in')}
+    onCrop={beginCrop}
     onShadow={() => openLayerEffectControl('light.shadow')}
     onOpacity={openLayerOpacityControl}
     onOutline={() => openLayerEffectControl('edge.outline')}
@@ -999,7 +1187,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     onScissors={openCutPalette}
     onEmboss={beginEmboss}
   /> : null;
-  const brushLayerToolbar = selectedLayer?.type === 'brush' && straightCut === null && emboss === null ? <BrushLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
+  const brushLayerToolbar = selectedLayer?.type === 'brush' && straightCut === null && emboss === null ? <BrushLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
@@ -1009,7 +1197,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     onShadow={() => openLayerEffectControl('light.shadow')}
     onOpacity={openLayerOpacityControl}
   /> : null;
-  const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale} onDismissAdjustment={() => setLayerEffectControl(null)}
+  const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
@@ -1020,18 +1208,32 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     onOutline={() => openLayerEffectControl('edge.outline')}
   /> : null;
   const selectedImageBounds = selectedLayer?.type === 'image' ? visibleBoundsForLayer(selectedLayer) : null;
-  const imageSelectionControls = selectedLayer?.type === 'image' && selectedImageBounds !== null ? <ImageSelectionControls
+  const selectionControlPoint = (point: Point) => {
+    if (selectedLayer?.type !== 'image') return { x: 0, y: 0 };
+    const origin = { x: selectedLayer.frame.width / 2, y: selectedLayer.frame.height / 2 };
+    const dx = (point.x - origin.x) * selectedLayer.transform.scale.x;
+    const dy = (point.y - origin.y) * selectedLayer.transform.scale.y;
+    const cos = Math.cos(selectedLayer.transform.rotation);
+    const sin = Math.sin(selectedLayer.transform.rotation);
+    return {
+      x: canvasFrame.x + viewport.x + (selectedLayer.transform.position.x + origin.x + dx * cos - dy * sin) * viewport.scale,
+      y: canvasFrame.y + viewport.y + (selectedLayer.transform.position.y + origin.y + dx * sin + dy * cos) * viewport.scale,
+    };
+  };
+  const lockControlPoint = selectedImageBounds === null ? null : selectionControlPoint({ x: selectedImageBounds.x, y: selectedImageBounds.y });
+  const replaceControlPoint = selectedImageBounds === null ? null : selectionControlPoint({ x: selectedImageBounds.x + selectedImageBounds.width, y: selectedImageBounds.y });
+  const imageSelectionControls = layerPanelOpen && selectedLayer?.type === 'image' && selectedImageBounds !== null ? <ImageSelectionControls
     isLocked={selectedLayer.isLocked}
-    lockStyle={{ left: canvasFrame.x + viewport.x + (selectedLayer.transform.position.x + selectedImageBounds.x) * viewport.scale - 14, top: canvasFrame.y + viewport.y + (selectedLayer.transform.position.y + selectedImageBounds.y) * viewport.scale - 14 }}
-    onReplace={() => { void pickPhoto('library', selectedLayer.id); }}
+    lockStyle={{ left: lockControlPoint!.x - 14, top: lockControlPoint!.y - 14 }}
+    onReplace={() => { if (selectedLayer.isLocked) { showLockedLayerFeedback(); return; } void pickPhoto('library', selectedLayer.id); }}
     onToggleLock={() => dispatch({ type: 'command', command: { type: 'layer.lock.set', layerId: selectedLayer.id, isLocked: !selectedLayer.isLocked } })}
-    replaceStyle={{ left: canvasFrame.x + viewport.x + (selectedLayer.transform.position.x + selectedImageBounds.x + selectedImageBounds.width) * viewport.scale - 14, top: canvasFrame.y + viewport.y + (selectedLayer.transform.position.y + selectedImageBounds.y) * viewport.scale - 14 }}
+    replaceStyle={{ left: replaceControlPoint!.x - 14, top: replaceControlPoint!.y - 14 }}
   /> : null;
 
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
-        <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
-        {brushCut === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} />}
+        <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, crop !== null && a3Styles.cropEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
+        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} />}
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -1039,14 +1241,16 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
             <View style={styles.tabletInspector}>{inspector}</View>
           </View>
         ) : (
-          <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace, brushCut !== null && a3Styles.brushEditorWorkspace, emboss !== null && a3Styles.embossEditorWorkspace]}>
+          <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace, brushCut !== null && a3Styles.brushEditorWorkspace, crop !== null && a3Styles.cropEditorWorkspace, emboss !== null && a3Styles.embossEditorWorkspace]}>
+            {layerPanelOpen && selectedLayer !== null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={dismissLayerEditing} style={a3Styles.workspaceDismissBackdrop} />}
             {canvas}
             {headerFeedback !== null && <View pointerEvents="none" style={a3Styles.headerFeedback}><Text style={a3Styles.cutHintText}>{headerFeedback}</Text></View>}
             {brushCut !== null && <BrushCutHeader locale={locale} hasStrokes={brushCut.strokes.length > 0} onCancel={cancelBrushCut} onConfirm={confirmBrushCut} />}
+            {crop !== null && <CropEditor bottomInset={insets.bottom} locale={locale} ratio={crop.ratio} onCancel={() => setCrop(null)} onConfirm={confirmCrop} onSelectRatio={(ratio) => setCrop((current) => current === null ? null : { ...current, ratio, bounds: cropBoundsForRatio(current.bounds, current.layer.frame, ratio) })} />}
             {emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
-            {straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && imageSelectionControls}
-            {selectedLayer === null && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onBrush={beginDecorativeBrush} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
-            {straightCut === null && brushCut === null && decorativeBrush === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? brushLayerToolbar ?? (selectedLayer !== null && inspector))}
+            {straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && imageSelectionControls}
+            {(selectedLayer === null || !layerPanelOpen) && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onBrush={beginDecorativeBrush} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
+            {layerPanelOpen && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? brushLayerToolbar ?? (selectedLayer !== null && inspector))}
             {layerEffectControl !== null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={() => setLayerEffectControl(null)} style={a3Styles.layerEffectControlBackdrop} />}
             {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} type={layerEffectControl.type} onChange={(value) => { if (layerEffectControl.type === 'opacity') { dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: value } }); return; } const effect = selectedLayer.effects.find((item) => item.type === layerEffectControl.type); if (!effect) return; const spec = layerEffectControlSpec(layerEffectControl.type); dispatch({ type: 'command', command: { type: 'layer.effect.patch', layerId: selectedLayer.id, instanceId: effect.instanceId, params: { ...effect.params, [spec.param]: value } } }); }} />}
             {assetDrawerOpen && <>
@@ -1066,6 +1270,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
             {cutHint !== null && <View pointerEvents="none" style={[a3Styles.cutHint, { bottom: 112 + insets.bottom }]}><Text style={a3Styles.cutHintText}>{cutHint}</Text></View>}
           </View>
         )}
+        {isTablet && crop !== null && <CropEditor bottomInset={insets.bottom} locale={locale} ratio={crop.ratio} onCancel={() => setCrop(null)} onConfirm={confirmCrop} onSelectRatio={(ratio) => setCrop((current) => current === null ? null : { ...current, ratio, bounds: cropBoundsForRatio(current.bounds, current.layer.frame, ratio) })} />}
         {isTablet && emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
         {effectSheetOpen && selectedLayer !== null && <>
           <View pointerEvents="auto" style={a3Styles.assetDrawerBackdrop} />
@@ -1101,9 +1306,9 @@ const LayerEffectControlPanel = ({ bottomInset, effect, locale, onChange, opacit
     <View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onResponderGrant={setFromEvent} onResponderMove={setFromEvent} onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} style={a3Styles.layerEffectSlider}><View style={[a3Styles.layerEffectSliderFill, { width: `${ratio * 100}%` }]} /><View pointerEvents="none" style={[a3Styles.layerEffectSliderThumb, { left: `${ratio * 100}%` }]} /></View>
   </View>;
 };
-const EditorCanvas = ({ bottomOverlay, children, frame, gesture, immersive = false, keyboardOffset, onFrameLayout, onLayout }: { bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous> | ReturnType<typeof Gesture.Pan>; immersive?: boolean; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
-  <View style={[a3Styles.canvasStage, bottomOverlay > 0 && !immersive ? a3Styles.canvasStageWithSheet : { paddingBottom: immersive ? 0 : 104 }]}>
-    <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, frame, keyboardOffset > 0 && { transform: [{ translateY: -keyboardOffset }] }]}>
+const EditorCanvas = ({ bare = false, bottomOverlay, children, frame, gesture, immersive = false, keyboardOffset, onFrameLayout, onLayout }: { bare?: boolean; bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous> | ReturnType<typeof Gesture.Pan> | ReturnType<typeof Gesture.Exclusive>; immersive?: boolean; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
+  <View pointerEvents="box-none" style={[a3Styles.canvasStage, bottomOverlay > 0 && !immersive ? a3Styles.canvasStageWithSheet : { paddingBottom: immersive ? 0 : 104 }]}>
+    <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, bare && a3Styles.canvasFrameBare, frame, keyboardOffset > 0 && { transform: [{ translateY: -keyboardOffset }] }]}>
       <View onLayout={onLayout} style={a3Styles.canvasMeasurement}>
         <GestureDetector gesture={gesture}>
           <Canvas style={styles.canvas}>{children}</Canvas>
@@ -1174,6 +1379,14 @@ const EmbossEditor = ({ bottomInset, locale, onCancel, onConfirm, onReset, onSel
     </View>
   </>;
 };
+const CropEditor = ({ bottomInset, locale, onCancel, onConfirm, onSelectRatio, ratio }: Readonly<{ bottomInset: number; locale: ReturnType<typeof resolveProductLocale>; onCancel: () => void; onConfirm: () => void; onSelectRatio: (ratio: CropRatio) => void; ratio: CropRatio }>) => {
+  const ratios: readonly CropRatio[] = ['free', 'original', '1:1', '4:5', '3:4', '4:3', '9:16', '16:9'];
+  const label = (item: CropRatio) => item === 'free' ? t(locale, 'editor.crop.free') : item === 'original' ? t(locale, 'editor.crop.original') : item;
+  return <>
+    <View style={a3Styles.cropHeader}><Pressable accessibilityRole="button" onPress={onCancel}><Text style={a3Styles.embossCancel}>{t(locale, 'editor.cut.cancel')}</Text></Pressable><Text style={a3Styles.embossTitle}>{t(locale, 'editor.layer.crop')}</Text><Pressable accessibilityRole="button" onPress={onConfirm}><Text style={a3Styles.embossDone}>{t(locale, 'editor.cut.done')}</Text></Pressable></View>
+    <View style={[a3Styles.cropPanel, { paddingBottom: Math.max(12, bottomInset + 6) }]}><ScrollView contentContainerStyle={a3Styles.cropRatioRow} horizontal showsHorizontalScrollIndicator={false}>{ratios.map((item) => <Pressable accessibilityRole="button" key={item} onPress={() => onSelectRatio(item)} style={[a3Styles.cropRatioOption, ratio === item && a3Styles.cropRatioOptionActive]}><Text style={[a3Styles.cropRatioLabel, ratio === item && a3Styles.cropRatioLabelActive]}>{label(item)}</Text></Pressable>)}</ScrollView></View>
+  </>;
+};
 const BrushCutHeader = ({ locale, hasStrokes, onCancel, onConfirm }: Readonly<{ locale: ReturnType<typeof resolveProductLocale>; hasStrokes: boolean; onCancel: () => void; onConfirm: () => void }>) => (
   <View style={a3Styles.brushCutHeader}>
     <Pressable accessibilityRole="button" hitSlop={10} onPress={onCancel} style={a3Styles.brushCutHeaderAction}><Text style={a3Styles.brushCutCancel}>{t(locale, 'editor.cut.cancel')}</Text></Pressable>
@@ -1229,12 +1442,16 @@ const a3Styles = StyleSheet.create({
   phoneWorkspace: { position: 'relative' },
   brushEditorWorkspace: { backgroundColor: '#FAFAF8' },
   embossEditorSafeArea: { backgroundColor: '#FFFFFF' },
+  cropEditorSafeArea: { backgroundColor: '#FFFFFF' },
   embossEditorWorkspace: { backgroundColor: '#FAFAF8' },
+  cropEditorWorkspace: { backgroundColor: '#FAFAF8' },
+  workspaceDismissBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   canvasStage: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingBottom: 104, paddingTop: 8 },
   canvasStageWithSheet: { justifyContent: 'flex-start', paddingBottom: 0, paddingTop: 8 },
   assetDrawerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 9 },
   cutPaletteBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 6 },
   canvasFrame: { backgroundColor: '#FDFDFB', shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.12, shadowRadius: 29 },
+  canvasFrameBare: { backgroundColor: 'transparent', shadowOpacity: 0, shadowRadius: 0 },
   canvasMeasurement: { flex: 1 },
   exportCanvas: { height: CANVAS_SIZE.height, left: -10000, position: 'absolute', top: -10000, width: CANVAS_SIZE.width },
   cutPalette: { alignItems: 'stretch', backgroundColor: 'rgba(255,255,255,0.94)', borderColor: '#ECEAE5', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 82, left: 32, paddingHorizontal: 9, position: 'absolute', right: 32, shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.1, shadowRadius: 20, zIndex: 7 },
@@ -1273,6 +1490,7 @@ const a3Styles = StyleSheet.create({
   brushCutKnob: { backgroundColor: '#FFFFFF', borderRadius: 11, height: 22, width: 22 },
   brushCutKnobActive: { backgroundColor: '#FFFFFF', transform: [{ translateX: 20 }] },
   embossHeader: { alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomColor: '#ECEAE5', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 58, justifyContent: 'space-between', left: 0, paddingHorizontal: 20, position: 'absolute', right: 0, top: 0, zIndex: 10 },
+  cropHeader: { alignItems: 'center', backgroundColor: '#FFFFFF', borderBottomColor: '#ECEAE5', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 58, justifyContent: 'space-between', left: 0, paddingHorizontal: 20, position: 'absolute', right: 0, top: 0, zIndex: 10 },
   embossCancel: { color: '#B8B8B8', fontSize: 16, fontWeight: '600' },
   embossTitle: { color: '#111111', fontSize: 17, fontWeight: '700' },
   embossDone: { color: '#111111', fontSize: 16, fontWeight: '700' },
@@ -1289,6 +1507,12 @@ const a3Styles = StyleSheet.create({
   embossRatioKnob: { backgroundColor: '#FFFFFF', borderRadius: 10, height: 20, width: 20 },
   embossRatioKnobActive: { transform: [{ translateX: 20 }] },
   embossSubActionText: { color: '#111111', fontSize: 13, fontWeight: '600' },
+  cropPanel: { alignItems: 'center', backgroundColor: '#FFFFFF', borderTopColor: '#ECEAE5', borderTopWidth: StyleSheet.hairlineWidth, bottom: 0, left: 0, paddingHorizontal: 16, paddingTop: 12, position: 'absolute', right: 0, zIndex: 10 },
+  cropRatioRow: { alignItems: 'center', flexDirection: 'row', gap: 6, paddingHorizontal: 2 },
+  cropRatioOption: { alignItems: 'center', backgroundColor: '#F4F3F0', borderRadius: 16, height: 34, justifyContent: 'center', minWidth: 58, paddingHorizontal: 10 },
+  cropRatioOptionActive: { backgroundColor: '#111111' },
+  cropRatioLabel: { color: '#6F6F6F', fontSize: 11, fontWeight: '600' },
+  cropRatioLabelActive: { color: '#FFFFFF' },
   disabledAction: { opacity: 0.35 },
 });
 

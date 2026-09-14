@@ -24,7 +24,7 @@ import {
 } from '@shopify/react-native-skia';
 import { useMemo, type ReactNode } from 'react';
 import { visibleBoundsForLayer } from '@journalcollage/editor-core';
-import type { BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, EffectStage, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
+import type { AlignmentGuide, BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, EffectStage, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
@@ -43,6 +43,8 @@ export type ActiveLayerPresentation = Readonly<{
 /** Ephemeral interaction state. It is intentionally not persisted in Draft. */
 export type StraightCutPreview = Readonly<{ layerId: string; start: Point; end: Point; style: 'straight' | 'wave' }>;
 export type BrushCutPreview = Readonly<{ layerId: string; strokes: readonly BrushCutStroke[] }>;
+/** Full-screen crop chrome in layer-local coordinates; never persisted or exported. */
+export type CropPreview = Readonly<{ layerId: string; bounds: { x: number; y: number; width: number; height: number } }>;
 /** Preview-only mask chrome for a full-screen tool. It never enters a Draft or export. */
 export type VisibilityMaskPreview = Readonly<{ layerId: string; mask: VisibilityMask }>;
 
@@ -134,6 +136,8 @@ type SkiaEditorSceneProps = Readonly<{
   /** Canvas-owned paper/background input resolved from Draft.canvas.backgroundAsset. */
   canvasBackgroundUri?: string;
   canvasBackgroundPaper?: ProceduralPaperPaint;
+  /** Full-screen source tools can deliberately render without composition paper. */
+  showCanvasBackground?: boolean;
   /** Product-owned torn-paper scans. The effect contract stays asset-free. */
   tornPaperEdgeAtlasUri?: string;
   tornPaperFiberFringeUri?: string;
@@ -144,10 +148,13 @@ type SkiaEditorSceneProps = Readonly<{
   /** False when the product is intentionally waiting for a cached real frame. */
   laceFrameFallback?: boolean;
   showSelection?: boolean;
+  /** UI-only movement/rotation reference lines. Omit for export and thumbnails. */
+  alignmentGuides?: readonly AlignmentGuide[];
   /** Preview-only stage color. It is deliberately not stored in the Draft. */
   surfaceColor?: string;
   straightCutPreview?: StraightCutPreview | null;
   brushCutPreview?: BrushCutPreview | null;
+  cropPreview?: CropPreview | null;
   visibilityMaskPreview?: VisibilityMaskPreview | null;
 }>;
 
@@ -156,11 +163,11 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris = {}, laceFrameFallback = true, showSelection = true, surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showCanvasBackground = true, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris = {}, laceFrameFallback = true, showSelection = true, alignmentGuides = [], surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, cropPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
-      <CanvasBackground frame={draft.canvas.size} color={draft.canvas.background} paper={canvasBackgroundPaper} assetUri={canvasBackgroundUri} />
+      {showCanvasBackground && <CanvasBackground frame={draft.canvas.size} color={draft.canvas.background} paper={canvasBackgroundPaper} assetUri={canvasBackgroundUri} />}
       {draft.layers.map((layer) => (
         <SkiaLayer
           key={layer.id}
@@ -181,12 +188,20 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           laceFrameFallback={laceFrameFallback}
           straightCutPreview={straightCutPreview?.layerId === layer.id ? straightCutPreview : null}
           brushCutPreview={brushCutPreview?.layerId === layer.id ? brushCutPreview : null}
+          cropPreview={cropPreview?.layerId === layer.id ? cropPreview : null}
           visibilityMaskPreview={visibilityMaskPreview?.layerId === layer.id ? visibilityMaskPreview : null}
         />
       ))}
+      <CanvasAlignmentGuides guides={alignmentGuides} size={draft.canvas.size} strokeWidth={2 / Math.max(viewport.scale, 0.001)} />
     </Group>
   </>
 );
+
+const CanvasAlignmentGuides = ({ guides, size, strokeWidth }: Readonly<{ guides: readonly AlignmentGuide[]; size: { width: number; height: number }; strokeWidth: number }>) => <>
+  {guides.map((guide) => guide.axis === 'x'
+    ? <Rect color="rgba(217, 74, 56, 0.76)" height={size.height} key={`x:${guide.value}`} width={strokeWidth} x={guide.value - strokeWidth / 2} y={0} />
+    : <Rect color="rgba(217, 74, 56, 0.76)" height={strokeWidth} key={`y:${guide.value}`} width={size.width} x={0} y={guide.value - strokeWidth / 2} />)}
+</>;
 
 /**
  * Canvas backgrounds intentionally bypass the layer renderer: they cannot be
@@ -219,10 +234,11 @@ type SkiaLayerProps = Readonly<{
   laceFrameFallback: boolean;
   straightCutPreview: StraightCutPreview | null;
   brushCutPreview: BrushCutPreview | null;
+  cropPreview: CropPreview | null;
   visibilityMaskPreview: VisibilityMaskPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, visibilityMaskPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, cropPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
@@ -286,6 +302,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
         <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
       </>}
       {brushCutPreview && <Path path={makeBrushStrokePath({ mode: 'include', strokes: brushCutPreview.strokes })} color="rgba(217,74,56,0.62)" />}
+      {cropPreview && <CropPreviewChrome bounds={cropPreview.bounds} frame={frame} />}
       {visibilityPreviewPath && <><Path path={visibilityPreviewPath} color="rgba(217,74,56,0.18)" /><Path path={visibilityPreviewPath} color="#111111" style="stroke" strokeWidth={4} />
         {visibilityPreviewBounds && <><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /></>}
       </>}
@@ -304,6 +321,23 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
       )}
     </Group>
   );
+};
+
+const CropPreviewChrome = ({ bounds, frame }: Readonly<{ bounds: { x: number; y: number; width: number; height: number }; frame: { width: number; height: number } }>) => {
+  const line = Math.max(3, Math.min(frame.width, frame.height) * 0.008);
+  const handle = line * 3;
+  return <>
+    <Rect color="rgba(17,17,17,0.28)" height={bounds.y} width={frame.width} x={0} y={0} />
+    <Rect color="rgba(17,17,17,0.28)" height={frame.height - bounds.y - bounds.height} width={frame.width} x={0} y={bounds.y + bounds.height} />
+    <Rect color="rgba(17,17,17,0.28)" height={bounds.height} width={bounds.x} x={0} y={bounds.y} />
+    <Rect color="rgba(17,17,17,0.28)" height={bounds.height} width={frame.width - bounds.x - bounds.width} x={bounds.x + bounds.width} y={bounds.y} />
+    <Rect color="#FFFFFF" height={bounds.height} style="stroke" strokeWidth={line} width={bounds.width} x={bounds.x} y={bounds.y} />
+    <Rect color="rgba(255,255,255,0.45)" height={line / 2} width={bounds.width} x={bounds.x} y={bounds.y + bounds.height / 3} />
+    <Rect color="rgba(255,255,255,0.45)" height={line / 2} width={bounds.width} x={bounds.x} y={bounds.y + bounds.height * 2 / 3} />
+    <Rect color="rgba(255,255,255,0.45)" height={bounds.height} width={line / 2} x={bounds.x + bounds.width / 3} y={bounds.y} />
+    <Rect color="rgba(255,255,255,0.45)" height={bounds.height} width={line / 2} x={bounds.x + bounds.width * 2 / 3} y={bounds.y} />
+    {[[bounds.x, bounds.y], [bounds.x + bounds.width, bounds.y], [bounds.x + bounds.width, bounds.y + bounds.height], [bounds.x, bounds.y + bounds.height]].map(([x, y], index) => <Rect color="#FFFFFF" height={handle} key={index} width={handle} x={x - handle / 2} y={y - handle / 2} />)}
+  </>;
 };
 
 const ImageLayerContent = ({ contentEffects, layer, assetUri, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {

@@ -50,8 +50,9 @@ export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, on
   </View>
 );
 
-export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCorner, onCrop, onDelete, onDismissAdjustment, onDown, onEmboss, onEffects, onOpacity, onOutline, onScissors, onShadow, onUp }: Readonly<{
+export const ImageLayerToolbar = ({ bottomInset = 0, locale, locked = false, onCopy, onCorner, onCrop, onDelete, onDismissAdjustment, onDown, onEmboss, onEffects, onLockedPress, onOpacity, onOutline, onScissors, onShadow, onUp }: Readonly<{
   bottomInset?: number;
+  locked?: boolean;
   locale: ProductLocale;
   onCopy: () => void;
   onCorner: () => void;
@@ -61,6 +62,7 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCorner, o
   onDown: () => void;
   onEmboss: () => void;
   onEffects: () => void;
+  onLockedPress: () => void;
   onOpacity: () => void;
   onOutline: () => void;
   onScissors: () => void;
@@ -79,6 +81,7 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCorner, o
         <LayerAction icon="crop" label="editor.layer.crop" locale={locale} onPress={onCrop} />
         <LayerAction icon="shadow" label="editor.layer.shadow" locale={locale} onPress={onShadow} />
       </View>
+      {locked && <Pressable accessibilityLabel="Unlock layer to edit" accessibilityRole="button" onPress={onLockedPress} style={styles.lockedActionsOverlay} />}
       <View style={[styles.layerActionRow, styles.layerActionRowSecond]}>
         <LayerAction icon="opacity" label="editor.layer.opacity" locale={locale} onPress={onOpacity} />
         <LayerAction icon="corner" label="editor.layer.corner" locale={locale} onPress={onCorner} />
@@ -93,14 +96,16 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, onCopy, onCorner, o
 
 /** Mirrors the mini-program selected-text state: normal layer actions plus a
  * persistent edit-text link in the panel header. */
-export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDismissAdjustment, onDown, onEditText, onOpacity, onOutline, onShadow, onUp }: Readonly<{
+export const TextLayerToolbar = ({ bottomInset = 0, locale, locked = false, onCopy, onDelete, onDismissAdjustment, onDown, onEditText, onLockedPress, onOpacity, onOutline, onShadow, onUp }: Readonly<{
   bottomInset?: number;
+  locked?: boolean;
   locale: ProductLocale;
   onCopy: () => void;
   onDelete: () => void;
   onDismissAdjustment: () => void;
   onDown: () => void;
   onEditText: () => void;
+  onLockedPress: () => void;
   onOpacity: () => void;
   onOutline: () => void;
   onShadow: () => void;
@@ -108,7 +113,7 @@ export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, on
 }>) => (
   <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
     <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={onDismissAdjustment} style={styles.layerToolbarDismissArea} />
-    <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.text.edit')} hitSlop={8} onPress={onEditText}><Text style={styles.textEditLink}>{t(locale, 'editor.text.edit')}</Text></Pressable></View>
+    <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.text.edit')} hitSlop={8} onPress={locked ? onLockedPress : onEditText}><Text style={styles.textEditLink}>{t(locale, 'editor.text.edit')}</Text></Pressable></View>
     <View style={[styles.layerActions, styles.textLayerActions]}>
       <LayerAction asset="asset://ui/editor/layer/move-up" label="editor.layer.up" locale={locale} onPress={onUp} style={styles.textLayerAction} />
       <LayerAction asset="asset://ui/editor/layer/move-down" label="editor.layer.down" locale={locale} onPress={onDown} style={styles.textLayerAction} />
@@ -117,14 +122,16 @@ export const TextLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, on
       <LayerAction icon="shadow" label="editor.layer.shadow" locale={locale} onPress={onShadow} style={styles.textLayerAction} />
       <LayerAction icon="opacity" label="editor.layer.opacity" locale={locale} onPress={onOpacity} style={styles.textLayerAction} />
       <LayerAction icon="outline" label="editor.layer.outline" locale={locale} onPress={onOutline} style={styles.textLayerAction} />
+      {locked && <Pressable accessibilityLabel="Unlock layer to edit" accessibilityRole="button" onPress={onLockedPress} style={styles.lockedActionsOverlay} />}
     </View>
   </View>
 );
 
 /** Product-layer controls for persisted decorative strokes. The legacy A1
  * inspector must never be used as an editing surface for a BrushLayer. */
-export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, onDismissAdjustment, onDown, onEdit, onEffects, onOpacity, onShadow, onUp }: Readonly<{
+export const BrushLayerToolbar = ({ bottomInset = 0, locale, locked = false, onCopy, onDelete, onDismissAdjustment, onDown, onEdit, onEffects, onLockedPress, onOpacity, onShadow, onUp }: Readonly<{
   bottomInset?: number;
+  locked?: boolean;
   locale: ProductLocale;
   onCopy: () => void;
   onDelete: () => void;
@@ -132,13 +139,14 @@ export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, o
   onDown: () => void;
   onEdit: () => void;
   onEffects: () => void;
+  onLockedPress: () => void;
   onOpacity: () => void;
   onShadow: () => void;
   onUp: () => void;
 }>) => (
   <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
     <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={onDismissAdjustment} style={styles.layerToolbarDismissArea} />
-    <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.brush.edit')} hitSlop={8} onPress={onEdit}><Text style={styles.textEditLink}>{t(locale, 'editor.brush.edit')}</Text></Pressable></View>
+    <View style={[styles.layerToolbarHead, styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text><Pressable accessibilityLabel={t(locale, 'editor.brush.edit')} hitSlop={8} onPress={locked ? onLockedPress : onEdit}><Text style={styles.textEditLink}>{t(locale, 'editor.brush.edit')}</Text></Pressable></View>
     <View style={styles.layerActions}>
       <View style={styles.layerActionRow}>
         <LayerAction asset="asset://ui/editor/layer/move-up" label="editor.layer.up" locale={locale} onPress={onUp} />
@@ -151,6 +159,7 @@ export const BrushLayerToolbar = ({ bottomInset = 0, locale, onCopy, onDelete, o
       <View style={[styles.layerActionRow, styles.layerActionRowSecond, styles.brushLayerActionRowSecond]}>
         <LayerAction icon="effects" label="editor.layer.effects" locale={locale} onPress={onEffects} style={styles.brushLayerSecondAction} />
       </View>
+      {locked && <Pressable accessibilityLabel="Unlock layer to edit" accessibilityRole="button" onPress={onLockedPress} style={styles.lockedActionsOverlay} />}
     </View>
   </View>
 );
@@ -192,7 +201,7 @@ const LayerActionIcon = ({ kind }: Readonly<{ kind: LayerActionIconKind }>) => {
     case 'outline': return <View style={styles.actionIcon}><View style={styles.outlineBack} /><View style={styles.outlineFront} /></View>;
     case 'effects': return <View style={styles.actionIcon}><View style={styles.effectPaper} /><View style={styles.effectTape} /></View>;
     case 'scissors': return <View style={styles.actionIcon}><View style={[styles.scissorRing, styles.scissorRingLeft]} /><View style={[styles.scissorRing, styles.scissorRingRight]} /><View style={[styles.scissorBlade, styles.scissorBladeLeft]} /><View style={[styles.scissorBlade, styles.scissorBladeRight]} /><View style={styles.scissorJoint} /></View>;
-    case 'emboss': return <View style={styles.actionIcon}><View style={styles.embossFrame} /><View style={styles.embossStar} /></View>;
+    case 'emboss': return <View style={styles.actionIcon}><View style={styles.embossFrame} /><Canvas pointerEvents="none" style={styles.embossStar}><Path color={productColor.ink} path="M7 2.55l1.45 2.93 3.23.47-2.34 2.28.55 3.22L7 9.94l-2.89 1.51.55-3.22-2.34-2.28 3.23-.47z" strokeJoin="round" strokeWidth={1.35} style="stroke" /></Canvas></View>;
   }
 };
 
@@ -243,7 +252,8 @@ const styles = StyleSheet.create({
   textLayerToolbarHead: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   layerToolbarTitle: { color: productColor.ink, fontSize: 16, fontWeight: '700', lineHeight: 22 },
   textEditLink: { color: productColor.ink, fontSize: 13, fontWeight: '600' },
-  layerActions: { marginHorizontal: 12, zIndex: 1 },
+  layerActions: { marginHorizontal: 12, position: 'relative', zIndex: 1 },
+  lockedActionsOverlay: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 2 },
   layerActionRow: { flexDirection: 'row', height: 54 },
   layerActionRowSecond: { marginTop: 9 },
   brushLayerActionRowSecond: { justifyContent: 'flex-start' },
@@ -265,11 +275,11 @@ const styles = StyleSheet.create({
   cropBottomRight: { borderBottomWidth: 2, borderRightWidth: 2, bottom: 2, right: 2 },
   shadowBack: { backgroundColor: productColor.ink, borderRadius: 3, height: 12, left: 8, opacity: 0.24, position: 'absolute', top: 8, width: 12 },
   shadowFront: { backgroundColor: productColor.surface, borderColor: productColor.ink, borderRadius: 3, borderWidth: 2, height: 12, left: 4, position: 'absolute', top: 4, width: 12 },
-  opacityIcon: { borderColor: productColor.ink, borderRadius: 12, borderWidth: 2, overflow: 'hidden' },
+  opacityIcon: { borderColor: productColor.ink, borderRadius: 10, borderWidth: 2, height: 20, marginBottom: 2, marginTop: 2, overflow: 'hidden', width: 20 },
   opacityFill: { backgroundColor: productColor.ink, height: '100%', width: '50%' },
-  cornerIcon: { borderColor: productColor.ink, borderRadius: 6, borderWidth: 2, height: 18, marginTop: 3, width: 18 },
-  outlineBack: { borderColor: productColor.ink, borderRadius: 5, borderWidth: 3, height: 17, left: 3, opacity: 0.28, position: 'absolute', top: 3, width: 17 },
-  outlineFront: { backgroundColor: productColor.surface, borderColor: productColor.ink, borderRadius: 3, borderWidth: 2, height: 11, left: 7, position: 'absolute', top: 7, width: 11 },
+  cornerIcon: { borderColor: productColor.ink, borderRadius: 6, borderWidth: 2, height: 18, marginBottom: 3, marginTop: 3, width: 18 },
+  outlineBack: { borderColor: productColor.ink, borderRadius: 5, borderWidth: 3, height: 18, left: 3, opacity: 0.28, position: 'absolute', top: 3, width: 18 },
+  outlineFront: { backgroundColor: productColor.surface, borderColor: productColor.ink, borderRadius: 3, borderWidth: 2, height: 12, left: 6, position: 'absolute', top: 6, width: 12 },
   effectPaper: { borderColor: productColor.ink, borderRadius: 2, borderWidth: 2, height: 17, left: 4, position: 'absolute', top: 4, width: 16 },
   effectTape: { backgroundColor: productColor.ink, height: 5, left: 9, opacity: 0.5, position: 'absolute', top: 3, transform: [{ rotate: '-9deg' }], width: 12 },
   scissorRing: { borderColor: productColor.ink, borderRadius: 6, borderWidth: 2, height: 8, position: 'absolute', top: 14, width: 8 },
@@ -280,7 +290,7 @@ const styles = StyleSheet.create({
   scissorBladeRight: { transform: [{ rotate: '32deg' }] },
   scissorJoint: { backgroundColor: productColor.ink, borderRadius: 2, height: 4, left: 10, position: 'absolute', top: 13, width: 4 },
   embossFrame: { borderColor: productColor.ink, borderRadius: 5, borderWidth: 2, height: 16, left: 4, position: 'absolute', top: 4, width: 17 },
-  embossStar: { backgroundColor: productColor.ink, height: 10, left: 8, position: 'absolute', top: 7, transform: [{ rotate: '45deg' }], width: 10 },
+  embossStar: { height: 14, left: 5.5, position: 'absolute', top: 5, width: 14 },
   selectionControl: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.72)', borderRadius: 14, height: 28, justifyContent: 'center', position: 'absolute', width: 28, zIndex: 4 },
   selectionControlIcon: { height: 18, resizeMode: 'contain', width: 18 },
 });

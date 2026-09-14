@@ -1,5 +1,6 @@
 export * from './commands';
 export * from './assets';
+export * from './alignment';
 export * from './document';
 export * from './effects';
 export * from './geometry';

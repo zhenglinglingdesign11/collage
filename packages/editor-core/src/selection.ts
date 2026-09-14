@@ -25,7 +25,10 @@ export const pointInLayerSpace = (point: Point, layer: Layer): Point => {
 };
 
 export const layerContainsPoint = (layer: Layer, point: Point): boolean => {
-  if (layer.isLocked || layer.opacity <= 0) return false;
+  // Locking prevents mutation, not inspection. Locked artwork must remain
+  // selectable so its outline, unlock control, and action-panel guidance stay
+  // available to the user.
+  if (layer.opacity <= 0) return false;
   const local = pointInLayerSpace(point, layer);
   if (local.x < 0 || local.x > layer.frame.width || local.y < 0 || local.y > layer.frame.height) return false;
   if (layer.type === 'brush') {

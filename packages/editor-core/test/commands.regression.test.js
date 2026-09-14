@@ -26,6 +26,40 @@ const run = (draft, command) => {
   return result.draft;
 };
 
+test('movement alignment finds canvas and layer anchors, then waits for stability', () => {
+  const draft = {
+    ...makeDraft(),
+    layers: [makeImage('moving'), { ...makeImage('reference'), transform: { ...core.identityTransform(), position: { x: 500, y: 120 } } }],
+  };
+  const transform = { ...core.identityTransform(), position: { x: 1.5, y: 118.5 } };
+  const guides = core.movementAlignmentGuides(draft, 'moving', transform, 2);
+  assert.deepEqual(guides, [{ axis: 'x', value: 0 }, { axis: 'y', value: 120 }]);
+  let state = null;
+  for (let index = 0; index < 3; index += 1) {
+    const next = core.stabilizeAlignmentGuides(state, guides, 4);
+    assert.deepEqual(next.guides, []);
+    state = next.state;
+  }
+  const stable = core.stabilizeAlignmentGuides(state, guides, 4);
+  assert.deepEqual(stable.guides, guides);
+});
+
+test('rotation alignment displays centre axes only near a right angle', () => {
+  const draft = makeDraft();
+  const nearRightAngle = { ...draft.layers[0].transform, rotation: Math.PI / 2 + Math.PI / 360 };
+  assert.deepEqual(core.rotationAlignmentGuides(draft, 'image', nearRightAngle, Math.PI / 120), [{ axis: 'x', value: 280 }, { axis: 'y', value: 270 }]);
+  const notNearRightAngle = { ...draft.layers[0].transform, rotation: Math.PI / 2 + Math.PI / 60 };
+  assert.deepEqual(core.rotationAlignmentGuides(draft, 'image', notNearRightAngle, Math.PI / 120), []);
+});
+
+test('a locked layer rejects transform commands', () => {
+  const locked = run(makeDraft(), { type: 'layer.lock.set', layerId: 'image', isLocked: true });
+  const result = core.applyCommand(locked, { type: 'layer.transform', layerId: 'image', transform: { ...core.identityTransform(), position: { x: 260, y: 320 } } }, now);
+  assert.equal(result.changed, false);
+  assert.deepEqual(result.draft.layers[0].transform.position, { x: 80, y: 120 });
+  assert.equal(core.hitTest(locked, { x: 100, y: 140 }).id, 'image');
+});
+
 const emboss = (draft, layerId, suffix) => run(draft, {
   type: 'image.mask.split',
   layerId,
