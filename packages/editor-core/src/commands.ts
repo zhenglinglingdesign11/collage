@@ -1,5 +1,5 @@
 import type { AssetReference, BrushCutStroke, BrushStroke, Draft, Effect, EffectValue, Layer, VisibilityMask } from './document';
-import type { Point, Rect, Transform } from './geometry';
+import type { Point, Rect, Size, Transform } from './geometry';
 import { splitPolygonByLine, waveCutSidesForFrame } from './straightCut';
 import { isValidVisibilityMask, validateDraft } from './validation';
 
@@ -40,6 +40,7 @@ export type EditorCommand =
   | Readonly<{ type: 'layer.lock.set'; layerId: string; isLocked: boolean }>
   | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference }>
   | Readonly<{ type: 'canvas.background.set'; background: string; asset: AssetReference | null }>
+  | Readonly<{ type: 'canvas.size.set'; size: Size }>
   | Readonly<{ type: 'layer.select'; layerId: string | null }>;
 
 export type CommandResult = Readonly<{ draft: Draft; changed: boolean }>;
@@ -299,6 +300,28 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
         canvas: command.asset === null
           ? { ...canvas, background: command.background }
           : { ...canvas, background: command.background, backgroundAsset: command.asset },
+      });
+    }
+    case 'canvas.size.set': {
+      if (!Number.isFinite(command.size.width) || !Number.isFinite(command.size.height) || command.size.width <= 0 || command.size.height <= 0) return { draft, changed: false };
+      if (draft.canvas.size.width === command.size.width && draft.canvas.size.height === command.size.height) return { draft, changed: false };
+      // A ratio change is a document-level composition change. Preserve every
+      // layer's position relative to the paper centre (including locked
+      // layers, whose lock only prevents direct layer editing).
+      const offset = {
+        x: (command.size.width - draft.canvas.size.width) / 2,
+        y: (command.size.height - draft.canvas.size.height) / 2,
+      };
+      return touch({
+        ...draft,
+        canvas: { ...draft.canvas, size: command.size },
+        layers: draft.layers.map((layer) => ({
+          ...layer,
+          transform: {
+            ...layer.transform,
+            position: { x: layer.transform.position.x + offset.x, y: layer.transform.position.y + offset.y },
+          },
+        })),
       });
     }
     case 'layer.select':

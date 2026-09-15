@@ -4,7 +4,7 @@ import { resolveProductAsset, type ProductAssetId } from './assets';
 import { t, type ProductCopyKey, type ProductLocale } from './localization';
 import { productColor } from './tokens';
 
-export const EditorHeader = ({ actionsDisabled = false, canRedo, canUndo, locale, onActionUnavailable, onExit, onExport, onRedo, onUndo }: Readonly<{
+export const EditorHeader = ({ actionsDisabled = false, canRedo, canUndo, locale, onActionUnavailable, onExit, onExport, onRatioPress, onRedo, onUndo, ratio }: Readonly<{
   /** An uncommitted tool session owns its own undo/confirm lifecycle. */
   actionsDisabled?: boolean;
   canRedo: boolean;
@@ -14,12 +14,14 @@ export const EditorHeader = ({ actionsDisabled = false, canRedo, canUndo, locale
   onActionUnavailable?: () => void;
   onExit: () => void;
   onExport: () => void;
+  onRatioPress: () => void;
   onRedo: () => void;
   onUndo: () => void;
+  ratio: string;
 }>) => (
   <View style={styles.header}>
     <Pressable accessibilityLabel="Back" accessibilityRole="button" hitSlop={8} onPress={onExit} style={[styles.headerIconButton, styles.headerBack]}><BackGlyph /></Pressable>
-    <View pointerEvents="none" style={styles.ratioAnchor}><View style={styles.ratioPill}><Text style={styles.ratioLabel}>3:4</Text></View></View>
+    <View pointerEvents="box-none" style={styles.ratioAnchor}><Pressable accessibilityLabel="Canvas ratio" accessibilityRole="button" onPress={onRatioPress} style={styles.ratioPill}><Text style={styles.ratioLabel}>{ratio}</Text></Pressable></View>
     <View style={styles.headerActions}>
       <HeaderAction disabled={actionsDisabled || !canUndo} direction="undo" onDisabledPress={actionsDisabled ? onActionUnavailable : undefined} onPress={onUndo} />
       <HeaderAction disabled={actionsDisabled || !canRedo} direction="redo" onDisabledPress={actionsDisabled ? onActionUnavailable : undefined} onPress={onRedo} />
@@ -231,7 +233,7 @@ const styles = StyleSheet.create({
   headerIconDisabled: { opacity: 0.75 },
   headerBack: { left: 20, position: 'absolute', top: 10 },
   headerActions: { alignItems: 'center', flexDirection: 'row', flexShrink: 0, gap: 4, position: 'absolute', right: 20, top: 10 },
-  ratioAnchor: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, pointerEvents: 'none', position: 'absolute', right: 0, top: 0 },
+  ratioAnchor: { alignItems: 'center', bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
   ratioPill: { alignItems: 'center', backgroundColor: productColor.weakSurface, borderColor: productColor.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 30, justifyContent: 'center', minWidth: 48, paddingHorizontal: 13 },
   ratioLabel: { color: productColor.ink, fontSize: 12, fontWeight: '700', lineHeight: 16 },
   exportButton: { alignItems: 'center', backgroundColor: productColor.ink, borderRadius: 999, flexShrink: 0, height: 30, justifyContent: 'center', marginLeft: 2, minWidth: 58, paddingHorizontal: 13 },

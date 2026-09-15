@@ -1,7 +1,7 @@
 # JournalCollage 产品对齐规格
 
 > 状态：实施基线  
-> 更新日期：2026-09-10  
+> 更新日期：2026-09-14
 > 适用范围：Expo + React Native + React Native Skia 的 iOS 首发产品层；Android 共享 Editor 的后续实现。
 
 ## 1. 目标与信息优先级
@@ -181,6 +181,9 @@
 - 页面包括最近草稿、清理缓存和反馈；不做社区、账号主页或完整作品管理。
 - 草稿使用真实缩略图和本地元数据；删除或清理缓存需明确区分草稿、导出文件和可安全删除的缓存。
 - 美区版本的反馈入口替换为正式支持渠道，但保持卡片层级和轻量表达。
+- `1.0` 的作品只保存在当前设备，页面必须明确显示本地存储说明；不得使用“已备份”或“已同步”等云端语义。
+- `1.0` 在 My Studio 提供 Premium 状态、Restore Purchases、Manage Subscription 与 Support ID，但不为了订阅强制创建用户可见的产品账号；服务端 Premium AIGC 使用无感匿名身份、服务端权益校验和次数账本，详见 `ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md`。
+- 账号、匿名订阅身份迁移、云备份、跨设备恢复和自动同步的阶段边界以 `ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md` 为规划基线，并按 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 的 P0–P7 阶段门执行。
 
 ## 5. 跨端架构约束
 
@@ -224,3 +227,4 @@
 - 哪些字体获得 iOS 远程下载/缓存授权。
 - 主体剪与涂抹剪服务的输入限制、鉴权和结果格式。
 - 灵感 Tab 是否长期移除，或在后续版本重新作为主入口。
+- 首版 Premium 功能集合、月度/年度价格和免费试用策略。

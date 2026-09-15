@@ -207,6 +207,9 @@ export type Draft = Readonly<{
   updatedAt: string;
 }>;
 
+/** The neutral paper used by every newly-created canvas. */
+export const DEFAULT_CANVAS_BACKGROUND = '#FDFDFB';
+
 export const createDraft = (input: {
   id: string;
   size: Size;
@@ -215,7 +218,7 @@ export const createDraft = (input: {
 }): Draft => ({
   schemaVersion: DRAFT_SCHEMA_VERSION,
   id: input.id,
-  canvas: { size: input.size, background: input.background ?? '#F7F3ED' },
+  canvas: { size: input.size, background: input.background ?? DEFAULT_CANVAS_BACKGROUND },
   layers: [],
   selectedLayerId: null,
   createdAt: input.now,

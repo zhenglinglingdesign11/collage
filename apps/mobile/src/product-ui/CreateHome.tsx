@@ -1,28 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Canvas, type Transforms3d } from '@shopify/react-native-skia';
+import { Canvas, LinearGradient, Rect, vec, type Transforms3d } from '@shopify/react-native-skia';
 import { useSharedValue } from 'react-native-reanimated';
-import { assetUriMap, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap } from '@journalcollage/asset-system';
+import { assetUriMap, backgroundPaperPack, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap } from '@journalcollage/asset-system';
 import type { Draft } from '@journalcollage/editor-core';
-import { SkiaEditorScene } from '@journalcollage/editor-renderer';
-import { cacheRemoteResource, loadSavedDrafts, resolvedRemoteResourceUri, type SavedDraft, type StoredWorkspace } from '../localWorkspace';
-import { resolveProductAsset } from './assets';
+import { ProceduralPaperPreview, SkiaEditorScene } from '@journalcollage/editor-renderer';
+import { cacheRemoteResource, hasSavedDraftsSync, loadCachedHomeShowcaseManifest, loadSavedDrafts, resolvedRemoteResourceUri, saveCachedHomeShowcaseManifest, type SavedDraft, type StoredWorkspace } from '../localWorkspace';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
+import { fallbackHomeShowcaseGroupsForMarket, homeShowcaseManifestUrlForMarket, normalizeHomeShowcaseManifest, withBackgroundShowcaseGroup, type HomeMarket, type HomeShowcaseEffect, type HomeShowcaseGroup, type HomeShowcaseItem } from './homeShowcases';
 
-export type CreateEntry = 'blank' | 'photo' | 'restore';
+export type CreateEntry = 'blank' | 'photo' | 'restore' | 'showcase';
+export type ShowcaseIntent = Readonly<{ id: string; effect?: HomeShowcaseEffect; backgroundPresetId?: string }>;
 const LACE_FRAME_SOURCES = {
   'wide-hole': { cacheKey: 'effect-frame-lace-center-wide-hole', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-center-01.png' },
   'classic-doily': { cacheKey: 'effect-frame-lace-center-classic-doily', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-doily-frame-transparent.png' },
   'foil-crumpled': { cacheKey: 'effect-frame-foil-center-crumpled', source: 'https://assets.zllarchi.site/effects/foil-frame-02-compress.png' },
 } as const;
+// Build-time release setting. Set EXPO_PUBLIC_HOME_MARKET=cn for mainland
+// China; all other builds use the US English feed by default.
+const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? 'cn' : 'us';
 
 export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
   locale: ProductLocale;
   onOpenAssets: () => void;
-  onOpenEditor: (entry: CreateEntry, savedDraftId?: string) => void;
+  onOpenEditor: (entry: CreateEntry, savedDraftId?: string, showcase?: ShowcaseIntent) => void;
 }>) => {
-  const [savedDrafts, setSavedDrafts] = useState<readonly SavedDraft[]>([]);
+  // The on-disk draft index is asynchronous. Keep this distinct from an
+  // empty result so the home layout does not jump after a JS reload.
+  const [savedDrafts, setSavedDrafts] = useState<readonly SavedDraft[] | null>(() => hasSavedDraftsSync() === false ? [] : null);
+  const [showcaseGroups, setShowcaseGroups] = useState<readonly HomeShowcaseGroup[]>(() => withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
+  const [showcaseUris, setShowcaseUris] = useState<Readonly<Record<string, string>>>({});
   const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
     const uri = resolvedRemoteResourceUri(frame.cacheKey, frame.source);
     return uri ? [[id, uri]] : [];
@@ -30,9 +38,42 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
 
   useEffect(() => {
     let active = true;
-    void loadSavedDrafts().then((drafts) => { if (active) setSavedDrafts(drafts); });
+    void loadSavedDrafts().then((drafts) => { if (active) setSavedDrafts(drafts); }).catch(() => { if (active) setSavedDrafts([]); });
     return () => { active = false; };
   }, []);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const cached = await loadCachedHomeShowcaseManifest(HOME_MARKET).catch(() => null);
+      const cachedGroups = cached ? normalizeHomeShowcaseManifest(cached.payload) : [];
+      let hasUsableGroups = cachedGroups.length > 0;
+      if (active && hasUsableGroups) setShowcaseGroups(withBackgroundShowcaseGroup(cachedGroups, HOME_MARKET));
+      try {
+        const response = await fetch(homeShowcaseManifestUrlForMarket(HOME_MARKET), { headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined });
+        if (response.status === 304) return;
+        if (!response.ok) throw new Error(`Home manifest returned ${response.status}`);
+        const payload: unknown = await response.json();
+        const groups = normalizeHomeShowcaseManifest(payload);
+        if (groups.length === 0) throw new Error('Home manifest has no usable groups');
+        hasUsableGroups = true;
+        if (active) setShowcaseGroups(withBackgroundShowcaseGroup(groups, HOME_MARKET));
+        void saveCachedHomeShowcaseManifest(HOME_MARKET, payload, response.headers.get('etag')).catch(() => undefined);
+      } catch {
+        if (active && !hasUsableGroups) setShowcaseGroups(withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    showcaseGroups.flatMap((group) => group.items).forEach((item) => {
+      if (!item.imageSrc) return;
+      void cacheRemoteResource(`home-showcase-${item.id}`, item.imageSrc).then((uri) => {
+        if (active) setShowcaseUris((current) => ({ ...current, [item.id]: uri }));
+      }).catch(() => undefined);
+    });
+    return () => { active = false; };
+  }, [showcaseGroups]);
   useEffect(() => {
     let active = true;
     Object.entries(LACE_FRAME_SOURCES).forEach(([id, frame]) => {
@@ -62,7 +103,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
         <QuickStartCard kind="materials" label={t(locale, 'create.materialPack')} onPress={onOpenAssets} />
       </View>
 
-      {savedDrafts.length > 0 && (
+      {savedDrafts !== null && savedDrafts.length > 0 && (
         <>
           <SectionTitle>{t(locale, 'create.recentDrafts')}</SectionTitle>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalTrack}>
@@ -72,25 +113,22 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
           </ScrollView>
         </>
       )}
+      {savedDrafts === null && <RecentDraftLoadingRow locale={locale} />}
 
-      <SectionTitle>{t(locale, 'create.tearPaper')}</SectionTitle>
-      <ShowcaseRow onPress={() => onOpenEditor('photo')} items={[
-        'asset://ui/home/showcase/paper-sheet',
-        'asset://ui/home/showcase/pack-one',
-        'asset://ui/home/showcase/pack-seven',
-      ]} />
-
-      <SectionTitle>{t(locale, 'create.texture')}</SectionTitle>
-      <ShowcaseRow onPress={() => onOpenEditor('photo')} items={[
-        'asset://ui/home/showcase/pack-twenty-four',
-        'asset://ui/home/showcase/paper-sheet',
-        'asset://ui/home/showcase/pack-one',
-      ]} />
+      {showcaseGroups.map((group) => <View key={group.id}><SectionTitle>{group.title}</SectionTitle><ShowcaseRow items={group.items} previewUris={showcaseUris} onPress={(item) => onOpenEditor('showcase', undefined, { id: item.id, effect: item.effect, backgroundPresetId: item.backgroundPresetId })} /></View>)}
     </ScrollView>
   );
 };
 
 const SectionTitle = ({ children }: Readonly<{ children: string }>) => <Text style={styles.sectionTitle}>{children}</Text>;
+
+/** Keeps the asynchronous draft restore from shifting the home feed. */
+const RecentDraftLoadingRow = ({ locale }: Readonly<{ locale: ProductLocale }>) => <View>
+  <SectionTitle>{t(locale, 'create.recentDrafts')}</SectionTitle>
+  <View accessibilityLabel={t(locale, 'create.recentDrafts')} style={styles.recentLoadingTrack}>
+    {Array.from({ length: 3 }, (_, index) => <View key={index} style={styles.recentLoadingCard}><View style={styles.recentLoadingArtwork} /></View>)}
+  </View>
+</View>;
 
 const QuickStartCard = ({ kind, label, onPress }: Readonly<{ kind: 'blank' | 'materials'; label: string; onPress: () => void }>) => (
   <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.quickCard}>
@@ -106,7 +144,7 @@ const PaperStackGlyph = () => <View style={styles.paperGlyph}><View style={style
 const DotPaper = () => <View pointerEvents="none" style={styles.dotPaper}>{Array.from({ length: 42 }, (_, index) => <View key={index} style={styles.dot} />)}</View>;
 
 /** A real renderer-backed thumbnail, rather than a static placeholder artwork. */
-const RecentDraftArtwork = ({ laceFrameUris, workspace }: Readonly<{ laceFrameUris: Readonly<Record<string, string>>; workspace: StoredWorkspace }>) => {
+export const RecentDraftArtwork = ({ laceFrameUris, workspace }: Readonly<{ laceFrameUris: Readonly<Record<string, string>>; workspace: StoredWorkspace }>) => {
   const inactiveTransform = useSharedValue<Transforms3d>([]);
   const { draft, catalog } = workspace;
   const assetUris = { ...remoteAssetUriMap(), ...assetUriMap(catalog), ...recentLocalPolkaUris };
@@ -144,15 +182,29 @@ const recentLocalPolkaUris: Readonly<Record<string, string>> = {
 const recentTornPaperEdgeAtlasUri = Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/textures/torn-paper-edge-atlas.png')).uri;
 const recentTornPaperFiberFringeUri = Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/textures/torn-paper-fiber-fringe.png')).uri;
 
-const ShowcaseRow = ({ items, onPress }: Readonly<{ items: readonly ('asset://ui/home/showcase/paper-sheet' | 'asset://ui/home/showcase/pack-one' | 'asset://ui/home/showcase/pack-seven' | 'asset://ui/home/showcase/pack-twenty-four')[]; onPress: () => void }>) => (
+const backgroundItemById = (id: string) => backgroundPaperPack('polka').items.find((item) => item.id === id);
+
+const ShowcaseRow = ({ items, onPress, previewUris }: Readonly<{ items: readonly HomeShowcaseItem[]; previewUris: Readonly<Record<string, string>>; onPress: (item: HomeShowcaseItem) => void }>) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.showcaseTrack}>
     {items.map((item) => (
-      <Pressable accessibilityRole="button" accessibilityLabel="Open with a photo" key={item} onPress={onPress} style={styles.showcaseCard}>
-        <Image source={resolveProductAsset(item)} style={styles.showcaseImage} />
+      <Pressable accessibilityRole="button" accessibilityLabel={item.title} key={item.id} onPress={() => onPress(item)} style={styles.showcaseCard}>
+        {item.imageSrc ? <ShowcaseImagePreview uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
+        {!item.hideTitle && <><ShowcaseTitleScrim /><View style={styles.showcaseTitle}><Text numberOfLines={1} style={styles.showcaseTitleText}>{item.title}</Text></View></>}
       </Pressable>
     ))}
   </ScrollView>
 );
+
+const homePolkaPatternUris = {
+  24: Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/packs/24.png')).uri,
+  7: Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/packs/7.png')).uri,
+  1: Image.resolveAssetSource(require('../../../../miniprogram-spike/miniprogram/assets/packs/1.png')).uri,
+};
+const HomeBackgroundPreview = ({ item }: Readonly<{ item: ReturnType<typeof backgroundItemById> }>) => item?.paper
+  ? <ProceduralPaperPreview paper={item.paper} patternImageUri={item.paper.imageAsset ? homePolkaPatternUris[item.paper.imageAsset] : undefined} size={{ width: 123, height: 150 }} />
+  : <View style={styles.backgroundPreview} />;
+const ShowcaseImagePreview = ({ uri }: Readonly<{ uri: string | undefined }>) => uri ? <Image source={{ uri }} style={styles.showcaseImage} /> : <View style={styles.showcaseImagePlaceholder}><View style={styles.showcaseImagePlaceholderMark} /></View>;
+const ShowcaseTitleScrim = () => <Canvas pointerEvents="none" style={styles.showcaseTitleScrim}><Rect height={52} width={123} x={0} y={0}><LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.15)']} end={vec(0, 52)} start={vec(0, 0)} /></Rect></Canvas>;
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 28, paddingHorizontal: productSpace.page, paddingTop: 18 },
@@ -178,9 +230,18 @@ const styles = StyleSheet.create({
   sectionTitle: { color: productColor.ink, fontSize: 14, fontWeight: '600', lineHeight: 20, marginBottom: 12, marginTop: 28 },
   horizontalTrack: { gap: 12 },
   recentCard: { backgroundColor: productColor.surface, borderRadius: 7, height: 118, overflow: 'hidden', padding: 4, shadowColor: productColor.ink, shadowOffset: { height: 1, width: 0 }, shadowOpacity: 0.06, shadowRadius: 8, width: 94 },
+  recentLoadingTrack: { flexDirection: 'row', gap: 12 },
+  recentLoadingCard: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.04)', borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, height: 118, overflow: 'hidden', padding: 4, width: 94 },
+  recentLoadingArtwork: { backgroundColor: '#F1F0EC', borderRadius: 4, flex: 1 },
   recentArtwork: { backgroundColor: '#FDFDFB', borderRadius: 4, flex: 1, overflow: 'hidden' },
   recentCanvas: { height: 110, width: 86 },
   showcaseTrack: { gap: 10, paddingRight: productSpace.page },
   showcaseCard: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.06)', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, height: 150, overflow: 'hidden', shadowColor: productColor.ink, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.06, shadowRadius: 10, width: 123 },
   showcaseImage: { height: '100%', resizeMode: 'cover', width: '100%' },
+  showcaseImagePlaceholder: { alignItems: 'center', backgroundColor: '#F3F1EC', height: '100%', justifyContent: 'center', width: '100%' },
+  showcaseImagePlaceholderMark: { backgroundColor: '#E3E0D9', borderRadius: 18, height: 36, width: 36 },
+  showcaseTitleScrim: { bottom: 0, height: 52, left: 0, position: 'absolute', width: 123 },
+  showcaseTitle: { bottom: 0, left: 0, paddingHorizontal: 9, paddingVertical: 7, position: 'absolute', right: 0 },
+  showcaseTitleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
+  backgroundPreview: { backgroundColor: '#FDFDFB', height: '100%', width: '100%' },
 });

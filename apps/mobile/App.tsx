@@ -7,12 +7,13 @@ import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimate
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { assetUriMap, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { alignmentGuideKey, applyCommand, createDraft, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
+import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
+import { alignmentGuideKey, applyCommand, createDraft, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
-import { CreateHome, type CreateEntry } from './src/product-ui/CreateHome';
+import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
+import { MineHome } from './src/product-ui/MineHome';
 import { EffectSheet } from './src/product-ui/EffectSheet';
 import { BrushLayerToolbar, EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
 
@@ -24,6 +25,20 @@ const effectInstance = (instanceId: string, type: BuiltinEffectType): Effect => 
     : type === 'shape.round-corners'
       ? { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { radius: 28 } }
       : { instanceId, type, version: 1, enabled: true, stage: 'geometry', params: { seed: 41, intensity: 24, edgeWidth: 16 } };
+const showcaseEffectInstance = (instanceId: string, intent: ShowcaseIntent | undefined): Effect | null => {
+  switch (intent?.effect) {
+    // The mini-program's AI extension is not yet a native adapter. Preserve a
+    // stable, editable torn-paper result instead of silently dropping intent.
+    case 'creative-tear-paper': return { instanceId, type: 'paper.torn-edge', version: 1, enabled: true, stage: 'geometry', params: { seed: 41, intensity: 28, edgeWidth: 18 } };
+    case 'screen-print': return { instanceId, type: 'print.screen', version: 1, enabled: true, stage: 'content', params: { palette: 'red-blue', strength: 'standard', halftone: 'medium', offset: 'slight', seed: 23 } };
+    case 'matisse-cutout': return { instanceId, type: 'art.matisse-cutout', version: 1, enabled: true, stage: 'content', params: { detail: 64, palette: 'vivid', seed: 23 } };
+    case 'pixel-cross-stitch': return { instanceId, type: 'art.pixel-embroidery', version: 1, enabled: true, stage: 'content', params: { grid: 56, colors: 10, style: 'stitch', seed: 23 } };
+    case 'vintage-botanical': return { instanceId, type: 'art.botanical-plate', version: 1, enabled: true, stage: 'content', params: { tone: 'sepia', detail: 'etched', frame: 'on', seed: 23 } };
+    case 'lace-center': return { instanceId, type: 'frame.lace-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFF8EB', opacity: 0.95, frameId: 'wide-hole', scale: 1, contentScale: 1 } };
+    case 'foil-center': return { instanceId, type: 'frame.foil-center', version: 1, enabled: true, stage: 'overlay', params: { color: '#FFFFFF', opacity: 1, frameId: 'foil-crumpled', scale: 1, contentScale: 1 } };
+    default: return null;
+  }
+};
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
 import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPanel';
@@ -35,6 +50,24 @@ import { productColor } from './src/product-ui/tokens';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
 
 const CANVAS_SIZE = { width: 1800, height: 2400 };
+type CanvasRatio = '3:4' | '1:1' | '9:16' | '16:9';
+const CANVAS_RATIO_SIZES: Readonly<Record<CanvasRatio, { width: number; height: number }>> = {
+  '3:4': CANVAS_SIZE,
+  '1:1': { width: 1800, height: 1800 },
+  '9:16': { width: 1800, height: 3200 },
+  '16:9': { width: 3200, height: 1800 },
+};
+const canvasRatioForSize = (size: { width: number; height: number }): CanvasRatio => (Object.entries(CANVAS_RATIO_SIZES).find(([, candidate]) => candidate.width === size.width && candidate.height === size.height)?.[0] ?? '3:4') as CanvasRatio;
+// This Canvas lives off screen solely for PNG snapshots. On a 3× device the
+// old 9:16 surface became a 5400 × 9600 Metal texture, which exceeds the
+// drawable limits on some devices/simulators and aborts the process. Cap the
+// longest logical edge and use the matching scene scale so export still shows
+// the complete document at its selected aspect ratio.
+const EXPORT_SURFACE_MAX_EDGE = 2048;
+const exportSurfaceForCanvas = (size: { width: number; height: number }) => {
+  const scale = Math.min(1, EXPORT_SURFACE_MAX_EDGE / Math.max(size.width, size.height));
+  return { width: Math.round(size.width * scale), height: Math.round(size.height * scale), scale };
+};
 // Expo receives fewer/coarser simulator pointer samples than the mini-program.
 // Keep the same anchor semantics while making the visual cue attainable.
 const ALIGNMENT_GUIDE_SCREEN_THRESHOLD = 6;
@@ -135,13 +168,13 @@ const editorReducer = (state: EditorState, action: EditorAction): EditorState =>
   return { past: [...state.past, state.present], present: result.draft, future: [] };
 };
 
-const EditorWorkspace = (props: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => (
+const EditorWorkspace = (props: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
   </SafeAreaProvider>
 );
 
-const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSavedDraftId, onExit, onInitialPackItemsConsumed, onOpenAssets }: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => {
+const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialShowcase, restoreSavedDraftId, onExit, onInitialPackItemsConsumed, onOpenAssets }: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const locale = resolveProductLocale();
@@ -166,6 +199,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [effectSheetBaseEffects, setEffectSheetBaseEffects] = useState<readonly Effect[] | null>(null);
   const [layerEffectControl, setLayerEffectControl] = useState<Readonly<{ layerId: string; type: 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners' }> | null>(null);
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
+  const [ratioPickerOpen, setRatioPickerOpen] = useState(false);
   const [effectPreview, setEffectPreview] = useState<Readonly<{ layerId: string; effects: readonly Effect[] }> | null>(null);
   const [customPolkaBackgroundOpen, setCustomPolkaBackgroundOpen] = useState(false);
   const [assetDrawerHeight, setAssetDrawerHeight] = useState(0);
@@ -176,6 +210,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const [cutPaletteOpen, setCutPaletteOpen] = useState(false);
   const [pendingCutStyle, setPendingCutStyle] = useState<CutStyle | null>(null);
   const [pendingEmbossSelection, setPendingEmbossSelection] = useState(false);
+  const [pendingEmbossShape, setPendingEmbossShape] = useState<MaskShapeId>('circle');
   const [brushCut, setBrushCut] = useState<BrushCutSession | null>(null);
   const [decorativeBrush, setDecorativeBrush] = useState<DecorativeBrushSession | null>(null);
   const [emboss, setEmboss] = useState<EmbossSession | null>(null);
@@ -188,6 +223,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialPackItemsAdded = useRef(false);
+  const initialShowcaseConsumed = useRef(false);
   const textLayerSequence = useRef(0);
   const cutHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -209,6 +245,8 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const embossDragRef = useRef<EmbossDrag | null>(null);
   const cropRef = useRef<CropSession | null>(null);
   const cropDragRef = useRef<CropDrag | null>(null);
+  const canvasSize = state.present.canvas.size;
+  const exportSurface = useMemo(() => exportSurfaceForCanvas(canvasSize), [canvasSize]);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
   brushCutRef.current = brushCut;
   decorativeBrushRef.current = decorativeBrush;
@@ -245,7 +283,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
         selectedLayerId: null,
         layers: [...withEffectPreview.layers.filter((layer) => layer.id !== decorativeBrush.layerId), decorativeBrush.kind === 'edit' && decorativeBrush.sourceLayer
           ? { ...decorativeBrush.sourceLayer, strokes: previewStrokes }
-          : { id: decorativeBrush.layerId, name: 'Brush', type: 'brush' as const, frame: CANVAS_SIZE, strokes: previewStrokes, transform: identityTransform(), opacity: 1, isLocked: false, effects: [] }],
+          : { id: decorativeBrush.layerId, name: 'Brush', type: 'brush' as const, frame: canvasSize, strokes: previewStrokes, transform: identityTransform(), opacity: 1, isLocked: false, effects: [] }],
       };
     }
     if (crop !== null) return {
@@ -264,12 +302,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       layers: [emboss.layer],
     };
     return withEffectPreview;
-  }, [brushCut, crop, decorativeBrush, effectPreview, emboss, state.present, straightCut, textEdit]);
+  }, [brushCut, canvasSize, crop, decorativeBrush, effectPreview, emboss, state.present, straightCut, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
-    const scale = Math.min(surfaceSize.width / CANVAS_SIZE.width, surfaceSize.height / CANVAS_SIZE.height);
-    return { scale, x: (surfaceSize.width - CANVAS_SIZE.width * scale) / 2, y: (surfaceSize.height - CANVAS_SIZE.height * scale) / 2 };
-  }, [surfaceSize]);
+    const scale = Math.min(surfaceSize.width / canvasSize.width, surfaceSize.height / canvasSize.height);
+    return { scale, x: (surfaceSize.width - canvasSize.width * scale) / 2, y: (surfaceSize.height - canvasSize.height * scale) / 2 };
+  }, [canvasSize, surfaceSize]);
   // Local pattern assets intentionally win over the procedural SVG cache: the
   // paper renderer repeats these PNGs instead of falling back to dot marks.
   const assetUris = useMemo(() => ({ ...remoteAssetUriMap(), ...assetUriMap(catalog), ...localPolkaPatternUris }), [catalog]);
@@ -528,15 +566,15 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
         transform: {
           ...selectedLayer.transform,
           position: {
-            x: (CANVAS_SIZE.width - selectedLayer.frame.width) / 2,
-            y: (CANVAS_SIZE.height - selectedLayer.frame.height) / 2,
+            x: (canvasSize.width - selectedLayer.frame.width) / 2,
+            y: (canvasSize.height - selectedLayer.frame.height) / 2,
           },
         },
       },
       strokes: [],
       hollowOriginal: true,
     });
-  }, [selectedLayer]);
+  }, [canvasSize, selectedLayer]);
   const selectCutStyle = useCallback((style: CutStyle) => {
     if (selectedLayer?.type !== 'image') {
       setPendingCutStyle(style);
@@ -664,7 +702,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     const session = decorativeBrushRef.current;
     if (session === null || viewport.scale === 0) return;
     const canvasPoint = { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale };
-    const frame = session.sourceLayer?.frame ?? CANVAS_SIZE;
+    const frame = session.sourceLayer?.frame ?? canvasSize;
     const localPoint = session.sourceLayer ? pointInLayerSpace(canvasPoint, session.sourceLayer) : canvasPoint;
     const point = { x: Math.max(0, Math.min(frame.width, localPoint.x)), y: Math.max(0, Math.min(frame.height, localPoint.y)) };
     setDecorativeBrush((current) => {
@@ -694,14 +732,14 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       dispatch({ type: 'command', command: { type: 'brush.layer.replace', layerId: decorativeBrush.layerId, strokes: decorativeBrush.strokes } });
     } else {
       const [first, ...rest] = decorativeBrush.strokes;
-      dispatch({ type: 'command', command: { type: 'layer.add', select: false, layer: { id: decorativeBrush.layerId, name: 'Brush', type: 'brush', frame: CANVAS_SIZE, strokes: [first], transform: identityTransform(), opacity: 1, isLocked: false, effects: [] } }});
+      dispatch({ type: 'command', command: { type: 'layer.add', select: false, layer: { id: decorativeBrush.layerId, name: 'Brush', type: 'brush', frame: canvasSize, strokes: [first], transform: identityTransform(), opacity: 1, isLocked: false, effects: [] } }});
       rest.forEach((stroke) => dispatch({ type: 'command', command: { type: 'brush.stroke.append', layerId: decorativeBrush.layerId, stroke } }));
     }
     // A completed brush is artwork, not an inspector target. This remains as
     // a defensive no-op if the session began with no selected layer.
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
     setDecorativeBrush(null);
-  }, [decorativeBrush]);
+  }, [canvasSize, decorativeBrush]);
   const decorativeBrushPan = Gesture.Pan().enabled(decorativeBrush !== null).onBegin((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, true); }).onUpdate((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false); }).onFinalize((_event, success) => { if (success) runOnJS(completeDecorativeBrushStroke)(); else runOnJS(undoDecorativeBrushStroke)(); });
   const beginCrop = useCallback(() => {
     if (selectedLayer?.type !== 'image') return;
@@ -715,12 +753,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     setLayerEffectControl(null);
     // Crop is about the source image, not the composition paper. Present it
     // almost edge-to-edge while preserving its original aspect ratio.
-    const previewScale = CANVAS_SIZE.width * 0.92 / selectedLayer.frame.width;
+    const previewScale = canvasSize.width * 0.92 / selectedLayer.frame.width;
     // Skia scales a layer around its frame centre. Keep the unscaled frame
     // centred here, so the scaled image remains horizontally centred as well.
-    const previewLayer = { ...selectedLayer, transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - selectedLayer.frame.width) / 2, y: (CANVAS_SIZE.height - selectedLayer.frame.height) / 2 }, scale: { x: previewScale, y: previewScale } } };
+    const previewLayer = { ...selectedLayer, transform: { ...identityTransform(), position: { x: (canvasSize.width - selectedLayer.frame.width) / 2, y: (canvasSize.height - selectedLayer.frame.height) / 2 }, scale: { x: previewScale, y: previewScale } } };
     setCrop({ layer: previewLayer, bounds: selectedLayer.crop, initialBounds: selectedLayer.crop, ratio: 'free' });
-  }, [locale, selectedLayer]);
+  }, [canvasSize, locale, selectedLayer]);
   const cropPoint = useCallback((x: number, y: number, session: CropSession): Point => {
     const point = { x: (x - viewport.x) / viewport.scale, y: (y - viewport.y) / viewport.scale };
     const origin = { x: session.layer.frame.width / 2, y: session.layer.frame.height / 2 };
@@ -778,11 +816,12 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     dispatch({ type: 'command', command: { type: 'layer.crop.set', layerId: session.layer.id, crop: clampCropBounds(session.bounds) } });
     setCrop(null);
   }, []);
-  const beginEmboss = useCallback(() => {
+  const beginEmboss = useCallback((shape: MaskShapeId = 'circle') => {
     if (selectedLayer?.type !== 'image') {
       // Match scissors: the primary toolbar can be used before any layer is
       // selected. Keep the intent alive and enter the tool once the user taps
       // an image on the canvas.
+      setPendingEmbossShape(shape);
       setPendingEmbossSelection(true);
       showCutHint(t(locale, 'editor.emboss.selectHint'));
       return;
@@ -801,10 +840,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     // the session preview changes; confirm still targets the original layer id.
     const previewLayer = {
       ...selectedLayer,
-      transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - selectedLayer.frame.width) / 2, y: (CANVAS_SIZE.height - selectedLayer.frame.height) / 2 } },
+      transform: { ...identityTransform(), position: { x: (canvasSize.width - selectedLayer.frame.width) / 2, y: (canvasSize.height - selectedLayer.frame.height) / 2 } },
     };
-    setEmboss({ layer: previewLayer, shape: 'circle', bounds, initialBounds: bounds, aspectLocked: true });
-  }, [locale, selectedLayer, showCutHint]);
+    setEmboss({ layer: previewLayer, shape, bounds, initialBounds: bounds, aspectLocked: true });
+  }, [canvasSize, locale, selectedLayer, showCutHint]);
   useEffect(() => {
     if (!pendingEmbossSelection || selectedLayer?.type !== 'image') return;
     if (selectedLayer.isLocked) {
@@ -812,8 +851,8 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       showCutHint(t(locale, 'editor.cut.lockedBody'));
       return;
     }
-    beginEmboss();
-  }, [beginEmboss, pendingEmbossSelection, selectedLayer, showCutHint]);
+    beginEmboss(pendingEmbossShape);
+  }, [beginEmboss, pendingEmbossSelection, pendingEmbossShape, selectedLayer, showCutHint]);
   const embossPoint = useCallback((x: number, y: number, session: EmbossSession): Point => ({
     x: (x - viewport.x) / viewport.scale - session.layer.transform.position.x,
     y: (y - viewport.y) / viewport.scale - session.layer.transform.position.y,
@@ -887,7 +926,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
           asset: item.reference,
           frame,
           crop: { x: 0, y: 0, width: 1, height: 1 },
-          transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - frame.width) / 2, y: (CANVAS_SIZE.height - frame.height) / 2 } },
+          transform: { ...identityTransform(), position: { x: (canvasSize.width - frame.width) / 2, y: (canvasSize.height - frame.height) / 2 } },
           opacity: 1,
           isLocked: false,
           effects: [],
@@ -896,7 +935,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     } catch {
       Alert.alert('Material unavailable', 'This material could not be downloaded. Please try again.');
     }
-  }, [catalog]);
+  }, [canvasSize, catalog]);
   useEffect(() => {
     if (!workspaceReady || initialPackItems.length === 0 || initialPackItemsAdded.current) return;
     initialPackItemsAdded.current = true;
@@ -919,6 +958,13 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       Alert.alert('Background unavailable', 'This paper could not be downloaded. Please try again.');
     }
   }, [catalog]);
+  useEffect(() => {
+    if (!workspaceReady || initialShowcaseConsumed.current || !initialShowcase?.backgroundPresetId) return;
+    const item = backgroundPaperPack('polka').items.find((candidate) => candidate.id === initialShowcase.backgroundPresetId);
+    if (!item) return;
+    initialShowcaseConsumed.current = true;
+    void applyBackgroundItem(item);
+  }, [applyBackgroundItem, initialShowcase, workspaceReady]);
   const openAssetsFromEditor = useCallback(async () => {
     // The Assets tab is a separate product surface. Persist first so returning
     // through the pending transfer route restores this exact canvas.
@@ -937,14 +983,21 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
         const source = assets[index];
         const aspect = source.width > 0 && source.height > 0 ? source.width / source.height : 1;
         const frame = aspect >= 1 ? { width: 1080, height: 1080 / aspect } : { width: 760 * aspect, height: 760 };
-        dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: `layer-${Date.now()}-${index}`, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (CANVAS_SIZE.width - frame.width) / 2, y: (CANVAS_SIZE.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: [] } } });
+        const layerId = `layer-${Date.now()}-${index}`;
+        const effect = index === 0 ? showcaseEffectInstance(`showcase-${initialShowcase?.id ?? 'photo'}-${layerId}`, initialShowcase ?? undefined) : null;
+        dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: layerId, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (canvasSize.width - frame.width) / 2, y: (canvasSize.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: effect ? [effect] : [] } } });
+        if (index === 0 && (initialShowcase?.effect === 'emboss-circle' || initialShowcase?.effect === 'emboss-stamp')) {
+          dispatch({ type: 'command', command: { type: 'layer.select', layerId } });
+          setPendingEmbossShape(initialShowcase.effect === 'emboss-stamp' ? 'stamp' : 'circle');
+          setPendingEmbossSelection(true);
+        }
       });
       // The mini-program returns to the neutral editing state after a standard import.
-      dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+      if (initialShowcase?.effect !== 'emboss-circle' && initialShowcase?.effect !== 'emboss-stamp') dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
     } catch {
       Alert.alert('Could not add photo', 'The selected photo could not be stored. Please try again.');
     }
-  }, []);
+  }, [canvasSize, initialShowcase]);
   const pickPhoto = useCallback(async (source: 'camera' | 'library', replaceLayerId: string | null = null) => {
     try {
       if (source === 'camera') {
@@ -1038,10 +1091,10 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   }, []);
   const initialPhotoRequested = useRef(false);
   useEffect(() => {
-    if (initialEntry !== 'photo' || !workspaceReady || initialPhotoRequested.current) return;
+    if ((initialEntry !== 'photo' && initialEntry !== 'showcase') || initialShowcase?.backgroundPresetId || !workspaceReady || initialPhotoRequested.current) return;
     initialPhotoRequested.current = true;
     void pickPhoto('library');
-  }, [initialEntry, pickPhoto, workspaceReady]);
+  }, [initialEntry, initialShowcase, pickPhoto, workspaceReady]);
   const exportPng = useCallback(async () => {
     const snapshot = await exportCanvasRef.current?.makeImageSnapshotAsync();
     if (!snapshot) {
@@ -1058,7 +1111,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   const requestExit = useCallback(() => {
     const hasCreativeContent = state.present.layers.length > 0
       || state.present.canvas.backgroundAsset !== undefined
-      || state.present.canvas.background !== '#F7F3ED';
+      || state.present.canvas.background !== DEFAULT_CANVAS_BACKGROUND;
     const leave = () => {
       if (saveTimer.current !== null) {
         clearTimeout(saveTimer.current);
@@ -1139,9 +1192,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
       // editing scale instead of shrinking the whole canvas to sheet-free space.
       ? Math.min(normalMaxHeight, Math.max(240, (editorHeight - canvasBottomOverlay - 50) * 2))
       : normalMaxHeight;
-    const scale = Math.min(maxWidth / CANVAS_SIZE.width, maxHeight / CANVAS_SIZE.height);
-    return { width: Math.round(CANVAS_SIZE.width * scale), height: Math.round(CANVAS_SIZE.height * scale) };
-  }, [canvasBottomOverlay, crop, insets.top, window.height, window.width]);
+    const scale = Math.min(maxWidth / canvasSize.width, maxHeight / canvasSize.height);
+    return { width: Math.round(canvasSize.width * scale), height: Math.round(canvasSize.height * scale) };
+  }, [canvasBottomOverlay, canvasSize, crop, insets.top, window.height, window.width]);
   const proceduralPapers = useMemo(() => Object.fromEntries(state.present.layers.flatMap((layer) => {
     if (layer.type !== 'image') return [];
     const paper = proceduralPaperForReferenceId(layer.asset.id);
@@ -1164,6 +1217,13 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
     return { layerId: brushCut.layer.id, strokes: brushCut.strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ x: point.x + contentFrame.x, y: point.y + contentFrame.y })) })) } as BrushCutPreview;
   })();
   const cropPreview = crop === null ? null : { layerId: crop.layer.id, bounds: { x: crop.bounds.x * crop.layer.frame.width, y: crop.bounds.y * crop.layer.frame.height, width: crop.bounds.width * crop.layer.frame.width, height: crop.bounds.height * crop.layer.frame.height } } as CropPreview;
+  const canvasRatio = canvasRatioForSize(canvasSize);
+  const changeCanvasRatio = useCallback((ratio: CanvasRatio) => {
+    setRatioPickerOpen(false);
+    setLayerEffectControl(null);
+    setLayerPanelOpen(false);
+    dispatch({ type: 'command', command: { type: 'canvas.size.set', size: CANVAS_RATIO_SIZES[ratio] } });
+  }, []);
   const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} alignmentGuides={alignmentGuides} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} showCanvasBackground={crop === null} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={layerPanelOpen && emboss === null && crop === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} cropPreview={cropPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
   const dismissLayerEditing = useCallback(() => {
     setLayerEffectControl(null);
@@ -1233,7 +1293,8 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, crop !== null && a3Styles.cropEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
-        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} />}
+        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} onRatioPress={() => setRatioPickerOpen((open) => !open)} ratio={canvasRatio} />}
+        {ratioPickerOpen && <CanvasRatioPicker activeRatio={canvasRatio} onClose={() => setRatioPickerOpen(false)} onSelect={changeCanvasRatio} />}
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -1259,7 +1320,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
             </>}
             {backgroundDrawerOpen && <>
               <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: '#F7F3ED', asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} />
+              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} />
             </>}
             {textEdit !== null && selectedLayer?.type === 'text' && <TextEditorPanel key={textEdit.layerId} bottomInset={insets.bottom} keyboardHeight={keyboardHeight} layer={selectedLayer} locale={locale} text={textEdit.text} onCancel={cancelTextEditing} onChangeText={(text) => setTextEdit((current) => current === null ? null : { ...current, text })} onDone={finishTextEditing} onStyleChange={(change) => updateTextStyle(selectedLayer.id, change)} />}
             {cutPaletteOpen && straightCut === null && <Pressable accessibilityLabel={t(locale, 'editor.cut.dismiss')} accessibilityRole="button" onPress={() => setCutPaletteOpen(false)} style={a3Styles.cutPaletteBackdrop} />}
@@ -1276,7 +1337,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], restoreSa
           <View pointerEvents="auto" style={a3Styles.assetDrawerBackdrop} />
           <EffectSheet bottomInset={insets.bottom} effects={effectSheetBaseEffects ?? selectedLayer.effects} layer={selectedLayer} locale={locale} onCancel={closeEffectSheet} onCommit={commitEffectSheet} onPreview={(effects) => setEffectPreview({ layerId: selectedLayer.id, effects })} />
         </>}
-        <Canvas ref={exportCanvasRef} style={a3Styles.exportCanvas}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: 1 }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={false} /></Canvas>
+        <Canvas ref={exportCanvasRef} style={[a3Styles.exportCanvas, { height: exportSurface.height, width: exportSurface.width }]}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: exportSurface.scale }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={false} /></Canvas>
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -1316,6 +1377,12 @@ const EditorCanvas = ({ bare = false, bottomOverlay, children, frame, gesture, i
       </View>
     </View>
   </View>
+);
+const CanvasRatioPicker = ({ activeRatio, onClose, onSelect }: Readonly<{ activeRatio: CanvasRatio; onClose: () => void; onSelect: (ratio: CanvasRatio) => void }>) => (
+  <>
+    <Pressable accessibilityLabel="Close canvas ratios" accessibilityRole="button" onPress={onClose} style={a3Styles.ratioPickerBackdrop} />
+    <View style={a3Styles.ratioPicker}>{(Object.keys(CANVAS_RATIO_SIZES) as CanvasRatio[]).map((ratio) => <Pressable accessibilityRole="button" key={ratio} onPress={() => onSelect(ratio)} style={[a3Styles.ratioPickerOption, ratio === activeRatio && a3Styles.ratioPickerOptionActive]}><Text style={[a3Styles.ratioPickerLabel, ratio === activeRatio && a3Styles.ratioPickerLabelActive]}>{ratio}</Text></Pressable>)}</View>
+  </>
 );
 const LayerPanel = ({ layers, selectedLayerId, onSelect }: { layers: Draft['layers']; selectedLayerId: string | null; onSelect: (layerId: string) => void }) => <View style={styles.layerPanel}><Text style={styles.panelLabel}>LAYERS</Text>{[...layers].reverse().map((layer) => <Pressable key={layer.id} onPress={() => onSelect(layer.id)} style={[styles.layerRow, layer.id === selectedLayerId && styles.layerRowSelected]}><View style={[styles.layerSwatch, { backgroundColor: layer.type === 'image' ? '#5E7D79' : layer.type === 'material' ? '#E5AFA1' : '#D6C2A9' }]} /><View><Text style={styles.layerName}>{layer.name ?? layer.type}</Text><Text style={styles.layerType}>{layer.type}</Text></View></Pressable>)}</View>;
 const CutPalette = ({ bottomInset, hasSelectedLayer, locale, onClose, onSelect }: Readonly<{ bottomInset: number; hasSelectedLayer: boolean; locale: ReturnType<typeof resolveProductLocale>; onClose: () => void; onSelect: (style: CutStyle) => void }>) => {
@@ -1453,7 +1520,13 @@ const a3Styles = StyleSheet.create({
   canvasFrame: { backgroundColor: '#FDFDFB', shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.12, shadowRadius: 29 },
   canvasFrameBare: { backgroundColor: 'transparent', shadowOpacity: 0, shadowRadius: 0 },
   canvasMeasurement: { flex: 1 },
-  exportCanvas: { height: CANVAS_SIZE.height, left: -10000, position: 'absolute', top: -10000, width: CANVAS_SIZE.width },
+  exportCanvas: { left: -10000, position: 'absolute', top: -10000 },
+  ratioPickerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 56, zIndex: 11 },
+  ratioPicker: { alignSelf: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 6, padding: 7, position: 'absolute', top: 62, zIndex: 12 },
+  ratioPickerOption: { alignItems: 'center', backgroundColor: '#F4F3F0', borderRadius: 12, height: 32, justifyContent: 'center', minWidth: 46, paddingHorizontal: 8 },
+  ratioPickerOptionActive: { backgroundColor: '#111111' },
+  ratioPickerLabel: { color: '#6F6F6F', fontSize: 12, fontWeight: '700' },
+  ratioPickerLabelActive: { color: '#FFFFFF' },
   cutPalette: { alignItems: 'stretch', backgroundColor: 'rgba(255,255,255,0.94)', borderColor: '#ECEAE5', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 82, left: 32, paddingHorizontal: 9, position: 'absolute', right: 32, shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.1, shadowRadius: 20, zIndex: 7 },
   cutPaletteOption: { alignItems: 'center', flex: 1, justifyContent: 'center', minWidth: 0, paddingTop: 4 },
   cutPaletteIcon: { height: 31, resizeMode: 'contain', width: 31 },
@@ -1524,17 +1597,20 @@ export default function App() {
   const [assetsEntryContext, setAssetsEntryContext] = useState<'create' | 'editor' | null>(null);
   const [pendingPackItems, setPendingPackItems] = useState<readonly RemotePackItem[]>([]);
   const [restoreSavedDraftId, setRestoreSavedDraftId] = useState<string | null>(null);
+  const [initialShowcase, setInitialShowcase] = useState<ShowcaseIntent | null>(null);
   const locale = resolveProductLocale();
 
-  if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} restoreSavedDraftId={restoreSavedDraftId} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
+  if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} restoreSavedDraftId={restoreSavedDraftId} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
 
   return (
     <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTab(nextTab); }}>
       <StatusBar style="dark" />
       {tab === 'create'
-        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId) => { setRestoreSavedDraftId(savedDraftId ?? null); setEditorEntry(entry); setEditing(true); }} />
+        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} />
         : tab === 'assets'
           ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { setPendingPackItems(items); if (assetsEntryContext !== 'editor') setRestoreSavedDraftId(null); setEditorEntry(assetsEntryContext === 'editor' ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
+          : tab === 'mine'
+            ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setEditorEntry('restore'); setEditing(true); }} />
           : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
     </ProductAppShell>
   );

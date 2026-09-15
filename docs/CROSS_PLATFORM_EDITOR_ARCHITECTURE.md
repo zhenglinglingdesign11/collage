@@ -1,7 +1,7 @@
 # JournalCollage 跨端 Editor 架构规划
 
 > 状态：A3（资源与导出本地闭环）进行中。需完成架构 Spike 验证后才能成为正式实施决策。  
-> 更新时间：2026-09-10
+> 更新时间：2026-09-14
 
 ## 1. 决策背景
 
@@ -423,7 +423,8 @@ Hybrid 的正确形式是仅原生化明确瓶颈，例如视频导出、本地�
 - 动态素材和视频导出；
 - 拼贴过程回放；
 - 日期、地点、天气和月度回顾；
-- 账号、同步、订阅和高级素材。
+- 账号与云端按 `ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md` 规划，并按 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 的 P0–P7 阶段门实施：首版无感身份与订阅/AIGC，随后账号 + 云备份、跨设备恢复，最后才是自动同步与冲突管理；
+- 高级素材与订阅 entitlement 通过产品层抽象接入，不污染 Draft、Renderer 或 Asset Catalog。
 
 动态能力当前不实现完整时间轴，但 Renderer API 应从一开始预留 `time` 参数，静态作品固定为 `time = 0`。
 

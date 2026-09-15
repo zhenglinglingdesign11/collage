@@ -60,6 +60,12 @@ test('a locked layer rejects transform commands', () => {
   assert.equal(core.hitTest(locked, { x: 100, y: 140 }).id, 'image');
 });
 
+test('canvas size changes retain every layer at the paper centre', () => {
+  const resized = run(makeDraft(), { type: 'canvas.size.set', size: { width: 1800, height: 1800 } });
+  assert.deepEqual(resized.canvas.size, { width: 1800, height: 1800 });
+  assert.deepEqual(resized.layers[0].transform.position, { x: 580, y: 520 });
+});
+
 const emboss = (draft, layerId, suffix) => run(draft, {
   type: 'image.mask.split',
   layerId,

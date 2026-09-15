@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import { File } from 'expo-file-system';
 import type { AssetCatalog, LocalAssetRecord, RemotePackItem } from '@journalcollage/asset-system';
 import { migrateDraft, type Draft } from '@journalcollage/editor-core';
 
@@ -9,6 +10,7 @@ const workspaceUri = `${root}workspace.json`;
 const remoteCacheIndexUri = `${root}remote-cache-index.json`;
 const savedDraftDirectory = `${root}saved-drafts/`;
 const savedDraftIndexUri = `${root}saved-drafts-index.json`;
+const homeShowcaseManifestUri = (market: string): string => `${root}home-showcase-manifest-${market.replace(/[^a-zA-Z0-9_-]+/g, '_')}.json`;
 const MAX_SAVED_DRAFTS = 20;
 
 type RemoteCacheEntry = Readonly<{ key: string; source: string; uri: string; lastAccessedAt: string }>;
@@ -24,11 +26,29 @@ export type SavedDraft = Readonly<{ id: string; savedAt: string; workspace: Stor
 type SavedDraftIndex = Readonly<{ version: 1; drafts: readonly Readonly<{ id: string; savedAt: string }>[] }>;
 
 type StoredWorkspacePayload = Readonly<{ draft: unknown; catalog: AssetCatalog; savedAt?: unknown }>;
+export type CachedHomeShowcaseManifest = Readonly<{ payload: unknown; etag: string | null; cachedAt: string }>;
 
 const ensureDirectories = async (): Promise<void> => {
   await FileSystem.makeDirectoryAsync(assetDirectory, { intermediates: true });
   await FileSystem.makeDirectoryAsync(remoteCacheDirectory, { intermediates: true });
   await FileSystem.makeDirectoryAsync(savedDraftDirectory, { intermediates: true });
+};
+
+/** Product configuration is cached separately from Drafts and image assets. */
+export const loadCachedHomeShowcaseManifest = async (market: string): Promise<CachedHomeShowcaseManifest | null> => {
+  const uri = homeShowcaseManifestUri(market);
+  const info = await FileSystem.getInfoAsync(uri);
+  if (!info.exists) return null;
+  try {
+    const parsed = JSON.parse(await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.UTF8 })) as { version?: unknown; payload?: unknown; etag?: unknown; cachedAt?: unknown };
+    if (parsed.version !== 1 || parsed.payload === undefined || typeof parsed.cachedAt !== 'string') return null;
+    return { payload: parsed.payload, etag: typeof parsed.etag === 'string' ? parsed.etag : null, cachedAt: parsed.cachedAt };
+  } catch { return null; }
+};
+
+export const saveCachedHomeShowcaseManifest = async (market: string, payload: unknown, etag: string | null): Promise<void> => {
+  await FileSystem.makeDirectoryAsync(root, { intermediates: true });
+  await FileSystem.writeAsStringAsync(homeShowcaseManifestUri(market), JSON.stringify({ version: 1, payload, etag, cachedAt: new Date().toISOString() }), { encoding: FileSystem.EncodingType.UTF8 });
 };
 
 const loadRemoteCacheIndex = async (): Promise<RemoteCacheIndex> => {
@@ -90,6 +110,39 @@ export const cacheRemoteResource = async (key: string, source: string): Promise<
   } finally {
     pendingRemoteDownloads.delete(key);
   }
+};
+
+export type DownloadCacheSummary = Readonly<{ bytes: number; files: number }>;
+
+/**
+ * Only files that can be fetched again belong here. Draft JSON, user-imported
+ * photos and exported images intentionally remain outside this operation.
+ */
+export const getDownloadCacheSummary = async (): Promise<DownloadCacheSummary> => {
+  const uris: string[] = [];
+  const cachedFiles = await FileSystem.readDirectoryAsync(remoteCacheDirectory).catch(() => []);
+  uris.push(...cachedFiles.map((name) => `${remoteCacheDirectory}${name}`));
+  const rootFiles = await FileSystem.readDirectoryAsync(root).catch(() => []);
+  rootFiles.filter((name) => name === 'remote-cache-index.json' || /^home-showcase-manifest-[a-zA-Z0-9_-]+\.json$/.test(name))
+    .forEach((name) => uris.push(`${root}${name}`));
+  const infos = await Promise.all(uris.map((uri) => FileSystem.getInfoAsync(uri).catch(() => null)));
+  return infos.reduce<DownloadCacheSummary>((summary, info) => info?.exists
+    ? { bytes: summary.bytes + (typeof info.size === 'number' ? info.size : 0), files: summary.files + 1 }
+    : summary, { bytes: 0, files: 0 });
+};
+
+/** Clears the re-downloadable preview/configuration cache, never user work. */
+export const clearDownloadCache = async (): Promise<DownloadCacheSummary> => {
+  const before = await getDownloadCacheSummary();
+  await FileSystem.deleteAsync(remoteCacheDirectory, { idempotent: true });
+  await FileSystem.deleteAsync(remoteCacheIndexUri, { idempotent: true });
+  const rootFiles = await FileSystem.readDirectoryAsync(root).catch(() => []);
+  await Promise.all(rootFiles
+    .filter((name) => /^home-showcase-manifest-[a-zA-Z0-9_-]+\.json$/.test(name))
+    .map((name) => FileSystem.deleteAsync(`${root}${name}`, { idempotent: true })));
+  remoteCacheIndex = null;
+  resolvedRemoteUris.clear();
+  return before;
 };
 
 export const importLocalImage = async (input: { uri: string; width: number; height: number; mimeType: string | null }): Promise<LocalAssetRecord> => {
@@ -219,6 +272,19 @@ export const loadSavedDrafts = async (): Promise<readonly SavedDraft[]> => {
   const valid = drafts.filter((draft): draft is SavedDraft => draft !== null);
   if (valid.length !== index.drafts.length) await writeSavedDraftIndex(valid.map((draft) => ({ id: draft.id, savedAt: draft.savedAt })));
   return valid;
+};
+
+/**
+ * A tiny synchronous read for initial home layout only. `null` means a legacy
+ * workspace or corrupt index needs the normal asynchronous migration path.
+ */
+export const hasSavedDraftsSync = (): boolean | null => {
+  try {
+    const indexFile = new File(savedDraftIndexUri);
+    if (!indexFile.exists) return new File(workspaceUri).exists ? null : false;
+    const parsed = JSON.parse(indexFile.textSync()) as { version?: unknown; drafts?: unknown };
+    return parsed.version === 1 && Array.isArray(parsed.drafts) ? parsed.drafts.length > 0 : null;
+  } catch { return null; }
 };
 
 export const loadSavedDraft = async (id: string): Promise<StoredWorkspace | null> => {

@@ -1,0 +1,55 @@
+[
+  {
+    "id": "creative-tear-paper",
+    "title": "Make It Your Own with Torn Paper",
+    "items": [
+      { "id": "creative-tear-paper-01", "title": "Creative Torn Paper", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/01.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-02", "title": "Watercolor Extension", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/02.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-06", "title": "Paper Texture Extension", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/06.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-07", "title": "Natural Torn Edge", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/07.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-08", "title": "Watercolor Negative Space", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/08.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-03", "title": "Handmade Paper", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/03.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-04", "title": "Magazine Collage", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/04.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true },
+      { "id": "creative-tear-paper-05", "title": "Paper Landscape", "imageSrc": "https://assets.zllarchi.site/homecase/0811-sizhi/05.jpg?v=20260811d", "tone": "structure", "effect": "creative-tear-paper", "hideTitle": true }
+    ]
+  },
+  {
+    "id": "texture",
+    "title": "Add Texture, Set the Mood",
+    "items": [
+      { "id": "texture-screen-print", "title": "Screen Print", "imageSrc": "https://assets.zllarchi.site/homecase/0806-zhigan/01.jpg?v=20260806", "tone": "texture", "effect": "screen-print" },
+      { "id": "texture-matisse", "title": "Matisse Cutout", "imageSrc": "https://assets.zllarchi.site/homecase/0806-zhigan/02.jpg", "tone": "texture", "effect": "matisse-cutout" },
+      { "id": "texture-pixel-cross-stitch", "title": "Pixel Embroidery", "imageSrc": "https://assets.zllarchi.site/homecase/0806-zhigan/03.jpg", "tone": "texture", "effect": "pixel-cross-stitch" },
+      { "id": "texture-botanical", "title": "Botanical Plate", "imageSrc": "https://assets.zllarchi.site/homecase/0806-zhigan/04.jpg", "tone": "texture", "effect": "vintage-botanical" }
+    ]
+  },
+  {
+    "id": "pattern-background",
+    "title": "Play with Polka",
+    "items": [
+      { "id": "home-polka-cream-small", "title": "Cream Polka Dots", "backgroundPresetId": "polka-cream-small" },
+      { "id": "home-polka-pink-heart", "title": "Soft Pink Hearts", "backgroundPresetId": "polka-pink-heart" },
+      { "id": "home-polka-ink-fine", "title": "Fine Black Dots", "backgroundPresetId": "polka-ink-fine" },
+      { "id": "home-polka-cream-star", "title": "Cream Stars", "backgroundPresetId": "polka-cream-star" },
+      { "id": "home-polka-red-cross", "title": "Red Crosses", "backgroundPresetId": "polka-red-cross" },
+      { "id": "home-pattern-local-24", "title": "Graphic Polka Pattern", "backgroundPresetId": "pattern-local-24" }
+    ]
+  },
+  {
+    "id": "lace",
+    "title": "A Refined Frame in One Tap",
+    "items": [
+      { "id": "lace-circle", "title": "Round Lace Frame", "imageSrc": "https://assets.zllarchi.site/homecase/0806-jiegou/01.jpg", "tone": "structure", "effect": "lace-center" },
+      { "id": "foil-crumpled", "title": "Round Foil Frame", "imageSrc": "https://assets.zllarchi.site/homecase/0806-jiegou/02.jpg", "tone": "structure", "effect": "foil-center" }
+    ]
+  },
+  {
+    "id": "emboss",
+    "title": "Give Your Photos an Embossed Finish",
+    "items": [
+      { "id": "emboss-swap", "title": "Emboss Swap", "imageSrc": "https://assets.zllarchi.site/homecase/0806-yahua/01.jpg", "tone": "emboss", "effect": "emboss-circle" },
+      { "id": "emboss-circle", "title": "Round Emboss", "imageSrc": "https://assets.zllarchi.site/homecase/0806-yahua/02.jpg", "tone": "emboss", "effect": "emboss-circle" },
+      { "id": "emboss-stamp", "title": "Postage Stamp Emboss", "imageSrc": "https://assets.zllarchi.site/homecase/0806-yahua/03.jpg", "tone": "emboss", "effect": "emboss-stamp" }
+    ]
+  }
+]
