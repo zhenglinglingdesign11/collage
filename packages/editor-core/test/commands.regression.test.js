@@ -26,6 +26,39 @@ const run = (draft, command) => {
   return result.draft;
 };
 
+test('stable IDs are opaque UUIDs with no path or timestamp dependency', () => {
+  const first = core.createStableId('project');
+  const second = core.createStableId('project');
+  assert.match(first, /^project-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+  assert.notEqual(first, second);
+  assert.equal(first.includes('/'), false);
+});
+
+test('portable references are normalized and SHA-256 is deterministic', () => {
+  const draft = { ...makeDraft(), canvas: { ...makeDraft().canvas, backgroundAsset: { id: 'asset://pack/paper-01/item', kind: 'image', revision: '2' } }, layers: [{ ...makeImage(), effects: [{ instanceId: 'input', type: 'future.asset', version: 1, enabled: true, stage: 'content', params: {}, inputs: { texture: { id: 'asset://texture/grain', kind: 'texture', revision: '3' } } }] }] };
+  assert.deepEqual(core.portableAssetReferencesForDraft(draft), [
+    { id: 'asset://pack/paper-01/item', kind: 'image', revision: '2' },
+    { id: 'user://image/photo', kind: 'image', revision: '1' },
+    { id: 'asset://texture/grain', kind: 'texture', revision: '3' },
+  ]);
+  assert.equal(core.sha256HexForBytes(new TextEncoder().encode('abc')), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+});
+
+test('portable envelope migrates v0 and rejects future or unknown shapes', () => {
+  const v0 = { format: core.PORTABLE_PROJECT_FORMAT, formatVersion: 0, projectId: 'project', draft: makeDraft(), assets: [], requiredPackAssets: [], catalogDependencies: {}, createdAt: now, updatedAt: now, exportedAt: now };
+  const migrated = core.migratePortableProjectEnvelope(v0);
+  assert.equal(migrated.ok, true);
+  assert.equal(migrated.migrated, true);
+  assert.equal(migrated.payload.document, v0.draft);
+  assert.deepEqual(migrated.payload.assetManifest, []);
+  const future = core.migratePortableProjectEnvelope({ ...v0, formatVersion: 2 });
+  assert.equal(future.ok, false);
+  assert.equal(future.issues[0].code, 'future-version');
+  const unknown = core.migratePortableProjectEnvelope({ ...v0, formatVersion: 1, document: v0.draft, assetManifest: [], unexpected: true });
+  assert.equal(unknown.ok, false);
+  assert.equal(unknown.issues[0].code, 'unknown-field');
+});
+
 test('movement alignment finds canvas and layer anchors, then waits for stability', () => {
   const draft = {
     ...makeDraft(),
@@ -185,6 +218,25 @@ test('v3 effects migrate to v4 instances without changing their product paramete
 test('a structurally valid future effect survives validation for a newer renderer', () => {
   const draft = { ...makeDraft(), layers: [{ ...makeImage(), effects: [{ instanceId: 'future-1', type: 'future.hologram', version: 2, enabled: true, stage: 'overlay', params: { intensity: 0.7 } }] }] };
   assert.deepEqual(core.validateDraft(draft), []);
+});
+
+test('Draft assets reject device paths and runtime URLs at every document entry point', () => {
+  const cases = [
+    { draft: { ...makeDraft(), canvas: { ...makeDraft().canvas, backgroundAsset: { id: 'file:///var/mobile/photo.png', kind: 'image' } } }, path: 'canvas.backgroundAsset' },
+    { draft: { ...makeDraft(), layers: [{ ...makeImage(), asset: { id: 'https://assets.example.test/temporary.png', kind: 'image' } }] }, path: 'layers[0].asset' },
+    { draft: { ...makeDraft(), layers: [{ ...makeImage(), type: 'material', asset: { id: 'data:image/png;base64,AAAA', kind: 'image' } }] }, path: 'layers[0].asset' },
+    { draft: { ...makeDraft(), layers: [{ ...makeImage(), effects: [{ instanceId: 'future-asset', type: 'future.hologram', version: 1, enabled: true, stage: 'overlay', params: {}, inputs: { texture: { id: '/private/cache/texture.png', kind: 'texture' } } }] }] }, path: 'layers[0].effects[0].inputs.texture' },
+  ];
+  cases.forEach(({ draft, path }) => {
+    const issues = core.validateDraft(draft);
+    assert.ok(issues.some((issue) => issue.path === path), `expected portable-reference error at ${path}`);
+    assert.equal(core.migrateDraft(JSON.parse(JSON.stringify(draft))).ok, false);
+  });
+  assert.deepEqual(core.validateBrushDefinition({
+    id: 'brush://builtin/plain', revision: '1', renderer: 'path', recipe: 'plain', supports: { color: true, pressure: false, rotation: 'fixed', animation: false },
+    defaults: { size: 12, spacing: 4, jitter: 0, opacity: 1 }, constraints: { minSize: 1, maxSize: 80, minSpacing: 1, maxSpacing: 40 },
+    asset: { id: 'file:///private/brush.png', kind: 'brush' },
+  }).map((issue) => issue.path), ['asset']);
 });
 
 test('catalog effects retain portable catalog parameters', () => {

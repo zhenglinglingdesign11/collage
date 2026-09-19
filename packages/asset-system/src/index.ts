@@ -2,6 +2,7 @@ import type { AssetReference } from '@journalcollage/editor-core';
 
 export * from './brushes';
 export * from './colors';
+export * from './remoteAssetIntegrity';
 
 // Font metadata is product catalog data, not editor-document data.  The
 // mini-program remains the single source for the CDN file names and families.
@@ -108,6 +109,8 @@ export type RemotePackItem = Readonly<{
 
 export type RemoteAssetPack = Readonly<{
   id: string;
+  /** Bump when an existing pack's resolver contract changes incompatibly. */
+  revision: string;
   name: string;
   category: Exclude<AssetPackCategory, 'recommended'>;
   cover: string;
@@ -167,7 +170,7 @@ const customPolkaPaperAction: RemotePackItem = {
  */
 const virtualNotePacks: readonly RemoteAssetPack[] = [
   {
-    id: 'local-background-paper-materials', name: 'Basic paper', category: 'note', cover: paperSvg('#f4efe5'), proceduralPreview: 'solid-paper', items: [
+    id: 'local-background-paper-materials', revision: '1', name: 'Basic paper', category: 'note', cover: paperSvg('#f4efe5'), proceduralPreview: 'solid-paper', items: [
       customSolidPaperAction,
       proceduralPaper('local-background-paper-materials', 'plain-warm', { background: '#fdfdfb', pattern: 'solid' }),
       proceduralPaper('local-background-paper-materials', 'plain-white', { background: '#ffffff', pattern: 'solid' }),
@@ -192,7 +195,7 @@ const virtualNotePacks: readonly RemoteAssetPack[] = [
     ],
   },
   {
-    id: 'polka-paper-materials', name: 'Polka paper', category: 'note', cover: paperSvg('#f8f4ec', 'dot'), proceduralPreview: 'polka-paper', items: [
+    id: 'polka-paper-materials', revision: '1', name: 'Polka paper', category: 'note', cover: paperSvg('#f8f4ec', 'dot'), proceduralPreview: 'polka-paper', items: [
       customPolkaPaperAction,
       proceduralPaper('polka-paper-materials', 'polka-cream-small', { background: '#fdf7ec', foreground: '#b79b75', radius: 5, gap: 32, opacity: 0.64, pattern: 'polka', shape: 'circle', style: 'solid', offset: 'grid' }),
       proceduralPaper('polka-paper-materials', 'polka-pink-heart', { background: '#f5dfd8', foreground: '#ffffff', radius: 5, gap: 32, opacity: 1, pattern: 'polka', shape: 'heart', style: 'solid', offset: 'grid' }),
@@ -254,11 +257,11 @@ const basicShapeDefinitions: readonly (readonly [string, ProceduralSticker])[] =
 
 const virtualStickerPacks: readonly RemoteAssetPack[] = [
   {
-    id: 'basic-shape-materials', name: 'Basic shapes', category: 'sticker', cover: stickerSvg(basicShapeDefinitions[0][1]), proceduralPreview: 'basic-shape',
+    id: 'basic-shape-materials', revision: '1', name: 'Basic shapes', category: 'sticker', cover: stickerSvg(basicShapeDefinitions[0][1]), proceduralPreview: 'basic-shape',
     items: [customBasicShapeAction(false), ...basicShapeDefinitions.map(([id, sticker]) => proceduralSticker('basic-shape-materials', id, sticker))],
   },
   {
-    id: 'material-basic-shape-materials', name: 'Material shapes', category: 'sticker', cover: stickerSvg({ ...basicShapeDefinitions[0][1], fillColor: '#FFFFFF', textureSource: basicShapeTextures[0] }), proceduralPreview: 'material-shape',
+    id: 'material-basic-shape-materials', revision: '1', name: 'Material shapes', category: 'sticker', cover: stickerSvg({ ...basicShapeDefinitions[0][1], fillColor: '#FFFFFF', textureSource: basicShapeTextures[0] }), proceduralPreview: 'material-shape',
     items: [customBasicShapeAction(true), ...basicShapeDefinitions.map(([id, sticker], index) => proceduralSticker('material-basic-shape-materials', `material-${id}`, { ...sticker, fillColor: '#FFFFFF', strokeColor: undefined, strokeWidth: 0, textureSource: basicShapeTextures[index % basicShapeTextures.length] }))],
   },
 ];
@@ -284,6 +287,7 @@ const packFromMiniProgram = (definition: MiniProgramPackDefinition): RemoteAsset
   };
   return {
     id: definition.id,
+    revision: '1',
     name: displayNameById[definition.id] ?? definition.name,
     category: categoryFor(definition.category),
     cover: `${baseUrl}/${definition.cover}`,

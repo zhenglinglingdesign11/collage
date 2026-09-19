@@ -1,17 +1,39 @@
-import type { BrushDefinition, BrushPoint, BrushStroke, Draft, Effect, EffectTrack, EffectValue, Layer, VisibilityMask } from './document';
+import type { AssetReference, BrushDefinition, BrushPoint, BrushStroke, Draft, Effect, EffectTrack, EffectValue, Layer, VisibilityMask } from './document';
 import { effectDefinitionFor, effectValueDepth, isEffectSupportedByLayer } from './effects';
 import { isFinitePoint, isFiniteSize, type Size } from './geometry';
 
 export type ValidationIssue = Readonly<{ path: string; message: string }>;
+
+const ASSET_KINDS = new Set(['image', 'font', 'texture', 'brush']);
+const RUNTIME_ASSET_LOCATION = /^(?:assets-library|content|data|file|http|https|ph):/i;
+const WINDOWS_ABSOLUTE_PATH = /^[a-z]:[\\/]/i;
+
+/**
+ * A Draft may name an asset but must never own the runtime location used to
+ * resolve it.  Keep the namespace open for future stable providers while
+ * rejecting URI schemes and absolute paths that bind a document to one device
+ * or a short-lived download.
+ */
+export const isStableAssetReference = (asset: AssetReference): boolean =>
+  typeof asset.id === 'string'
+  && asset.id.length > 0
+  && !RUNTIME_ASSET_LOCATION.test(asset.id)
+  && !asset.id.startsWith('/')
+  && !asset.id.startsWith('~/')
+  && !WINDOWS_ABSOLUTE_PATH.test(asset.id)
+  && ASSET_KINDS.has(asset.kind)
+  && (asset.revision === undefined || (typeof asset.revision === 'string' && asset.revision.length > 0));
+
+const validateAssetReference = (asset: AssetReference, path: string, issues: ValidationIssue[]): void => {
+  if (!isStableAssetReference(asset)) issues.push({ path, message: 'Assets must use a stable logical reference, never a device path or runtime URL.' });
+};
 
 export const validateDraft = (draft: Draft): readonly ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   if (draft.schemaVersion !== 4) issues.push({ path: 'schemaVersion', message: 'Unsupported draft schema version.' });
   if (!draft.id) issues.push({ path: 'id', message: 'Draft id is required.' });
   if (!isFiniteSize(draft.canvas.size)) issues.push({ path: 'canvas.size', message: 'Canvas size must be positive finite values.' });
-  if (draft.canvas.backgroundAsset && (!draft.canvas.backgroundAsset.id || !draft.canvas.backgroundAsset.kind)) {
-    issues.push({ path: 'canvas.backgroundAsset', message: 'Background asset must have a stable id and kind.' });
-  }
+  if (draft.canvas.backgroundAsset) validateAssetReference(draft.canvas.backgroundAsset, 'canvas.backgroundAsset', issues);
   const layerIds = new Set<string>();
   draft.layers.forEach((layer, index) => validateLayer(layer, index, layerIds, issues));
   if (draft.selectedLayerId && !layerIds.has(draft.selectedLayerId)) issues.push({ path: 'selectedLayerId', message: 'Selected layer must exist.' });
@@ -27,6 +49,7 @@ const validateLayer = (layer: Layer, index: number, ids: Set<string>, issues: Va
   }
   if (!Number.isFinite(layer.opacity) || layer.opacity < 0 || layer.opacity > 1) issues.push({ path: `${path}.opacity`, message: 'Opacity must be between 0 and 1.' });
   if (!isFiniteSize(layer.frame)) issues.push({ path: `${path}.frame`, message: 'Layer frame must be positive finite values.' });
+  if (layer.type === 'image' || layer.type === 'material') validateAssetReference(layer.asset, `${path}.asset`, issues);
   validateEffects(layer, `${path}.effects`, issues);
   if (layer.type === 'text') {
     if (!layer.fontId || !layer.fontVariantId) issues.push({ path: `${path}.font`, message: 'Text layers must retain stable font and variant ids.' });
@@ -93,7 +116,8 @@ const validateEffectInputs = (effect: Effect, path: string, issues: ValidationIs
   if (!effect.inputs) return;
   if (Object.keys(effect.inputs).length > 8) issues.push({ path, message: 'Effects may reference at most eight assets.' });
   Object.entries(effect.inputs).forEach(([key, asset]) => {
-    if (!key || !asset.id || !asset.kind) issues.push({ path: `${path}.${key}`, message: 'Effect inputs must be stable asset references.' });
+    if (!key) issues.push({ path: `${path}.${key}`, message: 'Effect input keys must be non-empty.' });
+    validateAssetReference(asset, `${path}.${key}`, issues);
   });
 };
 
@@ -126,7 +150,10 @@ export const validateBrushDefinition = (definition: BrushDefinition): readonly V
   if (![size, spacing, jitter, opacity].every(Number.isFinite) || size <= 0 || spacing <= 0 || jitter < 0 || opacity < 0 || opacity > 1) {
     issues.push({ path: 'defaults', message: 'Brush defaults must be finite and within supported ranges.' });
   }
-  if (definition.asset && (!definition.asset.id || definition.asset.kind !== 'brush')) issues.push({ path: 'asset', message: 'Brush definition assets must be stable brush references.' });
+  if (definition.asset) {
+    validateAssetReference(definition.asset, 'asset', issues);
+    if (definition.asset.kind !== 'brush') issues.push({ path: 'asset', message: 'Brush definition assets must be brush references.' });
+  }
   return issues;
 };
 

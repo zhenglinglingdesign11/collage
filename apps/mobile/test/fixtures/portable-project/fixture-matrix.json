@@ -1,0 +1,33 @@
+{
+  "format": "journalcollage.portable-project-fixture-matrix",
+  "formatVersion": 1,
+  "fixtures": [
+    {
+      "id": "minimal-v1",
+      "purpose": "Smallest valid v1 document with no embedded resources.",
+      "expected": "imports"
+    },
+    {
+      "id": "complex-v1",
+      "purpose": "Canvas catalog paper, embedded user image, text, brush stroke, and outline effect.",
+      "resource": "fixture-complex-image",
+      "expected": "imports-and-render-inputs-match"
+    },
+    {
+      "id": "legacy-v0",
+      "purpose": "Pre-release draft/assets envelope migrated into v1 before import.",
+      "expected": "migrates"
+    },
+    {
+      "id": "missing-resource-v1",
+      "purpose": "Valid embedded-resource manifest with its resources entry absent.",
+      "expected": "missing-resource"
+    },
+    {
+      "id": "corrupt-resource-v1",
+      "purpose": "Embedded resource bytes do not match the manifest SHA-256.",
+      "resource": "fixture-corrupt-image",
+      "expected": "resource-hash-mismatch"
+    }
+  ]
+}

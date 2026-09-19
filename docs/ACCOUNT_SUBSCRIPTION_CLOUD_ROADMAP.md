@@ -1,7 +1,7 @@
 # JournalCollage 账号、订阅与云端作品路线
 
 > 状态：后续实施基线
-> 更新日期：2026-09-14
+> 更新日期：2026-09-15
 > 适用范围：Expo + React Native iOS 首发、后续 Android，以及与 RevenueCat、Supabase、Cloudflare R2 相关的产品与服务端实现。
 > 执行计划：`ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md`
 > 关联文档：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`。
@@ -123,35 +123,65 @@ Draft 引用稳定 `assetId`，Asset Catalog 在运行时将其解析为当前�
 2. **明确保存**：进入最近创作，更新 `savedAt`、缩略图与元数据。
 3. **导出文件**：最终 PNG/JPEG，与可编辑草稿独立；系统相册副本不受 App 缓存清理影响。
 
+### 4.5 P0-01 文档边界审计记录（2026-09-14）
+
+当前实现的文件归属和生命周期如下。这里的“设备 URI”是模拟器或真机 App 沙盒中的 `file://` 路径，以及仅在当前运行期可用的远程/缓存地址；它不是指已经上线用户的数据。
+
+| 持久对象 | 当前字段与内容 | 生命周期与边界 | 后续云端规则 |
+| --- | --- | --- | --- |
+| `Draft` | schema、作品 ID、画布、图层、效果、画笔和 `AssetReference` | 编辑器语义文档；资源只以 `asset://`、`user://`、`brush://` 等稳定逻辑身份出现 | 可作为 Portable Project 的语义来源；不得出现设备路径、HTTP(S)、`data:` URI 或平台对象 |
+| `AssetCatalog` / `LocalAssetRecord` | 稳定 `reference` 加 `originalUri`、尺寸、MIME、创建时间 | 当前设备的解析目录；`originalUri` 可以是 App 沙盒路径、下载缓存路径或程序化资源的可用地址 | 绝不能原样上传；P0-05/06 将以资源 manifest 和复制后的资源重建它 |
+| `StoredWorkspace` 与明确保存草稿 | `{ draft, catalog, savedAt? }`，写入工作区和 `saved-drafts/` | 仅用于当前设备恢复、检查点和最近创作 | 不是 Portable Project，禁止直接作为云端作品文档上传 |
+| 运营 manifest 与远程缓存索引 | manifest payload、ETag、缓存时间；资源 key、来源 URL、当前 URI、访问时间 | 可重新下载的产品配置和预览缓存；“清理下载缓存”可删除 | 不属于用户作品，也不进入云备份 |
+| App 内导出 PNG | 单独的 PNG 字节文件 | 与 Draft/Asset Catalog 无反向引用；系统相册副本由系统管理 | 默认不上传；未来作为用户明确选择的独立导出能力处理 |
+
+审计时发现导入校验此前只要求 `AssetReference` 非空，无法阻止损坏 JSON 或未来写入路径把运行时 URI 放进 Draft。现已在 Editor Core 的统一校验和 migration 入口拒绝 `file:`、HTTP(S)、`data:`、平台媒体 URI 及绝对路径；检查范围覆盖画布背景、图片/素材图层、效果输入与画笔定义。稳定命名空间仍保持可扩展，不将当前 Catalog 的 URI 规则泄漏进 Draft。
+
+### 4.6 P0-02 资源分类与清理契约（2026-09-14）
+
+分类冻结的是每类数据的所有权和生命周期，不是素材目录的封闭清单。以后增加远程素材包、生成器或新格式时，必须先归入下表的某一类；若不能归类，需要先扩展此契约和 Portable Project manifest，不能以“缓存”名义绕过用户作品保护。
+
+| 类别 | 归属与进入条件 | 本地位置/引用 | 清理与删除规则 | Portable Project / 云端规则 |
+| --- | --- | --- | --- | --- |
+| 用户导入资源 | 用户拥有；照片经用户选取并被采用时进入 | App 私有作品资源；Draft 仅用稳定 `user://` 身份引用 | 不能由清理缓存删除；仅在没有任何已保存草稿或当前工作区引用时，才可通过明确删除回收 | 复制原始字节和元数据；重建当前设备 Catalog URI |
+| 已采用的生成资源 | 用户拥有；AIGC 结果被用户选择加入作品时进入 | 与用户导入资源相同；生成服务返回的短期 URL 不进入 Draft | 与用户导入资源相同；不能按“AI 临时结果”清除 | 上传采用后的资源字节与来源元数据；不上传短期结果 URL |
+| 未采用生成候选 | 服务端结果的短期交付物；尚未成为作品资源 | 只在请求会话/下载缓存中存在 | 可在请求完成、过期或用户放弃后删除；不得留下 Draft 引用 | 不备份；再次采用前须先落盘为已采用生成资源 |
+| 内置资源 | App 随版本交付，产品拥有 | bundle 或平台 resolver；稳定 `builtin://`/`asset://` 身份 | 不由用户缓存清理处理；随 App 更新替换 | 仅记录稳定 ID 与兼容 revision，不复制资源字节 |
+| 远程素材 | 内容供应方/产品目录拥有；用户将其加入作品后，作品拥有该稳定引用的使用语义 | 目录提供稳定 pack/item ID；本机仅保存可重新获取的预览或文件缓存 | 可删除本地缓存，但必须能按稳定 ID + revision 重新解析；下线、付费或版本不兼容时须给出确定的恢复错误，不能静默替换素材 | 记录稳定引用、revision 与必要的 pack 依赖；默认不重复上传公开素材字节 |
+| 派生缩略图 | 作品的可再生派生数据 | 缩略图缓存或未来云端缩略图 | 在可由 Draft + 资源重建时可删除；删除不得影响编辑、保存或导出 | 可选上传，永远不能是唯一作品副本 |
+| 运营配置与下载缓存 | 产品拥有、可重新获取 | manifest、ETag、封面、远程字体/纹理和 `remote-cache/` | “清理下载缓存”可删除；不得包含用户资源或唯一作品副本 | 不备份为用户数据 |
+| 临时渲染与传输文件 | 运行期工作数据 | 临时目录、未完成下载、导出过程的中间文件 | 操作结束、失败、超时或低存储清理时可删除；必须原子化，不能删除已提交资源 | 不备份 |
+| App 内导出与系统相册副本 | 用户导出的最终媒体，不是可编辑作品源 | App 导出目录或系统相册 | 不由“清理下载缓存”删除；App 内副本的单独删除需要明确用户动作，系统相册由系统管理 | 默认不纳入作品备份；未来作为显式导出管理功能处理 |
+
+所有未来资源类型还必须满足以下不可变规则：
+
+1. Draft 只引用稳定逻辑身份，不能引用 Catalog URI、缓存键、签名 URL 或平台对象。
+2. “清理下载缓存”只可删除可从稳定身份重新取得或重新生成的数据；不能使已保存作品失去可编辑、预览或导出能力。
+3. 资源从候选/缓存升级为用户资源时，必须先完成私有落盘和元数据写入，再写入 Draft；失败时 Draft 保持不变。
+4. 删除用户资源必须基于全局引用检查，而不是目录、文件名或最近一次访问时间。
+5. 远程素材的下线、权限变化或 revision 不兼容是可预期的恢复失败，必须暴露可理解的错误状态，不能替换为不同素材。
+
+当前实现已将运营 manifest、封面和远程预览放在可清缓存边界，也把用户导入照片放在独立 `assets/` 目录。已知缺口是：清空 `remote-cache/` 后，已保存作品内的部分远程素材 Catalog 记录仍持有过期的本地 URI；P1-A04 负责按稳定引用与精确 revision 恢复作品依赖，P1-06 负责缓存统计与用户清理流程。两项均通过后，才能宣称“清理缓存后所有作品仍可立即打开并导出”。该缺口不改变本契约，也不允许将远程素材缓存误标为用户资源。
+
+### 4.7 P0-03 稳定身份审计记录（2026-09-14）
+
+| 对象 | 规范化身份 | 版本与审计结论 |
+| --- | --- | --- |
+| 作品（当前 `Draft.id`，后续 `projectId`） | 新作品由 `createStableId('project')` 生成 UUIDv4 形态的不可变 ID；保存、恢复和文件索引都使用该 ID，不使用文件名、数组位置或设备路径 | Draft schema 已为 v4；Portable Project 的独立 `projectId`/`documentVersion` 仍由 P0-04 定义 |
+| 文档内对象 | 新建图层、文字、画笔图层、效果实例、复制层、剪裁 fragment/operation 使用 UUID 形态 ID；笔触可由稳定 layer ID + 单调序号命名 | 这些 ID 在 Draft 内保持不变；时间戳只保留为笔触输入时间，不再参与对象身份 |
+| 用户资源 | 导入时生成 `user-image-{uuid}`，以 `user://image/{id}` 和 revision `1` 写入 Catalog/Draft；本地文件名只派生自该 ID | URI 是当前设备 resolver 数据，不参与身份；未来用户/生成资源 manifest 将携带 MIME、尺寸、hash 与版本 |
+| 内置资源、字体、画笔 | 目录中使用稳定逻辑 ID，如 `asset://`、`font://`、`brush://` | AssetReference 和画笔定义均已有 revision；替换渲染语义时必须递增 revision 或建立 migration |
+| 远程素材包与项 | pack 使用稳定 `pack.id` + 新增 `pack.revision`；item 使用 `asset://pack/{packId}/{itemId}`，并已有 item revision | URL 只是 resolver 信息；同 ID 的不兼容内容变更必须提升 item/pack revision，不能覆盖为不同语义 |
+| 自定义程序化素材 | 由规范化的颜色、形状、布局等语义参数确定 stable item ID；不含路径或运行时随机数 | 生成配方变更必须提升 revision；任一不能确定重建的输入，应升级为用户资源而非远程素材 |
+| 服务端 AIGC 结果（尚未实施） | 候选结果不得进入 Draft；用户采用后将分配 `generated://image/{uuid}`，并作为用户拥有资源写入 Catalog | P3-08 实施时生成 immutable asset ID、来源模型/请求审计元数据和 revision；短期 URL 不得成为身份 |
+
+身份生成优先使用运行时 Web Crypto；旧开发运行时只使用 UUID 形态的随机回退，绝不从路径或时间戳推导。历史本地作品保留既有 ID，以避免破坏恢复；它们在未来 Portable Project 导出时映射为相同 `projectId`，不静默重命名。
+
 ## 5. Portable Project
 
-云备份前必须定义不依赖当前设备路径的可移植作品：
+云备份前必须定义不依赖当前设备路径的可移植作品。v1 正式契约见 [PORTABLE_PROJECT_CONTRACT.md](PORTABLE_PROJECT_CONTRACT.md)：它冻结了 `project.json` envelope、资产 manifest、内置/远程/用户资源的处理、时间/版本字段、未知字段策略，以及 P0-05/P0-06 的实现边界。
 
-```text
-PortableProject
-├── documentVersion
-├── projectId
-├── canvas
-├── layers
-├── assetManifest
-├── requiredPackAssets
-└── createdAt / updatedAt
-```
-
-永久引用采用：
-
-- `user-asset://{assetId}`；
-- `pack-asset://{packId}/{itemId}`；
-- `builtin-asset://{assetId}`。
-
-禁止写入：
-
-- `file:///...`；
-- 临时缓存路径；
-- R2 签名 URL；
-- Skia、React Native 或平台私有对象。
-
-`1.0` 发布门槛是：现有作品可以导出 Portable Project，在新的本地目录中重建 Asset Catalog，并由同一个 Renderer 得到等价预览与导出结果。
+`1.0` 发布门槛仍是：现有作品可以导出 Portable Project，在新的本地目录中重建 Asset Catalog，并由同一个 Renderer 得到等价预览与导出结果。
 
 ## 6. `1.0` 无感身份、订阅与服务端 AIGC
 
@@ -484,7 +514,7 @@ users/{userId}/projects/{projectId}/thumbnails/{revision}.jpg
 
 ## 16. 实施顺序与阶段门
 
-本节只表达总依赖。具体 P0–P7 工作包、编号待办、完成标准、测试与阻塞条件，以 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 为执行基线；下方 S0–S9 保留为 P3 的摘要，不替代完整执行清单。
+本节只表达总依赖。具体 P0–P7（包括 P1-A 与 P1-B）工作包、编号待办、完成标准、测试与阻塞条件，以 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 为执行基线；下方 S0–S9 保留为 P3 的摘要，不替代完整执行清单。
 
 ```text
 完善本地草稿和资源生命周期
@@ -504,6 +534,8 @@ users/{userId}/projects/{projectId}/thumbnails/{revision}.jpg
 接入 App Attest、Turnstile 与安全测试
     ↓
 完成订阅/AIGC 测试并发布 1.0
+    ↓
+建设远端素材动态发布、上下架与回滚平台（P1-B）
     ↓
 接入 Apple/Email 显式账号、身份链接与账号删除
     ↓
@@ -531,9 +563,11 @@ users/{userId}/projects/{projectId}/thumbnails/{revision}.jpg
 
 ### 16.2 当前下一步
 
-当前不开始登录 UI，也不直接接模型。先按依赖完成：
+P0 与 P1-A01 已完成。当前从 P1-A02 开始，只在 Expo / React Native 新架构中按实施计划推进：
 
-1. 审计 Draft、Asset Catalog 与本地 `StoredWorkspace` 的边界：确认 Draft 只保存稳定资源引用，并确保含本地 URI 的 Catalog 绝不会被直接当作未来云端作品文档上传；
-2. 定义 Portable Project 并完成本地重建验证；
-3. 定义 EntitlementService，让 Editor、素材页、导出与未来 AIGC 入口都不直接依赖 RevenueCat；
-4. 在订阅/AIGC 实施开始时，按 S0–S9 建立无感身份与服务端授权底座。
+1. 在 `packages/asset-system` 建立平台无关的验证下载策略，并在 `apps/mobile` 接入 Expo 文件系统适配器；
+2. 完成分层 Asset Resolver、已保存作品的精确 revision 恢复和缓存治理；
+3. 通过 P1-A 离线、故障与真机发布回归后，再完成 P1 本地作品管理；
+4. 随后按 P2、P3 与 S0–S9 建立 entitlement、无感身份、匿名订阅及服务端 AIGC 授权底座。
+
+`iosproject` 仅保留为历史行为与算法参考。写入其中的 P1-A 缓存、网络或测试实验不构成阶段交付，也不得作为完成状态或验证证据。

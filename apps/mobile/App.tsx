@@ -8,12 +8,14 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { alignmentGuideKey, applyCommand, createDraft, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
+import { alignmentGuideKey, applyCommand, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
 import { MineHome } from './src/product-ui/MineHome';
+import { NativeRenderParityProbe } from './src/NativeRenderParityProbe';
+import { RemoteAssetVerificationProbe } from './src/RemoteAssetVerificationProbe';
 import { EffectSheet } from './src/product-ui/EffectSheet';
 import { BrushLayerToolbar, EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
 
@@ -182,7 +184,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     past: [],
     present: initialEntry === 'restore'
       ? createFixtureDraft()
-      : createDraft({ id: `canvas-${Date.now()}`, size: CANVAS_SIZE, now: new Date().toISOString() }),
+      : createDraft({ id: createStableId('project'), size: CANVAS_SIZE, now: new Date().toISOString() }),
     future: [],
   }));
   const [catalog, setCatalog] = useState<AssetCatalog>(() => emptyAssetCatalog());
@@ -462,7 +464,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     if (selectedLayer === null) return;
     const existing = selectedLayer.effects.find((effect) => effect.type === effectType);
     if (existing) return dispatch({ type: 'command', command: { type: 'layer.effect.remove', layerId: selectedLayer.id, instanceId: existing.instanceId } });
-    dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(`effect-${Date.now()}`, effectType) } });
+    dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(createStableId('effect'), effectType) } });
   }, [selectedLayer]);
   const updateTornEdge = useCallback((change: 'less' | 'more' | 'reroll') => {
     if (selectedLayer === null) return;
@@ -485,7 +487,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
       return;
     }
     const existing = selectedLayer.effects.find((effect) => effect.type === effectType);
-    if (!existing) dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(`effect-${Date.now()}`, effectType) } });
+    if (!existing) dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(createStableId('effect'), effectType) } });
     setLayerEffectControl({ layerId: selectedLayer.id, type: effectType });
   }, [layerEffectControl, selectedLayer]);
   const openLayerOpacityControl = useCallback(() => {
@@ -668,7 +670,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const confirmStraightCut = useCallback(() => {
     const session = straightCut;
     if (session === null) return;
-    const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const id = createStableId('cut');
     dispatch({ type: 'command', command: { type: 'image.cut.straight', layerId: session.layerId, start: session.start, end: session.end, firstLayerId: `image-cut-${id}-a`, secondLayerId: `image-cut-${id}-b`, operationId: `${session.style}-cut-${id}`, gap: 18, style: session.style } });
     setLayerPanelOpen(true);
     setStraightCut(null);
@@ -678,7 +680,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const toggleBrushHollow = useCallback(() => setBrushCut((current) => current ? { ...current, hollowOriginal: !current.hollowOriginal } : null), []);
   const confirmBrushCut = useCallback(() => {
     if (brushCut === null || brushCut.strokes.length === 0) return;
-    const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const id = createStableId('brush-cut');
     dispatch({ type: 'command', command: { type: 'image.cut.brush', layerId: brushCut.layer.id, cutLayerId: `image-brush-cut-${id}`, operationId: `brush-cut-${id}`, strokes: brushCut.strokes, hollowOriginal: brushCut.hollowOriginal } });
     setBrushCut(null);
   }, [brushCut]);
@@ -686,7 +688,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     setAssetDrawerOpen(false); setBackgroundDrawerOpen(false); setCutPaletteOpen(false); setTextEdit(null);
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
     const definition = brushDefinitions[0];
-    setDecorativeBrush({ kind: 'create', layerId: `brush-layer-${Date.now()}`, strokes: [], redoStrokes: [], activeStroke: null, brushId: definition.id, brushRevision: definition.revision, color: '#111111', size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, opacity: definition.defaults.opacity, isErasing: false });
+    setDecorativeBrush({ kind: 'create', layerId: createStableId('brush-layer'), strokes: [], redoStrokes: [], activeStroke: null, brushId: definition.id, brushRevision: definition.revision, color: '#111111', size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, opacity: definition.defaults.opacity, isErasing: false });
   }, []);
   const beginExistingDecorativeBrush = useCallback((layer: BrushLayer) => {
     if (layer.isLocked) return;
@@ -905,7 +907,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const gesture = straightCut !== null ? Gesture.Simultaneous(cutPan, cutRotate) : brushCut !== null ? brushPan : decorativeBrush !== null ? decorativeBrushPan : crop !== null ? cropPan : emboss !== null ? embossPan : ordinaryGesture;
   const confirmEmboss = useCallback(() => {
     if (emboss === null) return;
-    const id = `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const id = createStableId('emboss');
     dispatch({ type: 'command', command: { type: 'image.mask.split', layerId: emboss.layer.id, resultLayerId: `image-emboss-${id}`, remainderLayerId: `image-emboss-remainder-${id}`, operationId: `emboss-${id}`, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds }, resultOffset: { x: 26, y: 32 } } });
     setEmboss(null);
   }, [emboss]);
@@ -920,7 +922,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
         layer: {
           // A detail-pack multi-add can resolve several cached assets in the
           // same millisecond; item identity keeps every resulting layer unique.
-          id: `pack-layer-${Date.now()}-${item.id}`,
+          id: createStableId('pack-layer'),
           name: item.id,
           type: 'image',
           asset: item.reference,
@@ -983,7 +985,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
         const source = assets[index];
         const aspect = source.width > 0 && source.height > 0 ? source.width / source.height : 1;
         const frame = aspect >= 1 ? { width: 1080, height: 1080 / aspect } : { width: 760 * aspect, height: 760 };
-        const layerId = `layer-${Date.now()}-${index}`;
+        const layerId = createStableId('image-layer');
         const effect = index === 0 ? showcaseEffectInstance(`showcase-${initialShowcase?.id ?? 'photo'}-${layerId}`, initialShowcase ?? undefined) : null;
         dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: layerId, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (canvasSize.width - frame.width) / 2, y: (canvasSize.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: effect ? [effect] : [] } } });
         if (index === 0 && (initialShowcase?.effect === 'emboss-circle' || initialShowcase?.effect === 'emboss-stamp')) {
@@ -1052,7 +1054,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     // Do not reuse an editor session or a native TextInput instance when a
     // second text layer is created quickly after the first one.
     textLayerSequence.current += 1;
-    const id = `text-${Date.now()}-${textLayerSequence.current}`;
+    const id = createStableId('text-layer');
     setTextEdit(null);
     const layer = {
       id, name: 'Text', type: 'text' as const, text: '', frame: { width: 1240, height: 220 },
@@ -1236,7 +1238,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
-    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
+    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: createStableId('layer'), transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
     onCorner={() => openLayerEffectControl('shape.round-corners')}
     onCrop={beginCrop}
@@ -1250,7 +1252,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const brushLayerToolbar = selectedLayer?.type === 'brush' && straightCut === null && emboss === null ? <BrushLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
-    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
+    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: createStableId('layer'), transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
     onEdit={() => beginExistingDecorativeBrush(selectedLayer)}
     onEffects={openEffectSheet}
@@ -1260,7 +1262,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const textLayerToolbar = selectedLayer?.type === 'text' && textEdit === null ? <TextLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
-    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: `layer-${Date.now()}`, transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
+    onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: createStableId('layer'), transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } }})}
     onDelete={() => dispatch({ type: 'command', command: { type: 'layer.delete', layerId: selectedLayer.id } })}
     onEditText={() => beginTextEditing(selectedLayer)}
     onShadow={() => openLayerEffectControl('light.shadow')}
@@ -1603,6 +1605,7 @@ export default function App() {
   if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} restoreSavedDraftId={restoreSavedDraftId} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
 
   return (
+    <>
     <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTab(nextTab); }}>
       <StatusBar style="dark" />
       {tab === 'create'
@@ -1613,6 +1616,9 @@ export default function App() {
             ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setEditorEntry('restore'); setEditing(true); }} />
           : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
     </ProductAppShell>
+    {__DEV__ && <NativeRenderParityProbe />}
+    {__DEV__ && <RemoteAssetVerificationProbe />}
+    </>
   );
 }
 

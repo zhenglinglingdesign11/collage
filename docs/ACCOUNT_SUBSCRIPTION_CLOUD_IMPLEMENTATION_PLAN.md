@@ -1,13 +1,15 @@
 # JournalCollage 账号、订阅与云端能力实施计划
 
 > 状态：执行基线
-> 更新日期：2026-09-14
+> 更新日期：2026-09-15
 > 上位规划：`ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md`
-> 关联规范：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`
+> 关联规范：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`、`REMOTE_ASSET_RELIABILITY_CONTRACT.md`
 
 ## 1. 使用方式
 
 本文档将上位路线拆成可独立实施和验收的工作包。产品、身份、订阅、安全和云端范围发生变化时，先修改上位规划，再同步本文档；本文档不得自行改变已经冻结的产品决策。
+
+`1.0` 的唯一客户端实现边界是 Expo / React Native 新架构：`apps/mobile`、`packages/asset-system` 与 `packages/editor-core`。`iosproject` 是停止推进的旧 Swift 原型，不得承接 P1-A、P1-B 或任何后续账号、订阅、云端能力任务。
 
 状态约定：
 
@@ -18,7 +20,7 @@
 
 推进规则：
 
-1. 按 P0 → P7 顺序推进，不跨过阶段门发布依赖其结果的功能。
+1. 按 P0 → P1-A → P1 → P2 → P3 → `1.0` → P1-B → P4 → P5 → P6 → P7 的依赖顺序推进，不跨过阶段门发布依赖其结果的功能。
 2. 可以并行开展同一阶段内互不依赖的任务，但阶段门必须统一验收。
 3. 进入具体任务前再补充文件级设计、API 参数、SQL migration 和测试用例；不得在总计划中提前冻结尚未验证的实现细节。
 4. 任务完成需同时更新状态、验证证据和决策记录，仅提交代码不视为完成。
@@ -28,7 +30,8 @@
 
 | 发布范围 | 必须完成 | 用户可见能力 |
 | --- | --- | --- |
-| `1.0` | P0、P1、P2、P3 | 本地作品、匿名订阅、限定次数服务端 AIGC、Restore Purchases |
+| `1.0` | P0、P1-A、P1、P2、P3 | 本地作品、可靠的远程素材加载与恢复、匿名订阅、限定次数服务端 AIGC、Restore Purchases |
+| `1.x` 动态素材目录 | P1-B | 素材包免发版新增、修改、隐藏、恢复与回滚 |
 | 账号 + 云备份 | P4、P5 | Apple/Email 账号、云备份、账号删除 |
 | 跨设备恢复 | P6 | 新设备查看并恢复云端作品 |
 | 自动同步 | P7 | 多设备增量同步、冲突副本、版本历史 |
@@ -52,16 +55,28 @@
 
 ### 待办
 
-- [ ] **P0-01 文档边界审计**：列出 Draft、Asset Catalog、StoredWorkspace、缓存索引和导出文件的字段与生命周期，确认 Draft 不保存 `file://`、缓存 URL 或平台对象。
-- [ ] **P0-02 资源分类冻结**：定义用户资源、内置资源、远程素材、生成资源、派生缩略图、缓存与临时文件的所有权及清理规则。
-- [ ] **P0-03 稳定身份审计**：确认 project、asset、pack item、generated asset 使用稳定且不依赖路径的 ID；补齐缺失的 UUID 与版本字段。
-- [ ] **P0-04 Portable Project 契约**：定义首个 schema、资源 manifest、时间字段、版本字段和未知字段策略。
-- [ ] **P0-05 本地序列化器**：实现 StoredWorkspace → Portable Project，拒绝泄露本地 URI、签名 URL 和运行时对象。
-- [ ] **P0-06 本地导入器**：实现 Portable Project + 资源目录 → 新 StoredWorkspace，重新生成当前设备 URI 与 Asset Catalog。
-- [ ] **P0-07 迁移与校验**：为 Portable Project 增加 schema validation、旧版本 migration、缺失/损坏资源错误模型。
-- [ ] **P0-08 隔离重建验证**：在新的临时目录导入真实复杂作品，验证原目录不可访问时仍能恢复。
-- [ ] **P0-09 渲染一致性**：用同一 Renderer 比较原作品与重建作品的预览、缩略图和导出结果。
-- [ ] **P0-10 文档与夹具**：保存最小、真实复杂、旧版本、缺失资源和损坏文档测试夹具。
+- [x] **P0-01 文档边界审计**：列出 Draft、Asset Catalog、StoredWorkspace、缓存索引和导出文件的字段与生命周期，确认 Draft 不保存 `file://`、缓存 URL 或平台对象。
+  - 验证记录（2026-09-14）：审计表见路线图 §4.5；`validateDraft`/`migrateDraft` 已拒绝画布、图层、效果输入和画笔定义中的设备路径、HTTP(S)、`data:` 与平台媒体 URI；Editor Core 回归测试通过（21/21）。`StoredWorkspace` 仍明确仅限本地恢复，不能直接上传；Portable Project 的序列化/导入留待 P0-05/P0-06。
+- [x] **P0-02 资源分类冻结**：定义用户资源、内置资源、远程素材、生成资源、派生缩略图、缓存与临时文件的所有权及清理规则。
+  - 验证记录（2026-09-14）：分类、所有权、清理与云端处理矩阵见路线图 §4.6；冻结了“采用生成结果前后”的升级边界、远程素材按稳定 ID/revision 重新解析以及全局引用删除规则。已记录当前远程素材清缓存后的重解析缺口，实施归入 P1-06，未将其误判为已具备的用户承诺。
+- [x] **P0-03 稳定身份审计**：确认 project、asset、pack item、generated asset 使用稳定且不依赖路径的 ID；补齐缺失的 UUID 与版本字段。
+  - 验证记录（2026-09-14）：身份矩阵见路线图 §4.7。新增共享 UUID 形态 ID 生成器并替换新作品、导入资源和全部新建 Draft 内对象的时间戳身份；用户资源补齐 revision，远程素材包补齐 pack revision，项级 AssetReference 原有 revision 保留。AIGC 尚未实施，采用后的 `generated://image/{uuid}` 契约已冻结，落地留待 P3-08。
+- [x] **P0-04 Portable Project 契约**：定义首个 schema、资源 manifest、时间字段、版本字段和未知字段策略。
+  - 验证记录（2026-09-14）：v1 规范见 `PORTABLE_PROJECT_CONTRACT.md`。已冻结 envelope、资源 ownership/字节、pack 依赖、字体/画笔依赖、RFC 3339 时间字段、双层版本、严格未知字段与 `extensions` 保留策略；并修正早期路线图示例，使其使用现有 `user://`、`asset://pack/`、`font://`、`brush://` 命名。尚未实现序列化/导入，留待 P0-05/P0-06。
+- [x] **P0-05 本地序列化器**：实现 StoredWorkspace → Portable Project，拒绝泄露本地 URI、签名 URL 和运行时对象。
+  - 验证记录（2026-09-14）：`exportPortableProject` 将迁移后的 Draft、manifest 与资源字节写入临时目录后原子移动；仅嵌入 `user://`/`generated://` 资源，并记录 MIME、字节数、SHA-256 与像素尺寸。Catalog、`originalUri`、缓存键和远程 URL 均不进入 `project.json`；目录素材只保留稳定引用与 pack/font/brush 依赖。
+- [x] **P0-06 本地导入器**：实现 Portable Project + 资源目录 → 新 StoredWorkspace，重新生成当前设备 URI 与 Asset Catalog。
+  - 验证记录（2026-09-14）：`importPortableProject` 先验证 envelope 与 Draft/manifest 对应关系，再验证每个嵌入资源的路径、大小和 SHA-256；所有资源落入新临时目录后才原子移动，并以新 URI 构建 Catalog。函数只返回新 Workspace，不会覆盖当前工作区；隔离目录的端到端恢复验收留待 P0-08。
+- [x] **P0-07 迁移与校验**：为 Portable Project 增加 schema validation、旧版本 migration、缺失/损坏资源错误模型。
+  - 验证记录（2026-09-14）：`migratePortableProjectEnvelope` 支持 v0 `draft/assets` → v1 `document/assetManifest`，拒绝未来版本和未知顶层字段；导入端校验 timestamps、manifest 闭包、资源引用、ownership、嵌入路径、MIME、尺寸、SHA-256 与重复路径。`PortableProjectImportError` 提供稳定错误代码，覆盖 JSON/schema、版本、缺失/截断/篡改资源和目标冲突；Core 回归覆盖 v0、future-version 与 unknown-field。
+- [x] **P0-08 隔离重建验证**：在新的临时目录导入真实复杂作品，验证原目录不可访问时仍能恢复。
+  - 验证记录（2026-09-14）：新增 `apps/mobile/test/portableWorkspace.integration.test.js`，通过已编译的移动端 `localWorkspace` 导出/导入实现和 Node 文件系统适配器执行隔离重建。测试覆盖内置目录背景、用户图片、文字、笔刷和效果图层；导出后确认 `project.json` 不含原工作区路径，删除原始图片后导入到新工作区，确认 Draft 内容不变、重建 Catalog URI 位于新目录且对应文件存在。
+  - 验证命令：`npm run test:portable --workspace mobile`（Editor Core 24/24，隔离重建集成测试 1/1）。
+- [x] **P0-09 渲染一致性**：用同一 Renderer 比较原作品与重建作品的预览、缩略图和导出结果。
+  - 已完成的自动化层（2026-09-14）：`@journalcollage/editor-renderer` 提供 `renderParitySnapshot`/`renderParityFingerprint`，捕获生产 `SkiaEditorScene` 的持久输入而排除设备 URI 与编辑器选择态。隔离重建测试验证用户资源字节 SHA-256、复杂 Draft 以及 preview（360×450）、thumbnail（80×100）、export（800×1000）三个目标的渲染输入完全一致。
+  - 原生验证记录（2026-09-15）：Simulator 开发版中的 `NativeRenderParityProbe` 使用相同 `SkiaEditorScene`，先捕获原项目，再删除原始用户图片、从 Portable Project 导入新目录并捕获重建项目。`SkImage.readPixels()` 的 RGBA SHA-256 对 preview、thumbnail、export 三个目标均一致；PNG 编码哈希仅作为诊断保留。验证结果写入 App 私有 `native-render-parity/proof.json`。
+- [x] **P0-10 文档与夹具**：保存最小、真实复杂、旧版本、缺失资源和损坏文档测试夹具。
+  - 验证记录（2026-09-14）：新增 `apps/mobile/test/fixtures/portable-project/fixture-matrix.json` 与说明文档，覆盖 `minimal-v1`、`complex-v1`、`legacy-v0`、`missing-resource-v1` 与 `corrupt-resource-v1`。集成测试在每次运行中将夹具物化到新的临时目录，分别断言成功导入、v0 迁移、缺失资源错误和 SHA-256 损坏错误；复杂夹具同时供 P0-08/P0-09 使用。
 
 ### 完成标准
 
@@ -91,6 +106,46 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 - P0 的资源生命周期和删除边界已冻结；现有 My Studio 页面可作为实现起点。
 
+### P1-A：1.0 远程素材可靠性
+
+#### 目标
+
+保证 Expo / React Native iOS `1.0` 随 App 发布的远程素材目录可可靠加载、校验、缓存和恢复；清缓存、离线或 CDN 故障不能静默破坏已保存作品。本阶段不提供素材包免发版新增、修改或下架。
+
+#### 前置依赖
+
+- G0 已通过；远程素材的稳定身份、revision、Portable Project 边界和本地重建渲染一致性均已验证。
+
+#### 范围与不变量
+
+- 本工作包只分发产品拥有的公开素材图片和声明式目录元数据；不上传用户作品、用户导入资源、生成结果或身份信息。
+- 远端内容不得包含可执行代码、动态业务逻辑、支付判断或权限授予。`premium` 等标记只用于展示；实际能力判断仍由 P2 `EntitlementService` 执行。
+- Draft 继续只保存稳定 `asset://pack/{packId}/{itemId}` 引用及 revision，绝不保存 CDN URL、缓存路径、ETag 或签名 URL。
+- App bundle 内的静态目录元数据与基础素材保留为首次安装、离线和远端故障兜底；1.0 的可见目录随 App 版本冻结。
+- 远端素材属于路线图 §4.6 的“远程素材/运营配置与下载缓存”，可被清理，但必须能由稳定 ID + revision 重新解析；它不是 P4/P5 的账号或云备份能力。
+- 所有实现位于 `apps/mobile`、`packages/asset-system` 或共享的 `packages/editor-core`；不得向 `iosproject` 新增素材 resolver、缓存、网络或测试代码。
+
+#### 待办
+
+- [x] **P1-A01 版本与完整性契约**：冻结 stable ID、pack/item revision、内容 hash、缓存记录和确定错误码；同一 revision 不得被不同内容覆盖。
+  - 验证记录（2026-09-15）：已冻结 [`REMOTE_ASSET_RELIABILITY_CONTRACT.md`](REMOTE_ASSET_RELIABILITY_CONTRACT.md) v1。契约定义精确 revision 解析、SHA-256/尺寸/MIME 原子校验、可清理缓存记录、稳定失败码、App bundle/缓存/CDN 优先级与禁止静默替换规则；`blue03`、`zhenzhi01` 仅作为 P1-A02 测试候选，尚未纳入 1.0 冻结目录。
+- [x] **P1-A02 验证下载**：在 `packages/asset-system` 实现平台无关的下载、校验、并发与错误策略，在 `apps/mobile` 提供 Expo 文件系统适配器，实现临时写入、尺寸与 SHA-256 校验、原子落盘、并发去重、取消和有限重试；旧 `iosproject` 实验不计入本任务验证。
+  - 验证记录（2026-09-15）：已用压缩后的 `zhenzhi01/items/1.png` 完成平台无关 hash/尺寸/MIME 校验与 Expo 暂存→校验→移动缓存测试；`npm run test:remote-assets --workspace mobile` 覆盖 hash 篡改拒绝、并发请求只下载一次、首次网络失败后的第二次成功、两次失败后无暂存目录/缓存记录，以及取消调用方不产生半成品。适配器对网络错误和 HTTP 5xx 至多尝试两次（每次 8 秒超时），不重试 hash、MIME 或 4xx 等确定失败。真实 R2 HTTPS 冒烟验证已通过：`pack-sheet.png`（480×320，97,544 bytes，SHA-256 `0326a80d7ceac1e7841588e1f2606cf773ba36a2855b16408ce9ef49c559ab2b`）与 `items/1.png`（224×242，21,691 bytes，SHA-256 `8ca1ef671c1f28bf881fc6724842efb1a3c65c4a3a2b60ce28c1f6d4606751f6`）均从 `https://assets.zllarchi.site/packs/zhenzhi01/` 返回 `200 image/png`，下载字节与本地一致。iPhone 17 iOS 26.5 Simulator 的 Expo 开发版已实际通过 R2 写缓存、取消下载和不可达 HTTPS 的两次超时重试/清理探针；宿主 `simctl` 在事后读取容器时因 CoreSimulatorService 拒绝连接不可用，目录级清理证据由上述 Expo 文件系统集成测试保留。
+- [ ] **P1-A03 分层 Resolver**：在 `packages/asset-system` 与移动端本地工作区按当前设备 Catalog → 已验证缓存 → App bundle 基础素材 → 当前 revision CDN 的顺序解析，不把运行时 URI 写入 Draft。
+- [ ] **P1-A04 已保存作品恢复**：清缓存或本地文件缺失后按 stable ID + revision 重新获取；不可用时显示确定错误，绝不替换为不同素材。
+- [ ] **P1-A05 缓存治理**：记录身份、revision、hash、大小、访问时间和校验状态；只回收可重获资源，并保护当前编辑作品和最近作品依赖。
+- [ ] **P1-A06 离线与发布回归**：覆盖新安装、离线、hash 不符、CDN 404、低存储、并发下载和清缓存后编辑/导出；远程 Premium 标记在 P2 前默认拒绝。
+
+#### 完成标准
+
+- 1.0 冻结目录中的素材在正常、离线和 CDN 故障场景都有确定解析或可理解错误；
+- 缓存清理后，引用远端素材的已保存作品能按 stable ID + revision 重新解析、编辑和导出，或显示可理解且不替换内容的错误；
+- 远端目录不授予付费权益，也不承担用户数据、账号、备份或同步职责。
+
+#### 阶段门 G1-A
+
+在 Expo / React Native iOS 真机验证离线兜底、hash/404 失败、缓存清理后旧作品恢复和 Premium 默认拒绝后，才可在 `1.0` 中发布远程素材。G1-A 是 P1-06 和 G1 的前置条件。
+
 ### 待办
 
 - [ ] **P1-01 最近作品模型**：确认明确保存、自动检查点和最近创作的边界与排序。
@@ -98,7 +153,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 - [ ] **P1-03 本地存储说明**：加入 `Saved on This Device` 语义及中英文文案。
 - [ ] **P1-04 草稿操作**：支持打开、重命名、删除；破坏性操作使用 iOS 确认并保持 Android 可移植性。
 - [ ] **P1-05 引用安全删除**：删除草稿时只回收无引用用户资源，不删除其他作品或当前工作区依赖。
-- [ ] **P1-06 缓存统计与清理**：只统计、清理可重新下载内容；清理后需要时可重新获取。
+- [ ] **P1-06 缓存统计与清理**：在 P1-A05 完成后，只统计、清理可重新下载内容；清理后通过稳定引用重新获取，且不破坏已保存作品。
 - [ ] **P1-07 导出文件边界**：App 内导出副本与系统相册文件分离，文案准确说明清理范围。
 - [ ] **P1-08 Support ID 位置**：预留可复制的非秘密支持标识和正式支持渠道。
 - [ ] **P1-09 生命周期测试**：覆盖重启、升级、低存储、保存上限、删除和缓存清理。
@@ -113,7 +168,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 ### 阶段门 G1
 
-通过真实草稿与资源删除回归测试后，才能开始在 My Studio 接入订阅状态和付费入口。
+G1-A、真实草稿与资源删除回归测试均通过后，才能开始在 My Studio 接入订阅状态和付费入口。
 
 ## 5. P2：订阅权益抽象
 
@@ -200,7 +255,31 @@ Fake 适配器覆盖完整状态矩阵并通过测试后，才接入真实订阅
 
 P3-01 至 P3-14、订阅 Sandbox 矩阵、真实 iOS 设备 App Attest 和成本熔断演练全部通过后，才能发布含订阅与 AIGC 的 `1.0`。
 
-## 7. P4：显式账号与身份链接
+## 7. P1-B：远端素材动态发布平台（`1.x`）
+
+### 目标
+
+在 Expo / React Native `1.0` 稳定发布后，支持素材包免发版新增、修改、隐藏、恢复与回滚，不改变 Draft 的 stable ID + revision 契约，也不承担账号、权益或用户数据职责。
+
+### 前置依赖
+
+- G3 已通过且 1.0 已发布；P1-A 的下载、缓存与历史作品恢复已在生产环境稳定。
+
+### 待办
+
+- [ ] **P1-B01 动态目录 schema**：冻结 `manifest.json`、`pack.json`、状态、schemaVersion、revision、hash、兼容期和未知版本回退策略。
+- [ ] **P1-B02 发布工具链**：从审核源生成单包清单、尺寸、hash 和全量索引，拒绝重复 ID、缺失资源、非法路径及未提升 revision 的不兼容变更。
+- [ ] **P1-B03 环境与回滚**：建立 staging/production CDN 根地址、缓存头、ETag、不可变 manifest 历史、发布前验证和一键回滚步骤。
+- [ ] **P1-B04 增量目录 Provider**：在 `apps/mobile` 启动时先用 App bundle/验证缓存，后台条件请求目录并只合并通过校验的变更包；共享 pack 映射通过 `packages/asset-system` 暴露，不实现 Swift 平行目录。
+- [ ] **P1-B05 上下架与历史兼容**：hidden/retired 不再向新用户展示；兼容保留期内继续提供历史 revision，旧作品不得静默替换素材。
+- [ ] **P1-B06 状态与观测**：提供更新、离线、失败、不可用和手动重试状态；记录匿名刷新、下载、校验和错误指标，不记录作品内容。
+- [ ] **P1-B07 发布演练**：覆盖 304、schema 升级、包更新、上下架、manifest 回滚和旧 App/旧作品兼容，并完成真机免发版可见验证。
+
+### 阶段门 G1-B
+
+staging/production 发布与回滚演练、旧 Expo App/旧作品兼容和 React Native iOS 真机免发版更新全部通过后，才能把动态目录作为 `1.x` 用户能力发布。P1-B 不阻塞 P4 的方案设计，但 G1-B 通过后才进入 P4 实施；账号和云备份不得假设未通过 G1-B 的动态素材可永久解析。
+
+## 8. P4：显式账号与身份链接
 
 ### 目标
 
@@ -239,7 +318,7 @@ P3-01 至 P3-14、订阅 Sandbox 矩阵、真实 iOS 设备 App Attest 和成本
 
 账号创建、链接、切换、退出、撤销和删除全链路通过后，才能让账号拥有云端作品。
 
-## 8. P5：云备份
+## 9. P5：云备份
 
 ### 目标
 
@@ -282,7 +361,7 @@ P3-01 至 P3-14、订阅 Sandbox 矩阵、真实 iOS 设备 App Attest 和成本
 
 真实多尺寸作品连续备份、失败恢复、配额和删除演练全部通过后，才能公开 Cloud Backup。
 
-## 9. P6：跨设备恢复
+## 10. P6：跨设备恢复
 
 ### 目标
 
@@ -322,7 +401,7 @@ P3-01 至 P3-14、订阅 Sandbox 矩阵、真实 iOS 设备 App Attest 和成本
 
 干净设备、弱网、空间不足、迁移和跨用户访问测试全部通过后，才能宣传 Restore on another device。
 
-## 10. P7：自动同步、冲突与版本历史
+## 11. P7：自动同步、冲突与版本历史
 
 ### 目标
 

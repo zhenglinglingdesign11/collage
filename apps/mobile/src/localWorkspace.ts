@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
-import type { AssetCatalog, LocalAssetRecord, RemotePackItem } from '@journalcollage/asset-system';
-import { migrateDraft, type Draft } from '@journalcollage/editor-core';
+import { brushDefinitionsById, emptyAssetCatalog, getTextFont, remoteAssetPacks, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
+import { createStableId, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
 
 const root = `${FileSystem.documentDirectory}journalcollage/`;
 const assetDirectory = `${root}assets/`;
@@ -10,6 +10,8 @@ const workspaceUri = `${root}workspace.json`;
 const remoteCacheIndexUri = `${root}remote-cache-index.json`;
 const savedDraftDirectory = `${root}saved-drafts/`;
 const savedDraftIndexUri = `${root}saved-drafts-index.json`;
+const portableProjectDirectory = `${root}portable-projects/`;
+const importedAssetDirectory = `${root}imported-project-assets/`;
 const homeShowcaseManifestUri = (market: string): string => `${root}home-showcase-manifest-${market.replace(/[^a-zA-Z0-9_-]+/g, '_')}.json`;
 const MAX_SAVED_DRAFTS = 20;
 
@@ -28,10 +30,50 @@ type SavedDraftIndex = Readonly<{ version: 1; drafts: readonly Readonly<{ id: st
 type StoredWorkspacePayload = Readonly<{ draft: unknown; catalog: AssetCatalog; savedAt?: unknown }>;
 export type CachedHomeShowcaseManifest = Readonly<{ payload: unknown; etag: string | null; cachedAt: string }>;
 
+type PortableOwnership = 'user' | 'generated' | 'catalog';
+type PortableManifestEntry = Readonly<{
+  reference: PortableAssetReference;
+  ownership: PortableOwnership;
+  required: boolean;
+  content?: Readonly<{ relativePath: string; mimeType: string; byteLength: number; sha256: string }>;
+  pixelSize?: Readonly<{ width: number; height: number }>;
+  source?: Readonly<{ type: 'imported' | 'generated' }>;
+}>;
+type PortableProjectPayload = Readonly<{
+  format: typeof PORTABLE_PROJECT_FORMAT;
+  formatVersion: typeof PORTABLE_PROJECT_FORMAT_VERSION;
+  projectId: string;
+  document: Draft;
+  assetManifest: readonly PortableManifestEntry[];
+  requiredPackAssets: readonly Readonly<{ packId: string; packRevision: string; itemReference: PortableAssetReference }>[];
+  catalogDependencies: Readonly<{ fonts: readonly Readonly<{ fontId: string; fontVariantId: string; revision: string }>[]; brushes: readonly Readonly<{ id: string; revision: string }>[] }>;
+  createdAt: string;
+  updatedAt: string;
+  exportedAt: string;
+}>;
+export type PortableProjectExport = Readonly<{ directoryUri: string; projectUri: string; project: PortableProjectPayload }>;
+type PortablePayloadWithBytes = Readonly<{ entry: PortableManifestEntry; base64: string }>;
+export type PortableProjectImportErrorCode = 'invalid-json' | 'invalid-schema' | 'unsupported-version' | 'future-version' | 'missing-resource' | 'resource-size-mismatch' | 'resource-hash-mismatch' | 'destination-exists';
+export class PortableProjectImportError extends Error {
+  readonly code: PortableProjectImportErrorCode;
+  readonly issues: readonly PortableProjectIssue[];
+  constructor(code: PortableProjectImportErrorCode, message: string, issues: readonly PortableProjectIssue[] = []) {
+    super(message);
+    this.name = 'PortableProjectImportError';
+    this.code = code;
+    this.issues = issues;
+  }
+}
+
 const ensureDirectories = async (): Promise<void> => {
   await FileSystem.makeDirectoryAsync(assetDirectory, { intermediates: true });
   await FileSystem.makeDirectoryAsync(remoteCacheDirectory, { intermediates: true });
   await FileSystem.makeDirectoryAsync(savedDraftDirectory, { intermediates: true });
+};
+
+const ensurePortableDirectories = async (): Promise<void> => {
+  await FileSystem.makeDirectoryAsync(portableProjectDirectory, { intermediates: true });
+  await FileSystem.makeDirectoryAsync(importedAssetDirectory, { intermediates: true });
 };
 
 /** Product configuration is cached separately from Drafts and image assets. */
@@ -147,12 +189,12 @@ export const clearDownloadCache = async (): Promise<DownloadCacheSummary> => {
 
 export const importLocalImage = async (input: { uri: string; width: number; height: number; mimeType: string | null }): Promise<LocalAssetRecord> => {
   await ensureDirectories();
-  const id = `local-image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const id = createStableId('user-image');
   const extension = input.mimeType === 'image/png' ? 'png' : 'jpg';
   const originalUri = `${assetDirectory}${id}.${extension}`;
   await FileSystem.copyAsync({ from: input.uri, to: originalUri });
   return {
-    reference: { id: `user://image/${id}`, kind: 'image' },
+    reference: { id: `user://image/${id}`, kind: 'image', revision: '1' },
     originalUri,
     width: input.width,
     height: input.height,
@@ -294,7 +336,230 @@ export const loadSavedDraft = async (id: string): Promise<StoredWorkspace | null
 
 export const saveExportPng = async (base64: string): Promise<string> => {
   await ensureDirectories();
-  const uri = `${root}exports-${Date.now()}.png`;
+  const uri = `${root}${createStableId('export')}.png`;
   await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
   return uri;
+};
+
+const mimeForRecord = (record: LocalAssetRecord): string => record.mimeType ?? 'image/jpeg';
+const extensionForMime = (mimeType: string): string => mimeType === 'image/png' ? 'png' : mimeType === 'image/webp' ? 'webp' : 'jpg';
+const ownershipForReference = (reference: PortableAssetReference): PortableOwnership =>
+  reference.id.startsWith('user://') ? 'user' : reference.id.startsWith('generated://') ? 'generated' : 'catalog';
+const manifestKey = (reference: PortableAssetReference): string => `${reference.id}\u0000${reference.kind}\u0000${reference.revision}`;
+const isSafePortableRelativePath = (value: string): boolean => value.startsWith('resources/')
+  && value.length > 'resources/'.length
+  && !value.includes('..')
+  && !value.includes('\\')
+  && !value.startsWith('/')
+  && !/^[a-z][a-z0-9+.-]*:/i.test(value);
+
+const bytesFromBase64 = (value: string): Uint8Array => {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean = value.replace(/\s/g, '');
+  const bytes: number[] = [];
+  for (let index = 0; index < clean.length; index += 4) {
+    const a = alphabet.indexOf(clean[index]); const b = alphabet.indexOf(clean[index + 1]);
+    const c = clean[index + 2] === '=' ? -1 : alphabet.indexOf(clean[index + 2]);
+    const d = clean[index + 3] === '=' ? -1 : alphabet.indexOf(clean[index + 3]);
+    if (a < 0 || b < 0 || c < -1 || d < -1) throw new Error('Resource is not valid base64.');
+    bytes.push((a << 2) | (b >> 4));
+    if (c >= 0) bytes.push(((b & 15) << 4) | (c >> 2));
+    if (d >= 0) bytes.push(((c & 3) << 6) | d);
+  }
+  return new Uint8Array(bytes);
+};
+
+const packRequirementFor = (reference: PortableAssetReference): Readonly<{ packId: string; packRevision: string; itemReference: PortableAssetReference }> | null => {
+  const match = /^asset:\/\/pack\/([^/]+)\//.exec(reference.id);
+  if (!match) return null;
+  const pack = remoteAssetPacks.find((candidate) => candidate.id === match[1]);
+  if (!pack) throw new Error(`Required material pack is unavailable: ${match[1]}`);
+  return { packId: pack.id, packRevision: pack.revision, itemReference: reference };
+};
+
+const catalogDependenciesFor = (draft: Draft): PortableProjectPayload['catalogDependencies'] => {
+  const fonts = new Map<string, Readonly<{ fontId: string; fontVariantId: string; revision: string }>>();
+  const brushes = new Map<string, Readonly<{ id: string; revision: string }>>();
+  draft.layers.forEach((layer) => {
+    if (layer.type === 'text') {
+      const font = getTextFont(layer.fontVariantId);
+      fonts.set(`${layer.fontId}\u0000${layer.fontVariantId}`, { fontId: layer.fontId, fontVariantId: layer.fontVariantId, revision: font.reference.revision ?? '1' });
+    }
+    if (layer.type === 'brush') layer.strokes.forEach((stroke) => {
+      const revision = brushDefinitionsById[stroke.brushId]?.revision ?? stroke.brushRevision;
+      brushes.set(`${stroke.brushId}\u0000${revision}`, { id: stroke.brushId, revision });
+    });
+  });
+  return { fonts: [...fonts.values()], brushes: [...brushes.values()] };
+};
+
+/**
+ * Serializes one local workspace into a portable directory without copying its
+ * AssetCatalog or any device URI. The caller can later package this directory
+ * for backup or transfer; this function performs no network I/O.
+ */
+export const exportPortableProject = async (workspace: StoredWorkspace, parentDirectoryUri = portableProjectDirectory): Promise<PortableProjectExport> => {
+  const migration = migrateDraft(workspace.draft);
+  if (!migration.ok) throw new Error(`Draft cannot be exported: ${migration.issues[0]?.message ?? 'invalid document'}`);
+  const draft = migration.draft;
+  await ensurePortableDirectories();
+  await FileSystem.makeDirectoryAsync(parentDirectoryUri, { intermediates: true });
+  const directoryUri = `${parentDirectoryUri}${draft.id}-${createStableId('portable')}/`;
+  const stagingUri = `${directoryUri.slice(0, -1)}.staging/`;
+  const resourcesUri = `${stagingUri}resources/`;
+  const records = new Map(workspace.catalog.assets.map((record) => [record.reference.id, record]));
+  const payloads: PortablePayloadWithBytes[] = [];
+  const assetManifest = await Promise.all(portableAssetReferencesForDraft(draft).map(async (reference, index): Promise<PortableManifestEntry> => {
+    const ownership = ownershipForReference(reference);
+    if (ownership === 'catalog') return { reference, ownership, required: true };
+    const record = records.get(reference.id);
+    if (!record) throw new Error(`Portable Project is missing local bytes for ${reference.id}`);
+    if (!record.originalUri.startsWith('file://')) throw new Error(`Portable Project cannot embed a non-file resource: ${reference.id}`);
+    const info = await FileSystem.getInfoAsync(record.originalUri);
+    if (!info.exists || typeof info.size !== 'number') throw new Error(`Portable Project source is unavailable: ${reference.id}`);
+    const base64 = await FileSystem.readAsStringAsync(record.originalUri, { encoding: FileSystem.EncodingType.Base64 });
+    const mimeType = mimeForRecord(record);
+    const entry: PortableManifestEntry = {
+      reference,
+      ownership,
+      required: true,
+      content: { relativePath: `resources/${index}.${extensionForMime(mimeType)}`, mimeType, byteLength: info.size, sha256: sha256HexForBytes(bytesFromBase64(base64)) },
+      pixelSize: { width: record.width, height: record.height },
+      source: { type: ownership === 'generated' ? 'generated' : 'imported' },
+    };
+    payloads.push({ entry, base64 });
+    return entry;
+  }));
+  const requirements = portableAssetReferencesForDraft(draft).map(packRequirementFor).filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  const requiredPackAssets = requirements.filter((entry, index, all) => all.findIndex((candidate) => manifestKey(candidate.itemReference) === manifestKey(entry.itemReference)) === index);
+  const project: PortableProjectPayload = {
+    format: PORTABLE_PROJECT_FORMAT,
+    formatVersion: PORTABLE_PROJECT_FORMAT_VERSION,
+    projectId: draft.id,
+    document: draft,
+    assetManifest,
+    requiredPackAssets,
+    catalogDependencies: catalogDependenciesFor(draft),
+    createdAt: draft.createdAt,
+    updatedAt: draft.updatedAt,
+    exportedAt: new Date().toISOString(),
+  };
+  await FileSystem.makeDirectoryAsync(resourcesUri, { intermediates: true });
+  try {
+    await Promise.all(payloads.map(({ entry, base64 }) => FileSystem.writeAsStringAsync(`${stagingUri}${entry.content!.relativePath}`, base64, { encoding: FileSystem.EncodingType.Base64 })));
+    await FileSystem.writeAsStringAsync(`${stagingUri}project.json`, JSON.stringify(project), { encoding: FileSystem.EncodingType.UTF8 });
+    await FileSystem.moveAsync({ from: stagingUri, to: directoryUri });
+  } catch (error) {
+    await FileSystem.deleteAsync(stagingUri, { idempotent: true }).catch(() => {});
+    throw error;
+  }
+  return { directoryUri, projectUri: `${directoryUri}project.json`, project };
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+const importError = (code: PortableProjectImportErrorCode, message: string, issues: readonly PortableProjectIssue[] = []): PortableProjectImportError => new PortableProjectImportError(code, message, issues);
+const isRfc3339Utc = (value: unknown): value is string => typeof value === 'string' && /Z$/.test(value) && Number.isFinite(Date.parse(value));
+const assertClosedObject = (value: unknown, allowed: readonly string[], path: string): Record<string, unknown> => {
+  if (!isRecord(value)) throw importError('invalid-schema', `${path} must be an object.`);
+  const unexpected = Object.keys(value).find((key) => !allowed.includes(key));
+  if (unexpected) throw importError('invalid-schema', `${path}.${unexpected} is not supported.`);
+  return value;
+};
+const validateManifestEntry = (value: unknown): PortableManifestEntry => {
+  const entry = assertClosedObject(value, ['reference', 'ownership', 'required', 'content', 'pixelSize', 'source'], 'assetManifest[]');
+  const reference = portableAssetReference(assertClosedObject(entry.reference, ['id', 'kind', 'revision'], 'assetManifest[].reference') as PortableAssetReference);
+  if (entry.ownership !== 'user' && entry.ownership !== 'generated' && entry.ownership !== 'catalog') throw importError('invalid-schema', `Unsupported asset ownership for ${reference.id}.`);
+  if (entry.required !== true) throw importError('invalid-schema', `Asset requirement is invalid for ${reference.id}.`);
+  let content: PortableManifestEntry['content'];
+  if (entry.content !== undefined) {
+    const raw = assertClosedObject(entry.content, ['relativePath', 'mimeType', 'byteLength', 'sha256'], 'assetManifest[].content');
+    if (typeof raw.relativePath !== 'string' || !isSafePortableRelativePath(raw.relativePath) || typeof raw.mimeType !== 'string' || typeof raw.byteLength !== 'number' || !Number.isInteger(raw.byteLength) || raw.byteLength < 0 || typeof raw.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(raw.sha256)) throw importError('invalid-schema', `Embedded resource metadata is invalid for ${reference.id}.`);
+    content = { relativePath: raw.relativePath, mimeType: raw.mimeType, byteLength: raw.byteLength, sha256: raw.sha256 };
+  }
+  if ((entry.ownership === 'user' || entry.ownership === 'generated') && !content) throw importError('invalid-schema', `Embedded resource is missing for ${reference.id}.`);
+  if (entry.ownership === 'catalog' && content) throw importError('invalid-schema', `Catalog resource must not embed bytes: ${reference.id}.`);
+  let pixelSize: PortableManifestEntry['pixelSize'];
+  if (entry.pixelSize !== undefined) {
+    const raw = assertClosedObject(entry.pixelSize, ['width', 'height'], 'assetManifest[].pixelSize');
+    if (typeof raw.width !== 'number' || typeof raw.height !== 'number' || !Number.isFinite(raw.width) || !Number.isFinite(raw.height) || raw.width <= 0 || raw.height <= 0) throw importError('invalid-schema', `Pixel size is invalid for ${reference.id}.`);
+    pixelSize = { width: raw.width, height: raw.height };
+  }
+  return { reference, ownership: entry.ownership, required: true, ...(content ? { content } : {}), ...(pixelSize ? { pixelSize } : {}) };
+};
+const readPortableProject = async (directoryUri: string): Promise<PortableProjectPayload> => {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(await FileSystem.readAsStringAsync(`${directoryUri}project.json`, { encoding: FileSystem.EncodingType.UTF8 })) as unknown;
+  } catch { throw importError('invalid-json', 'Portable Project JSON could not be read.'); }
+  const envelope = migratePortableProjectEnvelope(raw);
+  if (!envelope.ok) {
+    const code = envelope.issues[0]?.code === 'future-version' ? 'future-version' : envelope.issues[0]?.code === 'unsupported-version' ? 'unsupported-version' : 'invalid-schema';
+    throw importError(code, envelope.issues[0]?.message ?? 'Portable Project envelope is invalid.', envelope.issues);
+  }
+  const payload = envelope.payload;
+  if (payload.format !== PORTABLE_PROJECT_FORMAT || payload.formatVersion !== PORTABLE_PROJECT_FORMAT_VERSION || typeof payload.projectId !== 'string' || !isRfc3339Utc(payload.createdAt) || !isRfc3339Utc(payload.updatedAt) || !isRfc3339Utc(payload.exportedAt) || !Array.isArray(payload.assetManifest) || !isRecord(payload.catalogDependencies)) throw importError('invalid-schema', 'Portable Project envelope is incomplete.');
+  const migration = migrateDraft(payload.document);
+  if (!migration.ok || migration.draft.id !== payload.projectId) throw importError('invalid-schema', 'Portable Project document is invalid.');
+  const assetManifest = payload.assetManifest.map(validateManifestEntry);
+  const expected = new Set(portableAssetReferencesForDraft(migration.draft).map(manifestKey));
+  const actual = new Set(assetManifest.map((entry) => manifestKey(portableAssetReference(entry.reference))));
+  if (expected.size !== actual.size || [...expected].some((key) => !actual.has(key))) throw importError('invalid-schema', 'Portable Project asset manifest does not match its document.');
+  const relativePaths = new Set<string>();
+  assetManifest.forEach((entry) => {
+    const reference = portableAssetReference(entry.reference);
+    const ownership = ownershipForReference(reference);
+    if (ownership !== entry.ownership) throw importError('invalid-schema', `Portable Project ownership is invalid for ${reference.id}`);
+    if ((ownership === 'user' || ownership === 'generated') && (!entry.content || !isSafePortableRelativePath(entry.content.relativePath) || relativePaths.has(entry.content.relativePath))) throw importError('invalid-schema', `Portable Project content is invalid for ${reference.id}`);
+    if (entry.content) relativePaths.add(entry.content.relativePath);
+    if (ownership === 'catalog' && entry.content !== undefined) throw importError('invalid-schema', `Catalog asset must not contain embedded bytes: ${reference.id}`);
+  });
+  return {
+    format: PORTABLE_PROJECT_FORMAT,
+    formatVersion: PORTABLE_PROJECT_FORMAT_VERSION,
+    projectId: payload.projectId,
+    document: migration.draft,
+    assetManifest,
+    requiredPackAssets: Array.isArray(payload.requiredPackAssets) ? payload.requiredPackAssets as PortableProjectPayload['requiredPackAssets'] : [],
+    catalogDependencies: payload.catalogDependencies as PortableProjectPayload['catalogDependencies'],
+    createdAt: payload.createdAt,
+    updatedAt: payload.updatedAt,
+    exportedAt: payload.exportedAt,
+  };
+};
+
+/**
+ * Rebuilds a workspace whose Catalog URIs point only at a newly-created local
+ * directory. It never writes the current workspace; callers choose when to
+ * save the returned result.
+ */
+export const importPortableProject = async (sourceDirectoryUri: string, targetDirectoryUri?: string): Promise<StoredWorkspace> => {
+  const project = await readPortableProject(sourceDirectoryUri);
+  await ensurePortableDirectories();
+  const finalDirectoryUri = targetDirectoryUri ?? `${importedAssetDirectory}${project.projectId}-${createStableId('import')}/`;
+  const finalInfo = await FileSystem.getInfoAsync(finalDirectoryUri);
+  if (finalInfo.exists) throw importError('destination-exists', 'Portable Project import destination already exists.');
+  const stagingUri = `${finalDirectoryUri.slice(0, -1)}.staging/`;
+  const assets: LocalAssetRecord[] = [];
+  try {
+    await FileSystem.makeDirectoryAsync(stagingUri, { intermediates: true });
+    for (const entry of project.assetManifest) {
+      if (entry.ownership === 'catalog') continue;
+      const content = entry.content!;
+      const sourceUri = `${sourceDirectoryUri}${content.relativePath}`;
+      const info = await FileSystem.getInfoAsync(sourceUri);
+      if (!info.exists) throw importError('missing-resource', `Portable Project resource is missing: ${entry.reference.id}`);
+      if (info.size !== content.byteLength) throw importError('resource-size-mismatch', `Portable Project resource size does not match: ${entry.reference.id}`);
+      const base64 = await FileSystem.readAsStringAsync(sourceUri, { encoding: FileSystem.EncodingType.Base64 });
+      if (sha256HexForBytes(bytesFromBase64(base64)) !== content.sha256) throw importError('resource-hash-mismatch', `Portable Project resource hash does not match: ${entry.reference.id}`);
+      const filename = `${createStableId('asset')}.${extensionForMime(content.mimeType)}`;
+      const targetUri = `${stagingUri}${filename}`;
+      await FileSystem.writeAsStringAsync(targetUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+      assets.push({ reference: entry.reference, originalUri: `${finalDirectoryUri}${filename}`, width: entry.pixelSize?.width ?? 1, height: entry.pixelSize?.height ?? 1, mimeType: content.mimeType, createdAt: project.createdAt });
+    }
+    await FileSystem.moveAsync({ from: stagingUri, to: finalDirectoryUri });
+  } catch (error) {
+    await FileSystem.deleteAsync(stagingUri, { idempotent: true }).catch(() => {});
+    throw error;
+  }
+  return { draft: project.document, catalog: { ...emptyAssetCatalog(), assets } };
 };

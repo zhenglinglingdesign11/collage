@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "/private/tmp/journal-collage-mobile-portable-cjs",
+    "rootDir": "../..",
+    "module": "node16",
+    "moduleResolution": "node16"
+  },
+  "files": ["src/localWorkspace.ts", "src/verifiedRemoteAssetCache.ts", "../../packages/asset-system/src/remoteAssetIntegrity.ts", "../../packages/editor-renderer/src/renderParity.ts"]
+}

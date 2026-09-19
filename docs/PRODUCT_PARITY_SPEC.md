@@ -1,7 +1,7 @@
 # JournalCollage 产品对齐规格
 
 > 状态：实施基线  
-> 更新日期：2026-09-14
+> 更新日期：2026-09-15
 > 适用范围：Expo + React Native + React Native Skia 的 iOS 首发产品层；Android 共享 Editor 的后续实现。
 
 ## 1. 目标与信息优先级
@@ -183,7 +183,7 @@
 - 美区版本的反馈入口替换为正式支持渠道，但保持卡片层级和轻量表达。
 - `1.0` 的作品只保存在当前设备，页面必须明确显示本地存储说明；不得使用“已备份”或“已同步”等云端语义。
 - `1.0` 在 My Studio 提供 Premium 状态、Restore Purchases、Manage Subscription 与 Support ID，但不为了订阅强制创建用户可见的产品账号；服务端 Premium AIGC 使用无感匿名身份、服务端权益校验和次数账本，详见 `ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md`。
-- 账号、匿名订阅身份迁移、云备份、跨设备恢复和自动同步的阶段边界以 `ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md` 为规划基线，并按 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 的 P0–P7 阶段门执行。
+- 远程素材可靠性、账号、匿名订阅身份迁移、云备份、跨设备恢复和自动同步的阶段边界以 `ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md` 为规划基线，并按 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 的 P0–P7（包括 P1-A 与 P1-B）阶段门执行。
 
 ## 5. 跨端架构约束
 

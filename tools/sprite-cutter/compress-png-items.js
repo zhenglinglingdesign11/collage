@@ -20,6 +20,7 @@ const config = {
   jpgQuality: Number(args.jpgQuality || 82),
   jpgMaxWidth: Number(args.jpgMaxWidth || 512),
   jpgMaxHeight: args.jpgMaxHeight ? Number(args.jpgMaxHeight) : null,
+  jpgBackground: args.jpgBackground || "#ffffff",
   skipJpg: Boolean(args.skipJpg),
   skipPng: Boolean(args.skipPng),
   dryRun: Boolean(args.dryRun),
@@ -211,6 +212,9 @@ function compressJpegWithSharp(file) {
   }
   return sharp(file)
     .resize(resizeOptions)
+    // JPEG has no alpha channel. Make the intended list-cover background explicit
+    // instead of allowing transparent source pixels to be rendered as black.
+    .flatten({ background: config.jpgBackground })
     .jpeg({
       quality: config.jpgQuality,
       mozjpeg: true

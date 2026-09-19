@@ -30,6 +30,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test:portable": "npm test --workspace @journalcollage/editor-core && rm -rf /private/tmp/journal-collage-mobile-portable-cjs && tsc -p tsconfig.portable-test.json && node test/portableWorkspace.integration.test.js",
+    "test:remote-assets": "rm -rf /private/tmp/journal-collage-mobile-portable-cjs /private/tmp/journal-collage-p1a02-expo-fixture && tsc -p tsconfig.portable-test.json && node test/verifiedRemoteAssetCache.integration.test.js",
     "typecheck": "tsc --noEmit"
   },
   "private": true

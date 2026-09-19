@@ -1,6 +1,7 @@
 import type { Draft, Size } from '@journalcollage/editor-core';
 
 export * from './SkiaEditorScene';
+export * from './renderParity';
 
 /** A renderer is replaceable; its input and output intent are not. */
 export type RenderTarget = 'preview' | 'export' | 'thumbnail';

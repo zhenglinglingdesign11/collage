@@ -1,6 +1,7 @@
 source-assets/
 node_modules/
 tools/sprite-cutter/node_modules/
+.venv/
 __pycache__/
 *.pyc
 FastSAM*.pt
