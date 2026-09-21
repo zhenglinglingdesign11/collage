@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { recommendedRemoteAssetPackIds, type AssetPackCategory, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
 import { shippedProductMaterialPacks } from '../shippedProductAssetCatalog';
 import { productColor, productSpace } from './tokens';
@@ -36,10 +36,22 @@ export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange,
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories} style={styles.categoryRail}>
       {categories.map((entry) => <Pressable key={entry.id} onPress={() => setCategory(entry.id)} style={styles.categoryButton}><Text style={[styles.categoryLabel, category === entry.id && styles.categoryLabelActive]}>{entry.label}</Text></Pressable>)}
     </ScrollView>
-    <ScrollView contentContainerStyle={styles.packGrid} showsVerticalScrollIndicator={false} style={styles.packList}>
-      {packs.map((pack) => <Pressable key={pack.id} accessibilityLabel={`Open ${pack.name}`} onPress={() => { setActivePack(pack); onDetailChange(true); }} style={styles.packCard}>{pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}</Pressable>)}
-      {packs.length === 0 && <Text style={styles.empty}>No saved material packs yet.</Text>}
-    </ScrollView>
+    <FlatList
+      columnWrapperStyle={packs.length > 1 ? styles.packGridRow : undefined}
+      contentContainerStyle={styles.packGrid}
+      data={packs}
+      initialNumToRender={6}
+      key={`category-${category}`}
+      keyExtractor={(pack) => pack.id}
+      ListEmptyComponent={<Text style={styles.empty}>No saved material packs yet.</Text>}
+      maxToRenderPerBatch={6}
+      numColumns={2}
+      removeClippedSubviews
+      renderItem={({ item: pack }) => <Pressable accessibilityLabel={`Open ${pack.name}`} onPress={() => { setActivePack(pack); onDetailChange(true); }} style={styles.packCard}>{pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}</Pressable>}
+      showsVerticalScrollIndicator={false}
+      style={styles.packList}
+      windowSize={3}
+    />
   </View>;
 };
 
@@ -47,7 +59,7 @@ const PackDetail = ({ isFavorite, pack, onAddItems, onBack, onToggleFavorite }: 
   const [boardWidth, setBoardWidth] = useState(0);
   const [selectedItemIds, setSelectedItemIds] = useState<ReadonlySet<string>>(() => new Set());
   const items = useMemo(() => pack.items.filter((item) => item.action === undefined), [pack.items]);
-  const layout = useMemo(() => layoutScatteredPieces(items, boardWidth), [boardWidth, items]);
+  const layout = useMemo(() => layoutScatteredRows(items, boardWidth), [boardWidth, items]);
   return <View style={styles.page}>
   <View style={styles.detailHeader}>
     <Pressable accessibilityLabel="Back to materials" hitSlop={12} onPress={onBack} style={styles.back}><Text style={styles.backGlyph}>‹</Text></Pressable>
@@ -55,19 +67,28 @@ const PackDetail = ({ isFavorite, pack, onAddItems, onBack, onToggleFavorite }: 
     <Pressable accessibilityLabel={isFavorite ? 'Remove from favorites' : 'Add to favorites'} hitSlop={12} onPress={onToggleFavorite} style={styles.favorite}><Text style={[styles.favoriteGlyph, isFavorite && styles.favoriteGlyphActive]}>{isFavorite ? '★' : '☆'}</Text></Pressable>
   </View>
   <View onLayout={(event: LayoutChangeEvent) => setBoardWidth(event.nativeEvent.layout.width)} style={styles.detailBoard}>
-    <ScrollView contentContainerStyle={styles.itemGrid} showsVerticalScrollIndicator={false} style={styles.detailList}>
-      <View style={[styles.paperCanvas, { height: layout.height }]}>
-        {layout.pieces.map(({ item, left, rotate, top, height, width }) => <Pressable key={item.id} accessibilityLabel={`Select ${item.id}`} accessibilityState={{ selected: selectedItemIds.has(item.id) }} onPress={() => setSelectedItemIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} style={[styles.itemTile, selectedItemIds.has(item.id) && styles.itemTileSelected, { height, left, top, transform: [{ rotate: `${rotate}deg` }], width }]}>
-          {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
-        </Pressable>)}
-      </View>
-    </ScrollView>
+    <FlatList
+      contentContainerStyle={[styles.itemGrid, { paddingBottom: layout.bottomSpacer, paddingTop: layout.topSpacer }]}
+      data={layout.rows}
+      initialNumToRender={3}
+      key={`pack-${pack.id}-${boardWidth}`}
+      keyExtractor={(row) => row.id}
+      maxToRenderPerBatch={3}
+      removeClippedSubviews
+      renderItem={({ item: row }) => <View style={[styles.paperCanvas, { height: row.height }]}>{row.pieces.map(({ item, left, rotate, top, height, width }) => <Pressable key={item.id} accessibilityLabel={`Select ${item.id}`} accessibilityState={{ selected: selectedItemIds.has(item.id) }} onPress={() => setSelectedItemIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} style={[styles.itemTile, selectedItemIds.has(item.id) && styles.itemTileSelected, { height, left, top, transform: [{ rotate: `${rotate}deg` }], width }]}>
+        {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
+      </Pressable>)}</View>}
+      showsVerticalScrollIndicator={false}
+      style={styles.detailList}
+      windowSize={3}
+    />
   </View>
   <View style={styles.addBar}><Pressable accessibilityLabel="Add selected materials to canvas" disabled={selectedItemIds.size === 0} onPress={() => onAddItems(items.filter((item) => selectedItemIds.has(item.id)))} style={[styles.addButton, selectedItemIds.size === 0 && styles.addButtonDisabled]}><Text style={[styles.addButtonLabel, selectedItemIds.size === 0 && styles.addButtonLabelDisabled]}>{selectedItemIds.size === 0 ? 'Add to canvas' : `Add ${selectedItemIds.size} to canvas`}</Text></Pressable></View>
 </View>;
 };
 
 type ScatteredPiece = Readonly<{ item: RemotePackItem; left: number; top: number; width: number; height: number; rotate: number }>;
+type ScatteredRow = Readonly<{ id: string; pieces: readonly ScatteredPiece[]; height: number }>;
 const paperBaseWidth = 670;
 const scatterOffsets = [
   { x: -6, y: 0, rotate: -7 }, { x: 12, y: 12, rotate: 5 }, { x: 4, y: -4, rotate: -3 },
@@ -75,7 +96,7 @@ const scatterOffsets = [
 ] as const;
 
 /** Port of the mini-program's deterministic detail-paper placement algorithm. */
-const layoutScatteredPieces = (items: readonly RemotePackItem[], boardWidth: number): Readonly<{ pieces: readonly ScatteredPiece[]; height: number }> => {
+const layoutScatteredRows = (items: readonly RemotePackItem[], boardWidth: number): Readonly<{ rows: readonly ScatteredRow[]; topSpacer: number; bottomSpacer: number }> => {
   // Avoid a full-size first frame before native layout reports the paper width.
   const scale = boardWidth > 0 ? boardWidth / paperBaseWidth : 0;
   const sizeFor = (item: RemotePackItem) => {
@@ -89,26 +110,29 @@ const layoutScatteredPieces = (items: readonly RemotePackItem[], boardWidth: num
     return { width: Math.max(88, Math.round(sourceWidth * fit)), height: Math.max(88, Math.round(sourceHeight * fit)) };
   };
   const assets = items.map((item, index) => ({ item, index, size: sizeFor(item) }));
-  const placed: ScatteredPiece[] = [];
+  const rows: ScatteredRow[] = [];
   const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
-  let y = 52; let index = 0;
+  let contentHeight = 52;
+  let index = 0;
   while (index < assets.length) {
     const current = assets[index];
     const fullRow = current.size.width > 250 || current.size.height > 285;
     const row = fullRow || index + 1 >= assets.length || assets[index + 1].size.width > 250 || assets[index + 1].size.height > 285 ? [current] : [current, assets[index + 1]];
     const rowHeight = Math.max(...row.map((asset) => asset.size.height));
+    const placed: ScatteredPiece[] = [];
     row.forEach((asset, column) => {
       const offset = scatterOffsets[asset.index % scatterOffsets.length];
       const columnWidth = (paperBaseWidth - 42 * 2 - 36) / 2;
       const desiredLeft = row.length === 1
         ? 42 + (paperBaseWidth - 84 - asset.size.width) / 2 + offset.x * 1.6
         : 42 + column * (columnWidth + 36) + (columnWidth - asset.size.width) / 2 + offset.x;
-      placed.push({ item: asset.item, left: clamp(desiredLeft, 24, paperBaseWidth - asset.size.width - 24) * scale, top: (y + Math.max(0, (rowHeight - asset.size.height) / 2) + Math.max(-4, offset.y)) * scale, width: asset.size.width * scale, height: asset.size.height * scale, rotate: offset.rotate });
+      placed.push({ item: asset.item, left: clamp(desiredLeft, 24, paperBaseWidth - asset.size.width - 24) * scale, top: (Math.max(0, (rowHeight - asset.size.height) / 2) + Math.max(-4, offset.y)) * scale, width: asset.size.width * scale, height: asset.size.height * scale, rotate: offset.rotate });
     });
-    y += rowHeight + 52;
+    rows.push({ id: `row-${index}`, pieces: placed, height: (rowHeight + 52) * scale });
+    contentHeight += rowHeight + 52;
     index += row.length;
   }
-  return { pieces: placed, height: Math.max(920, y + 238) * scale };
+  return { rows, topSpacer: 52 * scale, bottomSpacer: Math.max(238, 920 - contentHeight) * scale };
 };
 
 const styles = StyleSheet.create({
@@ -123,7 +147,8 @@ const styles = StyleSheet.create({
   packList: { flex: 1 },
   categoryLabel: { color: productColor.secondaryText, fontSize: 17, fontWeight: '500', lineHeight: 25 },
   categoryLabelActive: { color: productColor.ink, fontWeight: '700' },
-  packGrid: { alignContent: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', gap: 16, paddingBottom: 32, paddingHorizontal: productSpace.page, paddingTop: 24 },
+  packGrid: { paddingBottom: 32, paddingHorizontal: productSpace.page, paddingTop: 24 },
+  packGridRow: { gap: 16, marginBottom: 16 },
   packCard: { alignItems: 'center', aspectRatio: 1, backgroundColor: productColor.surface, borderRadius: 16, justifyContent: 'center', overflow: 'hidden', shadowColor: productColor.ink, shadowOffset: { height: 5, width: 0 }, shadowOpacity: 0.04, shadowRadius: 12, width: '47.7%' },
   packCover: { height: '100%', resizeMode: 'contain', width: '100%' },
   empty: { color: productColor.secondaryText, fontSize: 15, marginTop: 30, textAlign: 'center', width: '100%' },
@@ -136,7 +161,7 @@ const styles = StyleSheet.create({
   favoriteGlyphActive: { color: '#D9A832' },
   detailBoard: { backgroundColor: productColor.surface, borderColor: productColor.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flex: 1, marginBottom: 14, marginHorizontal: productSpace.page, overflow: 'hidden' },
   detailList: { flex: 1 },
-  itemGrid: { paddingBottom: 32 },
+  itemGrid: { paddingHorizontal: 0 },
   paperCanvas: { backgroundColor: productColor.surface, position: 'relative', width: '100%' },
   itemTile: { alignItems: 'center', justifyContent: 'center', position: 'absolute' },
   itemTileSelected: { borderColor: productColor.ink, borderRadius: 3, borderWidth: 2 },

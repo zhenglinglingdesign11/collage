@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
 import { brushDefinitionsById, emptyAssetCatalog, getTextFont, remoteAssetPacks, upsertAsset, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
 import { isCompatibilityProductAssetReference, isShippedProductAssetReference, productCatalogAssetForReference, shippedProductAssetCatalog, shippedProductAssetResolver } from './shippedProductAssetCatalog';
+import { clearResolvedVerifiedProductAssetUris } from './productAssetResolver';
 import { clearVerifiedRemoteAssetCache, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } from './verifiedRemoteAssetCache';
 import { createStableId, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type AssetReference, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
 
@@ -193,6 +194,7 @@ export const clearDownloadCache = async (): Promise<DownloadCacheSummary> => {
     .filter((name) => /^home-showcase-manifest-[a-zA-Z0-9_-]+\.json$/.test(name))
     .map((name) => FileSystem.deleteAsync(`${root}${name}`, { idempotent: true })));
   await clearVerifiedRemoteAssetCache();
+  clearResolvedVerifiedProductAssetUris();
   remoteCacheIndex = null;
   resolvedRemoteUris.clear();
   return before;

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Image, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import { cacheRemoteResource, resolvedRemoteResourceUri } from '../localWorkspace';
 import { isCompatibilityProductAssetReference, isShippedProductAssetReference, shippedProductAssetResolver } from '../shippedProductAssetCatalog';
+import { resolvedVerifiedProductAssetUri } from '../productAssetResolver';
 import type { AssetReference } from '@journalcollage/editor-core';
 
 /** Disk-backed image surface for remote material covers and thumbnails. */
@@ -9,10 +10,11 @@ export const CachedRemoteImage = ({ cacheKey, reference, source, style }: Readon
   const cachedUri = resolvedRemoteResourceUri(cacheKey, source);
   const shippedReference = reference && isShippedProductAssetReference(reference) ? reference : undefined;
   const compatibilityReference = reference && isCompatibilityProductAssetReference(reference) ? reference : undefined;
-  const [uri, setUri] = useState<string | null>(source.startsWith('data:') ? source : cachedUri ?? null);
+  const resolvedUri = (): string | null => source.startsWith('data:') ? source : (shippedReference ? resolvedVerifiedProductAssetUri(shippedReference) : cachedUri) ?? null;
+  const [uri, setUri] = useState<string | null>(resolvedUri);
   useEffect(() => {
     let active = true;
-    setUri(source.startsWith('data:') ? source : resolvedRemoteResourceUri(cacheKey, source) ?? null);
+    setUri(resolvedUri());
     if (shippedReference) {
       void shippedProductAssetResolver.resolve(shippedReference).then(({ uri: localUri }) => { if (active) setUri(localUri); }).catch(() => { if (active) setUri(null); });
     } else if (compatibilityReference) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { colorsFor, recommendedRemoteAssetPackIds, type AssetPackCategory, type ProceduralSticker, type ProductColorTarget, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
 import { shippedProductMaterialPacks } from '../shippedProductAssetCatalog';
 import { productColor } from './tokens';
@@ -84,20 +84,37 @@ export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddC
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories} style={styles.categoriesScroll}>
           {categories.map((entry) => <Pressable key={entry.id} onPress={() => setCategory(entry.id)} style={[styles.chip, category === entry.id && styles.chipActive]}><Text style={[styles.chipLabel, category === entry.id && styles.chipLabelActive]}>{entry.label}</Text></Pressable>)}
         </ScrollView>
-        <ScrollView contentContainerStyle={styles.materialsContent} showsVerticalScrollIndicator={false} style={styles.materialsScroll}>
-          <View style={styles.packGrid}>
-            {packRows.map((row, rowIndex) => <View key={`pack-row-${rowIndex}`} style={styles.packRow}>
+        <FlatList
+          contentContainerStyle={styles.materialsContent}
+          data={packRows}
+          initialNumToRender={3}
+          key={`pack-category-${category}`}
+          keyExtractor={(_, rowIndex) => `pack-row-${rowIndex}`}
+          maxToRenderPerBatch={3}
+          removeClippedSubviews
+          renderItem={({ item: row }) => <View style={styles.packRow}>
               {row.map((pack) => <Pressable key={pack.id} accessibilityLabel={pack.name} onPress={() => setActivePack(pack)} style={styles.packTile}>
                 {pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}
               </Pressable>)}
-            </View>)}
-          </View>
-        </ScrollView>
-      </> : <ScrollView contentContainerStyle={styles.itemGrid} showsVerticalScrollIndicator={false}>
-        {activePack.items.map((item) => <Pressable key={item.id} accessibilityLabel={item.action ? 'Customize material' : `Add ${item.id}`} onPress={() => item.action === 'custom-solid-paper' ? setCustomSolidPaper(true) : item.action === 'custom-polka-paper' ? setCustomPolkaPaper(true) : item.action === 'custom-basic-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#f4b8c4', textureSource: undefined })), setCustomBasicShape(false)) : item.action === 'custom-material-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#FFFFFF', strokeColor: undefined, strokeWidth: 0, textureSource: value.textureSource ?? basicShapeTextures[0] })), setCustomBasicShape(true)) : onAddItem(item)} style={styles.itemTile}>
+            </View>}
+          showsVerticalScrollIndicator={false}
+          style={styles.materialsScroll}
+          windowSize={3}
+        />
+      </> : <FlatList
+        contentContainerStyle={styles.itemGrid}
+        data={intoRows(activePack.items, 3)}
+        initialNumToRender={3}
+        key={`pack-items-${activePack.id}`}
+        keyExtractor={(_, rowIndex) => `item-row-${rowIndex}`}
+        maxToRenderPerBatch={3}
+        removeClippedSubviews
+        renderItem={({ item: row }) => <View style={styles.itemRow}>{row.map((item) => <Pressable key={item.id} accessibilityLabel={item.action ? 'Customize material' : `Add ${item.id}`} onPress={() => item.action === 'custom-solid-paper' ? setCustomSolidPaper(true) : item.action === 'custom-polka-paper' ? setCustomPolkaPaper(true) : item.action === 'custom-basic-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#f4b8c4', textureSource: undefined })), setCustomBasicShape(false)) : item.action === 'custom-material-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#FFFFFF', strokeColor: undefined, strokeWidth: 0, textureSource: value.textureSource ?? basicShapeTextures[0] })), setCustomBasicShape(true)) : onAddItem(item)} style={styles.itemTile}>
           {item.action ? <View style={styles.customEntry}><Text style={styles.customEntryPlus}>+</Text><Text style={styles.customEntryLabel}>Custom</Text></View> : item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
-        </Pressable>)}
-      </ScrollView>}
+        </Pressable>)}</View>}
+        showsVerticalScrollIndicator={false}
+        windowSize={3}
+      />}
     </View>
   );
 };
@@ -160,16 +177,16 @@ const styles = StyleSheet.create({
   // category rail must be exactly one chip tall or it pushes the pack list down.
   categoriesScroll: { flexGrow: 0, flexShrink: 0, height: 36 },
   materialsScroll: { flex: 1 },
-  materialsContent: { paddingBottom: 28 },
+  materialsContent: { paddingBottom: 28, paddingHorizontal: 20, paddingTop: 12 },
   chip: { alignItems: 'center', backgroundColor: productColor.weakSurface, borderRadius: 999, height: 36, justifyContent: 'center', paddingHorizontal: 16 },
   chipActive: { backgroundColor: productColor.ink },
   chipLabel: { color: productColor.secondaryText, fontSize: 14, fontWeight: '500' },
   chipLabelActive: { color: productColor.surface, fontWeight: '600' },
-  packGrid: { gap: 12, paddingHorizontal: 20, paddingTop: 12 },
-  packRow: { flexDirection: 'row', gap: 12 },
+  packRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   packTile: { alignItems: 'center', aspectRatio: 1, backgroundColor: productColor.surface, borderColor: productColor.border, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', overflow: 'hidden', width: '30.4%' },
   packCover: { height: '100%', resizeMode: 'contain', width: '100%' },
-  itemGrid: { alignContent: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 12 },
+  itemGrid: { paddingBottom: 28, paddingHorizontal: 20, paddingTop: 12 },
+  itemRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   itemTile: { alignItems: 'center', aspectRatio: 1, backgroundColor: productColor.surface, borderColor: productColor.border, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, elevation: 2, justifyContent: 'center', overflow: 'visible', shadowColor: productColor.ink, shadowOffset: { height: 2, width: 0 }, shadowOpacity: 0.07, shadowRadius: 5, width: '30.4%' },
   itemImage: { height: '82%', resizeMode: 'contain', width: '82%' },
   customEntry: { alignItems: 'center', justifyContent: 'center' },

@@ -8,6 +8,7 @@ const Module = require('node:module');
 const fixtureRoot = '/private/tmp/journal-collage-p1a02-expo-fixture';
 const outputRoot = '/private/tmp/journal-collage-mobile-portable-cjs';
 const itemPath = path.resolve(__dirname, '../../..', 'source-assets/packs/zhenzhi01/items/1.png');
+const shippedCatalogPath = path.resolve(__dirname, '../../..', 'generated/first-release-product-catalog.v1.json');
 const image = fs.readFileSync(itemPath);
 const sha256 = crypto.createHash('sha256').update(image).digest('hex');
 const uriPath = (uri) => decodeURIComponent(new URL(uri).pathname);
@@ -170,6 +171,44 @@ test('P1-A06 records strict-cache usage and preserves protected entries during L
   assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: image.length, files: 1 });
   await pruneVerifiedRemoteAssetCache(0, new Set());
   assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: 0, files: 0 });
+});
+
+test('P1-A07 reuses a verified strict asset while offline without another download', async () => {
+  resetFixture();
+  const firstUri = await cacheVerifiedRemoteAsset(descriptor);
+  downloadPlan = async () => { throw new Error('network unavailable'); };
+  const cachedUri = await cacheVerifiedRemoteAsset(descriptor);
+  assert.equal(cachedUri, firstUri);
+  assert.equal(downloads, 1);
+});
+
+test('P1-A07 rejects a strict CDN 404 without leaving a usable cache record', async () => {
+  resetFixture();
+  downloadPlan = async (_source, uri) => {
+    fs.mkdirSync(path.dirname(uriPath(uri)), { recursive: true });
+    fs.writeFileSync(uriPath(uri), 'not found');
+    return { uri, status: 404, headers: { 'content-type': 'text/plain' } };
+  };
+  await assert.rejects(cacheVerifiedRemoteAsset(descriptor), (error) => error.code === 'asset-download-failed');
+  assert.equal(downloads, 1);
+  assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: 0, files: 0 });
+});
+
+test('P1-A07 keeps all shipped template previews on the strict resolver path', async () => {
+  const catalog = JSON.parse(fs.readFileSync(shippedCatalogPath, 'utf8'));
+  const previews = catalog.packs.find((pack) => pack.id === 'template-previews');
+  assert.equal(previews.status, 'shipped');
+  assert.equal(previews.resolverMode, 'strict');
+  assert.equal(previews.visibility, 'internal');
+  assert.deepEqual(previews.items.map((item) => item.itemId), ['play-pop', 'romantic-deco-two-photo', 'romantic-deco', 'soft-archive']);
+  const resolved = [];
+  const resolver = createProductAssetResolver(catalog, {
+    findVerifiedCachedAsset: async (asset) => { resolved.push(asset.reference.id); return `file:///verified/${asset.itemId}.png`; },
+    findVerifiedBundledAsset: async () => null,
+    downloadAndCacheAsset: async () => { throw new Error('A verified cache hit should resolve template previews.'); },
+  });
+  await Promise.all(previews.items.map((item) => resolver.resolve(item.reference)));
+  assert.deepEqual(new Set(resolved), new Set(previews.items.map((item) => item.reference.id)));
 });
 
 test('Expo adapter retries a transient network failure and removes its first staging directory', async () => {
