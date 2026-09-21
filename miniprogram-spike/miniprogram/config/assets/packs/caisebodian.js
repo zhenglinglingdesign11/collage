@@ -1,7 +1,7 @@
 module.exports = {
   id: "caisebodian",
   name: "Caisebodian",
-  category: "胶带",
+  category: "贴纸",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/caisebodian",
   cover: "pack-sheet.jpg",

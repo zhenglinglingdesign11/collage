@@ -1,7 +1,9 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
-import { brushDefinitionsById, emptyAssetCatalog, getTextFont, remoteAssetPacks, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
-import { createStableId, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
+import { brushDefinitionsById, emptyAssetCatalog, getTextFont, remoteAssetPacks, upsertAsset, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
+import { isCompatibilityProductAssetReference, isShippedProductAssetReference, productCatalogAssetForReference, shippedProductAssetCatalog, shippedProductAssetResolver } from './shippedProductAssetCatalog';
+import { clearVerifiedRemoteAssetCache, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } from './verifiedRemoteAssetCache';
+import { createStableId, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type AssetReference, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
 
 const root = `${FileSystem.documentDirectory}journalcollage/`;
 const assetDirectory = `${root}assets/`;
@@ -14,6 +16,7 @@ const portableProjectDirectory = `${root}portable-projects/`;
 const importedAssetDirectory = `${root}imported-project-assets/`;
 const homeShowcaseManifestUri = (market: string): string => `${root}home-showcase-manifest-${market.replace(/[^a-zA-Z0-9_-]+/g, '_')}.json`;
 const MAX_SAVED_DRAFTS = 20;
+const DOWNLOAD_CACHE_LIMIT_BYTES = 250 * 1024 * 1024;
 
 type RemoteCacheEntry = Readonly<{ key: string; source: string; uri: string; lastAccessedAt: string }>;
 type RemoteCacheIndex = Readonly<{ version: 1; entries: readonly RemoteCacheEntry[] }>;
@@ -117,7 +120,7 @@ const remoteCacheMemoryKey = (key: string, source: string): string => `${key}\u0
 export const resolvedRemoteResourceUri = (key: string, source: string): string | undefined => resolvedRemoteUris.get(remoteCacheMemoryKey(key, source));
 
 /** Shared preview cache for covers and thumbnails. It is deliberately separate from a Draft's asset catalog. */
-export const cacheRemoteResource = async (key: string, source: string): Promise<string> => {
+export const cacheRemoteResource = async (key: string, source: string, options: Readonly<{ requireImageMime?: boolean }> = {}): Promise<string> => {
   if (source.startsWith('data:')) return source;
   const memoryKey = remoteCacheMemoryKey(key, source);
   const resolved = resolvedRemoteUris.get(memoryKey);
@@ -139,6 +142,11 @@ export const cacheRemoteResource = async (key: string, source: string): Promise<
     const filename = `${key.replace(/[^a-zA-Z0-9_-]+/g, '_')}.${cacheFileExtension(source)}`;
     const uri = `${remoteCacheDirectory}${filename}`;
     const result = await FileSystem.downloadAsync(source, uri);
+    const contentType = Object.entries(result.headers ?? {}).find(([header]) => header.toLowerCase() === 'content-type')?.[1]?.split(';', 1)[0]?.trim().toLowerCase();
+    if (result.status < 200 || result.status >= 300 || (options.requireImageMime && contentType !== 'image/png' && contentType !== 'image/jpeg')) {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      throw new Error(`Remote image is unavailable or has an invalid MIME type: ${source}`);
+    }
     await saveRemoteCacheIndex([
       ...index.entries.filter((candidate) => candidate.key !== key),
       { key, source, uri: result.uri, lastAccessedAt: new Date().toISOString() },
@@ -168,9 +176,11 @@ export const getDownloadCacheSummary = async (): Promise<DownloadCacheSummary> =
   rootFiles.filter((name) => name === 'remote-cache-index.json' || /^home-showcase-manifest-[a-zA-Z0-9_-]+\.json$/.test(name))
     .forEach((name) => uris.push(`${root}${name}`));
   const infos = await Promise.all(uris.map((uri) => FileSystem.getInfoAsync(uri).catch(() => null)));
-  return infos.reduce<DownloadCacheSummary>((summary, info) => info?.exists
+  const compatibility = infos.reduce<DownloadCacheSummary>((summary, info) => info?.exists
     ? { bytes: summary.bytes + (typeof info.size === 'number' ? info.size : 0), files: summary.files + 1 }
     : summary, { bytes: 0, files: 0 });
+  const strict = await getVerifiedRemoteCacheSummary();
+  return { bytes: compatibility.bytes + strict.bytes, files: compatibility.files + strict.files };
 };
 
 /** Clears the re-downloadable preview/configuration cache, never user work. */
@@ -182,9 +192,45 @@ export const clearDownloadCache = async (): Promise<DownloadCacheSummary> => {
   await Promise.all(rootFiles
     .filter((name) => /^home-showcase-manifest-[a-zA-Z0-9_-]+\.json$/.test(name))
     .map((name) => FileSystem.deleteAsync(`${root}${name}`, { idempotent: true })));
+  await clearVerifiedRemoteAssetCache();
   remoteCacheIndex = null;
   resolvedRemoteUris.clear();
   return before;
+};
+
+const productReferencesForWorkspace = (workspace: StoredWorkspace): readonly Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>[] =>
+  [workspace.draft.canvas.backgroundAsset, ...workspace.draft.layers.flatMap((layer) => 'asset' in layer ? [layer.asset] : [])]
+    .map(requiredReference)
+    .filter((reference): reference is Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>> => reference !== null);
+
+/** Reclaims only re-downloadable entries. Current and saved-work material references remain protected. */
+export const pruneDownloadCache = async (currentWorkspace?: StoredWorkspace): Promise<DownloadCacheSummary> => {
+  const saved = await loadSavedDrafts();
+  const protectedReferences = [
+    ...(currentWorkspace ? productReferencesForWorkspace(currentWorkspace) : []),
+    ...saved.flatMap((draft) => productReferencesForWorkspace(draft.workspace)),
+  ];
+  const protectedReferenceKeys = new Set(protectedReferences.map((reference) => `${reference.id}\u0000${reference.kind}\u0000${reference.revision}`));
+  const protectedReferenceIds = new Set(protectedReferences.map((reference) => reference.id));
+  const index = await loadRemoteCacheIndex();
+  const entries = await Promise.all(index.entries.map(async (entry) => ({ entry, info: await FileSystem.getInfoAsync(entry.uri).catch(() => null) })));
+  const cacheEntryBytes = (info: Awaited<ReturnType<typeof FileSystem.getInfoAsync>> | null): number =>
+    info?.exists && 'size' in info && typeof info.size === 'number' ? info.size : 0;
+  let compatibilityBytes = entries.reduce((sum, candidate) => sum + cacheEntryBytes(candidate.info), 0);
+  const strict = await getVerifiedRemoteCacheSummary();
+  const removable = entries
+    .filter((candidate) => candidate.info?.exists && !protectedReferenceIds.has(candidate.entry.key.startsWith('item-') ? candidate.entry.key.slice('item-'.length) : ''))
+    .sort((left, right) => left.entry.lastAccessedAt.localeCompare(right.entry.lastAccessedAt));
+  const removedKeys = new Set<string>();
+  for (const candidate of removable) {
+    if (compatibilityBytes + strict.bytes <= DOWNLOAD_CACHE_LIMIT_BYTES) break;
+    await FileSystem.deleteAsync(candidate.entry.uri, { idempotent: true });
+    compatibilityBytes -= cacheEntryBytes(candidate.info);
+    removedKeys.add(candidate.entry.key);
+  }
+  await saveRemoteCacheIndex(index.entries.filter((entry) => !removedKeys.has(entry.key)));
+  await pruneVerifiedRemoteAssetCache(Math.max(0, DOWNLOAD_CACHE_LIMIT_BYTES - Math.max(0, compatibilityBytes)), protectedReferenceKeys);
+  return getDownloadCacheSummary();
 };
 
 export const importLocalImage = async (input: { uri: string; width: number; height: number; mimeType: string | null }): Promise<LocalAssetRecord> => {
@@ -204,7 +250,7 @@ export const importLocalImage = async (input: { uri: string; width: number; heig
 };
 
 /** Resolves a remote R2 asset to an app-private cache without leaking its URL into Draft. */
-export const cacheRemotePackItem = async (item: RemotePackItem, catalog: AssetCatalog): Promise<LocalAssetRecord> => {
+export const cacheRemotePackItem = async (item: RemotePackItem, catalog: AssetCatalog, options: Readonly<{ verifiedUri?: string }> = {}): Promise<LocalAssetRecord> => {
   if (item.procedural) {
     const originalUri = item.sticker?.textureSource
       ? await cacheRemoteResource(`texture-${item.reference.id}`, item.sticker.textureSource)
@@ -217,7 +263,7 @@ export const cacheRemotePackItem = async (item: RemotePackItem, catalog: AssetCa
     if (info.exists) return existing;
   }
 
-  const originalUri = await cacheRemoteResource(`item-${item.reference.id}`, item.source);
+  const originalUri = options.verifiedUri ?? await cacheRemoteResource(`item-${item.reference.id}`, item.source, { requireImageMime: true });
   return {
     reference: item.reference,
     originalUri,
@@ -226,6 +272,44 @@ export const cacheRemotePackItem = async (item: RemotePackItem, catalog: AssetCa
     mimeType: 'image/png',
     createdAt: new Date().toISOString(),
   };
+};
+
+export type ProductAssetRecoveryFailure = Readonly<{ reference: Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>; reason: string }>;
+export type ProductAssetRecoveryResult = Readonly<{ workspace: StoredWorkspace; failures: readonly ProductAssetRecoveryFailure[] }>;
+
+const requiredReference = (reference: AssetReference | undefined): Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>> | null =>
+  reference?.revision ? { id: reference.id, kind: reference.kind, revision: reference.revision } : null;
+
+/** Restores only product assets actually used by this saved Draft; it never mutates the Draft itself. */
+export const recoverWorkspaceProductAssets = async (workspace: StoredWorkspace): Promise<ProductAssetRecoveryResult> => {
+  const references = [workspace.draft.canvas.backgroundAsset, ...workspace.draft.layers.flatMap((layer) => 'asset' in layer ? [layer.asset] : [])]
+    .map(requiredReference)
+    .filter((reference): reference is Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>> => reference !== null);
+  const unique = [...new Map(references.map((reference) => [`${reference.id}\u0000${reference.kind}\u0000${reference.revision}`, reference])).values()]
+    .filter((reference) => isShippedProductAssetReference(reference) || isCompatibilityProductAssetReference(reference));
+  let catalog = workspace.catalog;
+  const failures: ProductAssetRecoveryFailure[] = [];
+  for (let start = 0; start < unique.length; start += 3) {
+    const batch = await Promise.all(unique.slice(start, start + 3).map(async (reference) => {
+      const existing = catalog.assets.find((asset) => asset.reference.id === reference.id && asset.reference.kind === reference.kind && asset.reference.revision === reference.revision);
+      if (existing && (await FileSystem.getInfoAsync(existing.originalUri)).exists) return { reference, record: existing };
+      try {
+        const descriptor = productCatalogAssetForReference(reference);
+        if (!descriptor) throw new Error('Material is unavailable in the shipped catalog.');
+        const originalUri = isShippedProductAssetReference(reference)
+          ? (await shippedProductAssetResolver.resolve(reference)).uri
+          : await cacheRemoteResource(`item-${reference.id}`, descriptor.sourceUrl, { requireImageMime: true });
+        return { reference, record: { reference, originalUri, width: descriptor.pixelSize.width, height: descriptor.pixelSize.height, mimeType: descriptor.mimeType, createdAt: new Date().toISOString() } satisfies LocalAssetRecord };
+      } catch (error) {
+        return { reference, failure: error instanceof Error ? error.message : 'Material could not be restored.' };
+      }
+    }));
+    batch.forEach((result) => {
+      if ('record' in result && result.record !== undefined) catalog = upsertAsset(catalog, result.record);
+      else failures.push({ reference: result.reference, reason: result.failure });
+    });
+  }
+  return { workspace: { ...workspace, catalog }, failures };
 };
 
 const existingSavedAt = async (): Promise<string | undefined> => {
@@ -284,7 +368,10 @@ export const saveWorkspace = async (workspace: StoredWorkspace, options: Readonl
   const savedAt = options.markAsSaved ? new Date().toISOString() : workspace.savedAt ?? await existingSavedAt();
   const payload: StoredWorkspace = savedAt === undefined ? { draft: workspace.draft, catalog: workspace.catalog } : { draft: workspace.draft, catalog: workspace.catalog, savedAt };
   await FileSystem.writeAsStringAsync(workspaceUri, JSON.stringify(payload), { encoding: FileSystem.EncodingType.UTF8 });
-  if (options.markAsSaved) await saveExplicitDraft(payload, savedAt!);
+  if (options.markAsSaved) {
+    await saveExplicitDraft(payload, savedAt!);
+    void pruneDownloadCache(payload).catch(() => undefined);
+  }
 };
 
 export const loadWorkspace = async (): Promise<StoredWorkspace | null> => {
@@ -372,7 +459,8 @@ const bytesFromBase64 = (value: string): Uint8Array => {
 const packRequirementFor = (reference: PortableAssetReference): Readonly<{ packId: string; packRevision: string; itemReference: PortableAssetReference }> | null => {
   const match = /^asset:\/\/pack\/([^/]+)\//.exec(reference.id);
   if (!match) return null;
-  const pack = remoteAssetPacks.find((candidate) => candidate.id === match[1]);
+  const pack = shippedProductAssetCatalog.packs.find((candidate) => candidate.id === match[1])
+    ?? remoteAssetPacks.find((candidate) => candidate.id === match[1]);
   if (!pack) throw new Error(`Required material pack is unavailable: ${match[1]}`);
   return { packId: pack.id, packRevision: pack.revision, itemReference: reference };
 };

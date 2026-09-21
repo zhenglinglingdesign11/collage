@@ -3,7 +3,7 @@
 > Schema: `journalcollage.remote-asset-integrity`
 > Contract version: `1`
 > Status: frozen for P1-A01
-> Updated: 2026-09-15
+> Updated: 2026-09-20
 > Scope: Expo / React Native iOS `1.0` 冻结素材目录的可靠解析、下载、校验与缓存恢复
 
 ## 1. 目的与边界
@@ -11,6 +11,17 @@
 本契约保证 Expo / React Native iOS `1.0` 已发布目录中的远程素材，在网络可用、离线、下载失败、缓存清理和 CDN 故障时都有确定行为。它定义产品素材的稳定身份、revision、完整性元数据、缓存记录和错误码。实现仅位于 `apps/mobile`、`packages/asset-system` 与 `packages/editor-core`；旧 `iosproject` 不在本契约的实现范围内。
 
 它不定义免发版新增/修改/隐藏素材包；该能力属于 `P1-B`，必须在 `1.0` 发布后另行实现。它也不定义用户资源、账号、订阅、云备份、签名 URL 或任何可执行远端内容。
+
+### 1.1 首发内容发布的最小操作策略
+
+本契约要求客户端对**实际下载的每个素材**执行完整性验证；它不要求内容运营在每次上传时把整包文件再次从 CDN 下载并逐项比对。首发阶段按以下边界执行：
+
+- 内容负责人确认本地源与上传到 R2 的目录、文件名和数量一致；Catalog 构建可从该受信任的源生成元数据，无须例行全包远端字节审计。
+- 每个用户可浏览素材包只检查封面和一个样本 item 的公开可达性与 MIME；Catalog schema、stable ID、revision、R2 prefix 和缓存版本仍必须通过构建校验。
+- 模板预览及模板全部固定依赖必须进行远端 hash、MIME、尺寸与字节数校验，因为它们会直接决定模板能否实例化和渲染。
+- 路径改名、覆盖已有 revision、CDN 缓存事故、上传异常或用户明确要求冻结审计时，才对受影响包进行全量远端字节审计。
+- 新上传的首发包、模板预览和模板固定依赖在客户端实际下载后，hash、MIME、尺寸和字节数验证均不得省略。
+- 已在线运行、但尚未以当前审核源重新冻结字节的历史小程序包可暂走 compatibility cache：仅接受成功 HTTPS 响应和 `image/png` / `image/jpeg` MIME 后写入本地缓存，不参与 hash/字节/尺寸比对，也不得作为模板固定依赖。该例外只服务 1.0 兼容范围；包被重新上传或重新冻结时必须转为严格 Resolver。
 
 ## 2. 不变量
 

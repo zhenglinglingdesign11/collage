@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import { recommendedRemoteAssetPackIds, remoteAssetPacks, type AssetPackCategory, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
+import { recommendedRemoteAssetPackIds, type AssetPackCategory, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
+import { shippedProductMaterialPacks } from '../shippedProductAssetCatalog';
 import { productColor, productSpace } from './tokens';
 import { ProceduralItemPreview, ProceduralPackPreview } from './ProceduralMaterialPreview';
 import { CachedRemoteImage } from './CachedRemoteImage';
@@ -18,10 +19,10 @@ export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange,
   const [activePack, setActivePack] = useState<RemoteAssetPack | null>(null);
   const [favoritePackIds, setFavoritePackIds] = useState<ReadonlySet<string>>(() => new Set());
   const packs = useMemo(() => {
-    if (category === 'favorites') return remoteAssetPacks.filter((pack) => favoritePackIds.has(pack.id));
+    if (category === 'favorites') return shippedProductMaterialPacks.filter((pack) => favoritePackIds.has(pack.id));
     return category === 'recommended'
-      ? remoteAssetPacks.filter((pack) => recommendedRemoteAssetPackIds.has(pack.id))
-      : remoteAssetPacks.filter((pack) => pack.category === category);
+      ? shippedProductMaterialPacks.filter((pack) => recommendedRemoteAssetPackIds.has(pack.id))
+      : shippedProductMaterialPacks.filter((pack) => pack.category === category);
   }, [category, favoritePackIds]);
   const toggleFavorite = (packId: string) => setFavoritePackIds((current) => {
     const next = new Set(current);
@@ -36,7 +37,7 @@ export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange,
       {categories.map((entry) => <Pressable key={entry.id} onPress={() => setCategory(entry.id)} style={styles.categoryButton}><Text style={[styles.categoryLabel, category === entry.id && styles.categoryLabelActive]}>{entry.label}</Text></Pressable>)}
     </ScrollView>
     <ScrollView contentContainerStyle={styles.packGrid} showsVerticalScrollIndicator={false} style={styles.packList}>
-      {packs.map((pack) => <Pressable key={pack.id} accessibilityLabel={`Open ${pack.name}`} onPress={() => { setActivePack(pack); onDetailChange(true); }} style={styles.packCard}>{pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} source={pack.cover} style={styles.packCover} />}</Pressable>)}
+      {packs.map((pack) => <Pressable key={pack.id} accessibilityLabel={`Open ${pack.name}`} onPress={() => { setActivePack(pack); onDetailChange(true); }} style={styles.packCard}>{pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}</Pressable>)}
       {packs.length === 0 && <Text style={styles.empty}>No saved material packs yet.</Text>}
     </ScrollView>
   </View>;
@@ -57,7 +58,7 @@ const PackDetail = ({ isFavorite, pack, onAddItems, onBack, onToggleFavorite }: 
     <ScrollView contentContainerStyle={styles.itemGrid} showsVerticalScrollIndicator={false} style={styles.detailList}>
       <View style={[styles.paperCanvas, { height: layout.height }]}>
         {layout.pieces.map(({ item, left, rotate, top, height, width }) => <Pressable key={item.id} accessibilityLabel={`Select ${item.id}`} accessibilityState={{ selected: selectedItemIds.has(item.id) }} onPress={() => setSelectedItemIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} style={[styles.itemTile, selectedItemIds.has(item.id) && styles.itemTileSelected, { height, left, top, transform: [{ rotate: `${rotate}deg` }], width }]}>
-          {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} source={item.source} style={styles.itemImage} />}
+          {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
         </Pressable>)}
       </View>
     </ScrollView>

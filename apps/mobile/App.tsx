@@ -10,7 +10,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
 import { alignmentGuideKey, applyCommand, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
-import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
+import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
 import { MineHome } from './src/product-ui/MineHome';
@@ -42,6 +42,7 @@ const showcaseEffectInstance = (instanceId: string, intent: ShowcaseIntent | und
   }
 };
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
+import { isShippedProductAssetReference, shippedProductAssetResolver } from './src/shippedProductAssetCatalog';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
 import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPanel';
 import { TEXT_EDITOR_PANEL_HEIGHT, TextEditorPanel } from './src/product-ui/TextEditorPanel';
@@ -108,6 +109,9 @@ type CropRatio = 'free' | 'original' | '1:1' | '4:5' | '3:4' | '4:3' | '9:16' | 
 type CropSession = Readonly<{ layer: ImageLayer; bounds: Rect; initialBounds: Rect; ratio: CropRatio }>;
 type CropDrag = Readonly<{ session: CropSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
 type CutStyle = 'straight' | 'wave' | 'free' | 'subject';
+// Manual diagnostics must never cover product navigation merely because a dev
+// build is running. Enable explicitly from a debugger when needed.
+const showDevelopmentProbes = __DEV__ && (globalThis as typeof globalThis & Readonly<{ __JOURNALCOLLAGE_SHOW_DEVELOPMENT_PROBES__?: boolean }>).__JOURNALCOLLAGE_SHOW_DEVELOPMENT_PROBES__ === true;
 
 const cropRatioValue = (ratio: CropRatio, frame: { width: number; height: number }): number | null => ({
   free: null, original: frame.width / frame.height, '1:1': 1, '4:5': 4 / 5, '3:4': 3 / 4, '4:3': 4 / 3, '9:16': 9 / 16, '16:9': 16 / 9,
@@ -222,6 +226,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const [alignmentGuides, setAlignmentGuides] = useState<readonly AlignmentGuide[]>([]);
   const [cutHint, setCutHint] = useState<string | null>(null);
   const [headerFeedback, setHeaderFeedback] = useState<string | null>(null);
+  const [assetRecoveryFailureCount, setAssetRecoveryFailureCount] = useState(0);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initialPackItemsAdded = useRef(false);
@@ -327,12 +332,14 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
 
   useEffect(() => {
     const workspacePromise = restoreSavedDraftId ? loadSavedDraft(restoreSavedDraftId) : loadWorkspace();
-    void workspacePromise.then((workspace) => {
+    void workspacePromise.then(async (workspace) => {
       if (initialEntry === 'restore' && workspace !== null) {
         const migration = migrateDraft(workspace.draft);
         if (migration.ok) {
-          dispatch({ type: 'hydrate', draft: migration.draft });
-          setCatalog(workspace.catalog);
+          const recovered = await recoverWorkspaceProductAssets({ ...workspace, draft: migration.draft });
+          dispatch({ type: 'hydrate', draft: recovered.workspace.draft });
+          setCatalog(recovered.workspace.catalog);
+          setAssetRecoveryFailureCount(recovered.failures.length);
         }
       }
     }).finally(() => setWorkspaceReady(true));
@@ -913,7 +920,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   }, [emboss]);
   const addRemotePackItem = useCallback(async (item: RemotePackItem) => {
     try {
-      const record = await cacheRemotePackItem(item, catalog);
+      const reference = item.reference.revision ? item.reference as Required<typeof item.reference> : null;
+      const verifiedUri = reference && isShippedProductAssetReference(reference) ? (await shippedProductAssetResolver.resolve(reference)).uri : undefined;
+      const record = await cacheRemotePackItem(item, catalog, { verifiedUri });
       setCatalog((current) => upsertAsset(current, record));
       const scale = Math.min(760 / item.width, 760 / item.height, 1.8);
       const frame = { width: Math.round(item.width * scale), height: Math.round(item.height * scale) };
@@ -948,7 +957,9 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     try {
       // Resolve through the same R2 cache used by material previews and layers
       // before committing the reference. A Draft still contains no URL/path.
-      const record = await cacheRemotePackItem(item, catalog);
+      const reference = item.reference.revision ? item.reference as Required<typeof item.reference> : null;
+      const verifiedUri = reference && isShippedProductAssetReference(reference) ? (await shippedProductAssetResolver.resolve(reference)).uri : undefined;
+      const record = await cacheRemotePackItem(item, catalog, { verifiedUri });
       setCatalog((current) => upsertAsset(current, record));
       const paper = proceduralPaperForReferenceId(item.reference.id);
       dispatch({ type: 'command', command: {
@@ -1296,6 +1307,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, crop !== null && a3Styles.cropEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
         {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} onRatioPress={() => setRatioPickerOpen((open) => !open)} ratio={canvasRatio} />}
+        {assetRecoveryFailureCount > 0 && <Pressable accessibilityLabel="Retry unavailable materials" onPress={() => { void recoverWorkspaceProductAssets({ draft: state.present, catalog }).then((recovered) => { setCatalog(recovered.workspace.catalog); setAssetRecoveryFailureCount(recovered.failures.length); }); }} style={{ alignSelf: 'center', backgroundColor: '#6D5041', borderRadius: 14, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>{`${assetRecoveryFailureCount} material${assetRecoveryFailureCount === 1 ? '' : 's'} unavailable · Retry`}</Text></Pressable>}
         {ratioPickerOpen && <CanvasRatioPicker activeRatio={canvasRatio} onClose={() => setRatioPickerOpen(false)} onSelect={changeCanvasRatio} />}
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
@@ -1616,8 +1628,8 @@ export default function App() {
             ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setEditorEntry('restore'); setEditing(true); }} />
           : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
     </ProductAppShell>
-    {__DEV__ && <NativeRenderParityProbe />}
-    {__DEV__ && <RemoteAssetVerificationProbe />}
+    {showDevelopmentProbes && <NativeRenderParityProbe />}
+    {showDevelopmentProbes && <RemoteAssetVerificationProbe />}
     </>
   );
 }

@@ -1,7 +1,7 @@
 # JournalCollage 账号、订阅与云端能力实施计划
 
 > 状态：执行基线
-> 更新日期：2026-09-15
+> 更新日期：2026-09-19
 > 上位规划：`ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md`
 > 关联规范：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`、`REMOTE_ASSET_RELIABILITY_CONTRACT.md`
 
@@ -9,7 +9,7 @@
 
 本文档将上位路线拆成可独立实施和验收的工作包。产品、身份、订阅、安全和云端范围发生变化时，先修改上位规划，再同步本文档；本文档不得自行改变已经冻结的产品决策。
 
-`1.0` 的唯一客户端实现边界是 Expo / React Native 新架构：`apps/mobile`、`packages/asset-system` 与 `packages/editor-core`。`iosproject` 是停止推进的旧 Swift 原型，不得承接 P1-A、P1-B 或任何后续账号、订阅、云端能力任务。
+`1.0` 的唯一客户端实现边界是 Expo / React Native 新架构：`apps/mobile`、`packages/asset-system` 与 `packages/editor-core`。`iosproject` 是停止推进的旧 Swift 原型，不得承接 P1-A、P1-T、P1-B 或任何后续账号、订阅、云端能力任务。
 
 状态约定：
 
@@ -20,7 +20,7 @@
 
 推进规则：
 
-1. 按 P0 → P1-A → P1 → P2 → P3 → `1.0` → P1-B → P4 → P5 → P6 → P7 的依赖顺序推进，不跨过阶段门发布依赖其结果的功能。
+1. 按 P0 → P1-T00 → P1-A → G1-A → P1-T01～P1-T10 → G1-T → P1 → G1 → P2 → G2 → P3 → G3 / `1.0` → P1-B → G1-B → P4 → P5 → P6 → P7 的依赖顺序推进，不跨过阶段门发布依赖其结果的功能。
 2. 可以并行开展同一阶段内互不依赖的任务，但阶段门必须统一验收。
 3. 进入具体任务前再补充文件级设计、API 参数、SQL migration 和测试用例；不得在总计划中提前冻结尚未验证的实现细节。
 4. 任务完成需同时更新状态、验证证据和决策记录，仅提交代码不视为完成。
@@ -30,8 +30,8 @@
 
 | 发布范围 | 必须完成 | 用户可见能力 |
 | --- | --- | --- |
-| `1.0` | P0、P1-A、P1、P2、P3 | 本地作品、可靠的远程素材加载与恢复、匿名订阅、限定次数服务端 AIGC、Restore Purchases |
-| `1.x` 动态素材目录 | P1-B | 素材包免发版新增、修改、隐藏、恢复与回滚 |
+| `1.0` | P0、P1-A、P1-T、P1、P2、P3 | 本地作品、创作页本地配方模板、可靠的远程素材加载与恢复、匿名订阅、限定次数服务端 AIGC、Restore Purchases |
+| `1.x` 动态内容目录 | P1-B | 素材包与兼容模板免发版新增、修改、隐藏、恢复与回滚 |
 | 账号 + 云备份 | P4、P5 | Apple/Email 账号、云备份、账号删除 |
 | 跨设备恢复 | P6 | 新设备查看并恢复云端作品 |
 | 自动同步 | P7 | 多设备增量同步、冲突副本、版本历史 |
@@ -106,6 +106,23 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 - P0 的资源生命周期和删除边界已冻结；现有 My Studio 页面可作为实现起点。
 
+### P1-T00：模板最小契约与依赖规则
+
+#### 目标
+
+在建设 1.0 冻结内容目录前，先冻结配方模板所需的最小数据边界，使 P1-A 能正确收集模板资产依赖。配方模板是后续创作页/再创作页面中的核心创作功能，不属于首页运营 showcase 或远程运营配置；首页可以展示模板成品和入口，但不是模板定义的所有者。
+
+#### 待办
+
+- [x] **P1-T00 模板最小契约与依赖规则**：以 `Romantic Deco`、`Play Pop`、`Soft Archive` 三个 composition tests 作为契约覆盖样本，已冻结 `templateId`、`templateRevision`、照片/文字槽位、固定图层、可替换 `materialSlots`、稳定素材引用、依赖闭包、`requiredCapabilities` 与 Template → Draft 单向实例化边界；`Romantic Deco-1` 作为双图片槽位覆盖样本，小程序基础模板作为仅照片槽位的兼容回归样本。装饰替换从定义的来源素材包打开，且保持图层布局参数。不得把 CDN URL、设备 URI、运营卡片结构或可执行脚本写入模板。见 `TEMPLATE_P1_T00_FREEZE.md`。
+
+#### 完成标准
+
+- 三个 composition tests 的槽位、图层、固定素材与替换行为有可测试描述；小程序基础模板的照片替换能力仍通过同一契约回归；
+- 模板依赖可由 stable asset/font/effect reference 静态枚举；
+- P1-A03 能据此把首发模板依赖纳入 1.0 冻结内容目录；
+- 本任务只冻结最小契约，不提前实施完整模板目录、Recipe 编译器或 UI。
+
 ### P1-A：1.0 远程素材可靠性
 
 #### 目标
@@ -131,20 +148,74 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
   - 验证记录（2026-09-15）：已冻结 [`REMOTE_ASSET_RELIABILITY_CONTRACT.md`](REMOTE_ASSET_RELIABILITY_CONTRACT.md) v1。契约定义精确 revision 解析、SHA-256/尺寸/MIME 原子校验、可清理缓存记录、稳定失败码、App bundle/缓存/CDN 优先级与禁止静默替换规则；`blue03`、`zhenzhi01` 仅作为 P1-A02 测试候选，尚未纳入 1.0 冻结目录。
 - [x] **P1-A02 验证下载**：在 `packages/asset-system` 实现平台无关的下载、校验、并发与错误策略，在 `apps/mobile` 提供 Expo 文件系统适配器，实现临时写入、尺寸与 SHA-256 校验、原子落盘、并发去重、取消和有限重试；旧 `iosproject` 实验不计入本任务验证。
   - 验证记录（2026-09-15）：已用压缩后的 `zhenzhi01/items/1.png` 完成平台无关 hash/尺寸/MIME 校验与 Expo 暂存→校验→移动缓存测试；`npm run test:remote-assets --workspace mobile` 覆盖 hash 篡改拒绝、并发请求只下载一次、首次网络失败后的第二次成功、两次失败后无暂存目录/缓存记录，以及取消调用方不产生半成品。适配器对网络错误和 HTTP 5xx 至多尝试两次（每次 8 秒超时），不重试 hash、MIME 或 4xx 等确定失败。真实 R2 HTTPS 冒烟验证已通过：`pack-sheet.png`（480×320，97,544 bytes，SHA-256 `0326a80d7ceac1e7841588e1f2606cf773ba36a2855b16408ce9ef49c559ab2b`）与 `items/1.png`（224×242，21,691 bytes，SHA-256 `8ca1ef671c1f28bf881fc6724842efb1a3c65c4a3a2b60ce28c1f6d4606751f6`）均从 `https://assets.zllarchi.site/packs/zhenzhi01/` 返回 `200 image/png`，下载字节与本地一致。iPhone 17 iOS 26.5 Simulator 的 Expo 开发版已实际通过 R2 写缓存、取消下载和不可达 HTTPS 的两次超时重试/清理探针；宿主 `simctl` 在事后读取容器时因 CoreSimulatorService 拒绝连接不可用，目录级清理证据由上述 Expo 文件系统集成测试保留。
-- [ ] **P1-A03 分层 Resolver**：在 `packages/asset-system` 与移动端本地工作区按当前设备 Catalog → 已验证缓存 → App bundle 基础素材 → 当前 revision CDN 的顺序解析，不把运行时 URI 写入 Draft。
-- [ ] **P1-A04 已保存作品恢复**：清缓存或本地文件缺失后按 stable ID + revision 重新获取；不可用时显示确定错误，绝不替换为不同素材。
-- [ ] **P1-A05 缓存治理**：记录身份、revision、hash、大小、访问时间和校验状态；只回收可重获资源，并保护当前编辑作品和最近作品依赖。
-- [ ] **P1-A06 离线与发布回归**：覆盖新安装、离线、hash 不符、CDN 404、低存储、并发下载和清缓存后编辑/导出；远程 Premium 标记在 P2 前默认拒绝。
+- [x] **P1-A03 1.0 冻结内容目录编译**：从已切割并通过 QA 的审核源生成 `ProductAssetCatalog`，包含 pack/item stable ID、独立 revision、MIME、像素尺寸、字节数、SHA-256、UI category、pack-first metadata、必要的 asset override、capability、bundle/CDN location 与 P1-T00 模板依赖闭包；生产状态未达到 `shipped` 的 sheet/素材不得进入客户端目录。
+  - 验证记录（2026-09-20，2026-09-21 扩充）：运行时范围为 46 个用户可浏览的已上传/在线包、1,142 个可浏览素材对象，以及不在素材列表展示的内部 `template-previews` 包（4 个远端预览）。已生成 staging 与 `shipped` 运行时目录。Catalog 使用稳定 pack ID 与实际 R2 object prefix 的映射，远端 URL 带冻结 pack/item revision 查询参数（当前均为 `?v=1`），避免历史 CDN 缓存返回旧字节；`catalogRevision` 已递增至 `2`，但既有素材的 stable reference revision 保持为 `1`。
+  - 最简远端审计（2026-09-20）：15 个封面和 15 个样本 item 均可访问且 MIME 正确；默认信任上传时本地/远端目录、文件名和数量一致，不进行全包下载比对。四个首发模板的 22 个固定素材与 4 个预览均通过远端 SHA-256 校验；预览另验证了 PNG MIME、字节数和像素尺寸。`hudiejie/items/13.png`、`jiaodai/items/29.png`、`jiaodai/items/31.png` 曾有旧 CDN 缓存，现以 `?v=1` 命中冻结字节。
+  - 后续发布策略：以首发用户价值为范围，不让未上线、未被模板引用的素材包阻塞当前工作。常规新增包由内容负责人确认上传目录/名称/数量一致后，只检查封面和一个样本 item；模板预览与固定依赖仍做完整远端校验；客户端继续在实际下载时执行完整性校验。只有路径/revision 变更、缓存/上传事故或明确冻结审计时才全包下载比对。
+- [x] **P1-A04 分层 Resolver**：在 `packages/asset-system` 与移动端本地工作区按当前设备本地 Catalog → 已验证远端缓存 → App bundle 素材 → 当前 revision CDN 的顺序解析，不把运行时 URI 写入 Draft；用户资源 Catalog 与产品素材目录保持分离。
+  - 验证记录（2026-09-20，2026-09-21）：严格 Resolver 只接受 shipped Catalog 的精确 stable reference，并按已验证缓存 → 可选 bundle → 下载后验证缓存的次序返回本地 URI；测试覆盖 cache → bundle → CDN、拒绝 staged Catalog 与未知 revision。素材库和编辑器抽屉从 46 个可见 shipped 包（加本地 procedural controls）读取：13 个新增/已冻结包与内部模板预览包使用严格 Resolver；33 个历史小程序包（含 `jiaodai`、`hudiejie`）使用兼容缓存，只检查 HTTPS 成功响应与 PNG/JPEG MIME 后落盘，不参与 hash 比对，且不得作为模板固定依赖。模拟器启动曾暴露少数源文件名含空格、括号或下划线，被错误直接用作 asset ID；编译器现将其规范化为合法稳定 ID，R2 object 名和 URL 不变。全 Catalog stable-reference 验证为 0 个异常；`npm run typecheck --workspace @journalcollage/asset-system`、`npm run typecheck --workspace mobile`、`npm run test:remote-assets --workspace mobile` 均通过（7/7）。
+  - 历史小程序包最小校验（2026-09-21）：按素材整理表第 19–20 页及既有小程序配置，`/packs/{pack-id}/pack-sheet.jpg` 与 `/items/1.png` 对 33 个历史包均返回 `200` 和正确图片 MIME；`zhenzhi01` 使用例外封面 `pack-sheet.png`，封面与样本也均正常。`papers` 不在小程序使用范围且两个端点均为 `404`，不纳入候选。未做逐对象下载或远端 hash 审计。下一步可直接利用同名本地审核源生成这些包的 hash manifest，并将与当前 15 包重叠的 `jiaodai`、`hudiejie`、`zhenzhi01` 去重后接入 shipped Catalog。
+- [x] **P1-A05 已保存作品恢复**：清缓存或本地文件缺失后按 stable ID + revision 重新获取；不可用时显示确定错误，绝不替换为不同素材；首发模板依赖素材使用相同解析路径。
+  - 验证记录（2026-09-21）：恢复已保存作品时只枚举 Draft 实际使用的 image/material 图层与画布背景引用，按最多 3 个并行恢复；现有本地文件直接复用。严格包经 Resolver 恢复，历史兼容包只经 HTTPS + PNG/JPEG MIME 缓存恢复。失败不改变 Draft、图层几何或素材引用；编辑器显示持久的“素材不可用 · Retry”入口。自动化回归覆盖 strict 与 compatibility 素材恢复、失败后 Draft/catalog 不被替换或写入；`npm run test:remote-assets --workspace mobile` 通过（9/9）。首期不实现后台重试队列、整包预取或离线下载管理。
+- [ ] **P1-A06 缓存治理**：记录身份、revision、hash、大小、访问时间和校验状态；只回收可重获资源，并保护当前编辑作品、最近作品和正在实例化的模板依赖。
+  - 当前进度（2026-09-21）：严格 Resolver 缓存记录 descriptor、hash、字节数、验证时间与 `lastAccessedAt`；兼容缓存沿用 source/访问时间索引。My Studio 统计已合并两类缓存，“Clear cache” 会同时清除两者且不触碰用户文件、作品或导出。以 250 MB 为保守上限，在进入 My Studio 和显式保存作品后按 LRU 回收可重新获取的资源；当前保存作品和最近保存作品的素材引用不回收。自动化回归覆盖严格缓存的大小统计、受保护引用和 LRU 删除。素材列表/详情的可视区域虚拟化与下一屏预取仍见下项，尚未实施。
+  - 素材浏览性能：将素材包封面列表与包详情从 `ScrollView + map` 收敛为可视区域虚拟列表；只在项目进入或接近视区时请求封面/素材，最多预取下一屏少量项目。不得因打开一个大素材包而下载整包预览；已命中内存/磁盘缓存的项目不重复请求。
+- [ ] **P1-A07 离线与发布回归**：覆盖新安装、离线、hash 不符、CDN 404、低存储、并发下载、模板依赖闭包和清缓存后编辑/导出；远程 Premium 标记在 P2 前默认拒绝。
 
 #### 完成标准
 
 - 1.0 冻结目录中的素材在正常、离线和 CDN 故障场景都有确定解析或可理解错误；
 - 缓存清理后，引用远端素材的已保存作品能按 stable ID + revision 重新解析、编辑和导出，或显示可理解且不替换内容的错误；
+- 首发模板引用的全部素材、字体和效果都存在于验证过的依赖闭包，模板依赖不会因普通目录隐藏而失效；
 - 远端目录不授予付费权益，也不承担用户数据、账号、备份或同步职责。
 
 #### 阶段门 G1-A
 
-在 Expo / React Native iOS 真机验证离线兜底、hash/404 失败、缓存清理后旧作品恢复和 Premium 默认拒绝后，才可在 `1.0` 中发布远程素材。G1-A 是 P1-06 和 G1 的前置条件。
+在 Expo / React Native iOS 真机验证离线兜底、hash/404 失败、缓存清理后旧作品恢复、首发模板依赖闭包和 Premium 默认拒绝后，才可在 `1.0` 中发布远程素材。G1-A 是 P1-T01、P1-06 和 G1 的前置条件。
+
+### P1-T：1.0 创作页本地配方模板
+
+#### 目标
+
+在新架构的创作页/再创作页面提供随 App bundle 发布的基础模板和预设计模板。模板用于生成普通、可继续编辑的 Draft；它不是首页运营 manifest，也不建立独立渲染器。1.0 先迁移并验证小程序端确认的一期两个基础模板，再接入从已完成配方作品筛选出的少量预设计模板。
+
+#### 非目标
+
+- 不在 1.0 免发版新增、修改或下架模板；
+- 不在客户端运行生产侧 Recipe metadata query、自动选素材或生成构图；
+- 不实现动态玩法、时间轴、远端脚本或任意业务逻辑；
+- 不把首页 showcase 的 effect/background intent 当作模板模型；
+- 不承诺尚未稳定的自动人物抠图、派生裁切、subject-aware annotation 或 Recipe shuffle。
+
+#### 前置依赖
+
+- P1-T00 与 G1-A 已通过；
+- 首发模板使用的素材、字体和效果已经进入 1.0 冻结内容目录；
+- 候选模板已通过成品质量和照片替换可用性审核。
+
+#### 待办
+
+- [ ] **P1-T01 模板 Schema**：在共享包定义版本化 `TemplateDefinition`，覆盖 canvas、照片/文字槽位、固定与可选图层、稳定引用、初始 crop/transform/opacity/z-order/effects、依赖闭包、预览、`requiredCapabilities`、状态和严格未知字段策略。
+- [ ] **P1-T02 Recipe 编译器**：在构建工具中把审核通过的生产侧 Recipe/Template Instance 编译为确定性模板记录；metadata query 只在构建时解析，客户端只接收具体引用和参数；编译拒绝缺失依赖、未发布素材和不支持能力。
+- [ ] **P1-T03 模板实例化**：实现 TemplateDefinition → 新 Draft，生成新的 project/layer identity，不保存 CDN URL、bundle path 或模板运行时对象；实例化后的作品可脱离模板目录独立保存和恢复。
+- [ ] **P1-T04 模板替换语义**：实现照片和文字槽位替换，保留模板规定的 crop/mask/effects/z-order/safe area；明确同源派生、多照片独立槽位、固定装饰层和可选层的首版支持边界。
+- [ ] **P1-T05 创作页本地模板目录与预览**：在创作页/再创作入口展示随包 TemplateCatalog、模板卡片、预览和基础分组；首页可链接到模板入口或展示成品，但运营 manifest 不承载模板定义。
+- [ ] **P1-T06 模板能力门控**：只展示当前 App schema、Renderer、effect 和编辑能力完整支持的模板；不支持模板确定隐藏或拒绝，不能静默降级为不同构图。
+- [ ] **P1-T07 模板资产依赖校验**：构建时验证每个素材、字体、效果及其 revision/hash；首发模板的完整依赖必须具备 bundle 可用副本，避免首次使用或离线时依赖网络。
+- [ ] **P1-T08 模板完整验收**：覆盖常见照片比例、横竖图、文字长度、人脸/主体遮挡、模板实例化、替换、保存、重启、清缓存、离线、缩略图和导出渲染一致性。
+- [ ] **P1-T09 首发模板筛选与编排**：先保证两个基础模板迁移正确，再从已完成配方模板中筛选能力匹配、替换后仍成立的少量预设计模板；其余作为 benchmark、运营预览或后续能力候选，不因已有成品图直接上线。
+- [ ] **P1-T10 模板发布验证**：在 Expo / React Native iOS 真机逐个验证首发模板入口、预览、实例化、替换、编辑、保存、恢复和导出，并确认 Release 构建不包含开发验收面板或未发布模板。
+
+#### 完成标准
+
+- 配方模板从创作页进入并生成可编辑 Draft，不依赖首页运营配置；
+- 两个基础模板与筛选后的预设计模板在离线首开时可用；
+- 模板实例化后按普通作品保存、恢复和导出，不因模板目录变化失效；
+- 模板只使用当前 App 支持的声明式图层与效果，不执行远端代码或动态业务逻辑。
+
+#### 阶段门 G1-T
+
+P1-T01 至 P1-T10、首发模板依赖闭包、真机逐模板替换及离线保存/恢复/导出全部通过后，才能把配方模板纳入 `1.0`。G1-T 与 G1-A 均是 G1 的前置条件。
 
 ### 待办
 
@@ -153,7 +224,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 - [ ] **P1-03 本地存储说明**：加入 `Saved on This Device` 语义及中英文文案。
 - [ ] **P1-04 草稿操作**：支持打开、重命名、删除；破坏性操作使用 iOS 确认并保持 Android 可移植性。
 - [ ] **P1-05 引用安全删除**：删除草稿时只回收无引用用户资源，不删除其他作品或当前工作区依赖。
-- [ ] **P1-06 缓存统计与清理**：在 P1-A05 完成后，只统计、清理可重新下载内容；清理后通过稳定引用重新获取，且不破坏已保存作品。
+- [ ] **P1-06 缓存统计与清理**：在 P1-A06 完成后，只统计、清理可重新下载内容；清理后通过稳定引用重新获取，且不破坏已保存作品或已实例化模板。
 - [ ] **P1-07 导出文件边界**：App 内导出副本与系统相册文件分离，文案准确说明清理范围。
 - [ ] **P1-08 Support ID 位置**：预留可复制的非秘密支持标识和正式支持渠道。
 - [ ] **P1-09 生命周期测试**：覆盖重启、升级、低存储、保存上限、删除和缓存清理。
@@ -168,7 +239,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 ### 阶段门 G1
 
-G1-A、真实草稿与资源删除回归测试均通过后，才能开始在 My Studio 接入订阅状态和付费入口。
+G1-A、G1-T、真实草稿与资源删除回归测试均通过后，才能开始在 My Studio 接入订阅状态和付费入口。
 
 ## 5. P2：订阅权益抽象
 
@@ -255,29 +326,32 @@ Fake 适配器覆盖完整状态矩阵并通过测试后，才接入真实订阅
 
 P3-01 至 P3-14、订阅 Sandbox 矩阵、真实 iOS 设备 App Attest 和成本熔断演练全部通过后，才能发布含订阅与 AIGC 的 `1.0`。
 
-## 7. P1-B：远端素材动态发布平台（`1.x`）
+## 7. P1-B：远端内容动态发布平台（`1.x`）
 
 ### 目标
 
-在 Expo / React Native `1.0` 稳定发布后，支持素材包免发版新增、修改、隐藏、恢复与回滚，不改变 Draft 的 stable ID + revision 契约，也不承担账号、权益或用户数据职责。
+在 Expo / React Native `1.0` 稳定发布后，先支持素材包，再支持与旧 App 能力兼容的声明式模板免发版新增、修改、隐藏、恢复与回滚；不改变 Draft 的 stable ID + revision 契约，也不承担账号、权益或用户数据职责。动态模板仍是创作页功能，首页运营配置只可引用其入口或预览。
 
 ### 前置依赖
 
-- G3 已通过且 1.0 已发布；P1-A 的下载、缓存与历史作品恢复已在生产环境稳定。
+- G3 已通过且 1.0 已发布；P1-A 的下载、缓存与历史作品恢复以及 P1-T 的本地模板实例化已在生产环境稳定。
 
 ### 待办
 
-- [ ] **P1-B01 动态目录 schema**：冻结 `manifest.json`、`pack.json`、状态、schemaVersion、revision、hash、兼容期和未知版本回退策略。
-- [ ] **P1-B02 发布工具链**：从审核源生成单包清单、尺寸、hash 和全量索引，拒绝重复 ID、缺失资源、非法路径及未提升 revision 的不兼容变更。
+- [ ] **P1-B01 动态素材目录 schema**：冻结 `manifest.json`、`pack.json`、状态、schemaVersion、revision、hash、兼容期和未知版本回退策略。
+- [ ] **P1-B02 素材发布工具链**：从审核源生成单包清单、尺寸、hash 和全量索引，拒绝重复 ID、缺失资源、非法路径及未提升 revision 的不兼容变更。
 - [ ] **P1-B03 环境与回滚**：建立 staging/production CDN 根地址、缓存头、ETag、不可变 manifest 历史、发布前验证和一键回滚步骤。
-- [ ] **P1-B04 增量目录 Provider**：在 `apps/mobile` 启动时先用 App bundle/验证缓存，后台条件请求目录并只合并通过校验的变更包；共享 pack 映射通过 `packages/asset-system` 暴露，不实现 Swift 平行目录。
+- [ ] **P1-B04 增量素材目录 Provider**：在 `apps/mobile` 启动时先用 App bundle/验证缓存，后台条件请求目录并只合并通过校验的变更包；共享 pack 映射通过 `packages/asset-system` 暴露，不实现 Swift 平行目录。
 - [ ] **P1-B05 上下架与历史兼容**：hidden/retired 不再向新用户展示；兼容保留期内继续提供历史 revision，旧作品不得静默替换素材。
 - [ ] **P1-B06 状态与观测**：提供更新、离线、失败、不可用和手动重试状态；记录匿名刷新、下载、校验和错误指标，不记录作品内容。
-- [ ] **P1-B07 发布演练**：覆盖 304、schema 升级、包更新、上下架、manifest 回滚和旧 App/旧作品兼容，并完成真机免发版可见验证。
+- [ ] **P1-B07 素材发布演练**：覆盖 304、schema 升级、包更新、上下架、manifest 回滚和旧 App/旧作品兼容，并完成真机免发版可见验证。
+- [ ] **P1-B08 动态模板目录 schema**：在素材动态目录稳定后，为模板增加独立 manifest，定义 templateRevision、preview hash、依赖闭包、`minAppVersion`、`requiredCapabilities`、hidden/retired、历史保留和未知 schema 回退；禁止脚本和远端业务逻辑。
+- [ ] **P1-B09 动态模板发布与门控**：复用 P1-T 编译器生成声明式模板，发布前验证全部依赖与客户端能力；旧 App 自动忽略不兼容模板，已实例化作品不依赖模板继续在线。
+- [ ] **P1-B10 动态模板回滚演练**：覆盖新增、修改、隐藏、旧 revision 保留、依赖素材下架冲突、manifest 回滚、旧 App 兼容和真机创作页免发版可见验证。
 
 ### 阶段门 G1-B
 
-staging/production 发布与回滚演练、旧 Expo App/旧作品兼容和 React Native iOS 真机免发版更新全部通过后，才能把动态目录作为 `1.x` 用户能力发布。P1-B 不阻塞 P4 的方案设计，但 G1-B 通过后才进入 P4 实施；账号和云备份不得假设未通过 G1-B 的动态素材可永久解析。
+staging/production 发布与回滚演练、旧 Expo App/旧作品兼容和 React Native iOS 真机免发版更新全部通过后，才能把相应动态目录作为 `1.x` 用户能力发布。P1-B01～P1-B07 可先发布动态素材，P1-B08～P1-B10 通过后再发布动态模板。P1-B 不阻塞 P4 的方案设计，但 G1-B 通过后才进入 P4 实施；账号和云备份不得假设未通过 G1-B 的动态内容可永久解析。
 
 ## 8. P4：显式账号与身份链接
 

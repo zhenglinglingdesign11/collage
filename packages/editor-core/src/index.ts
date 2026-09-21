@@ -9,4 +9,5 @@ export * from './migrations';
 export * from './portableProject';
 export * from './selection';
 export * from './straightCut';
+export * from './template';
 export * from './validation';

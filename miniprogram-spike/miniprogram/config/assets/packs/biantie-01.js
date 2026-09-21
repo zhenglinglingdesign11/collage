@@ -1,7 +1,7 @@
 module.exports = {
   id: "biantie-01",
   name: "Biantie 01",
-  category: "便签",
+  category: "贴纸",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/biantie-01",
   cover: "pack-sheet.jpg",

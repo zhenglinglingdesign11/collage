@@ -3,6 +3,7 @@ import type { AssetReference } from '@journalcollage/editor-core';
 export * from './brushes';
 export * from './colors';
 export * from './remoteAssetIntegrity';
+export * from './productAssetResolver';
 
 // Font metadata is product catalog data, not editor-document data.  The
 // mini-program remains the single source for the CDN file names and families.
@@ -114,6 +115,8 @@ export type RemoteAssetPack = Readonly<{
   name: string;
   category: Exclude<AssetPackCategory, 'recommended'>;
   cover: string;
+  /** Shipped catalog covers resolve through the integrity-checked product resolver. */
+  coverReference?: AssetReference;
   items: readonly RemotePackItem[];
   /** Native clients draw these previews instead of asking Image to decode SVG data URIs. */
   proceduralPreview?: 'solid-paper' | 'polka-paper' | 'grid-paper' | 'basic-shape' | 'material-shape';

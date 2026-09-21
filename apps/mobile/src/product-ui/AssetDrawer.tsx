@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
-import { colorsFor, recommendedRemoteAssetPackIds, remoteAssetPacks, type AssetPackCategory, type ProceduralSticker, type ProductColorTarget, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
+import { colorsFor, recommendedRemoteAssetPackIds, type AssetPackCategory, type ProceduralSticker, type ProductColorTarget, type RemoteAssetPack, type RemotePackItem } from '@journalcollage/asset-system';
+import { shippedProductMaterialPacks } from '../shippedProductAssetCatalog';
 import { productColor } from './tokens';
 import { CachedProceduralStickerPreview, ProceduralItemPreview, ProceduralPackPreview } from './ProceduralMaterialPreview';
 import { CachedRemoteImage } from './CachedRemoteImage';
@@ -29,7 +30,7 @@ const basicShapeTextures = [
 ] as const;
 type BasicShapeCustom = ProceduralSticker;
 
-export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = remoteAssetPacks }: Readonly<{
+export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = shippedProductMaterialPacks }: Readonly<{
   initialCustomPolkaPaper?: boolean;
   onAddItem: (item: RemotePackItem) => void;
   onAddCustomPolkaPaper: (paper: PolkaCustom) => void;
@@ -87,14 +88,14 @@ export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddC
           <View style={styles.packGrid}>
             {packRows.map((row, rowIndex) => <View key={`pack-row-${rowIndex}`} style={styles.packRow}>
               {row.map((pack) => <Pressable key={pack.id} accessibilityLabel={pack.name} onPress={() => setActivePack(pack)} style={styles.packTile}>
-                {pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} source={pack.cover} style={styles.packCover} />}
+                {pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}
               </Pressable>)}
             </View>)}
           </View>
         </ScrollView>
       </> : <ScrollView contentContainerStyle={styles.itemGrid} showsVerticalScrollIndicator={false}>
         {activePack.items.map((item) => <Pressable key={item.id} accessibilityLabel={item.action ? 'Customize material' : `Add ${item.id}`} onPress={() => item.action === 'custom-solid-paper' ? setCustomSolidPaper(true) : item.action === 'custom-polka-paper' ? setCustomPolkaPaper(true) : item.action === 'custom-basic-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#f4b8c4', textureSource: undefined })), setCustomBasicShape(false)) : item.action === 'custom-material-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#FFFFFF', strokeColor: undefined, strokeWidth: 0, textureSource: value.textureSource ?? basicShapeTextures[0] })), setCustomBasicShape(true)) : onAddItem(item)} style={styles.itemTile}>
-          {item.action ? <View style={styles.customEntry}><Text style={styles.customEntryPlus}>+</Text><Text style={styles.customEntryLabel}>Custom</Text></View> : item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} source={item.source} style={styles.itemImage} />}
+          {item.action ? <View style={styles.customEntry}><Text style={styles.customEntryPlus}>+</Text><Text style={styles.customEntryLabel}>Custom</Text></View> : item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
         </Pressable>)}
       </ScrollView>}
     </View>

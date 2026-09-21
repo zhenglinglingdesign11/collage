@@ -1,7 +1,7 @@
 module.exports = {
   id: "fugu-03",
   name: "Fugu 03",
-  category: "主题混装",
+  category: "贴纸",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/fugu-03",
   cover: "pack-sheet.jpg",

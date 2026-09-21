@@ -1,8 +1,8 @@
 module.exports = {
   id: "jiaodai",
-  name: "胶带",
-  category: "胶带",
-  tone: "#f5f3ee",
+  name: "Jiaodai",
+  category: "贴纸",
+  tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/jiaodai",
   cover: "pack-sheet.jpg",
   items: [

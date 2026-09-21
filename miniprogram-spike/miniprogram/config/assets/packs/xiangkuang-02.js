@@ -1,7 +1,7 @@
 module.exports = {
   id: "xiangkuang-02",
   name: "Xiangkuang 02",
-  category: "相框",
+  category: "贴纸",
   tone: "#f5f4f1",
   baseUrl: "https://assets.zllarchi.site/packs/xiangkuang-02",
   cover: "pack-sheet.jpg",

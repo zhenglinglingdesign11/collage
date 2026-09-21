@@ -6,6 +6,6 @@
   "types": "src/index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "tsc --noEmit false --outDir /private/tmp/journal-collage-editor-core-tests --rootDir src --module node16 --moduleResolution node16 && node --test test/commands.regression.test.js"
+    "test": "tsc --noEmit false --outDir /private/tmp/journal-collage-editor-core-tests --rootDir src --module node16 --moduleResolution node16 && node --test test/*.test.js"
   }
 }

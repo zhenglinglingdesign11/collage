@@ -33,6 +33,7 @@ const legacyFileSystem = {
     try { const stat = fs.statSync(uriPath(uri)); return { exists: true, isDirectory: stat.isDirectory(), size: stat.size }; }
     catch { return { exists: false, isDirectory: false }; }
   },
+  async readDirectoryAsync(uri) { try { return fs.readdirSync(uriPath(uri)); } catch { return []; } },
   async readAsStringAsync(uri, options) { return fs.readFileSync(uriPath(uri), options?.encoding === 'base64' ? 'base64' : 'utf8'); },
   async writeAsStringAsync(uri, value, options) { fs.mkdirSync(path.dirname(uriPath(uri)), { recursive: true }); fs.writeFileSync(uriPath(uri), value, options?.encoding === 'base64' ? 'base64' : 'utf8'); },
   async moveAsync({ from, to }) { fs.mkdirSync(path.dirname(uriPath(to)), { recursive: true }); fs.renameSync(uriPath(from), uriPath(to)); },
@@ -48,13 +49,15 @@ const core = { sha256HexForBytes: (bytes) => crypto.createHash('sha256').update(
 let integrity;
 Module._load = function remoteAssetTestLoad(request, parent, isMain) {
   if (request === '@journalcollage/editor-core') return core;
-  if (request === '@journalcollage/asset-system') return integrity;
+  if (request === '@journalcollage/asset-system') return { ...integrity, remoteAssetPacks: [], upsertAsset: (catalog, record) => ({ ...catalog, assets: [...catalog.assets.filter((asset) => asset.reference.id !== record.reference.id), record] }) };
   if (request === 'expo-file-system/legacy') return legacyFileSystem;
+  if (request === 'expo-file-system') return { File: class File {} };
   return originalLoad.call(this, request, parent, isMain);
 };
 
 integrity = require(`${outputRoot}/packages/asset-system/src/remoteAssetIntegrity.js`);
-const { cacheVerifiedRemoteAsset } = require(`${outputRoot}/apps/mobile/src/verifiedRemoteAssetCache.js`);
+const { cacheVerifiedRemoteAsset, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } = require(`${outputRoot}/apps/mobile/src/verifiedRemoteAssetCache.js`);
+const { createProductAssetResolver } = require(`${outputRoot}/packages/asset-system/src/productAssetResolver.js`);
 
 const descriptor = {
   reference: { id: 'asset://pack/zhenzhi01/1', kind: 'image', revision: '1' },
@@ -65,6 +68,81 @@ const descriptor = {
   pixelSize: { width: 224, height: 242 },
   sourceUrl: 'https://assets.example.test/packs/zhenzhi01/items/1.png',
 };
+const shippedProductCatalogStub = {
+  shippedProductAssetCatalog: { packs: [] },
+  isShippedProductAssetReference: (reference) => reference.id === descriptor.reference.id,
+  isCompatibilityProductAssetReference: (reference) => /^asset:\/\/pack\/blue-01\/[12]$/.test(reference.id),
+  productCatalogAssetForReference: (reference) => /^asset:\/\/pack\/blue-01\/[12]$/.test(reference.id) ? { ...descriptor, reference } : descriptor,
+  shippedProductAssetResolver: { resolve: async () => ({ uri: await cacheVerifiedRemoteAsset(descriptor), source: 'cdn' }) },
+};
+const originalProductLoad = Module._load;
+Module._load = function productRecoveryTestLoad(request, parent, isMain) {
+  if (request === './shippedProductAssetCatalog') return shippedProductCatalogStub;
+  return originalProductLoad.call(this, request, parent, isMain);
+};
+const { recoverWorkspaceProductAssets } = require(`${outputRoot}/apps/mobile/src/localWorkspace.js`);
+
+test('P1-A04 resolves a shipped asset from cache, then bundle, then verified CDN', async () => {
+  const cover = { ...descriptor, reference: { ...descriptor.reference, id: 'asset://pack/zhenzhi01/cover' } };
+  const catalog = { releaseState: 'shipped', packs: [{ id: 'zhenzhi01', revision: '1', status: 'shipped', cover, items: [descriptor] }] };
+  const calls = [];
+  const adapter = {
+    findVerifiedCachedAsset: async () => { calls.push('cache'); return null; },
+    findVerifiedBundledAsset: async () => { calls.push('bundle'); return null; },
+    downloadAndCacheAsset: async () => { calls.push('cdn'); return 'file:///cache/asset.png'; },
+  };
+  const resolver = createProductAssetResolver(catalog, adapter);
+  const fromCdn = await resolver.resolve(descriptor.reference);
+  assert.deepEqual(calls, ['cache', 'bundle', 'cdn']);
+  assert.deepEqual(fromCdn, { uri: 'file:///cache/asset.png', source: 'cdn' });
+
+  calls.length = 0;
+  adapter.findVerifiedCachedAsset = async () => { calls.push('cache'); return 'file:///cache/hit.png'; };
+  const fromCache = await resolver.resolve(descriptor.reference);
+  assert.deepEqual(calls, ['cache']);
+  assert.equal(fromCache.source, 'verified-cache');
+});
+
+test('P1-A04 rejects staged catalogs and unknown stable references', async () => {
+  const adapter = { findVerifiedCachedAsset: async () => null, findVerifiedBundledAsset: async () => null, downloadAndCacheAsset: async () => 'file:///unused.png' };
+  const cover = { ...descriptor, reference: { ...descriptor.reference, id: 'asset://pack/zhenzhi01/cover' } };
+  assert.throws(() => createProductAssetResolver({ releaseState: 'staged', packs: [{ id: 'zhenzhi01', revision: '1', status: 'staged', cover, items: [descriptor] }] }, adapter), (error) => error.code === 'asset-reference-invalid');
+  const resolver = createProductAssetResolver({ releaseState: 'shipped', packs: [{ id: 'zhenzhi01', revision: '1', status: 'shipped', cover, items: [descriptor] }] }, adapter);
+  await assert.rejects(resolver.resolve({ ...descriptor.reference, id: 'asset://pack/zhenzhi01/missing' }), (error) => error.code === 'asset-reference-invalid');
+});
+
+test('P1-A05 restores only a saved Draft\'s missing strict and compatibility materials', async () => {
+  resetFixture();
+  const strict = descriptor.reference;
+  const compatibility = { id: 'asset://pack/blue-01/2', kind: 'image', revision: '1' };
+  const workspace = {
+    draft: { id: 'saved-work', canvas: { size: { width: 100, height: 100 }, background: '#fff', backgroundAsset: compatibility }, layers: [{ id: 'strict-layer', type: 'image', asset: strict }], createdAt: '2026-09-21T00:00:00.000Z' },
+    catalog: { version: 1, assets: [] },
+  };
+  const restored = await recoverWorkspaceProductAssets(workspace);
+  assert.equal(restored.failures.length, 0);
+  assert.equal(restored.workspace.catalog.assets.length, 2);
+  assert.equal(downloads, 2);
+  assert.deepEqual(restored.workspace.draft, workspace.draft);
+});
+
+test('P1-A05 keeps the Draft unchanged when a compatibility material cannot be restored', async () => {
+  resetFixture();
+  downloadPlan = async (_source, uri) => {
+    fs.mkdirSync(path.dirname(uriPath(uri)), { recursive: true });
+    fs.writeFileSync(uriPath(uri), 'not an image');
+    return { uri, status: 404, headers: { 'content-type': 'text/plain' } };
+  };
+  const compatibility = { id: 'asset://pack/blue-01/1', kind: 'image', revision: '1' };
+  const workspace = {
+    draft: { id: 'missing-material', canvas: { size: { width: 100, height: 100 }, background: '#fff' }, layers: [{ id: 'legacy-layer', type: 'image', asset: compatibility }], createdAt: '2026-09-21T00:00:00.000Z' },
+    catalog: { version: 1, assets: [] },
+  };
+  const restored = await recoverWorkspaceProductAssets(workspace);
+  assert.equal(restored.failures.length, 1);
+  assert.equal(restored.workspace.catalog.assets.length, 0);
+  assert.deepEqual(restored.workspace.draft, workspace.draft);
+});
 
 test('zhenzhi01 validates compressed bytes and rejects a tampered hash', () => {
   integrity.validateRemoteAssetDownload(descriptor, { bytes: new Uint8Array(image), mimeType: 'image/png' });
@@ -81,6 +159,17 @@ test('Expo adapter stages, verifies, atomically promotes, and deduplicates zhenz
   assert.deepEqual(fs.readFileSync(uriPath(first)), image);
   assert.equal(fs.existsSync(path.join(path.dirname(uriPath(first)), 'record.json')), true);
   assert.equal(downloads, 1);
+});
+
+test('P1-A06 records strict-cache usage and preserves protected entries during LRU pruning', async () => {
+  resetFixture();
+  await cacheVerifiedRemoteAsset(descriptor);
+  assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: image.length, files: 1 });
+  const protectedKey = `${descriptor.reference.id}\u0000${descriptor.reference.kind}\u0000${descriptor.reference.revision}`;
+  await pruneVerifiedRemoteAssetCache(0, new Set([protectedKey]));
+  assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: image.length, files: 1 });
+  await pruneVerifiedRemoteAssetCache(0, new Set());
+  assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: 0, files: 0 });
 });
 
 test('Expo adapter retries a transient network failure and removes its first staging directory', async () => {

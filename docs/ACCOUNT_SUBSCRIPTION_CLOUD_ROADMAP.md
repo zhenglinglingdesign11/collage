@@ -1,7 +1,7 @@
 # JournalCollage 账号、订阅与云端作品路线
 
 > 状态：后续实施基线
-> 更新日期：2026-09-15
+> 更新日期：2026-09-19
 > 适用范围：Expo + React Native iOS 首发、后续 Android，以及与 RevenueCat、Supabase、Cloudflare R2 相关的产品与服务端实现。
 > 执行计划：`ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md`
 > 关联文档：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`。
@@ -17,6 +17,7 @@ JournalCollage 采用本地优先路线：
 5. 账号与云备份作为同一后续阶段上线，账号第一批方式为 Sign in with Apple 与 Email OTP。
 6. 云备份稳定后再开放跨设备恢复；自动跨设备同步与冲突管理再作为独立阶段上线。
 7. `1.0` 必须完成未来迁移需要的稳定作品 ID、资源 ID、文档版本、Portable Project 和 entitlement 抽象，避免发布后重构作品格式与订阅身份。
+8. `1.0` 的配方模板是创作页/再创作页面的本地核心功能：模板定义随 App bundle 发布并实例化为普通可编辑 Draft；首页运营配置只负责展示和入口，不承载模板定义。模板免发版更新留到 P1-B 的后半阶段。
 
 产品承诺必须与实际能力一致：本地作品不得使用 `Backed up`、`Synced` 或 `Available on all devices`；只有服务端确认提交成功的版本才能显示云备份完成。
 
@@ -24,7 +25,7 @@ JournalCollage 采用本地优先路线：
 
 | 阶段 | 核心目标 | 账号 | 作品存储 | 订阅身份 |
 | --- | --- | --- | --- | --- |
-| `1.0` | 稳定发布核心创作闭环 | 无显式登录；后台匿名身份 | 本地工作区与本地草稿 | Supabase Anonymous User ID |
+| `1.0` | 稳定发布核心创作闭环、随包配方模板与可靠素材恢复 | 无显式登录；后台匿名身份 | 本地工作区与本地草稿 | Supabase Anonymous User ID |
 | `1.1` | 完善本地作品与存储管理 | 无显式登录；后台匿名身份 | 本地、可移植导入/重建验证 | Supabase Anonymous User ID |
 | `1.2` | 上线账号与云备份 | Apple + Email OTP，可选登录 | 本地优先、云端备份 | 匿名 ID 迁移到 Supabase user ID |
 | `1.3` | 跨设备恢复 | 可选登录 | 云端列表、按需恢复 | 账号权益 |
@@ -161,7 +162,7 @@ Draft 引用稳定 `assetId`，Asset Catalog 在运行时将其解析为当前�
 4. 删除用户资源必须基于全局引用检查，而不是目录、文件名或最近一次访问时间。
 5. 远程素材的下线、权限变化或 revision 不兼容是可预期的恢复失败，必须暴露可理解的错误状态，不能替换为不同素材。
 
-当前实现已将运营 manifest、封面和远程预览放在可清缓存边界，也把用户导入照片放在独立 `assets/` 目录。已知缺口是：清空 `remote-cache/` 后，已保存作品内的部分远程素材 Catalog 记录仍持有过期的本地 URI；P1-A04 负责按稳定引用与精确 revision 恢复作品依赖，P1-06 负责缓存统计与用户清理流程。两项均通过后，才能宣称“清理缓存后所有作品仍可立即打开并导出”。该缺口不改变本契约，也不允许将远程素材缓存误标为用户资源。
+当前实现已将运营 manifest、封面和远程预览放在可清缓存边界，也把用户导入照片放在独立 `assets/` 目录。已知缺口是：清空 `remote-cache/` 后，已保存作品内的部分远程素材 Catalog 记录仍持有过期的本地 URI；P1-A05 负责按稳定引用与精确 revision 恢复作品依赖，P1-06 负责缓存统计与用户清理流程。两项均通过后，才能宣称“清理缓存后所有作品仍可立即打开并导出”。该缺口不改变本契约，也不允许将远程素材缓存误标为用户资源。
 
 ### 4.7 P0-03 稳定身份审计记录（2026-09-14）
 
@@ -514,12 +515,18 @@ users/{userId}/projects/{projectId}/thumbnails/{revision}.jpg
 
 ## 16. 实施顺序与阶段门
 
-本节只表达总依赖。具体 P0–P7（包括 P1-A 与 P1-B）工作包、编号待办、完成标准、测试与阻塞条件，以 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 为执行基线；下方 S0–S9 保留为 P3 的摘要，不替代完整执行清单。
+本节只表达总依赖。具体 P0–P7（包括 P1-A、P1-T 与 P1-B）工作包、编号待办、完成标准、测试与阻塞条件，以 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 为执行基线；下方 S0–S9 保留为 P3 的摘要，不替代完整执行清单。
 
 ```text
 完善本地草稿和资源生命周期
     ↓
 定义并验证 Portable Project
+    ↓
+冻结创作页模板最小契约与依赖规则（P1-T00）
+    ↓
+编译 1.0 冻结内容目录，完成 Resolver、恢复、缓存治理与 G1-A
+    ↓
+实现创作页本地配方模板、模板实例化与 G1-T
     ↓
 完善 My Studio 本地作品管理与存储说明
     ↓
@@ -535,7 +542,7 @@ users/{userId}/projects/{projectId}/thumbnails/{revision}.jpg
     ↓
 完成订阅/AIGC 测试并发布 1.0
     ↓
-建设远端素材动态发布、上下架与回滚平台（P1-B）
+建设远端内容动态发布、上下架与回滚平台（P1-B：先素材，后兼容模板）
     ↓
 接入 Apple/Email 显式账号、身份链接与账号删除
     ↓
@@ -563,11 +570,13 @@ users/{userId}/projects/{projectId}/thumbnails/{revision}.jpg
 
 ### 16.2 当前下一步
 
-P0 与 P1-A01 已完成。当前从 P1-A02 开始，只在 Expo / React Native 新架构中按实施计划推进：
+P0、P1-A01 与 P1-A02 已完成。当前只在 Expo / React Native 新架构中按以下顺序推进：
 
-1. 在 `packages/asset-system` 建立平台无关的验证下载策略，并在 `apps/mobile` 接入 Expo 文件系统适配器；
-2. 完成分层 Asset Resolver、已保存作品的精确 revision 恢复和缓存治理；
-3. 通过 P1-A 离线、故障与真机发布回归后，再完成 P1 本地作品管理；
-4. 随后按 P2、P3 与 S0–S9 建立 entitlement、无感身份、匿名订阅及服务端 AIGC 授权底座。
+1. 完成 P1-T00，审计并冻结小程序端要迁移的一期两个基础模板、槽位语义和静态依赖规则；配方模板属于创作页/再创作功能，不属于首页运营配置。
+2. 完成 P1-A03～P1-A07：生成 1.0 冻结内容目录，接入分层 Resolver、精确 revision 恢复、缓存治理，并通过 G1-A。
+3. 完成 P1-T01～P1-T10：先迁移两个基础模板，再接入筛选后的本地预设计模板，并通过 G1-T。
+4. 完成 P1-01～P1-10 本地作品管理并通过 G1。
+5. 随后按 P2、P3 与 S0–S9 建立 entitlement、无感身份、匿名订阅及服务端 AIGC 授权底座。
+6. `1.0` 发布后推进 P1-B：先发布动态素材目录，再在独立兼容验收后发布动态模板目录。
 
-`iosproject` 仅保留为历史行为与算法参考。写入其中的 P1-A 缓存、网络或测试实验不构成阶段交付，也不得作为完成状态或验证证据。
+`iosproject` 仅保留为历史行为与算法参考。写入其中的 P1-A/P1-T 缓存、网络、模板或测试实验不构成阶段交付，也不得作为完成状态或验证证据。

@@ -1,6 +1,6 @@
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { clearDownloadCache, getDownloadCacheSummary, loadSavedDrafts, type DownloadCacheSummary, type SavedDraft } from '../localWorkspace';
+import { clearDownloadCache, getDownloadCacheSummary, loadSavedDrafts, pruneDownloadCache, type DownloadCacheSummary, type SavedDraft } from '../localWorkspace';
 import { RecentDraftArtwork } from './CreateHome';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
@@ -15,7 +15,7 @@ export const MineHome = ({ locale, onOpenDraft }: Readonly<{ locale: ProductLoca
   const [clearing, setClearing] = useState(false);
   const refresh = useCallback(() => {
     void loadSavedDrafts().then(setDrafts).catch(() => setDrafts([]));
-    void getDownloadCacheSummary().then(setCache).catch(() => setCache({ bytes: 0, files: 0 }));
+    void pruneDownloadCache().then(setCache).catch(() => { void getDownloadCacheSummary().then(setCache).catch(() => setCache({ bytes: 0, files: 0 })); });
   }, []);
   useEffect(refresh, [refresh]);
   const requestClear = () => Alert.alert(t(locale, 'mine.clearCacheConfirmTitle'), t(locale, 'mine.clearCacheConfirmBody'), [

@@ -23,6 +23,9 @@ module.exports = {
     ["15.png", 97, 764],
     ["16.png", 86, 764],
     ["17.png", 126, 764],
-    ["18.png", 113, 761]
+    ["18.png", 113, 761],
+    ["foil-frame-01.png", 1024, 1024],
+    ["lace-center-01.png", 1024, 1024],
+    ["lace-doily-frame-transparent.png", 1024, 1024]
   ]
 };

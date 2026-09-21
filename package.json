@@ -11,6 +11,8 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "compile:first-release-catalog": "node scripts/compile-first-release-product-catalog.js",
+    "compile:first-release-runtime-catalog": "node scripts/compile-first-release-product-catalog.js --runtime"
   }
 }

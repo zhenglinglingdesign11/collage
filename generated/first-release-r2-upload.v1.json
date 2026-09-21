@@ -1,0 +1,2659 @@
+{
+  "schemaVersion": 1,
+  "catalogRevision": "2",
+  "uploads": [
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/pack-sheet.jpg",
+      "r2Path": "Candy-Shapes/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 25099,
+      "sha256": "2788abca90b14f22b3dcde3a97420c60692d10a04234af0e13e4a90b05d9c0fc"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/1.png",
+      "r2Path": "Candy-Shapes/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 15830,
+      "sha256": "6ca06518128e5ba521a1def1eb480308ea2a39bd4698e0820bdbde171a6760ab"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/2.png",
+      "r2Path": "Candy-Shapes/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 18598,
+      "sha256": "aef4c68b041158632ff0d48d64740450935e234cf5d3c884a52301ef38c0dc5e"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/3.png",
+      "r2Path": "Candy-Shapes/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 15669,
+      "sha256": "c88c1415df9811d521160e44bd9a6d43944ac800510b4a7ef25918066c26d714"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/4.png",
+      "r2Path": "Candy-Shapes/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 16744,
+      "sha256": "8a115f21798ed6fb7d7d4197365d5bd598848a93dc1b8ba2e675ca7c57c676eb"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/5.png",
+      "r2Path": "Candy-Shapes/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 14378,
+      "sha256": "aac98c2f050c8098e9d8f4ea20c5fffe8410a0edda1092b4d90be003bcb26d3b"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/6.png",
+      "r2Path": "Candy-Shapes/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 19897,
+      "sha256": "0dfc83ac12e99dbd90a01ba385e97fdbfbda93082ffc0fff7d05abbadecc0b1b"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/8.png",
+      "r2Path": "Candy-Shapes/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 6673,
+      "sha256": "09d555d23c27cacc69d2cef6a73b941b93f01078a820f689c9b3f1cb91a56e9c"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/9.png",
+      "r2Path": "Candy-Shapes/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 7886,
+      "sha256": "485c3216f8e8f4c705ca131511f4cbeb24af1576e0ec3ff3fb44d83909bf98b2"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/10.png",
+      "r2Path": "Candy-Shapes/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 9513,
+      "sha256": "e9b821dc87d7b274410dfaf255451365d17796466304c6d5b6f68eca900ade65"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/11.png",
+      "r2Path": "Candy-Shapes/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 11221,
+      "sha256": "0ff411c5ce76ca35c0ea70a86a4ee3ac95acbecfb0f1fc2ce72156ce878e67a1"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/12.png",
+      "r2Path": "Candy-Shapes/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 7118,
+      "sha256": "230f1bbbd7ea15e757c248f0abb65beecd4b9ba52f2114673f5fead44ffccbb4"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/13.png",
+      "r2Path": "Candy-Shapes/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 7386,
+      "sha256": "d6c5b7dc6188b0b3dc9aca5a9d6dc587abb59f538727d658ef4e36fa1f43ea86"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/14.png",
+      "r2Path": "Candy-Shapes/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 9566,
+      "sha256": "5a6a45ad48a9471f3788bd4c04bde9e5e321e8495c500f3a7bf3d69c8a931b9e"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/15.png",
+      "r2Path": "Candy-Shapes/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 4808,
+      "sha256": "5ef63467b3e8d7ebc6b5c5a748bf0b1fbcf73dd187ea6381feea7bd52779777f"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/16.png",
+      "r2Path": "Candy-Shapes/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 9054,
+      "sha256": "9009085ddc2e51d4aa21043dee1040c56885baa5e76a8bea24404ea111ade0eb"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/17.png",
+      "r2Path": "Candy-Shapes/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 15992,
+      "sha256": "aee145ffb71860a85671e67104897aebff4722b36bc92f106b130ef0992127e4"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/18.png",
+      "r2Path": "Candy-Shapes/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 9156,
+      "sha256": "56cc9395edca85befff878add915a36e3cfd7a98e8ca040a389a016cb70b39fd"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/19.png",
+      "r2Path": "Candy-Shapes/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 11800,
+      "sha256": "fc08d220cb5c2b0e0a1a63e9a42c088834a2dec35a4934940885fb35de93b010"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/20.png",
+      "r2Path": "Candy-Shapes/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 11765,
+      "sha256": "13b1dfea6f378ca61cc16e7cca656d280d301d819e562be27bda236b07fe77d8"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/21.png",
+      "r2Path": "Candy-Shapes/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 27247,
+      "sha256": "9cece3b2a46adf150dc439a4344ffa725bec7d1a6b8059fb38770767e1c809de"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/22.png",
+      "r2Path": "Candy-Shapes/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 6149,
+      "sha256": "75563c99fea3076bad9ddc21caeac8902dd9f0606da078ff842692ee1881151f"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/23.png",
+      "r2Path": "Candy-Shapes/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 29347,
+      "sha256": "4c7bc74c0be679c48fc9bb934693df9762933bc717c86641d6a3721676e54027"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/24.png",
+      "r2Path": "Candy-Shapes/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 5740,
+      "sha256": "7c83f727032ad1e603c572adf4906eee26cedca07a50d5831eb57cb8f2c8f000"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/25.png",
+      "r2Path": "Candy-Shapes/items/25.png",
+      "contentType": "image/png",
+      "byteLength": 3998,
+      "sha256": "37520b44c02af88577d0ac90232a0ce51ebb9ca13a92f39d33f764cfeac2b2bb"
+    },
+    {
+      "localPath": "source-assets/packs/Candy-Shapes/items/26.png",
+      "r2Path": "Candy-Shapes/items/26.png",
+      "contentType": "image/png",
+      "byteLength": 2218,
+      "sha256": "e5bfd530f3dba5a518bfb6608e6abb10564b87821ede92bc718fe9e0bf4e324b"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/pack-sheet.jpg",
+      "r2Path": "Playful Doodles/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 47197,
+      "sha256": "ceedfd7ca666ff864448a35c141a9062c9536a0642c03ae1ff1542aab0c0d296"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/1.png",
+      "r2Path": "Playful Doodles/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 18292,
+      "sha256": "c1ed3b2028eb7e65650e207ea3e297ce08de3010c9271491468f018e291ba73d"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/2.png",
+      "r2Path": "Playful Doodles/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 18770,
+      "sha256": "11fe26538ea60775b09d05198cbbea1bb84229ce6500156c2b0c39c945c13669"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/3.png",
+      "r2Path": "Playful Doodles/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 20540,
+      "sha256": "d56f478dcbe6f4a8e99333d6bf99aec3647a265437ed95290dd1c684198c034c"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/4.png",
+      "r2Path": "Playful Doodles/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 22780,
+      "sha256": "cde427384c62e63ced2d7b17c969d4a71cd245ecae259fd90970e91c29b92128"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/5.png",
+      "r2Path": "Playful Doodles/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 12345,
+      "sha256": "7465e761fc542a26b2361881c0418e562c5670d6783769cc53c1c17e9ad6212d"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/6.png",
+      "r2Path": "Playful Doodles/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 15037,
+      "sha256": "691fd1506149a13c0b9a0605bf91d9d94f4ad5c166b8bd0519ee2e72ccb8ee14"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/7.png",
+      "r2Path": "Playful Doodles/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 6745,
+      "sha256": "071aaa650aea001bfcaa3a19cf0d923327b7a411b773188b38135099ece74ce6"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/8.png",
+      "r2Path": "Playful Doodles/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 8256,
+      "sha256": "5cf96943f719278ce5b2ed3d1e3fcdde6963c9a99d40208aeec6e723b52c6575"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/9.png",
+      "r2Path": "Playful Doodles/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 8302,
+      "sha256": "db2091b4cf344ece9a127d623ddfac7ea657ab89eea2c4d3761e7e4d0e9dacb8"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/10.png",
+      "r2Path": "Playful Doodles/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 6746,
+      "sha256": "49059066a329a8aa90e1799387c1b9ecab908f657b1de1bf6a9bded4af6e86b9"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/11.png",
+      "r2Path": "Playful Doodles/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 5165,
+      "sha256": "fb51e98b7104141721fa1ffb2beab8dee62990b90311318e5b5af34be5e38721"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/12.png",
+      "r2Path": "Playful Doodles/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 11219,
+      "sha256": "3e425eebd960c2969086620b266d733c1269cb2f624614bdc18f65a5283e5b94"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/13.png",
+      "r2Path": "Playful Doodles/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 5810,
+      "sha256": "d63fc8152ed40a703dc9ce78a64c1dbd5c2a511e73d479c5cee295b6a4bc6b60"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/14.png",
+      "r2Path": "Playful Doodles/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 6391,
+      "sha256": "e95b8bb9b205be7eaa1ab13ebb471d0ad48c9eb0f06207534928e219f0d53756"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/15.png",
+      "r2Path": "Playful Doodles/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 6965,
+      "sha256": "fc591961d83984ebc8a4dc34800cdfaa6be7bca47eb585af52c877cc00c1a53f"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/Playful Doodles 1.png",
+      "r2Path": "Playful Doodles/items/Playful Doodles 1.png",
+      "contentType": "image/png",
+      "byteLength": 3666,
+      "sha256": "05b69fd1721a55cfd6cb331098651e844d6ebb16f9efc786824e040bb09da0e2"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/Playful Doodles 2.png",
+      "r2Path": "Playful Doodles/items/Playful Doodles 2.png",
+      "contentType": "image/png",
+      "byteLength": 3221,
+      "sha256": "d3f1f5f1e53f51ca459f35146e2c27dde7c5c359a3a5858f4f7645fbb40a1f1b"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/Playful Doodles 3.png",
+      "r2Path": "Playful Doodles/items/Playful Doodles 3.png",
+      "contentType": "image/png",
+      "byteLength": 4110,
+      "sha256": "fe4800a0a6b8b858f200c160f84e3ca214d511e4eb7555afa3b1b99a60c44f87"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/Playful Doodles 4.png",
+      "r2Path": "Playful Doodles/items/Playful Doodles 4.png",
+      "contentType": "image/png",
+      "byteLength": 3852,
+      "sha256": "fdae54dbb2558741af64918688f352849db5a43bc09ccda2295a23de41d3a993"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/Playful Doodles 5.png",
+      "r2Path": "Playful Doodles/items/Playful Doodles 5.png",
+      "contentType": "image/png",
+      "byteLength": 4457,
+      "sha256": "1e126e131834ec0bf320b430dae65c80caacee9251b137b27f94dc3604c1aa54"
+    },
+    {
+      "localPath": "source-assets/packs/Playful Doodles/items/Playful Doodles 6.png",
+      "r2Path": "Playful Doodles/items/Playful Doodles 6.png",
+      "contentType": "image/png",
+      "byteLength": 4768,
+      "sha256": "0fc22803fd1a88de4942537f132c15a7ef1a34ae976f85b90454718699bc0a33"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/pack-sheet.jpg",
+      "r2Path": "soft archive blue/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 31333,
+      "sha256": "35cd7c12b639166a1228b8e38ad84ea4b8aaa5830dc0215bba8e5b1437f80661"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/1.png",
+      "r2Path": "soft archive blue/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 17068,
+      "sha256": "5700956ab03471d20a67f6d6bf2e2069796d4bb6882c8986c406b90e8a7edb4a"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/2.png",
+      "r2Path": "soft archive blue/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 15382,
+      "sha256": "02f734e5744df574f0d9d8c1cb8838de40c0aa58237866f1aa9344670e8ce1a3"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/3.png",
+      "r2Path": "soft archive blue/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 22690,
+      "sha256": "4f32295d8185a789eaf338449ac6f0a9a3749e9e01c51e062f4220031250ed88"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/4.png",
+      "r2Path": "soft archive blue/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 21235,
+      "sha256": "d5a7a79fc2d11aa00f484f7e16e7fad25b1ee402a0f56c111aac1666f11603df"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/5.png",
+      "r2Path": "soft archive blue/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 6759,
+      "sha256": "641578200bb248b35952f80c64000f65e9c115bca0a27b13c5ee1ecc0e594cfb"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/6.png",
+      "r2Path": "soft archive blue/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 8518,
+      "sha256": "d6bb787d6521ac805af0e620b4ae5c7fa5af92137630ddde3e759960c127460f"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/7.png",
+      "r2Path": "soft archive blue/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 5322,
+      "sha256": "a76a9dca1409a4e1649873dd8d19c8f551ee6123fd9532d5c406fc44ec9f6a05"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/8.png",
+      "r2Path": "soft archive blue/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 10751,
+      "sha256": "752f11b128674a7dda5a8f3ab3ba877162fae6aa4ec88bcb4f48495013086972"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/9.png",
+      "r2Path": "soft archive blue/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 21679,
+      "sha256": "cd58c9c9bddde8ce44f67818ba661322d971e58be71512895615b62a02236b20"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/10.png",
+      "r2Path": "soft archive blue/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 8695,
+      "sha256": "d57e24b331bbce12728b591eec083c7c6f6a789eec4a5ed76224e26c806b9cb3"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/11.png",
+      "r2Path": "soft archive blue/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 10001,
+      "sha256": "477e5003d585e3d3daa79aa030be1f9a8895218c06a341cd1f95692ed93332eb"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/12.png",
+      "r2Path": "soft archive blue/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 20544,
+      "sha256": "2d4e639337b82161d7d5806cb89a732d194f8f20459d81dc6bf4017c1742cb9b"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/13.png",
+      "r2Path": "soft archive blue/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 14077,
+      "sha256": "fbb3d8b78e9ea672cfb8b95ac5b4c6f3e65186179fb5dbee5903d5a48a484e4e"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/14.png",
+      "r2Path": "soft archive blue/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 9831,
+      "sha256": "48fdcc2be82c91739ae7e6aba2fa7df002c5cfc825356df372cf9f4ef92c249f"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/15.png",
+      "r2Path": "soft archive blue/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 6210,
+      "sha256": "0aca7fa30fbde2e6f81afdb52728e3fcfe2a783811b9f3edad150bd7dd1bd631"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/16.png",
+      "r2Path": "soft archive blue/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 15945,
+      "sha256": "0ffd4570008bb04013f71be5c1eeb5c9e0c147e59af8635043fd352f270ffe24"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/17.png",
+      "r2Path": "soft archive blue/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 14283,
+      "sha256": "34166b6be629eebde934682d391ccdc833b9736d64a615f98ba11777e5a8ad62"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/18.png",
+      "r2Path": "soft archive blue/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 8613,
+      "sha256": "c83c28bef326f9f60bf16d73a829df35ac05cfc982916017816ec5e50fdea196"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/19.png",
+      "r2Path": "soft archive blue/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 17835,
+      "sha256": "906cd3723abdf5479821cb0715c7d8d8f13efdd845ee0f601425d6cc74c26fe7"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/20.png",
+      "r2Path": "soft archive blue/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 7648,
+      "sha256": "a0ddbea2259c14251dba7960cdd853880c1e15eda72cab7f0a4b08040836950e"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/21.png",
+      "r2Path": "soft archive blue/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 3798,
+      "sha256": "e283b47e8ddb849cfafd9483fbbcfe362505ff87f8cee6aed981e81eec820494"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/22.png",
+      "r2Path": "soft archive blue/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 22248,
+      "sha256": "f6c0a37cc30789a043ce0dbcfedb62ef172e27f3f49ac63cce75e7730bbf4986"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/23.png",
+      "r2Path": "soft archive blue/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 21097,
+      "sha256": "821eecc2435557bfc649b3ef0ef3ddf30d72bbee04716d52e955e78b95943ede"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/24.png",
+      "r2Path": "soft archive blue/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 4527,
+      "sha256": "670f2cf63c9bc7617f17e8918e9648130780e85febd8ec94c8a8cea74098453c"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/25.png",
+      "r2Path": "soft archive blue/items/25.png",
+      "contentType": "image/png",
+      "byteLength": 5150,
+      "sha256": "d27a6ec9ae9726af4b4e72b56ac5d269e2a80ebdb09aa2c587cada03deb99d9b"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/26.png",
+      "r2Path": "soft archive blue/items/26.png",
+      "contentType": "image/png",
+      "byteLength": 5060,
+      "sha256": "f8a20db3b5968325a04b5e65cead07047be056a8e57b5dbb4e3825d6bc317995"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/27.png",
+      "r2Path": "soft archive blue/items/27.png",
+      "contentType": "image/png",
+      "byteLength": 3987,
+      "sha256": "190859111165d9fe04043f0bdb1659a6450cd268142a5288b28a80b8249ead53"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/28.png",
+      "r2Path": "soft archive blue/items/28.png",
+      "contentType": "image/png",
+      "byteLength": 13101,
+      "sha256": "7c49fe4b4af92696189581899ef461fc9cfeb38ba74786e3610c255d5ec5a9db"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/29.png",
+      "r2Path": "soft archive blue/items/29.png",
+      "contentType": "image/png",
+      "byteLength": 4146,
+      "sha256": "9f11d9ae1d6df547e6590d03bdf833696afcf8aa737d8c5433d24bc9d2400a0d"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/30.png",
+      "r2Path": "soft archive blue/items/30.png",
+      "contentType": "image/png",
+      "byteLength": 8862,
+      "sha256": "c4eef5a76b2cfc768806e6a51d0c4bf5e5ec6a77eeab1dcf9c0d692f9bbb5534"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/31.png",
+      "r2Path": "soft archive blue/items/31.png",
+      "contentType": "image/png",
+      "byteLength": 1293,
+      "sha256": "b7a0857e09d22cb213fd6be5e2c607bd37473db1d2320e1f9596dd91662366d9"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/32.png",
+      "r2Path": "soft archive blue/items/32.png",
+      "contentType": "image/png",
+      "byteLength": 2299,
+      "sha256": "9884b1ed57492e525e62b9a95256df5f92759d22bf77e5914806a86ebdb57ee1"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/33.png",
+      "r2Path": "soft archive blue/items/33.png",
+      "contentType": "image/png",
+      "byteLength": 2044,
+      "sha256": "7d258a8f6f09ed88ed0b74a1165ec2f41a231807f678cdf1c7271cbde1c4d028"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/34.png",
+      "r2Path": "soft archive blue/items/34.png",
+      "contentType": "image/png",
+      "byteLength": 2808,
+      "sha256": "abfe0d06e9f0195e92910072ecf13362e15a781f38293ce5c143a25a26952719"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/35.png",
+      "r2Path": "soft archive blue/items/35.png",
+      "contentType": "image/png",
+      "byteLength": 2563,
+      "sha256": "1861383efe59636500d6232811523c4829be2d8c429fc4509e5dd90ce951a1d1"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/36.png",
+      "r2Path": "soft archive blue/items/36.png",
+      "contentType": "image/png",
+      "byteLength": 30063,
+      "sha256": "9156f9cc955788dd45d157925a958b0ad8fed1271ed38d25984b27bd6e3685f8"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/37.png",
+      "r2Path": "soft archive blue/items/37.png",
+      "contentType": "image/png",
+      "byteLength": 23176,
+      "sha256": "9460761ff2f95e6e6029e6c0bf8698ee0540c6732259a0eaa609e06c786e7981"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/38.png",
+      "r2Path": "soft archive blue/items/38.png",
+      "contentType": "image/png",
+      "byteLength": 31477,
+      "sha256": "0c6ac38b1dbc31e46e6d70d3535f910258fef1cd8da3aa8a02edcd52fd97d58f"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/39.png",
+      "r2Path": "soft archive blue/items/39.png",
+      "contentType": "image/png",
+      "byteLength": 14018,
+      "sha256": "d02f8edd47c26af10eab90be5ebeab77880df0dbbacdbcd6065c96e564c1e751"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/40.png",
+      "r2Path": "soft archive blue/items/40.png",
+      "contentType": "image/png",
+      "byteLength": 16604,
+      "sha256": "415a8e78faf338257b8186a2e7ba2c98f39ec2803dc7e83e33315615d4617f68"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/41.png",
+      "r2Path": "soft archive blue/items/41.png",
+      "contentType": "image/png",
+      "byteLength": 15913,
+      "sha256": "d8850d7a526b04d84b714be44c216d52c6839f0542e6b9a9ca95b595ddfb13c8"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/42.png",
+      "r2Path": "soft archive blue/items/42.png",
+      "contentType": "image/png",
+      "byteLength": 17546,
+      "sha256": "afbd9caa65955a789b7796f1e6c32ca16ffc72945c02f280732b7b2fdf603b03"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/43.png",
+      "r2Path": "soft archive blue/items/43.png",
+      "contentType": "image/png",
+      "byteLength": 10200,
+      "sha256": "471f94cf8aab7462ef965bfb01690f928161ba9bf2e0aa43b4e722bda8fd6554"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/44.png",
+      "r2Path": "soft archive blue/items/44.png",
+      "contentType": "image/png",
+      "byteLength": 4531,
+      "sha256": "7e6f70d3e15461d8d32530ff261cc7f1facce3667fc56405518592ecae0e389a"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/45.png",
+      "r2Path": "soft archive blue/items/45.png",
+      "contentType": "image/png",
+      "byteLength": 11547,
+      "sha256": "c7ae5eb3dffcaa33a5577b94ae2710c4e137efe38da7fc5c5eea017238eb98b8"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/46.png",
+      "r2Path": "soft archive blue/items/46.png",
+      "contentType": "image/png",
+      "byteLength": 10455,
+      "sha256": "972c240b9602410699e71e2bb3f95caf0e79e798b1614666e99f432563078f17"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/47.png",
+      "r2Path": "soft archive blue/items/47.png",
+      "contentType": "image/png",
+      "byteLength": 9262,
+      "sha256": "05bfc58362ae2f68bb97452a3a5661b3cc7d90b74eaf89fefe54fa3164449e92"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/48.png",
+      "r2Path": "soft archive blue/items/48.png",
+      "contentType": "image/png",
+      "byteLength": 15114,
+      "sha256": "95897bedb26600629e3ef940a343fea87bba67a2e1e99668cae67202cb66c261"
+    },
+    {
+      "localPath": "source-assets/packs/soft archive blue/items/49.png",
+      "r2Path": "soft archive blue/items/49.png",
+      "contentType": "image/png",
+      "byteLength": 27708,
+      "sha256": "7d0cb93fdbc0510df9057e5959acebb0421495375928ffcd2693776ce6ea339a"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/pack-sheet.jpg",
+      "r2Path": "jiaodai/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 74397,
+      "sha256": "59ad988d6835b6e9021a4fa9e196bfd8800bbb2194b4996c5ae6d0d29d1ca635"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/1.png",
+      "r2Path": "jiaodai/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 18785,
+      "sha256": "59d9fd5c5f5eb51a3404700dbbe882ee0eb4d9a66aa63999fd43036ba9b4838d"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/2.png",
+      "r2Path": "jiaodai/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 23780,
+      "sha256": "b18ad223903a71adbf38ff6fbac8c735aaa024e4b9dc213580e6c56e3eaa26ae"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/3.png",
+      "r2Path": "jiaodai/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 26398,
+      "sha256": "83456d9dcd7987f229ce2b25d635f8ebd421381d0c7ca5297e3f36d664650bae"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/4.png",
+      "r2Path": "jiaodai/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 20387,
+      "sha256": "4cc56d3c9d505461f6a3f8ce708dd62c0c04718b5c73494deb781fec3a313199"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/5.png",
+      "r2Path": "jiaodai/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 16665,
+      "sha256": "0101e701f2a20ce46669ad87ed918484f460a97546814f9be92b222874ae2078"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/6.png",
+      "r2Path": "jiaodai/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 24245,
+      "sha256": "76c663c2bbb8b62bafdf670e26d70a0ad25e82f20d1fbd2da76b588697885f0f"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/7.png",
+      "r2Path": "jiaodai/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 20182,
+      "sha256": "b5c15485f8718a300e58d15a2de242c75aae087095b789a162e7d2bd11383254"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/8.png",
+      "r2Path": "jiaodai/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 21582,
+      "sha256": "8b29389cd6f854a2f10c858ead8556b9455f24e4e7fd19af1406c66b6a4b4946"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/9.png",
+      "r2Path": "jiaodai/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 19252,
+      "sha256": "ee50de70880bddd50e4d307348f047f78bf0f6d72f5eb94d70445a842dfd0b0e"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/10.png",
+      "r2Path": "jiaodai/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 17178,
+      "sha256": "e5141a97f694a125465fe5de603df32dafb1223fe06c824eb2930ef05b42d8ab"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/11.png",
+      "r2Path": "jiaodai/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 4003,
+      "sha256": "aa8e471480aed23de29ac1f80a77132e451eef4486d810533740ac3e76a23562"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/12.png",
+      "r2Path": "jiaodai/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 8077,
+      "sha256": "084230e769be104ee999fc4d7c5dd76f326a505c1c540af28fff1323ac4aea1a"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/13.png",
+      "r2Path": "jiaodai/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 14929,
+      "sha256": "41d0504cb8178ff730be75d9b6a69aaf4b976d6d6f6f5e44580faa3672d9266a"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/14.png",
+      "r2Path": "jiaodai/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 23758,
+      "sha256": "0bb25c4caaa08625bb6f4cbdac98a5593233ad9f08a04c0f9af7e04dadd8abcb"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/15.png",
+      "r2Path": "jiaodai/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 21787,
+      "sha256": "176d9f2cacd0db57e18fa35a49e3f452031d5c8fa6bf45859575b148a342a3a7"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/16.png",
+      "r2Path": "jiaodai/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 19800,
+      "sha256": "444297cd8141205fc51b598645c21f77a8430dbad4d8f2483b241e86f10d8c1b"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/17.png",
+      "r2Path": "jiaodai/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 23007,
+      "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/18.png",
+      "r2Path": "jiaodai/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 18860,
+      "sha256": "cdb93798c5025855172ecb63ed012c2ef0d4259761a00c3243a1d1e9d83190f6"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/19.png",
+      "r2Path": "jiaodai/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 22123,
+      "sha256": "084a08b098fbf4c942a049f4f26dc78dae3d868c2ac800a37244701cb4d2aa1f"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/20.png",
+      "r2Path": "jiaodai/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 23434,
+      "sha256": "7ed29e0e7f3c345a4fedd1248a73b79fdb6c09a468ba0298cf1eecee318b496e"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/21.png",
+      "r2Path": "jiaodai/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 12208,
+      "sha256": "2a6ad3c0da095c6ab2d02c37e3191b6448b2985262bdbaa2daaa89e5c494250c"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/22.png",
+      "r2Path": "jiaodai/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 13834,
+      "sha256": "2a34c0e0ecd5fe61fda2ccf7ac20640d3d3a4b98b4b09d2c673df8ca9bbd8625"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/23.png",
+      "r2Path": "jiaodai/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 16238,
+      "sha256": "931dfb8108b5fd76eca95869f3a2c3eebd5b0240a94d075a607f489f0b1274f9"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/24.png",
+      "r2Path": "jiaodai/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 16498,
+      "sha256": "79500c73b5bfa3f901559bef55754f9bc04d117cf4fd6b85b2413c50163052c8"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/25.png",
+      "r2Path": "jiaodai/items/25.png",
+      "contentType": "image/png",
+      "byteLength": 11572,
+      "sha256": "956797978a267b02cf9e3521c437101451e2b407964a48938a87e70d77342920"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/26.png",
+      "r2Path": "jiaodai/items/26.png",
+      "contentType": "image/png",
+      "byteLength": 55987,
+      "sha256": "4aa9443299cbd177b808c55bcde296853a4d3f1d24df5ed55098dab294e4b4d9"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/27.png",
+      "r2Path": "jiaodai/items/27.png",
+      "contentType": "image/png",
+      "byteLength": 23919,
+      "sha256": "24232ff5dd5651dd55348b03b036d5ad1c91864e338f7c6a51b4623ecb063501"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/28.png",
+      "r2Path": "jiaodai/items/28.png",
+      "contentType": "image/png",
+      "byteLength": 28061,
+      "sha256": "829c67204401da17ea8f1a2377fa2ac75cd27e9542489de31c54db30dc5ea1ed"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/29.png",
+      "r2Path": "jiaodai/items/29.png",
+      "contentType": "image/png",
+      "byteLength": 17286,
+      "sha256": "255f39c96ecf8d431f839925ddb77551978fd6e4a0dcc65077a60c1ad01bb15f"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/30.png",
+      "r2Path": "jiaodai/items/30.png",
+      "contentType": "image/png",
+      "byteLength": 12270,
+      "sha256": "7458fb0b6ead8faab481a6abce845f518091c286e37f37db8aba74c39112f39c"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/31.png",
+      "r2Path": "jiaodai/items/31.png",
+      "contentType": "image/png",
+      "byteLength": 12291,
+      "sha256": "30e1cefa59c04c238b6444fb715694af519b72d8cbd4b832cee7659f61c57df3"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/32.png",
+      "r2Path": "jiaodai/items/32.png",
+      "contentType": "image/png",
+      "byteLength": 15215,
+      "sha256": "e3f0438b4d80ce73daaf36ac8bc16f3b208934839467404db36b8f6230dea58c"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/33.png",
+      "r2Path": "jiaodai/items/33.png",
+      "contentType": "image/png",
+      "byteLength": 21383,
+      "sha256": "9cfaf4d4601b71cfc9d4eb7f7fa3b8281425d2e2d340f2a34652ad4cd870d76b"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/34.png",
+      "r2Path": "jiaodai/items/34.png",
+      "contentType": "image/png",
+      "byteLength": 16173,
+      "sha256": "deb712973ec7b2cffcd3ce5d8a7a329a4c32ee9f515d1db0a561f7c2c4e0c9c7"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/35.png",
+      "r2Path": "jiaodai/items/35.png",
+      "contentType": "image/png",
+      "byteLength": 21361,
+      "sha256": "99c4a7f790255f51fe8256c18470d7d28838f73e4fae2485a2f9d35a6db541d2"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/36.png",
+      "r2Path": "jiaodai/items/36.png",
+      "contentType": "image/png",
+      "byteLength": 20715,
+      "sha256": "1443b34a9621e94dfd6ce6187f120a589eed584219c863ccbb32ca2f6a07d536"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/37.png",
+      "r2Path": "jiaodai/items/37.png",
+      "contentType": "image/png",
+      "byteLength": 12606,
+      "sha256": "b539d9df44b06b5e72b8ea9475e29bf6477ff3ac7d2060afb5c63d5887f0dc8e"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/38.png",
+      "r2Path": "jiaodai/items/38.png",
+      "contentType": "image/png",
+      "byteLength": 20098,
+      "sha256": "206f0812c5645859b3a2eafe9ad1b30390c107d104e1aa17f9e7777e01484832"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/39.png",
+      "r2Path": "jiaodai/items/39.png",
+      "contentType": "image/png",
+      "byteLength": 12871,
+      "sha256": "17e134aae99c98b1dcafd055305f8575c7b332a441882932c44288ba196abbad"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/40.png",
+      "r2Path": "jiaodai/items/40.png",
+      "contentType": "image/png",
+      "byteLength": 17632,
+      "sha256": "622e84a3717dea8afc4218172463ac92a92373cc7954eab280c4263d661cb287"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/41.png",
+      "r2Path": "jiaodai/items/41.png",
+      "contentType": "image/png",
+      "byteLength": 12390,
+      "sha256": "e31cb61e7c01c75859d4a5e50b11ba4e9d7b6c95b32e6b6e9c895636fcf5897e"
+    },
+    {
+      "localPath": "source-assets/packs/jiaodai/items/42.png",
+      "r2Path": "jiaodai/items/42.png",
+      "contentType": "image/png",
+      "byteLength": 10519,
+      "sha256": "176d23109140719ce1251f1470e88a660d3acc72183f648f8bc7b527b6256ae2"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/pack-sheet.jpg",
+      "r2Path": "Editorial-&-Everyday-Labels/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 14683,
+      "sha256": "62c4ffdd1768dc4e61747ee85097745d17715fb9582b8e3f015944ee18c60d4b"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/1.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 19761,
+      "sha256": "2c85e28d6d803e93b6a895f67051c585c7d10ab2bf5bd2f11bf9d35cbc4fbdd2"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/2.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 20582,
+      "sha256": "c72298379e0ee00111653ae15a29ff2440191873ae934738ac0e841dbec5b19f"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/3.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 23886,
+      "sha256": "0c0f4e31a08a438804ec2ffb41f9f32f0c88b74af97e39d2193dbe025dbd6995"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/4.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 19695,
+      "sha256": "f7f4f6c7a037351422ca6822e98cd3fc541bfc5e8f0dfd539ced013bd496d07c"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/5.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 10445,
+      "sha256": "1a6e868480cd6b55e5f929f19c0890b16604b432b22c7f071a6b2b31919d9227"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/6.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 15057,
+      "sha256": "35f87689e29bacf1d78d08fdd9ffbfe9ea8880a68888af5eaa43622d8d0b302c"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/7.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 27700,
+      "sha256": "a36649c266a8bb803294b6fb536e250cf3bf86ea0c4faa4036581d0d176fc0fa"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/8.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 23364,
+      "sha256": "a72b8031e11f84a985c179168a217b10f0d91a5ba02709265f05babd8ba57cfe"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/9.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 18180,
+      "sha256": "7ce624830273ba6b57098a994274f3ce72cdf63d1bdc571a1ad76668c68ccdc9"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/10.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 19122,
+      "sha256": "bfd23a3353cd69419938ec20cc2417f8b1c40864acd320a261baa5347b6d73d4"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/11.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 30739,
+      "sha256": "49e040172e5f92c4e43f4bf66a242742c920768ed9264fbbdb4ff015f8f0befa"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/12.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 20417,
+      "sha256": "7e681ad52f3746099b7765db86f4418ca4621a3d9ce3eee7e05bccb81052db49"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/13.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 21295,
+      "sha256": "895072d76ce43f45e04351e554b520ae93dc66cda5109cef6ee09381d318516c"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/14.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 13211,
+      "sha256": "dfcb99088acc54526708217f460136e0cf041170afe9b9e418a831b48fdd0e5b"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/15.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 21100,
+      "sha256": "206c515a1672c8d7f3563946c57120bf0ea009024e3ff5c201ddc30d68a84303"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/16.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 34527,
+      "sha256": "523b7ed1a58f012b648a0ecba7c2b86165e4468497aa68b65e51afe9a0554e63"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/17.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 15785,
+      "sha256": "d959e1f49125372cab4bcfa35d6a96642b95d3a25ec2718a9544e00e6107205c"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/18.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 11554,
+      "sha256": "0c83c06da4c00deee67d051cd8e022045cdffbe732df6b91042decd9286785f2"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/19.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 13569,
+      "sha256": "d10c61bdaa42ae597cbe8aa56496210dc9ed993621b6a95c980d65bd5c6d9d13"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/20.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 18319,
+      "sha256": "39a027fc2e17d58d48e979c6bd003daf8f53e48c9300d6ba7f633bc48fb2726b"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/21.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 19900,
+      "sha256": "ac2508504968a79bd54cdc80e4d06c93510d3c84bc54b2407d4dffa12b45467e"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/22.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 20505,
+      "sha256": "28e0edcb50b4b875f8cbc59b89c3237c45412bc6491faf09a7aaae1bbe588eca"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/23.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 22921,
+      "sha256": "f350772865e479552c4ebfda7822e0300ff22d64df0fcd95c52a219ce35ecfa7"
+    },
+    {
+      "localPath": "source-assets/packs/Editorial-&-Everyday-Labels/items/24.png",
+      "r2Path": "Editorial-&-Everyday-Labels/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 21171,
+      "sha256": "3f99e132a75b8d270c330e8c1147a5b3cb11ff640835b7922cb02f47fcc6fd37"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/pack-sheet.jpg",
+      "r2Path": "Romantic Deco-Lace Frame(1)/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 36190,
+      "sha256": "3a0c7a183c4c7fa891378de952861dce780842c15a1f7f5e312a5a77c9aa7ca3"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/1.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 53195,
+      "sha256": "aacc72778ed4222f6631b83a23e278d45f049ded2df81735e3da1b2b44e2608e"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/2.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 57424,
+      "sha256": "5e69227b927356d2125ec7723ad75cbe3b2408286389c510ca90fdc0400ded72"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/3.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 48428,
+      "sha256": "577ed14b6f0b74671d457955ab5382313e22db335bec4a5e2ebe39cc83d88067"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/4.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 34811,
+      "sha256": "8d05ee5d1e00e1dccc3d340a60c8a7d5902bd5055a7e1178f2379f5d19447ca7"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/5.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 54900,
+      "sha256": "2b6536657f95fe426071df4d9d7cc06903ac923d9f6d0aedcaf012053e1fc871"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/6.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 46860,
+      "sha256": "a70dab0addfe6de54ec9656a1150723dbeaaaf1011228d7fa2c5df76bab54ce4"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/7.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 47673,
+      "sha256": "3ce0a83fc2e3036bfcebae7ef8ef7a15af4baa6ea5acac3a5dbb817f9310dd87"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/8.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 43396,
+      "sha256": "d9e16be00c0fa2c8495d48845a38735a2b24dde499b16b49720675b548babe39"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/9.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 41077,
+      "sha256": "35858d9677ae30e4039178cc07de47f273ecf8774e50be9f7e72b6ebf88ecb13"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/10.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 52723,
+      "sha256": "09b0434429086fc12dca37c42685f20daeab4d1043f87b91794997aa45df3937"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/11.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 52783,
+      "sha256": "12deefb29b3dcf36785ff612555743fe487a0e3c96d43336487f499595334b8a"
+    },
+    {
+      "localPath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/12.png",
+      "r2Path": "Romantic Deco-Lace Frame(1)/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 52360,
+      "sha256": "1a6cce8ebdd350ab568fbdd18b575a39fb9f1499f000ea624680d991c03f307e"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/pack-sheet.jpg",
+      "r2Path": "hudiejie/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 46325,
+      "sha256": "6f0348a9af907c70b51a8c961ee7e1f4b538ee7531b9163986449890686be7dc"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/1.png",
+      "r2Path": "hudiejie/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 40368,
+      "sha256": "9e49f60aa89c227de8ca2854a254bc9434b8acd607875d39a3aeb6d916dca9bd"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/2.png",
+      "r2Path": "hudiejie/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 37108,
+      "sha256": "350e6e52e2c7f24d1611c5a8b43907f300742690e1136d95b17492ffb1826e35"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/3.png",
+      "r2Path": "hudiejie/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 39107,
+      "sha256": "1cdbe0809f5627218a8a7cb7fa2c36514080d428fe9fdc5af17a5c9135552f46"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/4.png",
+      "r2Path": "hudiejie/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 24533,
+      "sha256": "dde9452c4aebc09fda008d22fb4732595644b017937793da48b1289290dcca51"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/5.png",
+      "r2Path": "hudiejie/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 20932,
+      "sha256": "9940c8e847d2c8f8de7a38a85e989fe5411dcade63d7f1da9e4da6a05fd0c0c8"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/6.png",
+      "r2Path": "hudiejie/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 21777,
+      "sha256": "1b6e82582fcd81ffb6cf908ca142d912351d4026cc76ae98878959584ceed44b"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/7.png",
+      "r2Path": "hudiejie/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 11497,
+      "sha256": "1aeaf6758db4bee0b0e7fe3aae8d70a7ffbdb7d97e52237f408907afcbd87e91"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/8.png",
+      "r2Path": "hudiejie/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 9262,
+      "sha256": "a3006b547cc3487bb9cd2ffff1684a02f626502f9674574240428098694e46be"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/9.png",
+      "r2Path": "hudiejie/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 11366,
+      "sha256": "b4d0cffe51c2b7daf9dbc5df754711724716d6473f68a5a35bb3a8ef2b9e2a44"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/10.png",
+      "r2Path": "hudiejie/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 24841,
+      "sha256": "7a160370cefb8619ef575c4dbdb3dd5304ac891933f84773062b02020caf6852"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/11.png",
+      "r2Path": "hudiejie/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 25283,
+      "sha256": "9d613398b651307edff4db981389a58c1ce73c76db59483a0a8e5120981a98b6"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/12.png",
+      "r2Path": "hudiejie/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 23242,
+      "sha256": "aea0a83d935d6f60f8544453e2fb35391a3add40982dd6bf2a33ff8bf04f9670"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/13.png",
+      "r2Path": "hudiejie/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 15626,
+      "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/14.png",
+      "r2Path": "hudiejie/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 20381,
+      "sha256": "b52f6992e559a8b3e94a22e18973011c93c201e02985162f2fedff8eafb9006f"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/15.png",
+      "r2Path": "hudiejie/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 12663,
+      "sha256": "13aa6b77a80aab649ea16ec0e540f641fc6cda9336a5dcfddc1950d53ce4b610"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/16.png",
+      "r2Path": "hudiejie/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 16466,
+      "sha256": "92f74e8221b794424b28f63e4ed67e364c0b83c0aa5eb962b26e6cf15cc28a32"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/17.png",
+      "r2Path": "hudiejie/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 15641,
+      "sha256": "4b775a1d49b502b7c4f285939e66c28df8a709a06ddd86cfab7c3baf32eada57"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/18.png",
+      "r2Path": "hudiejie/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 16163,
+      "sha256": "e0d7a15aaaaad03f8b24fb943c3d17c2f7300128f322aa2792564b07d4f928da"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/19.png",
+      "r2Path": "hudiejie/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 18685,
+      "sha256": "0f2d74046f21d47715400d3617a74f4ec8b4f5fa4a75820a49736c84dff974e3"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/20.png",
+      "r2Path": "hudiejie/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 19413,
+      "sha256": "fda53173aa70c4583c979b3041016ea12b3a7728de7f4962eb4be3895edaecfa"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/21.png",
+      "r2Path": "hudiejie/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 16438,
+      "sha256": "f7028f461baa0540d60afe098863e1483937ec65c300494e5ba4d00431a8cf3f"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/22.png",
+      "r2Path": "hudiejie/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 17791,
+      "sha256": "6984776d055d716ffac2291ee5a6680b280f79bb3bcb0f47ee377e31ceaf0b9a"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/23.png",
+      "r2Path": "hudiejie/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 19465,
+      "sha256": "d00c6a56fcc4a420c1d6a8b59f5204d11af957041199c5049129015c2a3e3a22"
+    },
+    {
+      "localPath": "source-assets/packs/hudiejie/items/24.png",
+      "r2Path": "hudiejie/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 14799,
+      "sha256": "04cbe41672d755c4e39f5454cb035be4e9efd6c0f7ce801e72b215d91666d683"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/pack-sheet.jpg",
+      "r2Path": "Essential-Lace-Trims/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 50403,
+      "sha256": "f8064969da6ac6251e6ccc90558cb049c6ba7a784bb1eb0e4b8b81ec0b43463d"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/1.png",
+      "r2Path": "Essential-Lace-Trims/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 34074,
+      "sha256": "22fe878477dc1b563a5ad5ab67f9ad2951c67eb5bd0402914930de70cb2cd537"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/2.png",
+      "r2Path": "Essential-Lace-Trims/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 30236,
+      "sha256": "743973db28a4c805099415cb53b5e59753682fe41f69c54df250b296ba7c58de"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/3.png",
+      "r2Path": "Essential-Lace-Trims/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 89401,
+      "sha256": "81fb7aa247caec4d4c0c69e283bc33c3fc6a80dc16806a9bce578869739029d1"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/4.png",
+      "r2Path": "Essential-Lace-Trims/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 72180,
+      "sha256": "d91b3800ed4961a8dbe0c6a2740679c570e7b5b87f12790e62135f346706fe35"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/5.png",
+      "r2Path": "Essential-Lace-Trims/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 63784,
+      "sha256": "5f7f1d6d6e24cd93d7c75c1ef5e0a958c544a6856a0977cb6cd5a05a85640389"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/7.png",
+      "r2Path": "Essential-Lace-Trims/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 34431,
+      "sha256": "04fa52cc8f6884657d9576802a03e4151bad6a2c82851644ca1744e3073a8fdc"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/8.png",
+      "r2Path": "Essential-Lace-Trims/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 42842,
+      "sha256": "1c0885e3963f3ed6d603773ff6033b8083f195c79496e2565c7bd76a80fb2cc6"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/9.png",
+      "r2Path": "Essential-Lace-Trims/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 74274,
+      "sha256": "32abc09992a0a5daece801a28b1e6b45b92797149de3329c58aaa4a0347d6d9d"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/10.png",
+      "r2Path": "Essential-Lace-Trims/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 47885,
+      "sha256": "46d0195e43e8a8f085b24b1d76baab502acb608642098f8d57e8fb7e5546f129"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/11.png",
+      "r2Path": "Essential-Lace-Trims/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 59337,
+      "sha256": "15c4ef29bbf34415ad2f33f96c4c77f44b7148092784b14f00a1751ed81776ef"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/12.png",
+      "r2Path": "Essential-Lace-Trims/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 65561,
+      "sha256": "858d6a5c774adf4208cca88ac75f35ef3d374443020480ce7ac9246f9120c6fd"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/13.png",
+      "r2Path": "Essential-Lace-Trims/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 23336,
+      "sha256": "9fe429a7c8bf3d373fcb6a514206a8ce42279e70c70e133d5b1295be9fba5fb1"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/14.png",
+      "r2Path": "Essential-Lace-Trims/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 29493,
+      "sha256": "1b735be24074c5347d55a67a8261e4a25c04679d05ca0fe2c2c1674b685bcc14"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/15.png",
+      "r2Path": "Essential-Lace-Trims/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 29272,
+      "sha256": "54fb10934b1c5fb35c70fc77bc52cd810609d7b10bb5178c0ffa8fb35f587661"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/16.png",
+      "r2Path": "Essential-Lace-Trims/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 60999,
+      "sha256": "29913ab19dfb563ec2379ff4317d6ee624603d0349e618a289b45ca8c4fdc698"
+    },
+    {
+      "localPath": "source-assets/packs/Essential-Lace-Trims/items/17.png",
+      "r2Path": "Essential-Lace-Trims/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 55653,
+      "sha256": "2fba75e5a88a69c83d6678dc6ac3655a065b29cc073f25d16ebee7b1b4485355"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/pack-sheet.jpg",
+      "r2Path": "Decorative-&-Statement-Lace/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 44509,
+      "sha256": "9baba67a66d012033dcf3c129f5e3e702bfaee2e11edc5c81d223566e8f8308e"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/1.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 78335,
+      "sha256": "8c7364f62d3b02cf44dc8400712357853033bbe115e2a9071acaee73583d7d24"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/2.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 53765,
+      "sha256": "1a5eb561d1175a31e8918c5eff5fcbacd4471cac9269bb15c17c35bd5b6291d1"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/3.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 40160,
+      "sha256": "b28731d12122a42661ed1c61cd37f9b0ae0790077968ee272dcfa842d37262ec"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/4.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 46524,
+      "sha256": "e5cf4fd9d6a1fae4bf42057cdc3030e82a303313b9624ba9547cf834131c7284"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/5.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 35377,
+      "sha256": "3276adce07c4ba5c75994e8a9c6966f2527fcc6b9e6d27bd9c0cf7506ac09b32"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/6.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 38134,
+      "sha256": "dea103c820893de9d57f5d3b3f0e28008cf1365df01a1419001fc78483d6eb4a"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/7.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 47312,
+      "sha256": "b45d69b83704deea3241dcfeeabbcaf9eb6fff616eda2700b99d45ff6f31e804"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/8.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 44830,
+      "sha256": "7d01dc02459da0c4583a2db1c1cb424405e0a575a8f8578b67062880d341fb91"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/9.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 42347,
+      "sha256": "c6e7858f80a75d34b558d802d21489efd4cba51bc71505eb4c9c2f33eaa08551"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/10.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 31115,
+      "sha256": "6d805d4857e5f718346e3dcbee1994012c450b521a8fc99c829ad0b832464976"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/11.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 57407,
+      "sha256": "7503c81432540003b042c0e63379436309ea35f9d3121d712bf67b13b54adbc4"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/12.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 47559,
+      "sha256": "c2357126da85aac2cc049addd314432665e0a9aa2e0a20ed9a13558fbe352c05"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/13.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 68985,
+      "sha256": "f85b9ccdb5a8e98444a08ab290bc0148bc6c5627dbe28520a5307224f3d479c3"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/Decorative & Statement Lace 1.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/Decorative & Statement Lace 1.png",
+      "contentType": "image/png",
+      "byteLength": 85669,
+      "sha256": "454c605579fdaa5c5d4553c575ea3d0ac0a8d874d2d1a59ecee0e832a0163b63"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/Decorative & Statement Lace 2.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/Decorative & Statement Lace 2.png",
+      "contentType": "image/png",
+      "byteLength": 108278,
+      "sha256": "0a5f008e2b3c26f7f2bd767e31b816d4547e9b39cba200223c293ef835bf57da"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace/items/Decorative & Statement Lace 3.png",
+      "r2Path": "Decorative-&-Statement-Lace/items/Decorative & Statement Lace 3.png",
+      "contentType": "image/png",
+      "byteLength": 41457,
+      "sha256": "5491955c47c5ef2f91fe2d3beafc01c6c44441be839825fc203e259822c56fbe"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/pack-sheet.jpg",
+      "r2Path": "Decorative-&-Statement-Lace（1）/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 18618,
+      "sha256": "94f0ace64886825e5e9ff785576cc049ccf52cb0a96295c5d6d05122fa6052b7"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/1.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 57940,
+      "sha256": "4d8c6dbafca2df357d7fba4110afb574339026c5ff065ec7e3dd9fabcbf1cc25"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/2.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 47236,
+      "sha256": "0776e2a34af8fbb7f6b0941340f4d8c546ee11c419a2a1361ec772601245ada8"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/3.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 70707,
+      "sha256": "8dd54af9eba1ff553c6e48fe04ee6c7c94a6c85b8faaeec67a9535f47307f154"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/4.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 46762,
+      "sha256": "b1533a8da6abd4a64509a87d53217072c0b551275535697df426e1ee50262f8e"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/5.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 33737,
+      "sha256": "76b3910c49c3fd41d91f9850c967b107e7afc0acde1fca539521b5d6e85ff524"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/6.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 25451,
+      "sha256": "5982e5197619c30c174b5095cf7e437d097a98a701c60559af139cef509089a8"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/7.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 20830,
+      "sha256": "f624fb812b028ba00d382c26a6cb8ae2e32ae443482a49da09cced51e87615c6"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/8.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 54623,
+      "sha256": "500f2827c08c6c66c9a735b7b8dc69408f4326fe27d1a96b6155151665c6a736"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/9.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 53378,
+      "sha256": "ca0c9f733cf537e6bb67dc836223a07eacf829fb3e9babd2951b383a666dc479"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/10.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 47509,
+      "sha256": "3a47c345fd9076fd918d42859508cc0bddae55b99433cc8c3693a3d054bcc891"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/11.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 19036,
+      "sha256": "f19ccbe4ef5b8806c652731e88a9f93d723ed9cfb36b862df5fdc5c0245cc4d7"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/12.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 27752,
+      "sha256": "2c147e1bdd2d6ea69d80949cb1a1b9fae7285a8c6a91393663525b538dee5172"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/13.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 21019,
+      "sha256": "3f7cc6068f162a9dde4b59c3c9007487aa709c6d2d9f4b3168faa94917d3497f"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/14.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 8156,
+      "sha256": "8c16790d3bddfeeaacbb034bf4260a1bda2e306da1897afeec5fa5e68671227b"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/15.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 50338,
+      "sha256": "b55e45c6a73c95d5273a915b6797e8d1e48c4e20d108fe705e80b22567717f86"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/16.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 12513,
+      "sha256": "88f15eaf8b90551fbc6ee0d536f91c055b7293a835b49c44870fcf06f354b85e"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/17.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 10264,
+      "sha256": "b932dff8d7167dd2808e1f7fb608a8fedb7a260b466560a21e5e43de33da3360"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/18.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 7765,
+      "sha256": "ec6790564a94a6671278b0e8b28e696327c13308b93f35c1f0412e3d433ece3b"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/19.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 1709,
+      "sha256": "04a8fa56938022757382e2c46dcfa0fe831af9b222bb8f5e801bef572a3c8815"
+    },
+    {
+      "localPath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/20.png",
+      "r2Path": "Decorative-&-Statement-Lace（1）/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 4601,
+      "sha256": "75f3aa63f370d57b0947e2bc5f57ad151cf0e5f669b316b199079ad4c248c79f"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/pack-sheet.png",
+      "r2Path": "zhenzhi01/pack-sheet.png",
+      "contentType": "image/png",
+      "byteLength": 97544,
+      "sha256": "0326a80d7ceac1e7841588e1f2606cf773ba36a2855b16408ce9ef49c559ab2b"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/1.png",
+      "r2Path": "zhenzhi01/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 19230,
+      "sha256": "cefc8639584a56e1b569c6163b4714a9ffc8fb7715485c5d9b88aadeb58bf8d9"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/2.png",
+      "r2Path": "zhenzhi01/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 12743,
+      "sha256": "faa6ecc526615eb798b2e1263776d1a3ae3f801870515ff2174506ac0481d82b"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/3.png",
+      "r2Path": "zhenzhi01/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 8802,
+      "sha256": "9f5db895396909179347703fab379709af9243d5f382c524e82de6a49896d693"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/4.png",
+      "r2Path": "zhenzhi01/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 5390,
+      "sha256": "3fb0f037b7da04f9ba0851e1005646905d37c278f4bbb73bb59f863ffbfbc3fb"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/5.png",
+      "r2Path": "zhenzhi01/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 4156,
+      "sha256": "0ee47f4524f78bd0e0364bf2b43fe36fa900503efdf569a9edd1879a5d9a5218"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/6.png",
+      "r2Path": "zhenzhi01/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 4926,
+      "sha256": "e4045eceda3b2277847f2eefb259287ae2b5ee2f13e209694008039d673f6858"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/7.png",
+      "r2Path": "zhenzhi01/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 23937,
+      "sha256": "6bbfa75c8decf2797b1b4b841cd664490dc53143f7bb24fe1bbe5f474da308b6"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/8.png",
+      "r2Path": "zhenzhi01/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 22938,
+      "sha256": "c913b13a494424cfbf26ba5934f33370b44129a04b53a28cabe967ea8f82fb9d"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/9.png",
+      "r2Path": "zhenzhi01/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 31397,
+      "sha256": "67ad0e772ae2c4bc00b3a07cbf2a0904326d47787ab4cf3a8d76dd8a50048930"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/10.png",
+      "r2Path": "zhenzhi01/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 33379,
+      "sha256": "2a797e6b2a4cbca235b0db8a401f2d00f9c1b7cab95ddbcb9884087c9e50bd5f"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/11.png",
+      "r2Path": "zhenzhi01/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 17751,
+      "sha256": "9733eb0ba2e8db447619c7949eb93ad21a18aeece21ecbcaf0926626a0103330"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/12.png",
+      "r2Path": "zhenzhi01/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 5091,
+      "sha256": "f359e86db03f3af3507572606dd7dcb7a2aacdc6e6a156cf9207f04a4b38819a"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/13.png",
+      "r2Path": "zhenzhi01/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 14619,
+      "sha256": "fd01032efa7610b6fa11dbf7921ad6d68d1a4e784135550b41569e34554953bd"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/14.png",
+      "r2Path": "zhenzhi01/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 26031,
+      "sha256": "c3e72303667b1aca13e6eb4b65f27b03acd405df2cdc0187caa7ff713ae8d6a3"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/15.png",
+      "r2Path": "zhenzhi01/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 13343,
+      "sha256": "fab4d29a3e0b423afe6443ac6f7a76453f65376922752360ced279246abcea88"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/16.png",
+      "r2Path": "zhenzhi01/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 8277,
+      "sha256": "c63c410d774e3269c8e4dc0c1070e71920096c6ebb4e4cf3c97239e265250d7d"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/17.png",
+      "r2Path": "zhenzhi01/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 26560,
+      "sha256": "b184cffc2c8ab66845dee8cfe47450966f91a919702bb11e30f89b272a498bed"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/18.png",
+      "r2Path": "zhenzhi01/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 27977,
+      "sha256": "26f68969fc6847217cc17e82662a6db9b89845d5baf02aaf6af3c503b5b27693"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/19.png",
+      "r2Path": "zhenzhi01/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 17623,
+      "sha256": "ce94caf01df53f80d1249285da94b36541aef63c44b6a5517b4f4b235c370310"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/20.png",
+      "r2Path": "zhenzhi01/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 9683,
+      "sha256": "f82837e0be17071f56d2732ac09939df70a22053cf37b06a12933e68e12a98d8"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/21.png",
+      "r2Path": "zhenzhi01/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 30190,
+      "sha256": "8d7348c278587c4cf11391eb835577b2e8d3311b15d23653abc844ca23421976"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/22.png",
+      "r2Path": "zhenzhi01/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 29768,
+      "sha256": "ca1c1655099eb4187f18a8849ae3952d6c2886c02ea4bf5297f8f5b8d3764e11"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/23.png",
+      "r2Path": "zhenzhi01/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 19281,
+      "sha256": "adb5b61f0392198555fa8856a3e34831c7d6797ae10c337f5c5bcfec02cec3f5"
+    },
+    {
+      "localPath": "source-assets/packs/zhenzhi01/items/24.png",
+      "r2Path": "zhenzhi01/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 21125,
+      "sha256": "292da3ecc0606ca6195404639303653cfbff01708d2abea77ab08bda52a9be0e"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/pack-sheet.jpg",
+      "r2Path": "Pixel & ASCII/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 32067,
+      "sha256": "1b149bd032e05641e5a1840c77122914211b2b61ed152f0fa96be723123b00ef"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/1 (1).png",
+      "r2Path": "Pixel & ASCII/items/1 (1).png",
+      "contentType": "image/png",
+      "byteLength": 12638,
+      "sha256": "df507c1583e8e2bd9c1671196ec863b1dbeb6222edb5a957035d986be2379b63"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/1.png",
+      "r2Path": "Pixel & ASCII/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 62206,
+      "sha256": "f9f6e721cb10cbf47f18736d4d10f381dd7863a6773febea34d35276b91d4785"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/2 (1).png",
+      "r2Path": "Pixel & ASCII/items/2 (1).png",
+      "contentType": "image/png",
+      "byteLength": 18202,
+      "sha256": "24e47844f58d853c15f2067049f69458aa60ae21128c5de4f2c8ed039f6ab722"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/2.png",
+      "r2Path": "Pixel & ASCII/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 29296,
+      "sha256": "4b5f27749dba0c805d63258bded647c52dfe912a6991b00d906a40fedc0b49b6"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/3 (1).png",
+      "r2Path": "Pixel & ASCII/items/3 (1).png",
+      "contentType": "image/png",
+      "byteLength": 29868,
+      "sha256": "90eb8c8c34dbebea2ac3ade66928ffd0be2e85be19392c35838e001fa8c676be"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/3.png",
+      "r2Path": "Pixel & ASCII/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 30995,
+      "sha256": "20b7dfe6249adf57676608726838c2710fb9fc2cc69f9e2dbebc59b570214b14"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/4 (1).png",
+      "r2Path": "Pixel & ASCII/items/4 (1).png",
+      "contentType": "image/png",
+      "byteLength": 18496,
+      "sha256": "0475eb5c69f74400acb3861f037502bc55f244242760299282e4d3171dc855a4"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/4.png",
+      "r2Path": "Pixel & ASCII/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 30786,
+      "sha256": "2f5b0309c192a73683326b6aece2c7e7456ba62f79d4214fa4b8f568c4a82cd1"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/5 (1).png",
+      "r2Path": "Pixel & ASCII/items/5 (1).png",
+      "contentType": "image/png",
+      "byteLength": 11274,
+      "sha256": "81d9edd1a73e0dd0fa68b35b9f332cc28cb17a2fbec801dc6d0df325b1afb073"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/5.png",
+      "r2Path": "Pixel & ASCII/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 19429,
+      "sha256": "c9362a6e442f85aedbe0f1c1c16eb3211aaf4a9f729216315a26cdc6cd463912"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/6 (1).png",
+      "r2Path": "Pixel & ASCII/items/6 (1).png",
+      "contentType": "image/png",
+      "byteLength": 10193,
+      "sha256": "e3fc693ba52653d70ed438a3da41434d5ae184577bcd71d86755f5f900d13c1f"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/6.png",
+      "r2Path": "Pixel & ASCII/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 18708,
+      "sha256": "21f0456f3fad45287246158dcad204a81cf43395174c042cf32dc1b966917cbf"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/7 (1).png",
+      "r2Path": "Pixel & ASCII/items/7 (1).png",
+      "contentType": "image/png",
+      "byteLength": 8612,
+      "sha256": "594ff5dfa40d05dccdcbfdc410ec8fe65a6b3b422970b9fe018e55c616eb3d9b"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/7.png",
+      "r2Path": "Pixel & ASCII/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 9863,
+      "sha256": "8fcfaa36732062c21e8ae711a4579260495b3d29ff74c54aec65e2246133fa16"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/8 (1).png",
+      "r2Path": "Pixel & ASCII/items/8 (1).png",
+      "contentType": "image/png",
+      "byteLength": 13604,
+      "sha256": "eacceb07e7f526cdb36f5c1e1fd206e63d09752e614ea1bc8e0fdaad60321bce"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/8.png",
+      "r2Path": "Pixel & ASCII/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 15244,
+      "sha256": "3a6209ecf4b426b1c8356b64a150a2cf95d0677e0730411469521eef11322405"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/9 (1).png",
+      "r2Path": "Pixel & ASCII/items/9 (1).png",
+      "contentType": "image/png",
+      "byteLength": 11091,
+      "sha256": "64ee22fd5d1dd3d737b5c22835bbe2c5202d247941aae0deb7689abed5c94dbb"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/9.png",
+      "r2Path": "Pixel & ASCII/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 17834,
+      "sha256": "4303f8965d134aa969b19841ecee40eb58a976b38c9d23e8990418733e078b2f"
+    },
+    {
+      "localPath": "source-assets/packs/Pixel & ASCII/items/10.png",
+      "r2Path": "Pixel & ASCII/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 12004,
+      "sha256": "ef73c4bbe48a47b52bc9f1e8f330fdc56ecb2979426ccd6da5bff438874a8565"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/pack-sheet.jpg",
+      "r2Path": "Digital-UI/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 33553,
+      "sha256": "17b8b58962208ed6f1136c36ba86abee1c3d148543ae1a7f4b68f12dfde33c79"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/1.png",
+      "r2Path": "Digital-UI/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 42183,
+      "sha256": "77245d047dd53a8e6dceaa3a5ba82c00335c8bbff0423669948bea8a7d263b2e"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/2.png",
+      "r2Path": "Digital-UI/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 27300,
+      "sha256": "58a15b6633ba77f62c600cae802e96fd74380cf8d791beb6b18db3d4177a0ca1"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/3.png",
+      "r2Path": "Digital-UI/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 27832,
+      "sha256": "ce9f4d2e4a43cc2f0d0bbc827d75e44e66b223a355a78fbdfc8e42b6ede8a8fc"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/4.png",
+      "r2Path": "Digital-UI/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 29784,
+      "sha256": "e61f282dc221fa11fa610005f841feda1868ba8c0a33daf043682947e6fda266"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/5.png",
+      "r2Path": "Digital-UI/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 20828,
+      "sha256": "8586bbd9a28638333fbc5906a94dc1c496bad5f7b0711924d1148fb001d19c3b"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/6.png",
+      "r2Path": "Digital-UI/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 24372,
+      "sha256": "8edc5d0822718c8de4c9e1dee831d22098b54cca1a2f4c1915ed108e544846dc"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/7.png",
+      "r2Path": "Digital-UI/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 2156,
+      "sha256": "d021bd29040fb41f0fe8f39ee0f7a679370bd4f6b1dd2b6050edb8e5845baad6"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/8.png",
+      "r2Path": "Digital-UI/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 21351,
+      "sha256": "52db7e1b7129c67894ac48fe0b5ed8965228970efaa839bef323172c5230dc96"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/9.png",
+      "r2Path": "Digital-UI/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 22228,
+      "sha256": "f672bbe0338635f2a8762146240e5f1faba3f9c1f12e564e43451867790ee54b"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/10.png",
+      "r2Path": "Digital-UI/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 1452,
+      "sha256": "c1cb94dacfbfd7a4e754aecac65ed60424b795b59f939a00d184c9b14cdbae83"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/11.png",
+      "r2Path": "Digital-UI/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 32321,
+      "sha256": "2a984f8ea9179dbe548956bec1545663ae7949ad37202722c6a94ef686264440"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/12.png",
+      "r2Path": "Digital-UI/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 25527,
+      "sha256": "6f76417e96433d8d5265839c47b7c6a0a53d749d3205ed1d83d65d7a0302a06a"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/13.png",
+      "r2Path": "Digital-UI/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 25363,
+      "sha256": "8211f621cdd3c0aef9b62a4c6e9d6c9d0579ffc0a25964043d53ee60e935925f"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/14.png",
+      "r2Path": "Digital-UI/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 19134,
+      "sha256": "ff16a89174548b022bb46a5e76d930c60df107627db0070535e6e5a295f92dc9"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/15.png",
+      "r2Path": "Digital-UI/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 13326,
+      "sha256": "daa67a420643d4433cecc1b4296ebff4e8ce4a7e0372a8ff1a4e09ec126ec6b9"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/16.png",
+      "r2Path": "Digital-UI/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 4616,
+      "sha256": "e9c21feaff02e00b4dd454005ce65b75e49c98790b5bd8c9d94af3e10e22d2c4"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/17.png",
+      "r2Path": "Digital-UI/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 12146,
+      "sha256": "441afad4fbb9503153d61f002d54663795a2ae1d00f6ff9e5a478b2838eb7831"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/18.png",
+      "r2Path": "Digital-UI/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 9410,
+      "sha256": "4b622ae1262ac078e0f499e5ee2992ee322ceb4e0618b7626283cbebb81e085c"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/19.png",
+      "r2Path": "Digital-UI/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 2248,
+      "sha256": "c28efebf3f3574794ab9c53ee3bc67b57bb4d7d2cd4689ae94a16df683b649c2"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/20.png",
+      "r2Path": "Digital-UI/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 2199,
+      "sha256": "defffaab305a1f1c0e9a3ca793ac6feb96109f383a250d701e09b641078c3e94"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/21.png",
+      "r2Path": "Digital-UI/items/21.png",
+      "contentType": "image/png",
+      "byteLength": 2111,
+      "sha256": "fae93997e164f1f117a97bb3fb7cd554fc9be790ea29afaf4c5acea8d66ffb92"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/22.png",
+      "r2Path": "Digital-UI/items/22.png",
+      "contentType": "image/png",
+      "byteLength": 2145,
+      "sha256": "80d3faceea519e2369abdd6ad2cbbc3328ec658ec5c750136ce1e5ded3962b14"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/23.png",
+      "r2Path": "Digital-UI/items/23.png",
+      "contentType": "image/png",
+      "byteLength": 2923,
+      "sha256": "e6f16df34a6856686d02e429682962752c69ab1865bba17c482d936790aa28d2"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/24.png",
+      "r2Path": "Digital-UI/items/24.png",
+      "contentType": "image/png",
+      "byteLength": 3154,
+      "sha256": "cbf9539bc8bf5c32bd5480457c978af460f8400e345f5a1f112261a3678bdef1"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/25.png",
+      "r2Path": "Digital-UI/items/25.png",
+      "contentType": "image/png",
+      "byteLength": 4241,
+      "sha256": "136774cbe20c5e50f72414beb5199fabc788c843c041001dc597211af7f9aff0"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/26.png",
+      "r2Path": "Digital-UI/items/26.png",
+      "contentType": "image/png",
+      "byteLength": 6734,
+      "sha256": "eb964a54669009c903adf87ad4b411ef9ba3e40b92076b185d2017fcfd51796f"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/27.png",
+      "r2Path": "Digital-UI/items/27.png",
+      "contentType": "image/png",
+      "byteLength": 2994,
+      "sha256": "73210f8b3ed2bec7dfdbbf91228b96c1f6a975c7aa9c56b857e3361b8a3f4454"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/28.png",
+      "r2Path": "Digital-UI/items/28.png",
+      "contentType": "image/png",
+      "byteLength": 10445,
+      "sha256": "937f0ecead573c280b355c2e4b1a1d879394ee47ea3208d7219ef7681bf5cb18"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/29.png",
+      "r2Path": "Digital-UI/items/29.png",
+      "contentType": "image/png",
+      "byteLength": 966,
+      "sha256": "6322c7d949fbf4cd31cac0adef3f710efc5c8a191fc01d08f3ab7a992f2ccb72"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/30.png",
+      "r2Path": "Digital-UI/items/30.png",
+      "contentType": "image/png",
+      "byteLength": 2983,
+      "sha256": "42405a6526d85548ace672ffb48566d4bf3ae75a3362ec04480448a004066234"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/31.png",
+      "r2Path": "Digital-UI/items/31.png",
+      "contentType": "image/png",
+      "byteLength": 4944,
+      "sha256": "24a65475d9375de82959498cecbcdc2465dbe8e41f8fab65d871567298a29264"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/32.png",
+      "r2Path": "Digital-UI/items/32.png",
+      "contentType": "image/png",
+      "byteLength": 2382,
+      "sha256": "dbd163ef987c72c75da7e81170d17513af63543de9fc719d50a843d4789a381f"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI/items/33.png",
+      "r2Path": "Digital-UI/items/33.png",
+      "contentType": "image/png",
+      "byteLength": 8727,
+      "sha256": "1334f0edbc746ff6ba5032d23660ed06f57c92e0e3a5bedeadbbea3ba5c438b8"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/pack-sheet.jpg",
+      "r2Path": "Digital-UI(1)/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 65767,
+      "sha256": "3bce63bf669ba94336b4c0472793e70d7a02b1f7410841055861b04acae7c23c"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_01.png",
+      "r2Path": "Digital-UI(1)/items/sprite_01.png",
+      "contentType": "image/png",
+      "byteLength": 41473,
+      "sha256": "23b1281cb98750d81f3334e48d0b0cbd76d58a4b93e8113c841cc551e5dc852b"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_02.png",
+      "r2Path": "Digital-UI(1)/items/sprite_02.png",
+      "contentType": "image/png",
+      "byteLength": 41598,
+      "sha256": "0ffa485ca560fcb96c6b4d924035fb2ff116aca1aa2e33ed1b6df2e44136d387"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_03.png",
+      "r2Path": "Digital-UI(1)/items/sprite_03.png",
+      "contentType": "image/png",
+      "byteLength": 52569,
+      "sha256": "b0ea0c7e6e42b00c7bef938941554314a10be315cb3ddfb249fae4f93d96d59c"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_04.png",
+      "r2Path": "Digital-UI(1)/items/sprite_04.png",
+      "contentType": "image/png",
+      "byteLength": 43918,
+      "sha256": "927744d06d1b2b1c04f655a68f45cabe74ad0e8bc1a42eb1a81f27bf6f187603"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_05.png",
+      "r2Path": "Digital-UI(1)/items/sprite_05.png",
+      "contentType": "image/png",
+      "byteLength": 28893,
+      "sha256": "85ee31275838ffdf3be3bff3fe29820d72aaa8e5952c55969db24f9a4a291a7b"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_06.png",
+      "r2Path": "Digital-UI(1)/items/sprite_06.png",
+      "contentType": "image/png",
+      "byteLength": 42166,
+      "sha256": "913fe1d71e9c31b53ec4dc3be5f1273b60a2bb10e293958934e5b81f8db5bfc6"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_07.png",
+      "r2Path": "Digital-UI(1)/items/sprite_07.png",
+      "contentType": "image/png",
+      "byteLength": 31198,
+      "sha256": "083dad769b4e2e8b7e3678e2c19d7cc1a1fe5edf527ed1e52d3bc0081fdb54b9"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_08.png",
+      "r2Path": "Digital-UI(1)/items/sprite_08.png",
+      "contentType": "image/png",
+      "byteLength": 35940,
+      "sha256": "41e0a31e91edf245439f03ce36fbff8edb064324885664d05dc38ce2bb3c690e"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_09.png",
+      "r2Path": "Digital-UI(1)/items/sprite_09.png",
+      "contentType": "image/png",
+      "byteLength": 25455,
+      "sha256": "ba419dcaf9947bd47d64ab420ba153f4251f29594d3118ce66b75c323791db30"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_10.png",
+      "r2Path": "Digital-UI(1)/items/sprite_10.png",
+      "contentType": "image/png",
+      "byteLength": 38145,
+      "sha256": "32f88c7c08c2b0d4d2e0471d965105d34d6f154267b763838305fd6a43be6dbc"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_11.png",
+      "r2Path": "Digital-UI(1)/items/sprite_11.png",
+      "contentType": "image/png",
+      "byteLength": 32481,
+      "sha256": "bf487d54b517226571ba35f2548af1a051f1b7d3514abecdcd92428a84adf63c"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_12.png",
+      "r2Path": "Digital-UI(1)/items/sprite_12.png",
+      "contentType": "image/png",
+      "byteLength": 18864,
+      "sha256": "555259086c49a590a275f87c7a2eae645afb2be25ef16d2c58e5b0c08857cea0"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_13.png",
+      "r2Path": "Digital-UI(1)/items/sprite_13.png",
+      "contentType": "image/png",
+      "byteLength": 35082,
+      "sha256": "0245d5dd9005574917ce64dba95dedd6ce5a5e53829b5a362e8057c7d36fe214"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_14.png",
+      "r2Path": "Digital-UI(1)/items/sprite_14.png",
+      "contentType": "image/png",
+      "byteLength": 25705,
+      "sha256": "e096c26d668ce9962c6a515facf83deb910e623f3466bbeb604085f615f08945"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_15.png",
+      "r2Path": "Digital-UI(1)/items/sprite_15.png",
+      "contentType": "image/png",
+      "byteLength": 29557,
+      "sha256": "22e66d98b4524178ed997390fddd027c6f59663269c0692149588193a36ada3f"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_16.png",
+      "r2Path": "Digital-UI(1)/items/sprite_16.png",
+      "contentType": "image/png",
+      "byteLength": 37600,
+      "sha256": "54a8b1bd642c2e3f0f51745dfcc6db23284170a3abacd070089ff21ff7555d21"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_17.png",
+      "r2Path": "Digital-UI(1)/items/sprite_17.png",
+      "contentType": "image/png",
+      "byteLength": 45335,
+      "sha256": "bb339111843dacef8b070e29bd6c7ce0b920a963b22eec6f789026c385e6cd0c"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_18.png",
+      "r2Path": "Digital-UI(1)/items/sprite_18.png",
+      "contentType": "image/png",
+      "byteLength": 26950,
+      "sha256": "595bc8b327cbbe29add39611546ba4fd6ef70fe463ee2e290d4341829b4042c9"
+    },
+    {
+      "localPath": "source-assets/packs/Digital-UI(1)/items/sprite_19.png",
+      "r2Path": "Digital-UI(1)/items/sprite_19.png",
+      "contentType": "image/png",
+      "byteLength": 28594,
+      "sha256": "171cd9f45949dd87c1a1206eef932c470f9585a17c483bac2ae430c47a2b0fcd"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/pack-sheet.jpg",
+      "r2Path": "Chrome-Symbols/pack-sheet.jpg",
+      "contentType": "image/jpeg",
+      "byteLength": 41529,
+      "sha256": "662a349339bf96d62ccd5de023fa6c3b446da62805fe7b2bdf877af3a9dd33d2"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/1.png",
+      "r2Path": "Chrome-Symbols/items/1.png",
+      "contentType": "image/png",
+      "byteLength": 11910,
+      "sha256": "0b8bbe4b6bdb46df92a9a255fa09f787acf667235f0d05fc36ba39f3a599ac5b"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/2.png",
+      "r2Path": "Chrome-Symbols/items/2.png",
+      "contentType": "image/png",
+      "byteLength": 28866,
+      "sha256": "04cc2da876aab3291b007416196c8e251a69b1709a341d2830d04a70c8950801"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/3.png",
+      "r2Path": "Chrome-Symbols/items/3.png",
+      "contentType": "image/png",
+      "byteLength": 27233,
+      "sha256": "2b00cfc6d38c0efccd291be03d1188b8058a87b5bcc691327d67caccc1804648"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/4.png",
+      "r2Path": "Chrome-Symbols/items/4.png",
+      "contentType": "image/png",
+      "byteLength": 31926,
+      "sha256": "6621b05670a55da98155bd81ea768c873e4501adabfd358cf5fd3b819b56c567"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/5.png",
+      "r2Path": "Chrome-Symbols/items/5.png",
+      "contentType": "image/png",
+      "byteLength": 29002,
+      "sha256": "29dcedeb4e28dc1aac2dbd008a715247fb6160e6a04cf9262b2ed6d0a94dd0bd"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/6.png",
+      "r2Path": "Chrome-Symbols/items/6.png",
+      "contentType": "image/png",
+      "byteLength": 28917,
+      "sha256": "8f920ed6a9df9de616bce42fddcacbafded7d0f568ab0125ac1f5fc0b84bbfc7"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/7.png",
+      "r2Path": "Chrome-Symbols/items/7.png",
+      "contentType": "image/png",
+      "byteLength": 27923,
+      "sha256": "f00ca2ee2252da5e78bef553cd20b7fd02eb392e9005c68c4926ad302007823a"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/8.png",
+      "r2Path": "Chrome-Symbols/items/8.png",
+      "contentType": "image/png",
+      "byteLength": 38327,
+      "sha256": "fbca73b7dbcd85dc1102a97509b432e0983b4d7c23c03f96ca85471663c44e14"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/9.png",
+      "r2Path": "Chrome-Symbols/items/9.png",
+      "contentType": "image/png",
+      "byteLength": 25545,
+      "sha256": "33494f8f7fa9f45fe5f4bd138cd14879d421aaddf34966a0ff14fb30a72694be"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/10.png",
+      "r2Path": "Chrome-Symbols/items/10.png",
+      "contentType": "image/png",
+      "byteLength": 24437,
+      "sha256": "3d348c2f1e5f04c8127d6dec97a3eb641089e9d125f879e75321ed36b8b2d7bf"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/11.png",
+      "r2Path": "Chrome-Symbols/items/11.png",
+      "contentType": "image/png",
+      "byteLength": 19489,
+      "sha256": "b0828c235b53606a8808ad6fe3aaab4952e22ed001a77361f259473f514505e9"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/12.png",
+      "r2Path": "Chrome-Symbols/items/12.png",
+      "contentType": "image/png",
+      "byteLength": 12935,
+      "sha256": "e5cd7e748a1df3352263c652e6bfe2cd7165141d6d260dc3c6a8ebbddfa567ba"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/13.png",
+      "r2Path": "Chrome-Symbols/items/13.png",
+      "contentType": "image/png",
+      "byteLength": 21920,
+      "sha256": "14e08784090a2dc1be1a008ec72bced41ba9472db6518e812ad44e39ef4d6508"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/14.png",
+      "r2Path": "Chrome-Symbols/items/14.png",
+      "contentType": "image/png",
+      "byteLength": 20557,
+      "sha256": "a702537fd09494fc1e405ae02823673c392450189e5befd12f3327d5a691b38b"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/15.png",
+      "r2Path": "Chrome-Symbols/items/15.png",
+      "contentType": "image/png",
+      "byteLength": 28103,
+      "sha256": "3ad1dfb8cb9bc445fe5c44b0aa56360de756bf6f10d10fa03abb84781d2dc52c"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/16.png",
+      "r2Path": "Chrome-Symbols/items/16.png",
+      "contentType": "image/png",
+      "byteLength": 29169,
+      "sha256": "08e60f7e1215f3b207b02cbecdc2b0175f0900b434e653ff87f2a753f3c36596"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/17.png",
+      "r2Path": "Chrome-Symbols/items/17.png",
+      "contentType": "image/png",
+      "byteLength": 29080,
+      "sha256": "a0665d80d044e4f34667b0c1519d44850e21b1f00a4b5ae47fb77eb4eba5c4bd"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/18.png",
+      "r2Path": "Chrome-Symbols/items/18.png",
+      "contentType": "image/png",
+      "byteLength": 31827,
+      "sha256": "65886549e2b6ab685b7d9ec3262f57b7ce20ad60c4d0cc23b264e481d27988a3"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/19.png",
+      "r2Path": "Chrome-Symbols/items/19.png",
+      "contentType": "image/png",
+      "byteLength": 26310,
+      "sha256": "3be172528c06020f53e43516aece0a76f6a9158246dd3cd50940df262f5bd69e"
+    },
+    {
+      "localPath": "source-assets/packs/Chrome-Symbols/items/20.png",
+      "r2Path": "Chrome-Symbols/items/20.png",
+      "contentType": "image/png",
+      "byteLength": 20657,
+      "sha256": "320146da1ba7284040f98f440fd959b4fd61d6f6cc4b412b12c38b3b0698b8d2"
+    }
+  ]
+}

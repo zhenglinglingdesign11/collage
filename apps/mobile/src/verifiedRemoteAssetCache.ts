@@ -7,7 +7,11 @@ type VerifiedRemoteAssetRecord = Readonly<{
   descriptor: RemoteAssetIntegrityDescriptor;
   relativePath: string;
   verifiedAt: string;
+  lastAccessedAt?: string;
 }>;
+
+export type VerifiedRemoteCacheSummary = Readonly<{ bytes: number; files: number }>;
+export type VerifiedRemoteCachePruneResult = Readonly<{ before: VerifiedRemoteCacheSummary; after: VerifiedRemoteCacheSummary; removed: number }>;
 
 const root = `${FileSystem.documentDirectory}journalcollage/verified-remote-assets/v1/`;
 const downloads = new RemoteAssetDownloadCoordinator<string>();
@@ -19,6 +23,7 @@ const bytesFromBase64 = (value: string): Uint8Array => Uint8Array.from(atob(valu
 const extensionFor = (mimeType: RemoteAssetIntegrityDescriptor['mimeType']): string => mimeType === 'image/png' ? 'png' : 'jpg';
 const readBytes = async (uri: string): Promise<Uint8Array> => bytesFromBase64(await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }));
 const identity = (descriptor: RemoteAssetIntegrityDescriptor): string => sha256HexForBytes(new TextEncoder().encode(remoteAssetCacheKey(descriptor)));
+const referenceKey = (descriptor: RemoteAssetIntegrityDescriptor): string => `${descriptor.reference.id}\u0000${descriptor.reference.kind}\u0000${descriptor.reference.revision}`;
 
 const location = (descriptor: RemoteAssetIntegrityDescriptor) => {
   const directory = `${root}${identity(descriptor)}/`;
@@ -56,11 +61,28 @@ const cachedAssetUri = async (descriptor: RemoteAssetIntegrityDescriptor): Promi
     const parsed = JSON.parse(await FileSystem.readAsStringAsync(current.recordUri, { encoding: FileSystem.EncodingType.UTF8 })) as VerifiedRemoteAssetRecord;
     if (parsed.version !== 1 || parsed.relativePath !== current.relativePath || !sameDescriptor(parsed.descriptor, descriptor)) throw new Error('record mismatch');
     validateRemoteAssetDownload(descriptor, { bytes: await readBytes(current.assetUri), mimeType: descriptor.mimeType });
+    void FileSystem.writeAsStringAsync(current.recordUri, JSON.stringify({ ...parsed, lastAccessedAt: new Date().toISOString() }), { encoding: FileSystem.EncodingType.UTF8 }).catch(() => undefined);
     return current.assetUri;
   } catch {
     await deleteLocation(current.directory);
     return null;
   }
+};
+
+/** Reads only a complete, descriptor-verified cache entry; invalid entries are removed. */
+export const findVerifiedRemoteAsset = async (descriptor: RemoteAssetIntegrityDescriptor): Promise<string | null> => {
+  validateRemoteAssetDescriptor(descriptor);
+  return cachedAssetUri(descriptor);
+};
+
+/** Bundle URIs use the same byte validation as a downloaded remote object. */
+export const findVerifiedBundledAsset = async (descriptor: RemoteAssetIntegrityDescriptor, uri: string | undefined): Promise<string | null> => {
+  if (!uri) return null;
+  try {
+    validateRemoteAssetDescriptor(descriptor);
+    validateRemoteAssetDownload(descriptor, { bytes: await readBytes(uri), mimeType: descriptor.mimeType });
+    return uri;
+  } catch { return null; }
 };
 
 const cancelled = <T>(signal: AbortSignal | undefined, promise: Promise<T>): Promise<T> => {
@@ -101,7 +123,8 @@ export const cacheVerifiedRemoteAsset = async (
         if (result.status < 200 || result.status >= 300) throw new RemoteAssetIntegrityError('asset-download-failed', `Remote asset returned HTTP ${result.status}.`);
         const headerMime = result.headers['content-type'] ?? result.headers['Content-Type'] ?? null;
         validateRemoteAssetDownload(descriptor, { bytes: await readBytes(stagingAsset), mimeType: headerMime });
-        const record: VerifiedRemoteAssetRecord = { version: 1, descriptor, relativePath: current.relativePath, verifiedAt: new Date().toISOString() };
+        const now = new Date().toISOString();
+        const record: VerifiedRemoteAssetRecord = { version: 1, descriptor, relativePath: current.relativePath, verifiedAt: now, lastAccessedAt: now };
         await FileSystem.writeAsStringAsync(stagingRecord, JSON.stringify(record), { encoding: FileSystem.EncodingType.UTF8 });
         await deleteLocation(current.directory);
         await FileSystem.moveAsync({ from: staging, to: current.directory });
@@ -120,4 +143,50 @@ export const cacheVerifiedRemoteAsset = async (
     throw new RemoteAssetIntegrityError('asset-download-failed', lastError instanceof Error ? lastError.message : 'Remote asset could not be downloaded.');
   });
   return cancelled(options.signal, operation);
+};
+
+type VerifiedCacheCandidate = Readonly<{ directory: string; descriptor: RemoteAssetIntegrityDescriptor; bytes: number; lastAccessedAt: string }>;
+const verifiedCacheCandidates = async (): Promise<readonly VerifiedCacheCandidate[]> => {
+  const directories = await FileSystem.readDirectoryAsync(root).catch(() => []);
+  const candidates = await Promise.all(directories.filter((name) => !name.includes('.staging')).map(async (directory) => {
+    const recordUri = `${root}${directory}/record.json`;
+    try {
+      const parsed = JSON.parse(await FileSystem.readAsStringAsync(recordUri, { encoding: FileSystem.EncodingType.UTF8 })) as VerifiedRemoteAssetRecord;
+      if (parsed.version !== 1 || !parsed.descriptor || !parsed.relativePath) throw new Error('Invalid record');
+      const asset = await FileSystem.getInfoAsync(`${root}${parsed.relativePath}`);
+      if (!asset.exists || typeof asset.size !== 'number') throw new Error('Missing asset');
+      return { directory: `${root}${directory}/`, descriptor: parsed.descriptor, bytes: asset.size, lastAccessedAt: parsed.lastAccessedAt ?? parsed.verifiedAt };
+    } catch {
+      await deleteLocation(`${root}${directory}/`);
+      return null;
+    }
+  }));
+  return candidates.filter((candidate): candidate is VerifiedCacheCandidate => candidate !== null);
+};
+
+export const getVerifiedRemoteCacheSummary = async (): Promise<VerifiedRemoteCacheSummary> => {
+  const entries = await verifiedCacheCandidates();
+  return entries.reduce<VerifiedRemoteCacheSummary>((summary, entry) => ({ bytes: summary.bytes + entry.bytes, files: summary.files + 1 }), { bytes: 0, files: 0 });
+};
+
+/** Evicts only reproducible strict remote assets, least-recently used first. */
+export const pruneVerifiedRemoteAssetCache = async (maximumBytes: number, protectedReferenceKeys: ReadonlySet<string>): Promise<VerifiedRemoteCachePruneResult> => {
+  const entries = await verifiedCacheCandidates();
+  const before = entries.reduce<VerifiedRemoteCacheSummary>((summary, entry) => ({ bytes: summary.bytes + entry.bytes, files: summary.files + 1 }), { bytes: 0, files: 0 });
+  let bytes = before.bytes;
+  let removed = 0;
+  for (const entry of [...entries].filter((entry) => !protectedReferenceKeys.has(referenceKey(entry.descriptor))).sort((left, right) => left.lastAccessedAt.localeCompare(right.lastAccessedAt))) {
+    if (bytes <= maximumBytes) break;
+    await deleteLocation(entry.directory);
+    bytes -= entry.bytes;
+    removed += 1;
+  }
+  return { before, after: await getVerifiedRemoteCacheSummary(), removed };
+};
+
+/** Never touches user-owned files, workspaces, or exports. */
+export const clearVerifiedRemoteAssetCache = async (): Promise<VerifiedRemoteCacheSummary> => {
+  const before = await getVerifiedRemoteCacheSummary();
+  await FileSystem.deleteAsync(root, { idempotent: true });
+  return before;
 };

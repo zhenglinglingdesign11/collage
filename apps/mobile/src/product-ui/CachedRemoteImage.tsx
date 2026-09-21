@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react';
 import { Image, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 import { cacheRemoteResource, resolvedRemoteResourceUri } from '../localWorkspace';
+import { isCompatibilityProductAssetReference, isShippedProductAssetReference, shippedProductAssetResolver } from '../shippedProductAssetCatalog';
+import type { AssetReference } from '@journalcollage/editor-core';
 
 /** Disk-backed image surface for remote material covers and thumbnails. */
-export const CachedRemoteImage = ({ cacheKey, source, style }: Readonly<{ cacheKey: string; source: string; style: StyleProp<ImageStyle> }>) => {
+export const CachedRemoteImage = ({ cacheKey, reference, source, style }: Readonly<{ cacheKey: string; reference?: Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>; source: string; style: StyleProp<ImageStyle> }>) => {
   const cachedUri = resolvedRemoteResourceUri(cacheKey, source);
+  const shippedReference = reference && isShippedProductAssetReference(reference) ? reference : undefined;
+  const compatibilityReference = reference && isCompatibilityProductAssetReference(reference) ? reference : undefined;
   const [uri, setUri] = useState<string | null>(source.startsWith('data:') ? source : cachedUri ?? null);
   useEffect(() => {
     let active = true;
     setUri(source.startsWith('data:') ? source : resolvedRemoteResourceUri(cacheKey, source) ?? null);
-    void cacheRemoteResource(cacheKey, source).then((localUri) => { if (active) setUri(localUri); }).catch(() => { if (active) setUri(source); });
+    if (shippedReference) {
+      void shippedProductAssetResolver.resolve(shippedReference).then(({ uri: localUri }) => { if (active) setUri(localUri); }).catch(() => { if (active) setUri(null); });
+    } else if (compatibilityReference) {
+      void cacheRemoteResource(cacheKey, source, { requireImageMime: true }).then((localUri) => { if (active) setUri(localUri); }).catch(() => { if (active) setUri(null); });
+    } else {
+      void cacheRemoteResource(cacheKey, source).then((localUri) => { if (active) setUri(localUri); }).catch(() => { if (active) setUri(source); });
+    }
     return () => { active = false; };
-  }, [cacheKey, source]);
+  }, [cacheKey, compatibilityReference, shippedReference, source]);
   return uri === null ? <View style={style as StyleProp<ViewStyle>} /> : <Image source={{ uri }} style={style} />;
 };
