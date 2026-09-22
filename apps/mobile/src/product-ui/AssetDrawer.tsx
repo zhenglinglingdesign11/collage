@@ -30,7 +30,9 @@ const basicShapeTextures = [
 ] as const;
 type BasicShapeCustom = ProceduralSticker;
 
-export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = shippedProductMaterialPacks }: Readonly<{
+export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = false, onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = shippedProductMaterialPacks }: Readonly<{
+  /** Template Studio may opt into internal packs; ordinary creation leaves this empty. */
+  additionalPacks?: readonly RemoteAssetPack[];
   initialCustomPolkaPaper?: boolean;
   onAddItem: (item: RemotePackItem) => void;
   onAddCustomPolkaPaper: (paper: PolkaCustom) => void;
@@ -49,9 +51,10 @@ export const AssetDrawer = ({ initialCustomPolkaPaper = false, onAddItem, onAddC
   const [customColor, setCustomColor] = useState<string>(solidPaperColors[0]);
   const [polka, setPolka] = useState<PolkaCustom>({ background: '#FDF7EC', foreground: polkaForegrounds[0], shape: 'circle', radius: 5, gap: 32, style: 'solid', opacity: 0.64, offset: 'grid' });
   const [basicShape, setBasicShape] = useState<BasicShapeCustom>({ shape: 'circle', fillColor: '#f4b8c4', strokeColor: '', strokeWidth: 0, opacity: 1, count: 1, layout: 'single' });
+  const availablePacks = [...packs, ...additionalPacks];
   const visiblePacks = category === 'recommended'
-    ? packs.filter((pack) => recommendedRemoteAssetPackIds.has(pack.id))
-    : packs.filter((pack) => pack.category === category);
+    ? availablePacks.filter((pack) => recommendedRemoteAssetPackIds.has(pack.id))
+    : availablePacks.filter((pack) => pack.category === category);
   const packRows = intoRows(visiblePacks, 3);
 
   return (

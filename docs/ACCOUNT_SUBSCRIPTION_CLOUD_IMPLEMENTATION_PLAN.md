@@ -149,7 +149,9 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 - [x] **P1-A02 验证下载**：在 `packages/asset-system` 实现平台无关的下载、校验、并发与错误策略，在 `apps/mobile` 提供 Expo 文件系统适配器，实现临时写入、尺寸与 SHA-256 校验、原子落盘、并发去重、取消和有限重试；旧 `iosproject` 实验不计入本任务验证。
   - 验证记录（2026-09-15）：已用压缩后的 `zhenzhi01/items/1.png` 完成平台无关 hash/尺寸/MIME 校验与 Expo 暂存→校验→移动缓存测试；`npm run test:remote-assets --workspace mobile` 覆盖 hash 篡改拒绝、并发请求只下载一次、首次网络失败后的第二次成功、两次失败后无暂存目录/缓存记录，以及取消调用方不产生半成品。适配器对网络错误和 HTTP 5xx 至多尝试两次（每次 8 秒超时），不重试 hash、MIME 或 4xx 等确定失败。真实 R2 HTTPS 冒烟验证已通过：`pack-sheet.png`（480×320，97,544 bytes，SHA-256 `0326a80d7ceac1e7841588e1f2606cf773ba36a2855b16408ce9ef49c559ab2b`）与 `items/1.png`（224×242，21,691 bytes，SHA-256 `8ca1ef671c1f28bf881fc6724842efb1a3c65c4a3a2b60ce28c1f6d4606751f6`）均从 `https://assets.zllarchi.site/packs/zhenzhi01/` 返回 `200 image/png`，下载字节与本地一致。iPhone 17 iOS 26.5 Simulator 的 Expo 开发版已实际通过 R2 写缓存、取消下载和不可达 HTTPS 的两次超时重试/清理探针；宿主 `simctl` 在事后读取容器时因 CoreSimulatorService 拒绝连接不可用，目录级清理证据由上述 Expo 文件系统集成测试保留。
 - [x] **P1-A03 1.0 冻结内容目录编译**：从已切割并通过 QA 的审核源生成 `ProductAssetCatalog`，包含 pack/item stable ID、独立 revision、MIME、像素尺寸、字节数、SHA-256、UI category、pack-first metadata、必要的 asset override、capability、bundle/CDN location 与 P1-T00 模板依赖闭包；生产状态未达到 `shipped` 的 sheet/素材不得进入客户端目录。
-  - 验证记录（2026-09-20，2026-09-21 扩充）：运行时范围为 46 个用户可浏览的已上传/在线包、1,142 个可浏览素材对象，以及不在素材列表展示的内部 `template-previews` 包（4 个远端预览）。已生成 staging 与 `shipped` 运行时目录。Catalog 使用稳定 pack ID 与实际 R2 object prefix 的映射，远端 URL 带冻结 pack/item revision 查询参数（当前均为 `?v=1`），避免历史 CDN 缓存返回旧字节；`catalogRevision` 已递增至 `2`，但既有素材的 stable reference revision 保持为 `1`。
+  - 验证记录（2026-09-20，2026-09-21 扩充）：运行时范围原为 46 个用户可浏览的已上传/在线包、1,142 个可浏览素材对象，以及不在素材列表展示的内部 `template-previews` 包（4 个远端预览）。已生成 staging 与 `shipped` 运行时目录。Catalog 使用稳定 pack ID 与实际 R2 object prefix 的映射，远端 URL 带冻结 pack/item revision 查询参数（当前均为 `?v=1`），避免历史 CDN 缓存返回旧字节。
+  - Recipe/Catalog 扩充（2026-09-21）：新增 9 个 strict 素材包：`handmade-cutout-type`、`cutout-frames-cropping-accents`、`fan-edit-highlights`、`experimental-print-registration-fragments`、`editorial-connectors-index-marks`、`micro-editorial-1`、`structural-plastic-beads-mesh`、`beads-structural-units-1` 与 `fabric-fiber-thread`；已完整重传的 `caise-01` 与 `caisebodian` 同时提升为 strict。`catalogRevision` 递增至 `3`，生成 56 个包与 656 个上传对象。为避免 `2.png` 与 `2_副本.png` 折叠为同一稳定 ID，编译器将显式“副本”后缀规范化为 `-copy`（例如 `2-copy`）。
+  - 最小远端审计（2026-09-21）：抽样验证 `handmade-cutout-type/cover + 8`、`fan-edit-highlights/cover + 2-copy`、`editorial-connectors-index-marks/cover + 10` 的 HTTPS、MIME、字节数和 SHA-256，全部与 Catalog 匹配。`hudiejie/13` 与 `jiaodai/29` 也匹配，但两个包的封面仍为不同 JPEG 字节版本；因此 `hudiejie`、`jiaodai` 继续走 compatibility，不能作为 fixed template dependency。后续模板需要的少数对象须以独立 strict 模板资产副本发布，而不是提升整个旧包。
   - 最简远端审计（2026-09-20）：15 个封面和 15 个样本 item 均可访问且 MIME 正确；默认信任上传时本地/远端目录、文件名和数量一致，不进行全包下载比对。四个首发模板的 22 个固定素材与 4 个预览均通过远端 SHA-256 校验；预览另验证了 PNG MIME、字节数和像素尺寸。`hudiejie/items/13.png`、`jiaodai/items/29.png`、`jiaodai/items/31.png` 曾有旧 CDN 缓存，现以 `?v=1` 命中冻结字节。
   - 后续发布策略：以首发用户价值为范围，不让未上线、未被模板引用的素材包阻塞当前工作。常规新增包由内容负责人确认上传目录/名称/数量一致后，只检查封面和一个样本 item；模板预览与固定依赖仍做完整远端校验；客户端继续在实际下载时执行完整性校验。只有路径/revision 变更、缓存/上传事故或明确冻结审计时才全包下载比对。
 - [x] **P1-A04 分层 Resolver**：在 `packages/asset-system` 与移动端本地工作区按当前设备本地 Catalog → 已验证远端缓存 → App bundle 素材 → 当前 revision CDN 的顺序解析，不把运行时 URI 写入 Draft；用户资源 Catalog 与产品素材目录保持分离。
@@ -178,7 +180,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 #### 目标
 
-在新架构的创作页/再创作页面提供随 App bundle 发布的基础模板和预设计模板。模板用于生成普通、可继续编辑的 Draft；它不是首页运营 manifest，也不建立独立渲染器。1.0 先迁移并验证小程序端确认的一期两个基础模板，再接入从已完成配方作品筛选出的少量预设计模板。
+在新架构的创作页/再创作页面提供随 App bundle 发布的本地配方模板。模板用于生成普通、可继续编辑的 Draft；它不是首页运营 manifest，也不建立独立渲染器。`1.0` 上线目录固定为 10 个模板：`Romantic Deco`、`Romantic Deco-1`、`Play Pop`、`Soft Archive`、`soft_archive_multi`、`play_pop_multi`、`fan_moodboard`、`digital_y2k_ascii`、`digital_y2k_multi` 和 `material_remix`。所有 10 个模板均须完成照片替换与本地作品生命周期验证；不再以四模板完成作为其余六个模板的筛选前提。
 
 #### 非目标
 
@@ -187,6 +189,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 - 不实现动态玩法、时间轴、远端脚本或任意业务逻辑；
 - 不把首页 showcase 的 effect/background intent 当作模板模型；
 - 不承诺尚未稳定的自动人物抠图、派生裁切、subject-aware annotation 或 Recipe shuffle。
+- 首发不提供装饰素材替换、同包素材候选选择器或模板管理后台；关联装饰均为固定构图图层。
 
 #### 前置依赖
 
@@ -196,15 +199,15 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 #### 待办
 
-- [ ] **P1-T01 模板 Schema**：在共享包定义版本化 `TemplateDefinition`，覆盖 canvas、照片/文字槽位、固定与可选图层、稳定引用、初始 crop/transform/opacity/z-order/effects、依赖闭包、预览、`requiredCapabilities`、状态和严格未知字段策略。
-- [ ] **P1-T02 Recipe 编译器**：在构建工具中把审核通过的生产侧 Recipe/Template Instance 编译为确定性模板记录；metadata query 只在构建时解析，客户端只接收具体引用和参数；编译拒绝缺失依赖、未发布素材和不支持能力。
+- [ ] **P1-T01 模板 Schema**：在共享包定义版本化 `TemplateDefinition`，覆盖 10 个首发模板的 canvas、照片槽、固定图层、稳定引用、初始 crop/transform/opacity/z-order、依赖闭包、预览、`requiredCapabilities`、状态和严格未知字段策略。照片槽数冻结为：`Romantic Deco-1` 2，`Play Pop Multi` 与 `Soft Archive Multi` 各 4（左侧照片卡加三连相框），`Digital Y2K Multi` 6，其余六个各 1；首发定义的 `materialSlots` 为空；仅声明 `image.replace`、`image.crop` 与 `material.resolve`，不实现 `material.replace`。文件级差距与验收见 `TEMPLATE_SCHEMA_P1_T01_ACCEPTANCE_CHECKLIST.md`。
+- [ ] **P1-T02 Recipe 编译器与视觉校准**：维护 10 个首发模板的 `角色 / 来源 asset / 是否缺失 / z-index / 相对 frame / rotation / 是否锁定` 图层清单，以真实关联素材和临时照片按各自画布尺寸完成校准合成并与参考预览叠对。补齐 Romantic Deco 的粉色背景、Play Pop 的撕纸底和透明中心蓝色照片框、Soft Archive 的含固定文案/日期的纸张背景；把 `hudiejie`、`jiaodai` 以及第二批需要的 `xiangkuang/1`、`jiazi/2` 作为 strict 内部模板资产发布，不能把 compatibility 包直接写入固定依赖；随后在构建工具中把已校准、审核通过的 Recipe/Template Instance 编译为确定性模板记录。metadata query 只在构建时解析，客户端只接收具体引用和参数；编译拒绝缺失依赖、未发布素材和不支持能力。
 - [ ] **P1-T03 模板实例化**：实现 TemplateDefinition → 新 Draft，生成新的 project/layer identity，不保存 CDN URL、bundle path 或模板运行时对象；实例化后的作品可脱离模板目录独立保存和恢复。
-- [ ] **P1-T04 模板替换语义**：实现照片和文字槽位替换，保留模板规定的 crop/mask/effects/z-order/safe area；明确同源派生、多照片独立槽位、固定装饰层和可选层的首版支持边界。
+- [ ] **P1-T04 模板替换语义**：首发只实现照片槽位替换，保留模板规定的 crop/mask/effects/z-order/safe area，并覆盖 10 个首发模板（Romantic Deco-1 两槽，Play Pop Multi/Soft Archive Multi 各四槽，Digital Y2K Multi 六槽）。关联装饰保持固定；文字替换、同源派生与同包装饰素材替换留待首发闭环验证后另行立项。
 - [ ] **P1-T05 创作页本地模板目录与预览**：在创作页/再创作入口展示随包 TemplateCatalog、模板卡片、预览和基础分组；首页可链接到模板入口或展示成品，但运营 manifest 不承载模板定义。
 - [ ] **P1-T06 模板能力门控**：只展示当前 App schema、Renderer、effect 和编辑能力完整支持的模板；不支持模板确定隐藏或拒绝，不能静默降级为不同构图。
 - [ ] **P1-T07 模板资产依赖校验**：构建时验证每个素材、字体、效果及其 revision/hash；首发模板的完整依赖必须具备 bundle 可用副本，避免首次使用或离线时依赖网络。
-- [ ] **P1-T08 模板完整验收**：覆盖常见照片比例、横竖图、文字长度、人脸/主体遮挡、模板实例化、替换、保存、重启、清缓存、离线、缩略图和导出渲染一致性。
-- [ ] **P1-T09 首发模板筛选与编排**：先保证两个基础模板迁移正确，再从已完成配方模板中筛选能力匹配、替换后仍成立的少量预设计模板；其余作为 benchmark、运营预览或后续能力候选，不因已有成品图直接上线。
+- [ ] **P1-T08 模板完整验收**：覆盖 10 个首发模板的常见照片比例、横竖图、人脸/主体遮挡、模板实例化、照片替换、保存、重启、清缓存、离线、缩略图和导出渲染一致性。文字长度与装饰素材替换不属于当前首发矩阵。
+- [ ] **P1-T09 首发模板编排**：为 10 个已确定首发模板完成创作页排序、基础分组、正式预览与可见性复核；不再承担候选筛选职责。未配置或未通过验收的模板不得因存在参考图而进入目录。
 - [ ] **P1-T10 模板发布验证**：在 Expo / React Native iOS 真机逐个验证首发模板入口、预览、实例化、替换、编辑、保存、恢复和导出，并确认 Release 构建不包含开发验收面板或未发布模板。
 
 #### 完成标准

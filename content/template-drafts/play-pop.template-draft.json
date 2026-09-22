@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/play-pop",
+  "revision": "1",
+  "status": "draft",
+  "name": "Play Pop",
+  "canvas": {
+    "size": { "width": 1024, "height": 1536 },
+    "background": "#FDFDFB",
+    "backgroundAsset": { "id": "asset://pack/template-assets/play-pop-background", "kind": "image", "revision": "1" }
+  },
+  "preview": { "id": "asset://pack/template-previews/play-pop", "kind": "image", "revision": "1" },
+  "photoSlots": [
+    {
+      "type": "photo", "id": "hero-photo", "name": "Portrait with blue frame", "required": true,
+      "frame": { "width": 427.5, "height": 760 },
+      "transform": { "position": { "x": 290.6477154212404, "y": 450.1502890173412 }, "scale": { "x": 1.4549707602339181, "y": 1.2894736842105263 }, "rotation": 0 },
+      "opacity": 1, "isLocked": false,
+      "effects": [{ "instanceId": "effect-1ec56599-9405-4e0b-bdb1-fe6153afdd35", "type": "shape.round-corners", "version": 1, "enabled": true, "stage": "geometry", "params": { "radius": 0 } }],
+      "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "fixedLayers": [
+    { "type": "image", "id": "fixed-purple-flower", "name": "Purple flower", "asset": { "id": "asset://pack/candy-shapes/4", "kind": "image", "revision": "1" }, "frame": { "width": 443, "height": 454 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 82.34585741811173, "y": 76.35260115606935 }, "scale": { "x": 1.2213370642048884, "y": 1.2213370642048884 }, "rotation": 0.08219905978690933 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-blue-photo-frame", "name": "Blue photo frame", "asset": { "id": "asset://pack/template-assets/play-pop-photo-frame", "kind": "image", "revision": "1" }, "frame": { "width": 496, "height": 760 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 260.05394990366085, "y": 453.1098265895953 }, "scale": { "x": 1.340658797423518, "y": 1.340658797423518 }, "rotation": 0 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-yellow-star", "name": "Yellow star", "asset": { "id": "asset://pack/playful-doodles/3", "kind": "image", "revision": "1" }, "frame": { "width": 457, "height": 544 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 580.8178350981487, "y": -22.905587668593302 }, "scale": { "x": 0.7110708486877955, "y": 0.7110708486877955 }, "rotation": -0.2618925739090139 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-green-paper", "name": "Green paper", "asset": { "id": "asset://pack/candy-shapes/6", "kind": "image", "revision": "1" }, "frame": { "width": 457, "height": 450 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 826.0818882466282, "y": 579.3754572397127 }, "scale": { "x": 0.8383313011568325, "y": 0.8383313011568325 }, "rotation": -0.19951137833666066 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-red-star", "name": "Red star", "asset": { "id": "asset://pack/candy-shapes/1", "kind": "image", "revision": "1" }, "frame": { "width": 502, "height": 526 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": -77.373795761079, "y": 826.6030828516381 }, "scale": { "x": 0.7125747663048012, "y": 0.7125747663048012 }, "rotation": -1.445665733781522 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-yellow-circle", "name": "Yellow circle", "asset": { "id": "asset://pack/candy-shapes/5", "kind": "image", "revision": "1" }, "frame": { "width": 428, "height": 432 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 4.019267822736012, "y": 1247.4913294797686 }, "scale": { "x": 0.8273456003771161, "y": 0.8273456003771161 }, "rotation": -0.08260771187370564 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-pink-arch", "name": "Pink arch", "asset": { "id": "asset://pack/candy-shapes/3", "kind": "image", "revision": "1" }, "frame": { "width": 403, "height": 484 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 622.23795761079, "y": 1277.722543352601 }, "scale": { "x": 0.6912614113961575, "y": 0.6912614113961575 }, "rotation": 0.14836474309609882 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-blue-squiggle", "name": "Blue squiggle", "asset": { "id": "asset://pack/playful-doodles/2", "kind": "image", "revision": "1" }, "frame": { "width": 533, "height": 533 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 607.5500963391135, "y": 920.7678227360308 }, "scale": { "x": 0.5198926949703181, "y": 0.5198926949703181 }, "rotation": 0.9689088301217161 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-pink-arrow", "name": "Pink arrow", "asset": { "id": "asset://pack/playful-doodles/9", "kind": "image", "revision": "1" }, "frame": { "width": 416, "height": 293 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": -49.17148362235082, "y": 635.3111753371868 }, "scale": { "x": 0.5502889274627893, "y": 0.5502889274627893 }, "rotation": 0.6628033264102147 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-pink-sparkles", "name": "Pink sparkles", "asset": { "id": "asset://pack/playful-doodles/11", "kind": "image", "revision": "1" }, "frame": { "width": 545, "height": 223 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 236.54046242774567, "y": 1329.3015414258189 }, "scale": { "x": 0.6518332062883851, "y": 0.6518332062883851 }, "rotation": -0.06094708871943366 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-red-spiral", "name": "Red spiral", "asset": { "id": "asset://pack/playful-doodles/12", "kind": "image", "revision": "1" }, "frame": { "width": 558, "height": 212 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": 598.0096339113682, "y": 410.43930635838154 }, "scale": { "x": 0.8144063105219973, "y": 0.8144063105219973 }, "rotation": -0.19952008483002692 }, "opacity": 1, "isLocked": true, "effects": [] },
+    { "type": "image", "id": "fixed-purple-strokes", "name": "Purple strokes", "asset": { "id": "asset://pack/playful-doodles/14", "kind": "image", "revision": "1" }, "frame": { "width": 373, "height": 389 }, "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }, "transform": { "position": { "x": -68.11849710982659, "y": 367.3188824662814 }, "scale": { "x": 0.5459686115497231, "y": 0.5459686115497231 }, "rotation": -8.833358987041095 }, "opacity": 1, "isLocked": true, "effects": [] }
+  ],
+  "dependencies": [
+    { "reference": { "id": "asset://pack/template-previews/play-pop", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/template-assets/play-pop-background", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/candy-shapes/4", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/template-assets/play-pop-photo-frame", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/playful-doodles/3", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/candy-shapes/6", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/candy-shapes/1", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/candy-shapes/5", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/candy-shapes/3", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/playful-doodles/2", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/playful-doodles/9", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/playful-doodles/11", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/playful-doodles/12", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/playful-doodles/14", "kind": "image", "revision": "1" }, "availability": "bundled" }
+  ],
+  "requiredCapabilities": ["image.replace", "image.crop", "material.resolve"],
+  "_draft": {
+    "source": "human",
+    "layerNotes": [
+      { "target": { "collection": "photoSlots", "id": "hero-photo" }, "confidence": 1, "reason": "Human-calibrated from the temporary portrait and converted to a photo slot in Template Studio.", "needsReview": false },
+      { "target": { "collection": "fixedLayers", "id": "fixed-blue-photo-frame" }, "confidence": 1, "reason": "Human-calibrated using the private play-pop-photo-frame asset.", "needsReview": false }
+    ]
+  }
+}

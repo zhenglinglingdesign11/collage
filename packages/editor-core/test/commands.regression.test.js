@@ -77,6 +77,20 @@ test('movement alignment finds canvas and layer anchors, then waits for stabilit
   assert.deepEqual(stable.guides, guides);
 });
 
+test('movement alignment prioritizes the canvas centre over nearby layer anchors', () => {
+  const draft = {
+    ...makeDraft(),
+    layers: [
+      makeImage('moving'),
+      // This reference is closer to the moving layer's left edge than the
+      // canvas centre is to its centre edge. Canvas-centering must still win.
+      { ...makeImage('nearby'), transform: { ...core.identityTransform(), position: { x: 399.75, y: 700 } } },
+    ],
+  };
+  const transform = { ...core.identityTransform(), position: { x: 199.5, y: 300 } };
+  assert.deepEqual(core.movementAlignmentGuides(draft, 'moving', transform, 2), [{ axis: 'x', value: 400 }]);
+});
+
 test('rotation alignment displays centre axes only near a right angle', () => {
   const draft = makeDraft();
   const nearRightAngle = { ...draft.layers[0].transform, rotation: Math.PI / 2 + Math.PI / 360 };

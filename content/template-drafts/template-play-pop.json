@@ -1,0 +1,497 @@
+{
+  "format": "journalcollage.template-studio",
+  "formatVersion": 1,
+  "exportedAt": "2026-09-22T08:16:51.688Z",
+  "document": {
+    "schemaVersion": 4,
+    "id": "template-studio-fe9b0476-8828-470c-8b53-c16613398481",
+    "canvas": {
+      "size": {
+        "label": "1024×1536",
+        "width": 1024,
+        "height": 1536
+      },
+      "background": "#FDFDFB",
+      "backgroundAsset": {
+        "id": "asset://pack/template-assets/play-pop-background",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    "layers": [
+      {
+        "id": "pack-layer-aaf4b583-d329-4dcd-81ef-5deb3f22afa7",
+        "name": "candy-shapes-4",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/candy-shapes/4",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 443,
+          "height": 454
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 82.34585741811173,
+            "y": 76.35260115606935
+          },
+          "scale": {
+            "x": 1.2213370642048884,
+            "y": 1.2213370642048884
+          },
+          "rotation": 0.08219905978690933
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-ab571a93-8532-430a-9638-787990dd5490",
+        "name": "template-assets-play-pop-photo-frame",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/template-assets/play-pop-photo-frame",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 496,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 260.05394990366085,
+            "y": 453.1098265895953
+          },
+          "scale": {
+            "x": 1.340658797423518,
+            "y": 1.340658797423518
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "image-layer-e46f1e09-5eb4-4e23-bd71-3cffed8cda30",
+        "name": "IMG_0010.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-e46f1e09-5eb4-4e23-bd71-3cffed8cda30",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 290.6477154212404,
+            "y": 450.1502890173412
+          },
+          "scale": {
+            "x": 1.4549707602339181,
+            "y": 1.2894736842105263
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": [
+          {
+            "instanceId": "effect-1ec56599-9405-4e0b-bdb1-fe6153afdd35",
+            "type": "shape.round-corners",
+            "version": 1,
+            "enabled": true,
+            "stage": "geometry",
+            "params": {
+              "radius": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "pack-layer-0362f127-9c89-4d8f-87d3-7fe0f8950386",
+        "name": "playful-doodles-3",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/3",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 457,
+          "height": 544
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 580.8178350981487,
+            "y": -22.905587668593302
+          },
+          "scale": {
+            "x": 0.7110708486877955,
+            "y": 0.7110708486877955
+          },
+          "rotation": -0.2618925739090139
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-3bf32de6-3f65-4442-8bd0-3e8ace7a197a",
+        "name": "candy-shapes-6",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/candy-shapes/6",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 457,
+          "height": 450
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 826.0818882466282,
+            "y": 579.3754572397127
+          },
+          "scale": {
+            "x": 0.8383313011568325,
+            "y": 0.8383313011568325
+          },
+          "rotation": -0.19951137833666066
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-87b88abd-30a3-4367-9ca8-e52532f755ba",
+        "name": "candy-shapes-1",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/candy-shapes/1",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 502,
+          "height": 526
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -77.373795761079,
+            "y": 826.6030828516381
+          },
+          "scale": {
+            "x": 0.7125747663048012,
+            "y": 0.7125747663048012
+          },
+          "rotation": -1.445665733781522
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-bd463f5a-8d61-40d8-97df-fdec0a1580e0",
+        "name": "candy-shapes-5",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/candy-shapes/5",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 428,
+          "height": 432
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 4.019267822736012,
+            "y": 1247.4913294797686
+          },
+          "scale": {
+            "x": 0.8273456003771161,
+            "y": 0.8273456003771161
+          },
+          "rotation": -0.08260771187370564
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-85fa0245-88c3-46af-9dad-a4ce725cf416",
+        "name": "candy-shapes-3",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/candy-shapes/3",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 403,
+          "height": 484
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 622.23795761079,
+            "y": 1277.722543352601
+          },
+          "scale": {
+            "x": 0.6912614113961575,
+            "y": 0.6912614113961575
+          },
+          "rotation": 0.14836474309609882
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-09002f2d-0816-4546-aec3-151b66a721c8",
+        "name": "playful-doodles-2",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/2",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 533,
+          "height": 533
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 607.5500963391135,
+            "y": 920.7678227360308
+          },
+          "scale": {
+            "x": 0.5198926949703181,
+            "y": 0.5198926949703181
+          },
+          "rotation": 0.9689088301217161
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-f9f09f93-1dd6-4d2f-b3e1-27b4079dfd41",
+        "name": "playful-doodles-9",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/9",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 416,
+          "height": 293
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -49.17148362235082,
+            "y": 635.3111753371868
+          },
+          "scale": {
+            "x": 0.5502889274627893,
+            "y": 0.5502889274627893
+          },
+          "rotation": 0.6628033264102147
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-246d0e5f-f55c-45d6-9f80-9574d6041cd3",
+        "name": "playful-doodles-11",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/11",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 545,
+          "height": 223
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 236.54046242774567,
+            "y": 1329.3015414258189
+          },
+          "scale": {
+            "x": 0.6518332062883851,
+            "y": 0.6518332062883851
+          },
+          "rotation": -0.06094708871943366
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-1286ff9b-40e6-4b4a-b341-9d18f1107a7d",
+        "name": "playful-doodles-12",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/12",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 558,
+          "height": 212
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 598.0096339113682,
+            "y": 410.43930635838154
+          },
+          "scale": {
+            "x": 0.8144063105219973,
+            "y": 0.8144063105219973
+          },
+          "rotation": -0.19952008483002692
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-86d9c096-020f-48c2-8b53-6f461315a2e6",
+        "name": "playful-doodles-14",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/14",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 373,
+          "height": 389
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -68.11849710982659,
+            "y": 367.3188824662814
+          },
+          "scale": {
+            "x": 0.5459686115497231,
+            "y": 0.5459686115497231
+          },
+          "rotation": -8.833358987041095
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      }
+    ],
+    "selectedLayerId": null,
+    "createdAt": "2026-09-22T07:58:40.126Z",
+    "updatedAt": "2026-09-22T08:16:50.583Z"
+  },
+  "photoSlotLayerIds": [
+    "image-layer-e46f1e09-5eb4-4e23-bd71-3cffed8cda30"
+  ],
+  "localAssets": [
+    {
+      "reference": {
+        "id": "user://image/user-image-fe467d06-172e-46c4-ad8d-611ddd257d4b",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    }
+  ]
+}

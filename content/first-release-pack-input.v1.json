@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "2",
+  "catalogRevision": "9",
   "defaultPackStatus": "shipped",
   "sourceOfTruth": "source-assets/拼贴.numbers_副本.numbers: 素材分类及进度（2026-09-20）",
   "baseUrl": "https://assets.zllarchi.site/packs",
@@ -10,7 +10,20 @@
     { "sourceDirectory": "soft archive blue", "id": "soft-archive-blue", "name": "Soft archive blue", "category": "mixed", "styles": ["soft-archive"] },
     { "sourceDirectory": "jiaodai", "id": "jiaodai", "name": "Jiaodai", "category": "tape", "styles": ["soft-archive"], "resolverMode": "compatibility" },
     { "sourceDirectory": "Editorial-&-Everyday-Labels", "id": "editorial-everyday-labels", "name": "Editorial everyday labels", "category": "note", "styles": ["visual-foundation"] },
-    { "sourceDirectory": "Romantic Deco-Lace Frame(1)", "id": "romantic-deco-lace-frame-1", "name": "Romantic Deco lace frame 1", "category": "frame", "styles": ["romantic-deco"] },
+    {
+      "sourceDirectory": "Romantic Deco-Lace Frame(1)",
+      "id": "romantic-deco-lace-frame-1",
+      "name": "Romantic Deco lace frame 1",
+      "category": "frame",
+      "styles": ["romantic-deco"],
+      "packRevision": "2",
+      "itemOverrides": {
+        "9": {
+          "revision": "2",
+          "r2Path": "Romantic Deco-Lace Frame(1)/items/9.v2.png"
+        }
+      }
+    },
     { "sourceDirectory": "hudiejie", "id": "hudiejie", "name": "Hudiejie", "category": "sticker", "styles": ["romantic-deco"], "resolverMode": "compatibility" },
     { "sourceDirectory": "Essential-Lace-Trims", "id": "essential-lace-trims", "name": "Essential lace trims", "category": "sticker", "semanticTags": ["material"], "styles": ["romantic-deco"] },
     { "sourceDirectory": "Decorative-&-Statement-Lace", "id": "decorative-statement-lace", "name": "Decorative statement lace", "category": "sticker", "semanticTags": ["material"], "styles": ["romantic-deco"] },
@@ -20,6 +33,15 @@
     { "sourceDirectory": "Digital-UI", "id": "digital-ui", "name": "Digital UI", "category": "sticker", "styles": ["digital-y2k"] },
     { "sourceDirectory": "Digital-UI(1)", "id": "digital-ui-1", "name": "Digital UI 1", "category": "sticker", "styles": ["digital-y2k"] },
     { "sourceDirectory": "Chrome-Symbols", "id": "chrome-symbols", "name": "Chrome symbols", "category": "sticker", "styles": ["digital-y2k"] },
+    { "sourceDirectory": "Handmade-Cutout-Type", "id": "handmade-cutout-type", "name": "Handmade cutout type", "category": "sticker", "styles": ["fan-moodboard"] },
+    { "sourceDirectory": "Cutout-Frames-Cropping-Accents", "id": "cutout-frames-cropping-accents", "name": "Cutout frames cropping accents", "category": "frame", "styles": ["fan-moodboard"] },
+    { "sourceDirectory": "Fan-Edit-Highlights", "id": "fan-edit-highlights", "name": "Fan edit highlights", "category": "sticker", "styles": ["fan-moodboard"] },
+    { "sourceDirectory": "Experimental-Print-Registration-Fragments", "id": "experimental-print-registration-fragments", "name": "Experimental print registration fragments", "category": "sticker", "styles": ["fan-moodboard"] },
+    { "sourceDirectory": "Editorial-Connectors-Index-Marks", "id": "editorial-connectors-index-marks", "name": "Editorial connectors index marks", "category": "sticker", "styles": ["digital-y2k"] },
+    { "sourceDirectory": "Micro-Editorial（1）", "id": "micro-editorial-1", "name": "Micro editorial 1", "category": "sticker", "styles": ["digital-y2k"] },
+    { "sourceDirectory": "Structural-Plastic-Beads-Mesh", "id": "structural-plastic-beads-mesh", "name": "Structural plastic beads mesh", "category": "mixed", "styles": ["material-remix"] },
+    { "sourceDirectory": "Beads-Structural-Units（1）", "id": "beads-structural-units-1", "name": "Beads structural units 1", "category": "mixed", "styles": ["material-remix"] },
+    { "sourceDirectory": "Fabric-Fiber-Thread", "id": "fabric-fiber-thread", "name": "Fabric fiber thread", "category": "mixed", "styles": ["material-remix"] },
 
     { "sourceDirectory": "paper-01", "id": "paper-01", "name": "Paper 01", "category": "note", "styles": [], "uploadRequired": false },
     { "sourceDirectory": "paper-02", "id": "paper-02", "name": "Paper 02", "category": "note", "styles": [], "uploadRequired": false },
@@ -31,8 +53,8 @@
     { "sourceDirectory": "blue-01", "id": "blue-01", "name": "Blue 01", "category": "mixed", "styles": ["soft-archive"], "uploadRequired": false },
     { "sourceDirectory": "blue-02", "id": "blue-02", "name": "Blue 02", "category": "mixed", "styles": ["soft-archive"], "uploadRequired": false },
     { "sourceDirectory": "cat-01", "id": "cat-01", "name": "Cat 01", "category": "sticker", "styles": ["soft-archive"], "uploadRequired": false },
-    { "sourceDirectory": "caise-01", "id": "caise-01", "name": "Caise 01", "category": "sticker", "styles": ["play-pop"], "uploadRequired": false },
-    { "sourceDirectory": "caisebodian", "id": "caisebodian", "name": "Caisebodian", "category": "tape", "styles": ["play-pop"], "uploadRequired": false },
+    { "sourceDirectory": "caise-01", "id": "caise-01", "name": "Caise 01", "category": "sticker", "styles": ["play-pop"] },
+    { "sourceDirectory": "caisebodian", "id": "caisebodian", "name": "Caisebodian", "category": "tape", "styles": ["play-pop"] },
     { "sourceDirectory": "fugu-01", "id": "fugu-01", "name": "Fugu 01", "category": "mixed", "styles": ["soft-archive"], "uploadRequired": false },
     { "sourceDirectory": "fugu-02", "id": "fugu-02", "name": "Fugu 02", "category": "mixed", "styles": ["digital-y2k"], "uploadRequired": false },
     { "sourceDirectory": "fugu-03", "id": "fugu-03", "name": "Fugu 03", "category": "mixed", "styles": ["soft-archive"], "uploadRequired": false },
@@ -65,6 +87,27 @@
         { "itemId": "romantic-deco-two-photo", "r2Path": "template-previews/romantic deco-1.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/romantic%20deco-1.png", "mimeType": "image/png", "byteLength": 3377068, "sha256": "885fcfe2654034d740af02b5592ec9c9dbe702c91b6df43407ead84b91e3abe6", "pixelSize": { "width": 1024, "height": 1536 } },
         { "itemId": "romantic-deco", "r2Path": "template-previews/romantic deco.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/romantic%20deco.png", "mimeType": "image/png", "byteLength": 2312708, "sha256": "6b4eb751f37addc98e3c89ff3e0d67ee73bf3733ff0be1ac3f2d19a01da34bfc", "pixelSize": { "width": 1254, "height": 1254 } },
         { "itemId": "soft-archive", "r2Path": "template-previews/soft archive.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/soft%20archive.png", "mimeType": "image/png", "byteLength": 2435847, "sha256": "9f9459816cf2166be8722a36754ba11b8708eb3e7bfca3a76bcad57188463f3c", "pixelSize": { "width": 1024, "height": 1536 } }
+      ]
+    },
+    {
+      "id": "template-assets",
+      "name": "Template fixed assets",
+      "category": "mixed",
+      "styles": [],
+      "visibility": "internal",
+      "packRevision": "2",
+      "defaultItemRevision": "1",
+      "remoteAssets": [
+        { "itemId": "romantic-deco-butterfly-knot", "r2Path": "hudiejie/items/13.png", "sourceUrl": "https://assets.zllarchi.site/packs/hudiejie/items/13.png?v=1", "mimeType": "image/png", "byteLength": 15626, "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d", "pixelSize": { "width": 273, "height": 198 } },
+        { "itemId": "play-pop-background", "r2Path": "template-previews/bg/play-pop-background.jpg", "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/play-pop-background.jpg", "mimeType": "image/jpeg", "byteLength": 244074, "sha256": "574ddae0eae1d681796d28b87339014a3099c4616f9c4dd0c77d50c0c8ca7721", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "play-pop-photo-frame", "revision": "1", "r2Path": "template-previews/assets/play-pop-photo-frame.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/play-pop-photo-frame.png", "mimeType": "image/png", "byteLength": 13079, "sha256": "19af2edae561f55e28385afb0c6a8c13630ec80a1bd869b2ae32cb8736e7b617", "pixelSize": { "width": 1200, "height": 1840 } },
+        { "itemId": "romantic-deco-background", "r2Path": "template-previews/bg/romantic-deco-background.jpg", "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/romantic-deco-background.jpg", "mimeType": "image/jpeg", "byteLength": 17649, "sha256": "f9b383ac7fb7b5a76ef8a75356b735b13ba9e8701b1b5eb18e4f81a49beebefd", "pixelSize": { "width": 1024, "height": 1024 } },
+        { "itemId": "soft-archive-background", "r2Path": "template-previews/bg/soft-archive-background.jpg", "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/soft-archive-background.jpg", "mimeType": "image/jpeg", "byteLength": 365537, "sha256": "9a170a8d38cf17d5b490e029816b8c4b60c43d020035b408c4e70478555771ec", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "soft-archive-tape-left", "r2Path": "jiaodai/items/29.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/29.png?v=1", "mimeType": "image/png", "byteLength": 17286, "sha256": "255f39c96ecf8d431f839925ddb77551978fd6e4a0dcc65077a60c1ad01bb15f", "pixelSize": { "width": 266, "height": 138 } },
+        { "itemId": "soft-archive-tape-right", "r2Path": "jiaodai/items/31.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/31.png?v=1", "mimeType": "image/png", "byteLength": 12291, "sha256": "30e1cefa59c04c238b6444fb715694af519b72d8cbd4b832cee7659f61c57df3", "pixelSize": { "width": 276, "height": 102 } },
+        { "itemId": "digital-y2k-multi-tape-left", "r2Path": "jiaodai/items/17.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/17.png?v=2", "mimeType": "image/png", "byteLength": 23007, "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae", "pixelSize": { "width": 142, "height": 304 } },
+        { "itemId": "soft-archive-multi-photo-frame", "r2Path": "xiangkuang/items/1.png", "sourceUrl": "https://assets.zllarchi.site/packs/xiangkuang/items/1.png?v=1", "mimeType": "image/png", "byteLength": 33113, "sha256": "2c6af49bdf2404331068b42473a5e6a0f83f5935d12f81302c75d2ba71c786e5", "pixelSize": { "width": 284, "height": 663 } },
+        { "itemId": "play-pop-multi-paper-cutout", "r2Path": "jiazi/items/2.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiazi/items/2.png?v=1", "mimeType": "image/png", "byteLength": 10457, "sha256": "9341cb6742f711c73cfe9e87ddf00987311731155e26b84df1b19566cfdecdd9", "pixelSize": { "width": 205, "height": 216 } }
       ]
     }
   ],

@@ -1,0 +1,233 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/romantic-deco-two-photo",
+  "revision": "1",
+  "status": "ready",
+  "name": "Romantic Deco — Two Photo",
+  "canvas": {
+    "size": {
+      "width": 1024,
+      "height": 1536
+    },
+    "background": "#FDFDFB"
+  },
+  "preview": {
+    "id": "asset://pack/template-previews/romantic-deco-two-photo",
+    "kind": "image",
+    "revision": "1"
+  },
+  "photoSlots": [
+    {
+      "id": "top-framed-photo",
+      "name": "Top framed photo",
+      "type": "photo",
+      "frame": {
+        "width": 427.5,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 298.25,
+          "y": 388
+        },
+        "scale": {
+          "x": 2.3953216374269006,
+          "y": 2.0210526315789474
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    },
+    {
+      "id": "bottom-photo",
+      "name": "Bottom photo",
+      "type": "photo",
+      "frame": {
+        "width": 760,
+        "height": 427.5
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 136.2,
+          "y": 224
+        },
+        "scale": {
+          "x": 0.7828063475584351,
+          "y": 0.7828063475584351
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "fixedLayers": [
+    {
+      "id": "pack-layer-5cc49224-8468-416d-9507-d3f59064bb6d",
+      "name": "decorative-statement-lace-1-2",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/decorative-statement-lace-1/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 396,
+        "height": 607
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 314.9865125240848,
+          "y": 137.96435452793838
+        },
+        "scale": {
+          "x": 1.3336868686868686,
+          "y": 1.3336902800658978
+        },
+        "rotation": 1.5707963267948966
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-5748c142-7122-42e4-99cb-2e65a700c638",
+      "name": "essential-lace-trims-3",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/essential-lace-trims/3",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 760,
+        "height": 109
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 134.95953757225448,
+          "y": 784.5289017341041
+        },
+        "scale": {
+          "x": 1.3790394736842104,
+          "y": 1.3790825688073394
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-2a5d92a4-f91b-4425-b6e3-77f3b7496a83",
+      "name": "pixel-ascii-7",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/pixel-ascii/7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 506,
+        "height": 448
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": -57.67052023121387,
+          "y": 898.1579961464355
+        },
+        "scale": {
+          "x": 0.5461857707509882,
+          "y": 0.5461830357142857
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    }
+  ],
+  "layerStack": [
+    "photo:top-framed-photo",
+    "fixed:pack-layer-5cc49224-8468-416d-9507-d3f59064bb6d",
+    "fixed:pack-layer-5748c142-7122-42e4-99cb-2e65a700c638",
+    "fixed:pack-layer-2a5d92a4-f91b-4425-b6e3-77f3b7496a83",
+    "photo:bottom-photo"
+  ],
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/romantic-deco-two-photo",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/decorative-statement-lace-1/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/essential-lace-trims/3",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/pixel-ascii/7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    }
+  ],
+  "requiredCapabilities": [
+    "image.replace",
+    "image.crop",
+    "material.resolve"
+  ]
+}

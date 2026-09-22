@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "2",
+  "catalogRevision": "9",
   "releaseState": "shipped",
   "sourceOfTruth": "first-release-product-catalog.v1",
   "packs": [
@@ -3240,7 +3240,7 @@
     },
     {
       "id": "romantic-deco-lace-frame-1",
-      "revision": "1",
+      "revision": "2",
       "status": "shipped",
       "name": "Romantic Deco lace frame 1",
       "category": "frame",
@@ -3257,9 +3257,9 @@
         "reference": {
           "id": "asset://pack/romantic-deco-lace-frame-1/cover",
           "kind": "image",
-          "revision": "1"
+          "revision": "2"
         },
-        "packRevision": "1",
+        "packRevision": "2",
         "mimeType": "image/jpeg",
         "byteLength": 36190,
         "sha256": "3a0c7a183c4c7fa891378de952861dce780842c15a1f7f5e312a5a77c9aa7ca3",
@@ -3267,7 +3267,7 @@
           "width": 512,
           "height": 768
         },
-        "sourceUrl": "https://assets.zllarchi.site/packs/Romantic%20Deco-Lace%20Frame(1)/pack-sheet.jpg?v=1",
+        "sourceUrl": "https://assets.zllarchi.site/packs/Romantic%20Deco-Lace%20Frame(1)/pack-sheet.jpg?v=2",
         "r2Path": "Romantic Deco-Lace Frame(1)/pack-sheet.jpg"
       },
       "items": [
@@ -3279,7 +3279,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 53195,
           "sha256": "aacc72778ed4222f6631b83a23e278d45f049ded2df81735e3da1b2b44e2608e",
@@ -3298,7 +3298,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 57424,
           "sha256": "5e69227b927356d2125ec7723ad75cbe3b2408286389c510ca90fdc0400ded72",
@@ -3317,7 +3317,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 48428,
           "sha256": "577ed14b6f0b74671d457955ab5382313e22db335bec4a5e2ebe39cc83d88067",
@@ -3336,7 +3336,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 34811,
           "sha256": "8d05ee5d1e00e1dccc3d340a60c8a7d5902bd5055a7e1178f2379f5d19447ca7",
@@ -3355,7 +3355,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 54900,
           "sha256": "2b6536657f95fe426071df4d9d7cc06903ac923d9f6d0aedcaf012053e1fc871",
@@ -3374,7 +3374,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 46860,
           "sha256": "a70dab0addfe6de54ec9656a1150723dbeaaaf1011228d7fa2c5df76bab54ce4",
@@ -3393,7 +3393,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 47673,
           "sha256": "3ce0a83fc2e3036bfcebae7ef8ef7a15af4baa6ea5acac3a5dbb817f9310dd87",
@@ -3412,7 +3412,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 43396,
           "sha256": "d9e16be00c0fa2c8495d48845a38735a2b24dde499b16b49720675b548babe39",
@@ -3429,18 +3429,18 @@
           "reference": {
             "id": "asset://pack/romantic-deco-lace-frame-1/9",
             "kind": "image",
-            "revision": "1"
+            "revision": "2"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
-          "byteLength": 41077,
-          "sha256": "35858d9677ae30e4039178cc07de47f273ecf8774e50be9f7e72b6ebf88ecb13",
+          "byteLength": 749087,
+          "sha256": "cd5df883bf3ee91bd71d048b13b6ea808ced8fa773c9d975e423a65bbe12f7fd",
           "pixelSize": {
-            "width": 286,
-            "height": 318
+            "width": 1254,
+            "height": 1254
           },
-          "sourceUrl": "https://assets.zllarchi.site/packs/Romantic%20Deco-Lace%20Frame(1)/items/9.png?v=1",
-          "r2Path": "Romantic Deco-Lace Frame(1)/items/9.png"
+          "sourceUrl": "https://assets.zllarchi.site/packs/Romantic%20Deco-Lace%20Frame(1)/items/9.v2.png?v=2",
+          "r2Path": "Romantic Deco-Lace Frame(1)/items/9.v2.png"
         },
         {
           "role": "item",
@@ -3450,7 +3450,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 52723,
           "sha256": "09b0434429086fc12dca37c42685f20daeab4d1043f87b91794997aa45df3937",
@@ -3469,7 +3469,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 52783,
           "sha256": "12deefb29b3dcf36785ff612555743fe487a0e3c96d43336487f499595334b8a",
@@ -3488,7 +3488,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 52360,
           "sha256": "1a6cce8ebdd350ab568fbdd18b575a39fb9f1499f000ea624680d991c03f307e",
@@ -7454,6 +7454,4558 @@
       ]
     },
     {
+      "id": "handmade-cutout-type",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Handmade cutout type",
+      "category": "sticker",
+      "semanticTags": [],
+      "styles": [
+        "fan-moodboard"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Handmade-Cutout-Type",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/handmade-cutout-type/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 36984,
+        "sha256": "2ddf8b8b66ff8ec4d2a2d2c263207a61d3d274e312196a9620171f140d5560ac",
+        "pixelSize": {
+          "width": 512,
+          "height": 341
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/pack-sheet.jpg?v=1",
+        "r2Path": "Handmade-Cutout-Type/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 72496,
+          "sha256": "32fcc995ece2d72c4e01e3b5e948cdf225ac2862ce5860724f95b03cbb8089b4",
+          "pixelSize": {
+            "width": 432,
+            "height": 346
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/1.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 76269,
+          "sha256": "8d2054551eb013b6377074247fe18c5cd1698f26902286b78875a9da4cfab101",
+          "pixelSize": {
+            "width": 503,
+            "height": 332
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/2.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 84343,
+          "sha256": "23caca8be954c4e3d08939a913e9183406bc541991c557e2116cc35a7d47048c",
+          "pixelSize": {
+            "width": 462,
+            "height": 323
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/3.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 78289,
+          "sha256": "81b60c2444adf6bd517e5884ea1548f4beef5f3f7430bf58c4026998d6a3e71a",
+          "pixelSize": {
+            "width": 479,
+            "height": 301
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/4.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 76467,
+          "sha256": "7490b99d29ea7dccb22961cb263a86216a0270d85559aa60cbed14ea20c230e9",
+          "pixelSize": {
+            "width": 459,
+            "height": 295
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/5.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 77259,
+          "sha256": "218672025eea753789c258a27f798783a26a32e7ff974e89124817832785ae54",
+          "pixelSize": {
+            "width": 471,
+            "height": 306
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/6.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 71891,
+          "sha256": "3f8f348a6d4cf0d5d37c48686e5c4390bb232c3e15ae4978d4a099f3a394665c",
+          "pixelSize": {
+            "width": 462,
+            "height": 290
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/7.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 70128,
+          "sha256": "23294c21fac87b5801011486c54aa5c762d27d6fbb67e0daad5bae4a66f6286c",
+          "pixelSize": {
+            "width": 452,
+            "height": 286
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/8.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/handmade-cutout-type/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 77138,
+          "sha256": "a111bb65d7976eb674cb30551c6f98b3561c1030e8962e27f5878f55e5bba193",
+          "pixelSize": {
+            "width": 457,
+            "height": 322
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Handmade-Cutout-Type/items/9.png?v=1",
+          "r2Path": "Handmade-Cutout-Type/items/9.png"
+        }
+      ]
+    },
+    {
+      "id": "cutout-frames-cropping-accents",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Cutout frames cropping accents",
+      "category": "frame",
+      "semanticTags": [],
+      "styles": [
+        "fan-moodboard"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Cutout-Frames-Cropping-Accents",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/cutout-frames-cropping-accents/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 51743,
+        "sha256": "bc0683125fbf3c03afaf3bb06bd9ce5658e28f671414d79699b73ea86906ad43",
+        "pixelSize": {
+          "width": 512,
+          "height": 768
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/pack-sheet.jpg?v=1",
+        "r2Path": "Cutout-Frames-Cropping-Accents/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 18371,
+          "sha256": "50feb7e29d68d2c3d60dae7d1ce839b28938fbc6f6de9e6d8e8f8b141d96a197",
+          "pixelSize": {
+            "width": 207,
+            "height": 328
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/1.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2-copy",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/2-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19733,
+          "sha256": "1c508ee016a980463283838feb8c0d2eb3732f35cd4633f9ce281b561a8e3eaa",
+          "pixelSize": {
+            "width": 236,
+            "height": 313
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/2_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/2_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22948,
+          "sha256": "22259f03e22edd4b4800f4a071e65afed7c9eebc37c94b03383602e1234b1e76",
+          "pixelSize": {
+            "width": 267,
+            "height": 333
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/2.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3-copy",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/3-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 15989,
+          "sha256": "16aef3ec14a8ba097b2088f459d5075fc474ee1a1053ea540fe9fe2a3f0820d6",
+          "pixelSize": {
+            "width": 249,
+            "height": 354
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/3_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/3_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 17783,
+          "sha256": "5dc356f5f584e65d7909564627adcfd468ed6c2cf1319e0deb997d8cc68b19c2",
+          "pixelSize": {
+            "width": 272,
+            "height": 263
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/3.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4-copy",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/4-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21837,
+          "sha256": "da74843f4ec3007274abecf5765d59a09f515f35900b42a658f438421488bad5",
+          "pixelSize": {
+            "width": 234,
+            "height": 360
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/4_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/4_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19264,
+          "sha256": "675e2b43a3519b28e17b11e1cd29beb4fc673bfbf1cae36a86b9fbd1cbf4717c",
+          "pixelSize": {
+            "width": 256,
+            "height": 262
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/4.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5-copy",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/5-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 15731,
+          "sha256": "1f7e326e294da5319fb723aff4ef5664319fd09af6b65f08f14dab6e3bfbf4d5",
+          "pixelSize": {
+            "width": 254,
+            "height": 317
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/5_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/5_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 14576,
+          "sha256": "627e894624e3960f3b273310969312f57d5c7f3c71cbd86e36e0ac3455a26625",
+          "pixelSize": {
+            "width": 184,
+            "height": 308
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/5.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6-copy",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/6-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 25166,
+          "sha256": "3c1faec139d7cf6357972e2a6a45bf3275d2159dfd25cb432705e4c0cec05832",
+          "pixelSize": {
+            "width": 269,
+            "height": 302
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/6_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/6_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 9377,
+          "sha256": "b01f78580e93967b333ff14c5405a81d2a358130b0b277115e4589aa39a05921",
+          "pixelSize": {
+            "width": 274,
+            "height": 178
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/6.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 16970,
+          "sha256": "786929774804b2f46a1807fcfbb92c46fe0cc1fb27309650676cd3d1718ae5a4",
+          "pixelSize": {
+            "width": 244,
+            "height": 318
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/7.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22257,
+          "sha256": "ba44262adb866b3de14d198429ba1679f675c26cc2aacbfb0aca866d12a445a3",
+          "pixelSize": {
+            "width": 193,
+            "height": 357
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/8.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 37329,
+          "sha256": "9835f9d560c2b579555d1f6368a2d9f32ca3d3b580a1ac4b058619341a5c641d",
+          "pixelSize": {
+            "width": 292,
+            "height": 400
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/9.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "cutout-frames-cropping-accents-2",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/cutout-frames-cropping-accents-2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 33332,
+          "sha256": "d20178c788ba57acffa8b76df5451439e042a9986dc5bb0d934c3d76bca12ff8",
+          "pixelSize": {
+            "width": 408,
+            "height": 442
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/Cutout%20Frames%20%26%20Cropping%20Accents%202.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/Cutout Frames & Cropping Accents 2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "cutout-frames-cropping-accents-3",
+          "reference": {
+            "id": "asset://pack/cutout-frames-cropping-accents/cutout-frames-cropping-accents-3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20173,
+          "sha256": "78eac9651c637c29ffe9838ee2df02ec5bc69e8a3055bbcc7ff7b2c842fa6294",
+          "pixelSize": {
+            "width": 408,
+            "height": 252
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Cutout-Frames-Cropping-Accents/items/Cutout%20Frames%20%26%20Cropping%20Accents%203.png?v=1",
+          "r2Path": "Cutout-Frames-Cropping-Accents/items/Cutout Frames & Cropping Accents 3.png"
+        }
+      ]
+    },
+    {
+      "id": "fan-edit-highlights",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Fan edit highlights",
+      "category": "sticker",
+      "semanticTags": [],
+      "styles": [
+        "fan-moodboard"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Fan-Edit-Highlights",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/fan-edit-highlights/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 66240,
+        "sha256": "5607a22c1db11124d47eaa5c277b3165dc50ed7146c2cde9f5b29222b76890f6",
+        "pixelSize": {
+          "width": 512,
+          "height": 768
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/pack-sheet.jpg?v=1",
+        "r2Path": "Fan-Edit-Highlights/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1-copy",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/1-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19854,
+          "sha256": "65ada28c2dfe0c48682a0cecee9f740e8d890fc93c06bbe4ec1810aa39108d31",
+          "pixelSize": {
+            "width": 201,
+            "height": 330
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/1_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/1_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 47586,
+          "sha256": "3ac0c6633983887822a4fb58e5bb15389d2b9197e7b957679dd393748d96e5c7",
+          "pixelSize": {
+            "width": 251,
+            "height": 383
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/1.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2-copy",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/2-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 30974,
+          "sha256": "c3e1d4604260cf818a5737f5a46214323ba8d90c95c5f3f61583e168d8070623",
+          "pixelSize": {
+            "width": 280,
+            "height": 340
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/2_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/2_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 30241,
+          "sha256": "02f33096a51cbc32537ec80b40544e5512458a4f9a096f2585d66a60849d17d7",
+          "pixelSize": {
+            "width": 200,
+            "height": 387
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/2.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3-copy",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/3-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 23982,
+          "sha256": "689f9e8899f330f23c07d13bbf4e2138e3d58040cde7b32bc68d86dc67c3b3b5",
+          "pixelSize": {
+            "width": 251,
+            "height": 304
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/3_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/3_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 39738,
+          "sha256": "59ab7a3741a0619794f68fcd9e8e1a9aaf514ca44086da264307430c2ee880bb",
+          "pixelSize": {
+            "width": 236,
+            "height": 327
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/3.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4-copy",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/4-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20272,
+          "sha256": "609aec9b440680b62f0edd47cfa497207a2d6dceb4396789074c0081a468dd49",
+          "pixelSize": {
+            "width": 245,
+            "height": 321
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/4_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/4_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 30328,
+          "sha256": "a1f72f3ebb60a710024b17a4c40020dbd41f3f729175761bcb0b8b255819f0be",
+          "pixelSize": {
+            "width": 255,
+            "height": 266
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/4.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5-copy",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/5-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 17337,
+          "sha256": "4e98e45babcc07784cb707cd91e709b7e4128a61f21b003c8279c475578fa65e",
+          "pixelSize": {
+            "width": 282,
+            "height": 171
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/5_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/5_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22334,
+          "sha256": "3da1ab4d2df1df3244ecd99ab5c735c48bc8acae0ffd7c906d9b1d294bc0184b",
+          "pixelSize": {
+            "width": 257,
+            "height": 359
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/5.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6-copy",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/6-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 56620,
+          "sha256": "66aaf0dd09e9b5a85f77d0994a637a50b30e459c7c32318f4e2c576154763d4a",
+          "pixelSize": {
+            "width": 251,
+            "height": 385
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/6_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/6_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 27802,
+          "sha256": "232af5200b0e4446d19c40f0fd5c412ed1a3cae36d89acc3afb11251d727cce0",
+          "pixelSize": {
+            "width": 200,
+            "height": 326
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/6.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 17970,
+          "sha256": "67bc000520709cf5aab44286b99573ee44cb05b1303d691389ca1a290581b849",
+          "pixelSize": {
+            "width": 200,
+            "height": 336
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/7.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 32310,
+          "sha256": "1dfa1d3a06ba6db1a1a52ab96f152f3e96eb050f2dbc50db5ba2a9c458eb3364",
+          "pixelSize": {
+            "width": 256,
+            "height": 271
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/8.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 29314,
+          "sha256": "c1a16e42c3b2e9760dee5f69eb2092086e995e803be11f75d09c2b389aa3defe",
+          "pixelSize": {
+            "width": 177,
+            "height": 351
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/9.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "10",
+          "reference": {
+            "id": "asset://pack/fan-edit-highlights/10",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 24744,
+          "sha256": "ae9f0972a90c1c8f32e384f61bcaf37049bca4afcda65c62b8fd851ed670a225",
+          "pixelSize": {
+            "width": 254,
+            "height": 294
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fan-Edit-Highlights/items/10.png?v=1",
+          "r2Path": "Fan-Edit-Highlights/items/10.png"
+        }
+      ]
+    },
+    {
+      "id": "experimental-print-registration-fragments",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Experimental print registration fragments",
+      "category": "sticker",
+      "semanticTags": [],
+      "styles": [
+        "fan-moodboard"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Experimental-Print-Registration-Fragments",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/experimental-print-registration-fragments/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 415175,
+        "sha256": "e5cd83092b26b8e55a67a7a8ef8bc3fb5f55e408041e2aa2e1856713a77ce12a",
+        "pixelSize": {
+          "width": 1024,
+          "height": 1536
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/pack-sheet.jpg?v=1",
+        "r2Path": "Experimental-Print-Registration-Fragments/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1-copy",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/1-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 152301,
+          "sha256": "efeb827aacf714cda4d24f3abef744d472aa7337684b03092b2f6983a5a33a4a",
+          "pixelSize": {
+            "width": 318,
+            "height": 236
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/1_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/1_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 137617,
+          "sha256": "935ebf59ccfe0ff2899b5c221b4681ee2b91250f4ca5f2048a9e5fdc7199fd35",
+          "pixelSize": {
+            "width": 328,
+            "height": 316
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/1.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 182203,
+          "sha256": "f7b615fa1d908948e5850b08c0740a2a6622139ffb5a8794ea606a5c1d4e7fe5",
+          "pixelSize": {
+            "width": 320,
+            "height": 312
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/2.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 162502,
+          "sha256": "a4a7998b01fcbd845905518a0b8c7c29e45dace7b15d21075363d31a32fc06e1",
+          "pixelSize": {
+            "width": 262,
+            "height": 294
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/3.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 14040,
+          "sha256": "6bebdf47fb144ff08229024c2816f952be0c6dc5da9ea4b3faf81dc239aaa5c8",
+          "pixelSize": {
+            "width": 187,
+            "height": 172
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/4.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 30335,
+          "sha256": "bb01e12579c40daf61dcc69310253babfb587a98f05e33908d9120e5ea719244",
+          "pixelSize": {
+            "width": 267,
+            "height": 221
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/5.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 116740,
+          "sha256": "dfffbfb84a8d828973cf0df9c8e9a3786e7b5067d3fc19b8e9c6ba9de28a9bc8",
+          "pixelSize": {
+            "width": 446,
+            "height": 114
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/6.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 161256,
+          "sha256": "c5fe21f2ba748b99410c6319a2b8c02944a9146efbb527e074487d4d63ebb2f9",
+          "pixelSize": {
+            "width": 315,
+            "height": 300
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/7.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22894,
+          "sha256": "b79203e3561c87d692912c6b702347999d8b329e566235307bbe39cb3b105d39",
+          "pixelSize": {
+            "width": 60,
+            "height": 246
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/8.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20873,
+          "sha256": "0062fa6520cfc360de02eedd096780301234794aa88035f21afd6ca8c71fe6d1",
+          "pixelSize": {
+            "width": 62,
+            "height": 233
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/9.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "10",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/10",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21389,
+          "sha256": "c46f1be59b6a43a35c2c18ad9254bd0f4cada04a112397368f4ed0df41c81083",
+          "pixelSize": {
+            "width": 61,
+            "height": 225
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/10.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/10.png"
+        },
+        {
+          "role": "item",
+          "itemId": "11",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/11",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22731,
+          "sha256": "721e295ffe2e363b5a0ef3c9d7537d4277f9990bea2c504c04c49d67757278ba",
+          "pixelSize": {
+            "width": 59,
+            "height": 231
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/11.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/11.png"
+        },
+        {
+          "role": "item",
+          "itemId": "12",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/12",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 25600,
+          "sha256": "cfbe629f3ef9db84aef4b0d66fe5cac10205e4f8e2d4674ffcaf55755a4ec264",
+          "pixelSize": {
+            "width": 70,
+            "height": 224
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/12.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/12.png"
+        },
+        {
+          "role": "item",
+          "itemId": "13",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/13",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 46790,
+          "sha256": "06cf8e37df7433bfe747b9e200d5861af1296610984608a514a2a8259c6cdb9d",
+          "pixelSize": {
+            "width": 233,
+            "height": 173
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/13.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/13.png"
+        },
+        {
+          "role": "item",
+          "itemId": "14",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/14",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 118449,
+          "sha256": "27eeee8fb8a81b534a9eedd8670566e1811de96dad9d24e445b49c7f6046d781",
+          "pixelSize": {
+            "width": 474,
+            "height": 126
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/14.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/14.png"
+        },
+        {
+          "role": "item",
+          "itemId": "15",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/15",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 112396,
+          "sha256": "dd62e648923a2ba4df377121e404c79f58fbbab382b77cc59676bd2eb1f53e54",
+          "pixelSize": {
+            "width": 449,
+            "height": 102
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/15.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/15.png"
+        },
+        {
+          "role": "item",
+          "itemId": "16",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/16",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 146689,
+          "sha256": "12ec789d91783ed5bfbcae4a80ba99c66e598d6d1f7e8c56e99c9b9ff3806e64",
+          "pixelSize": {
+            "width": 338,
+            "height": 210
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/16.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/16.png"
+        },
+        {
+          "role": "item",
+          "itemId": "17",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/17",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 145186,
+          "sha256": "b5c08d66d699b305c6b989a0c34dae2fa183e5b67c3f08bf16298d6068f70045",
+          "pixelSize": {
+            "width": 307,
+            "height": 203
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/17.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/17.png"
+        },
+        {
+          "role": "item",
+          "itemId": "18",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/18",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 370787,
+          "sha256": "ea7b8e23d441c074af60ce04dea051ca9a4c8097def519ba2a8f7ea3ab439cfd",
+          "pixelSize": {
+            "width": 489,
+            "height": 360
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/18.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/18.png"
+        },
+        {
+          "role": "item",
+          "itemId": "19",
+          "reference": {
+            "id": "asset://pack/experimental-print-registration-fragments/19",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 340412,
+          "sha256": "e7bcfc41e5d6c1966b7374568a3d2c106845ddc84f9ac798bf93147023d75a45",
+          "pixelSize": {
+            "width": 467,
+            "height": 340
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Experimental-Print-Registration-Fragments/items/19.png?v=1",
+          "r2Path": "Experimental-Print-Registration-Fragments/items/19.png"
+        }
+      ]
+    },
+    {
+      "id": "editorial-connectors-index-marks",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Editorial connectors index marks",
+      "category": "sticker",
+      "semanticTags": [],
+      "styles": [
+        "digital-y2k"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Editorial-Connectors-Index-Marks",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/editorial-connectors-index-marks/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 33352,
+        "sha256": "0b84147afd81c8331aff630140145379ab9d6b0d89d247c0a2908ca9cbd0b16f",
+        "pixelSize": {
+          "width": 512,
+          "height": 341
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/pack-sheet.jpg?v=1",
+        "r2Path": "Editorial-Connectors-Index-Marks/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 10798,
+          "sha256": "24fde6f7c59d485c3ae0db6c4c06e202d31999f08ea61b1db29943930f44b372",
+          "pixelSize": {
+            "width": 148,
+            "height": 165
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/1.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8007,
+          "sha256": "b33d7f7eabbc0171e523524a7aafb26f8c0e9cb8c29aed25e10ea9925739b59d",
+          "pixelSize": {
+            "width": 182,
+            "height": 167
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/2.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4357,
+          "sha256": "af8245a8148dfbfc67c58bfaa81a92d2c4f470fdb58755c9b7a2dd84c2226648",
+          "pixelSize": {
+            "width": 141,
+            "height": 164
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/3.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 7842,
+          "sha256": "de3ea262599fe81c133d141fe5afeaf61d06874db915a09d0cb94c5e47440f57",
+          "pixelSize": {
+            "width": 158,
+            "height": 162
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/4.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 7099,
+          "sha256": "1f628fa77313a27b5f6bb166ba19894ab8ed3fdd73c78e6972d89208552adc36",
+          "pixelSize": {
+            "width": 138,
+            "height": 155
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/5.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5113,
+          "sha256": "a8c4ae52e307d1c049ad5672fe73a75910fc32908439d51d1fc78ffc9405abfb",
+          "pixelSize": {
+            "width": 122,
+            "height": 154
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/6.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8296,
+          "sha256": "3aafefeb7905b6464661099baf0909b6d15d240d5765f935a952a17c26462952",
+          "pixelSize": {
+            "width": 155,
+            "height": 162
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/7.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2691,
+          "sha256": "96217d21bb2f2b05410eac705ba962d054085743acf30bea58bc288ba032be9e",
+          "pixelSize": {
+            "width": 97,
+            "height": 130
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/8.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5128,
+          "sha256": "fa00ff817ef59b3a2e51a8ca69135a74642bcbf9e2b541697d40140bf0308ee4",
+          "pixelSize": {
+            "width": 115,
+            "height": 126
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/9.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "10",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/10",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2788,
+          "sha256": "d8b7320b99fb4e86bbe5bfa3177c0aacf51da2f16dc65acaf783cb18af7d80bd",
+          "pixelSize": {
+            "width": 72,
+            "height": 91
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/10.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/10.png"
+        },
+        {
+          "role": "item",
+          "itemId": "11",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/11",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 1217,
+          "sha256": "6154b46ce3ebf357aec1c0a6a28457da8fba14a0474efeaea5d6191fcdb23a34",
+          "pixelSize": {
+            "width": 53,
+            "height": 66
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/11.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/11.png"
+        },
+        {
+          "role": "item",
+          "itemId": "12",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/12",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5990,
+          "sha256": "95ba00caa047518398fe19b630dd07c51425b4a40d6b6d4cce127d0c7ebe6895",
+          "pixelSize": {
+            "width": 247,
+            "height": 128
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/12.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/12.png"
+        },
+        {
+          "role": "item",
+          "itemId": "13",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/13",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5411,
+          "sha256": "4a9b8d0ceb910675c1853ef1c7a30e3f18aab84118b58cf512d488f93856832d",
+          "pixelSize": {
+            "width": 210,
+            "height": 105
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/13.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/13.png"
+        },
+        {
+          "role": "item",
+          "itemId": "14",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/14",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2848,
+          "sha256": "28f7070c3c4836cc8f06e2ac0354baa0fdb872f485f313e4b6ff8fec948eb79e",
+          "pixelSize": {
+            "width": 153,
+            "height": 94
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/14.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/14.png"
+        },
+        {
+          "role": "item",
+          "itemId": "15",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/15",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4327,
+          "sha256": "d38d7c65d431855ab9de507284f22795de4f5ceb506cc0749f8b366e91eae0af",
+          "pixelSize": {
+            "width": 193,
+            "height": 84
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/15.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/15.png"
+        },
+        {
+          "role": "item",
+          "itemId": "16",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/16",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3785,
+          "sha256": "c9104176a7ed2fc5238e618ae7162457083ef516434edd34228ad2840ef771ca",
+          "pixelSize": {
+            "width": 174,
+            "height": 85
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/16.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/16.png"
+        },
+        {
+          "role": "item",
+          "itemId": "17",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/17",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3054,
+          "sha256": "cec98106cb174e4830a308e5d05962320570eba61e56b38a48d21aa9f836614b",
+          "pixelSize": {
+            "width": 166,
+            "height": 85
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/17.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/17.png"
+        },
+        {
+          "role": "item",
+          "itemId": "18",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/18",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2861,
+          "sha256": "967f4aaf4318c5a6bf483ff2109c499889f947f878618698f7095e8e1b87c0ad",
+          "pixelSize": {
+            "width": 145,
+            "height": 86
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/18.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/18.png"
+        },
+        {
+          "role": "item",
+          "itemId": "19",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/19",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8373,
+          "sha256": "fd0158f9c0f39c7809cdc82014f629cefed4975329041078dab1094f3681fc25",
+          "pixelSize": {
+            "width": 181,
+            "height": 152
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/19.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/19.png"
+        },
+        {
+          "role": "item",
+          "itemId": "20",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/20",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5717,
+          "sha256": "985e9a7b5bb80604ef0d66adc28b4289bf2cb58bd50921ab3ce1dc23ab6e247c",
+          "pixelSize": {
+            "width": 156,
+            "height": 138
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/20.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/20.png"
+        },
+        {
+          "role": "item",
+          "itemId": "21",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/21",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8942,
+          "sha256": "a01cc890a98ce5c08756547c2c62f26fa32e932936e01b55973e27ddd8885dc1",
+          "pixelSize": {
+            "width": 213,
+            "height": 134
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/21.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/21.png"
+        },
+        {
+          "role": "item",
+          "itemId": "22",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/22",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8147,
+          "sha256": "4217c0b5edc01b68fdab1e2a2fe34f8b391912a03b0b9afe63649b3e8daf34f1",
+          "pixelSize": {
+            "width": 217,
+            "height": 142
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/22.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/22.png"
+        },
+        {
+          "role": "item",
+          "itemId": "23",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/23",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 7192,
+          "sha256": "ba321f9501f87a2f5a72a7ce6f4b9a20b75c8b55a3f4461b9045916b1dfc22fb",
+          "pixelSize": {
+            "width": 172,
+            "height": 141
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/23.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/23.png"
+        },
+        {
+          "role": "item",
+          "itemId": "24",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/24",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 6349,
+          "sha256": "30f7b7dba8736f6980a00ae217ace051f3a273a04bbc9aaa53261255918e2e14",
+          "pixelSize": {
+            "width": 145,
+            "height": 133
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/24.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/24.png"
+        },
+        {
+          "role": "item",
+          "itemId": "25",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/25",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3257,
+          "sha256": "74cfe9136fdf747b9623eb54c99241876e20d1949a6ab635d95fbf538f013959",
+          "pixelSize": {
+            "width": 138,
+            "height": 88
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/25.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/25.png"
+        },
+        {
+          "role": "item",
+          "itemId": "26",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/26",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4752,
+          "sha256": "563e778f3cbb2467fb596ab11355d459802a773435c8a46fb277259694c5895b",
+          "pixelSize": {
+            "width": 120,
+            "height": 130
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/26.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/26.png"
+        },
+        {
+          "role": "item",
+          "itemId": "27",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/27",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 7580,
+          "sha256": "4c86d24ff410c2c0b17f8153bbc7744928c935877528c54cb50b4c67eee6a38c",
+          "pixelSize": {
+            "width": 158,
+            "height": 119
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/27.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/27.png"
+        },
+        {
+          "role": "item",
+          "itemId": "28",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/28",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5467,
+          "sha256": "1b3d556be1c38246cb39b20c55deb0377f0582718c8a78b7bdf85185e4ba5c0f",
+          "pixelSize": {
+            "width": 166,
+            "height": 107
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/28.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/28.png"
+        },
+        {
+          "role": "item",
+          "itemId": "29",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/29",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 7097,
+          "sha256": "edd7ac7ae7794e4ffef13d4054e0ba0c06d91854f2bb370976f638c561639423",
+          "pixelSize": {
+            "width": 183,
+            "height": 106
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/29.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/29.png"
+        },
+        {
+          "role": "item",
+          "itemId": "30",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/30",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 6919,
+          "sha256": "df61c4c2372a3bf9e9d9912e50991fa478ba6999c33b2bf49e63784b5f435ca9",
+          "pixelSize": {
+            "width": 164,
+            "height": 110
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/30.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/30.png"
+        },
+        {
+          "role": "item",
+          "itemId": "31",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/31",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4712,
+          "sha256": "09a9f1ec7a77f53131faa1ddee49f467d8d334c1a310ce1c7b173d6045324846",
+          "pixelSize": {
+            "width": 193,
+            "height": 94
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/31.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/31.png"
+        },
+        {
+          "role": "item",
+          "itemId": "32",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/32",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5385,
+          "sha256": "d8d23fbc1b1a2089ed51fb0a19b25279099ebb0dc32b1b84f02b422b41636fd5",
+          "pixelSize": {
+            "width": 252,
+            "height": 63
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/32.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/32.png"
+        },
+        {
+          "role": "item",
+          "itemId": "33",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/33",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4609,
+          "sha256": "52a9e8b42efbe64f26da20f55be62e2bd8ceb20e9494cd56b0bceee27f7f10b8",
+          "pixelSize": {
+            "width": 266,
+            "height": 68
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/33.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/33.png"
+        },
+        {
+          "role": "item",
+          "itemId": "34",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/34",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4010,
+          "sha256": "22d35666130b1c7cdf98832067c756a8627d24699fc984f87d5710232dbd8ed5",
+          "pixelSize": {
+            "width": 215,
+            "height": 69
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/34.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/34.png"
+        },
+        {
+          "role": "item",
+          "itemId": "35",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/35",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4119,
+          "sha256": "21a26f4f73666f8b49ab655a504bda747a61647beadc5c15c031fefca00a8c24",
+          "pixelSize": {
+            "width": 234,
+            "height": 68
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/35.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/35.png"
+        },
+        {
+          "role": "item",
+          "itemId": "36",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/36",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4274,
+          "sha256": "fb2897eb8b5a371545316f0748cbede2b35124a8775fb7b28850f365b5fa0f95",
+          "pixelSize": {
+            "width": 221,
+            "height": 60
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/36.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/36.png"
+        },
+        {
+          "role": "item",
+          "itemId": "37",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/37",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 11246,
+          "sha256": "d7c328674ed32473501041356beb3e6d198dd2eddf750631ad13163e0f27aef7",
+          "pixelSize": {
+            "width": 237,
+            "height": 188
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/37.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/37.png"
+        },
+        {
+          "role": "item",
+          "itemId": "38",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/38",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 10344,
+          "sha256": "85298324bf3a99334038e3482fc034b16fe808d55f87dc48702cc024db56b0e2",
+          "pixelSize": {
+            "width": 248,
+            "height": 171
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/38.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/38.png"
+        },
+        {
+          "role": "item",
+          "itemId": "39",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/39",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 9857,
+          "sha256": "32fd674694e9357b1f602d190f87e8473457c0f9a120ce667924a9aa37bcf6d3",
+          "pixelSize": {
+            "width": 215,
+            "height": 165
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/39.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/39.png"
+        },
+        {
+          "role": "item",
+          "itemId": "40",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/40",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8863,
+          "sha256": "05706a24b9b245135823462ac1e34992d0ef3973526c6a8084fa10926695b34e",
+          "pixelSize": {
+            "width": 232,
+            "height": 164
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/40.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/40.png"
+        },
+        {
+          "role": "item",
+          "itemId": "41",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/41",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2759,
+          "sha256": "147f6fe2b7347cd0e44ceee43a71932f5d26d59dd86c0197a121245d96005917",
+          "pixelSize": {
+            "width": 100,
+            "height": 137
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/41.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/41.png"
+        },
+        {
+          "role": "item",
+          "itemId": "42",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/42",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3324,
+          "sha256": "3f6b2322f082e39ce1111d5be9bcfce318deede0933b86ee67c3985407cefcb7",
+          "pixelSize": {
+            "width": 108,
+            "height": 127
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/42.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/42.png"
+        },
+        {
+          "role": "item",
+          "itemId": "43",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/43",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2453,
+          "sha256": "90a92f88dc608fe74b218d3847f0e33288dcc7bab54545d5b6697dfbcda4ba36",
+          "pixelSize": {
+            "width": 113,
+            "height": 132
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/43.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/43.png"
+        },
+        {
+          "role": "item",
+          "itemId": "44",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/44",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2846,
+          "sha256": "7896354dbd437511b1ccb5c73e79c600f7e5dd8ae3d2717588eeb4baae982cd2",
+          "pixelSize": {
+            "width": 107,
+            "height": 134
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/44.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/44.png"
+        },
+        {
+          "role": "item",
+          "itemId": "45",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/45",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4026,
+          "sha256": "5d34fc4c5af5458e7a3a935a952f5d856921be24802cb15698ce657d7699951d",
+          "pixelSize": {
+            "width": 128,
+            "height": 132
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/45.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/45.png"
+        },
+        {
+          "role": "item",
+          "itemId": "46",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/46",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3020,
+          "sha256": "2912893c664513a70058c5cabdcee283d9ddb05be06d8bf1dd3dfe0104f37840",
+          "pixelSize": {
+            "width": 97,
+            "height": 132
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/46.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/46.png"
+        },
+        {
+          "role": "item",
+          "itemId": "47",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/47",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4435,
+          "sha256": "6c2603b5b66a30c18804e1e245f8b336686f246d9d2ea5898dea556d1d762e35",
+          "pixelSize": {
+            "width": 73,
+            "height": 127
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/47.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/47.png"
+        },
+        {
+          "role": "item",
+          "itemId": "48",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/48",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3498,
+          "sha256": "33cc173eac04feaff9e9cdac4237604067b77f8d9d63d829c79b6db4091e6777",
+          "pixelSize": {
+            "width": 101,
+            "height": 128
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/48.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/48.png"
+        },
+        {
+          "role": "item",
+          "itemId": "49",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/49",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4162,
+          "sha256": "23386eaac1d37859a3163dd2de2957f0d72522bb7f626973769a4f8a77402f58",
+          "pixelSize": {
+            "width": 97,
+            "height": 120
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/49.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/49.png"
+        },
+        {
+          "role": "item",
+          "itemId": "50",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/50",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2987,
+          "sha256": "ebe70b6f2e4a74a8550e5dca6f73ccf7e42a03505e1a5ff724da573791340bc5",
+          "pixelSize": {
+            "width": 97,
+            "height": 113
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/50.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/50.png"
+        },
+        {
+          "role": "item",
+          "itemId": "51",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/51",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3336,
+          "sha256": "cfdf25f3324ca611371fe322f9ff5226e6545024cc47178d3b19ad7661e60720",
+          "pixelSize": {
+            "width": 174,
+            "height": 83
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/51.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/51.png"
+        },
+        {
+          "role": "item",
+          "itemId": "52",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/52",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 8171,
+          "sha256": "d1daa75ef06b0e669ec4a78e9b56f0ac50f0c6496c28b87e1fa13a0778127736",
+          "pixelSize": {
+            "width": 193,
+            "height": 146
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/52.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/52.png"
+        },
+        {
+          "role": "item",
+          "itemId": "53",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/53",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 4083,
+          "sha256": "7b7bbf6b2fb4ab0e77c5a5f7c419e28283b5857e851e97a3f1c631d9423fee3c",
+          "pixelSize": {
+            "width": 174,
+            "height": 112
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/53.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/53.png"
+        },
+        {
+          "role": "item",
+          "itemId": "54",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/54",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2718,
+          "sha256": "97dfac12eafcb931fea77ef0bcb5a44fbb6c8cee8a49ac371b95f6012b0c0d75",
+          "pixelSize": {
+            "width": 84,
+            "height": 113
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/54.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/54.png"
+        },
+        {
+          "role": "item",
+          "itemId": "55",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/55",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 2715,
+          "sha256": "67356c58c00f3d1c1b61fb85a3ce9634608b22637dd2e54aada74fb4421af3bb",
+          "pixelSize": {
+            "width": 245,
+            "height": 71
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/55.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/55.png"
+        },
+        {
+          "role": "item",
+          "itemId": "56",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/56",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 5995,
+          "sha256": "a38904117f9b4213035e055f69fa18ff07eb7145ea0470c1e4b53fb3c79e4e12",
+          "pixelSize": {
+            "width": 245,
+            "height": 152
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/56.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/56.png"
+        },
+        {
+          "role": "item",
+          "itemId": "57",
+          "reference": {
+            "id": "asset://pack/editorial-connectors-index-marks/57",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 3960,
+          "sha256": "254fd31fa94077d98959bcb90def4a3d267e5b28e58662265aaa689af3d9774b",
+          "pixelSize": {
+            "width": 234,
+            "height": 164
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Editorial-Connectors-Index-Marks/items/57.png?v=1",
+          "r2Path": "Editorial-Connectors-Index-Marks/items/57.png"
+        }
+      ]
+    },
+    {
+      "id": "micro-editorial-1",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Micro editorial 1",
+      "category": "sticker",
+      "semanticTags": [],
+      "styles": [
+        "digital-y2k"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Micro-Editorial（1）",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/micro-editorial-1/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 30562,
+        "sha256": "8d32541277fe46e668c2f0b5f4b5d94bf9deb51e9f1f795bd61677657df0c698",
+        "pixelSize": {
+          "width": 512,
+          "height": 341
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/pack-sheet.jpg?v=1",
+        "r2Path": "Micro-Editorial（1）/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 26443,
+          "sha256": "8cb97531506a5e543446202d465226588b075acfe557a33bdc858c6157f7cf3b",
+          "pixelSize": {
+            "width": 182,
+            "height": 228
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/1.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19942,
+          "sha256": "dffa73611eb3a3490195316ca14a52913b13f6c8f01233e934d776a6e8ee846b",
+          "pixelSize": {
+            "width": 195,
+            "height": 228
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/2.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 28196,
+          "sha256": "a29fdf0b23cb935ff2c226c4716865ee4c91e3672a51e0dfbaed6f7c35f97aeb",
+          "pixelSize": {
+            "width": 200,
+            "height": 223
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/3.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 29029,
+          "sha256": "286388084d4b6207421c152f4192fae2166a36287a81658e59e849be5248f3dc",
+          "pixelSize": {
+            "width": 192,
+            "height": 222
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/4.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22772,
+          "sha256": "62df6d60b919225587941845d550414a614b83fa20d1b721b622eeaf1b5b3223",
+          "pixelSize": {
+            "width": 195,
+            "height": 220
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/5.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21872,
+          "sha256": "8555321e1cd237fe83c08955b701fa34239049c7692ba53bc7de80f2b5c6a184",
+          "pixelSize": {
+            "width": 164,
+            "height": 218
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/6.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 25842,
+          "sha256": "581df5861ed46295af4223bd769ae8519c977fdbb69b6228e1b42dd632739960",
+          "pixelSize": {
+            "width": 216,
+            "height": 204
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/7.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 33671,
+          "sha256": "4f1c6cfb8dcc0c47cfa18922c4ba071d961582eff7dfd483835260b25d29d14b",
+          "pixelSize": {
+            "width": 215,
+            "height": 221
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/8.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 23821,
+          "sha256": "dd226784334c0cd1abecf66e2b125148173810c1108c2efeecef68dfb561b373",
+          "pixelSize": {
+            "width": 215,
+            "height": 226
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/9.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "10",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/10",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 31326,
+          "sha256": "b4f1c4a0a59f9bcb14f1e34c16e85ba7a42dacc2d9acfdbb5193a59c6fa55ce4",
+          "pixelSize": {
+            "width": 236,
+            "height": 231
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/10.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/10.png"
+        },
+        {
+          "role": "item",
+          "itemId": "11",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/11",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19513,
+          "sha256": "628777e3c971dfdb40e8c952cd8108c13d890e44cf4f7bba680723baf5efcc32",
+          "pixelSize": {
+            "width": 154,
+            "height": 218
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/11.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/11.png"
+        },
+        {
+          "role": "item",
+          "itemId": "12",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/12",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 14171,
+          "sha256": "51b4c60a21b966818922fb0032401e8b2bf934adfc779ed95d6708d1871c1206",
+          "pixelSize": {
+            "width": 119,
+            "height": 208
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/12.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/12.png"
+        },
+        {
+          "role": "item",
+          "itemId": "13",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/13",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20890,
+          "sha256": "8ecc7715cf53fa4296d73e6dc457fa38f4eb7bf07d0b4cba4299a568781e202c",
+          "pixelSize": {
+            "width": 186,
+            "height": 215
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/13.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/13.png"
+        },
+        {
+          "role": "item",
+          "itemId": "14",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/14",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22149,
+          "sha256": "7762a99eb082699aba2f316df48226bc52310b3d02ca8b3162c2b3fefff6cabc",
+          "pixelSize": {
+            "width": 190,
+            "height": 196
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/14.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/14.png"
+        },
+        {
+          "role": "item",
+          "itemId": "15",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/15",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 26986,
+          "sha256": "288cfb052670a3ae069303055224240980ce8154d76f6e158a8c208b3c5e7097",
+          "pixelSize": {
+            "width": 207,
+            "height": 214
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/15.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/15.png"
+        },
+        {
+          "role": "item",
+          "itemId": "16",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/16",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20466,
+          "sha256": "ddc511245db1499641f7ad6161b3de8c253b0e92a2e36b50dd7617913768390e",
+          "pixelSize": {
+            "width": 170,
+            "height": 198
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/16.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/16.png"
+        },
+        {
+          "role": "item",
+          "itemId": "17",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/17",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 24231,
+          "sha256": "18074addcbec12cf9b95719ae642300f1f94820e7b2e7251a0669448f0c53349",
+          "pixelSize": {
+            "width": 199,
+            "height": 216
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/17.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/17.png"
+        },
+        {
+          "role": "item",
+          "itemId": "18",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/18",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 24903,
+          "sha256": "755aa899de857f94f416eec043a2543b2025e0cc408c6e1848efde25e64c397f",
+          "pixelSize": {
+            "width": 185,
+            "height": 204
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/18.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/18.png"
+        },
+        {
+          "role": "item",
+          "itemId": "19",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/19",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21671,
+          "sha256": "6000498010b7626488c8d01eb080c05fc0bccfdd3fadb9510c53740042b71921",
+          "pixelSize": {
+            "width": 165,
+            "height": 206
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/19.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/19.png"
+        },
+        {
+          "role": "item",
+          "itemId": "20",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/20",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21048,
+          "sha256": "6e7d30750209e845170c7d4ef9ac2e3d8c92fd7aa505394b5c1b4231861c28e3",
+          "pixelSize": {
+            "width": 188,
+            "height": 217
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/20.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/20.png"
+        },
+        {
+          "role": "item",
+          "itemId": "21",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/21",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 26682,
+          "sha256": "c20e24cd99d2848b7c0bee9d0f332f10a4f4b61c3f808dab44e79f2ac4148da2",
+          "pixelSize": {
+            "width": 183,
+            "height": 208
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/21.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/21.png"
+        },
+        {
+          "role": "item",
+          "itemId": "22",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/22",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 26081,
+          "sha256": "93a12452ab38b6ca6fb51cdc0a9211dc8ccaa28495eb4d9584e1c45be6ca7c44",
+          "pixelSize": {
+            "width": 191,
+            "height": 228
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/22.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/22.png"
+        },
+        {
+          "role": "item",
+          "itemId": "23",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/23",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 36570,
+          "sha256": "c81a05bfb77a44202f38238ed32a799de0ce0562ce762549a36d3dc551104bc2",
+          "pixelSize": {
+            "width": 244,
+            "height": 220
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/23.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/23.png"
+        },
+        {
+          "role": "item",
+          "itemId": "24",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/24",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20726,
+          "sha256": "f7f7b1f999ab1886d052384c5604dbb4a2d2926262059eca651e40163aa957ec",
+          "pixelSize": {
+            "width": 201,
+            "height": 215
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/24.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/24.png"
+        },
+        {
+          "role": "item",
+          "itemId": "25",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/25",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 27045,
+          "sha256": "53d0aeed219a99abe37758a2937a7167ad0526a19a9882f8f8806bba77c69bc2",
+          "pixelSize": {
+            "width": 189,
+            "height": 217
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/25.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/25.png"
+        },
+        {
+          "role": "item",
+          "itemId": "26",
+          "reference": {
+            "id": "asset://pack/micro-editorial-1/26",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 28490,
+          "sha256": "dfd43a097b4fd8494921314934efd67d0d1ac2f59b00bbd7cab7f826c9bf1ece",
+          "pixelSize": {
+            "width": 218,
+            "height": 209
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Micro-Editorial%EF%BC%881%EF%BC%89/items/26.png?v=1",
+          "r2Path": "Micro-Editorial（1）/items/26.png"
+        }
+      ]
+    },
+    {
+      "id": "structural-plastic-beads-mesh",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Structural plastic beads mesh",
+      "category": "mixed",
+      "semanticTags": [],
+      "styles": [
+        "material-remix"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Structural-Plastic-Beads-Mesh",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/structural-plastic-beads-mesh/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 37041,
+        "sha256": "61e1f9f84e902e1739c70c6f3a09caf9febb637b630a582c7d0b4a581c4f62b4",
+        "pixelSize": {
+          "width": 512,
+          "height": 341
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/pack-sheet.jpg?v=1",
+        "r2Path": "Structural-Plastic-Beads-Mesh/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1-copy",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/1-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 213061,
+          "sha256": "c175986284eb17c68d4e8d66eb8c5d65a5c84a4062e4b409929f951ec3f3e817",
+          "pixelSize": {
+            "width": 756,
+            "height": 650
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/1_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/1_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 53676,
+          "sha256": "08abd973ca1ac319b8caaf007280a1750b347e10fc812ea0ac2bae5aad7245d4",
+          "pixelSize": {
+            "width": 370,
+            "height": 328
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/1.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2-copy",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/2-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 176774,
+          "sha256": "fabde6d815cc249b9af974c7b10bc499e4ec99828515dee7404d1ca9a81680ec",
+          "pixelSize": {
+            "width": 784,
+            "height": 650
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/2_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/2_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 68624,
+          "sha256": "82ec8c9c67fad4b77365c3a3e2da993e5d37480c001cf1addd0a9df07ca5db55",
+          "pixelSize": {
+            "width": 365,
+            "height": 325
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/2.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3-copy",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/3-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 37416,
+          "sha256": "f16c9ec32e3e551082d8b9c4651f1d7ffcfb1d5e836bffb494812ced3af83da3",
+          "pixelSize": {
+            "width": 353,
+            "height": 291
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/3_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/3_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 94267,
+          "sha256": "8053afbfdd933629082b22dd8f7148969f38a4f79e7ffb81b4b83b9c6e2fb8ef",
+          "pixelSize": {
+            "width": 752,
+            "height": 318
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/3.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4-copy",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/4-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 46313,
+          "sha256": "34f7a5a2f3bb39d06dda9fb3592f003263b0bf5f06ef115c020bb5b85b98d218",
+          "pixelSize": {
+            "width": 355,
+            "height": 304
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/4_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/4_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 51980,
+          "sha256": "e914441a4c99fc8f60dec6f56f8fd6577a6374dc71caee799a24fa20abfbe3b9",
+          "pixelSize": {
+            "width": 372,
+            "height": 317
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/4.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5-copy",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/5-copy",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 73153,
+          "sha256": "0d64e1ba8f4c32b218e5ee69d63a8e6e4d08cefc0381c5e533e6cda6203fdda0",
+          "pixelSize": {
+            "width": 365,
+            "height": 364
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/5_%E5%89%AF%E6%9C%AC.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/5_副本.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 25831,
+          "sha256": "3abc0d3f165c3062fd92b76a9b3ffd3f0aeacacfa7c68036be0b330432c601db",
+          "pixelSize": {
+            "width": 383,
+            "height": 308
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/5.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 91040,
+          "sha256": "56bc6c778b31f153d0e7a373de101d0fd26b86ef3c27c1d84b7b7f5c4500e10b",
+          "pixelSize": {
+            "width": 372,
+            "height": 673
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/6.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 43702,
+          "sha256": "b1581440f1b9eadedafb4afa1d181c0c8fbd4a1d79100907392065d16e73e978",
+          "pixelSize": {
+            "width": 349,
+            "height": 372
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/7.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 68936,
+          "sha256": "18f00f6f91e3ace63c575fef553a85e3a3d6d79a5408c9a8a8f0ee6d964de544",
+          "pixelSize": {
+            "width": 367,
+            "height": 360
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/8.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/structural-plastic-beads-mesh/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 67838,
+          "sha256": "e88b66a5282a0fe0c56c72c6eb1e9ed5af03a4c972ac0ce7c49bc3a9a641009d",
+          "pixelSize": {
+            "width": 363,
+            "height": 346
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Structural-Plastic-Beads-Mesh/items/9.png?v=1",
+          "r2Path": "Structural-Plastic-Beads-Mesh/items/9.png"
+        }
+      ]
+    },
+    {
+      "id": "beads-structural-units-1",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Beads structural units 1",
+      "category": "mixed",
+      "semanticTags": [],
+      "styles": [
+        "material-remix"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Beads-Structural-Units（1）",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/beads-structural-units-1/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 35368,
+        "sha256": "0726fc25b4837b200d67e56bb52ab3be1c93c8b8439bfe49df944f9d1d59e34b",
+        "pixelSize": {
+          "width": 512,
+          "height": 341
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/pack-sheet.jpg?v=1",
+        "r2Path": "Beads-Structural-Units（1）/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20460,
+          "sha256": "57457458be07632901901a83aaa40a82b8f932118f28eb9b0cc53fd35f9eccd2",
+          "pixelSize": {
+            "width": 188,
+            "height": 187
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/1.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 13582,
+          "sha256": "f3967badd8aebdea6cdabcc32eabb5e46e1e155c05e0d9eb70787cdf66890e6f",
+          "pixelSize": {
+            "width": 185,
+            "height": 184
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/2.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19362,
+          "sha256": "53c4825b07a15353de25adf67d43a678fe77a31d9868a34d5540d461a39589ee",
+          "pixelSize": {
+            "width": 184,
+            "height": 181
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/3.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20758,
+          "sha256": "309ff61f321c00063e55eb7496446d39a68a4e5eb963f902b46d9ca85ecead0e",
+          "pixelSize": {
+            "width": 184,
+            "height": 184
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/4.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20327,
+          "sha256": "0f24368c0897c3bfe70f17050c6a07f474759ee441cf16a7731d22b255650952",
+          "pixelSize": {
+            "width": 185,
+            "height": 183
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/5.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 15747,
+          "sha256": "04931c3f485018f83f74850b48269bd6b75c6a1f264943cc3a4f253d8d9e82df",
+          "pixelSize": {
+            "width": 181,
+            "height": 182
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/6.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 18584,
+          "sha256": "7119a5cd5c36b7a2c032326b9831c97b1198723215b96383209eb15b266c3390",
+          "pixelSize": {
+            "width": 178,
+            "height": 178
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/7.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 16064,
+          "sha256": "af433b0b65f08d3a3dd93174a8e33ddf5d3e335439fd4ea67c259a6dbb6e3430",
+          "pixelSize": {
+            "width": 173,
+            "height": 172
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/8.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 14687,
+          "sha256": "2d297bed7703ed76ded3dda5977811f52e0a07e3fbc3def500e46f37ce882803",
+          "pixelSize": {
+            "width": 133,
+            "height": 199
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/9.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "10",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/10",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21974,
+          "sha256": "35dd355a982435ec914f68ec55b9b88692ec9653a0707fec4092821628e48472",
+          "pixelSize": {
+            "width": 196,
+            "height": 198
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/10.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/10.png"
+        },
+        {
+          "role": "item",
+          "itemId": "11",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/11",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21923,
+          "sha256": "96d64a643dc8bdd4fdd86a609b49f9e3571f9c70b21bd4033722cbd48275f2a7",
+          "pixelSize": {
+            "width": 186,
+            "height": 184
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/11.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/11.png"
+        },
+        {
+          "role": "item",
+          "itemId": "12",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/12",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 15192,
+          "sha256": "2b23c54915425f05497f75631c765fb2f0c31bda90cbec1eb4b930033a924939",
+          "pixelSize": {
+            "width": 171,
+            "height": 185
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/12.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/12.png"
+        },
+        {
+          "role": "item",
+          "itemId": "13",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/13",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20628,
+          "sha256": "b38ae9acb9917e84eed8f99f15e007b03c29cb395b5194309df19165fd6cdd1c",
+          "pixelSize": {
+            "width": 168,
+            "height": 186
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/13.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/13.png"
+        },
+        {
+          "role": "item",
+          "itemId": "14",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/14",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 19659,
+          "sha256": "809c7324fa5af788b0b6195a997195b6845ca7acca471e895b7dfd3943140597",
+          "pixelSize": {
+            "width": 177,
+            "height": 180
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/14.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/14.png"
+        },
+        {
+          "role": "item",
+          "itemId": "15",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/15",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 23268,
+          "sha256": "683b3d6fc6f00be2bb853aa979f081614b13e5f12532a9b617a2086a14e13ad6",
+          "pixelSize": {
+            "width": 234,
+            "height": 171
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/15.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/15.png"
+        },
+        {
+          "role": "item",
+          "itemId": "16",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/16",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 15670,
+          "sha256": "963db6335ea369658a1c07732913f9c58afbbe98d3133e629a6538496cee62cb",
+          "pixelSize": {
+            "width": 197,
+            "height": 146
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/16.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/16.png"
+        },
+        {
+          "role": "item",
+          "itemId": "17",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/17",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 13614,
+          "sha256": "578638f16a4add14aa457e261fcb1fc4eb667b7c33d6750ea750a8571ee93fcf",
+          "pixelSize": {
+            "width": 162,
+            "height": 196
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/17.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/17.png"
+        },
+        {
+          "role": "item",
+          "itemId": "18",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/18",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20104,
+          "sha256": "65451325a2fb05ff51b5bb9051f1478c2667a42024979c8b0501a9db2eeb97b9",
+          "pixelSize": {
+            "width": 187,
+            "height": 186
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/18.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/18.png"
+        },
+        {
+          "role": "item",
+          "itemId": "19",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/19",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20266,
+          "sha256": "11d04010b23667869a68c51883854778f77aef0617e1f6184d267871fd87f57f",
+          "pixelSize": {
+            "width": 189,
+            "height": 181
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/19.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/19.png"
+        },
+        {
+          "role": "item",
+          "itemId": "20",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/20",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 17448,
+          "sha256": "4231142924e1afe3a0e5c5b600a5257daea7d032036ca1b7b78d71d1baed3c80",
+          "pixelSize": {
+            "width": 183,
+            "height": 179
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/20.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/20.png"
+        },
+        {
+          "role": "item",
+          "itemId": "21",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/21",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 15347,
+          "sha256": "5fe2e519491a18c16d7f09ec2eff74c2c120f74ac16480eafae5b40911407a42",
+          "pixelSize": {
+            "width": 171,
+            "height": 165
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/21.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/21.png"
+        },
+        {
+          "role": "item",
+          "itemId": "22",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/22",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 11327,
+          "sha256": "639c7bb114dba94cf91a797b6275550c39031982be5a2e7c2cadc9c85fb371c8",
+          "pixelSize": {
+            "width": 175,
+            "height": 165
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/22.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/22.png"
+        },
+        {
+          "role": "item",
+          "itemId": "23",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/23",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20175,
+          "sha256": "f46c21759c89f19791bb3404ad9cb67128c672fd32f0e86c5d8572ff4e660b4b",
+          "pixelSize": {
+            "width": 204,
+            "height": 170
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/23.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/23.png"
+        },
+        {
+          "role": "item",
+          "itemId": "24",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/24",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 13076,
+          "sha256": "a62eca32b18d9f5bce1bd844c088b5e52617a1f49ef1e9e794a41e1170f035a4",
+          "pixelSize": {
+            "width": 181,
+            "height": 159
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/24.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/24.png"
+        },
+        {
+          "role": "item",
+          "itemId": "25",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/25",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 24322,
+          "sha256": "65be8852e18ba734df0235269c0b468c8db3287d5bc64202e2b960278c1a07f5",
+          "pixelSize": {
+            "width": 180,
+            "height": 198
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/25.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/25.png"
+        },
+        {
+          "role": "item",
+          "itemId": "26",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/26",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 25224,
+          "sha256": "9f34fff885cc7128553fc4b0e04bd841216ea625b6b89cb96f94e35e5821b6b1",
+          "pixelSize": {
+            "width": 185,
+            "height": 197
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/26.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/26.png"
+        },
+        {
+          "role": "item",
+          "itemId": "27",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/27",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21140,
+          "sha256": "ac86d0d7d1cf0da10c0ce8ec00a97bcd16241a91ccd02e5adbd5957662d443a8",
+          "pixelSize": {
+            "width": 182,
+            "height": 188
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/27.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/27.png"
+        },
+        {
+          "role": "item",
+          "itemId": "28",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/28",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21155,
+          "sha256": "e3f5f0d538d14e1c1b7f05ff9187105a9a956f5afc4a81b01ad45d6c481f16c7",
+          "pixelSize": {
+            "width": 177,
+            "height": 195
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/28.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/28.png"
+        },
+        {
+          "role": "item",
+          "itemId": "29",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/29",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22095,
+          "sha256": "f67b0ee83d7278e1e057e9bf6bee0bda9803ba1b90709cf1af15e470cef13105",
+          "pixelSize": {
+            "width": 155,
+            "height": 205
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/29.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/29.png"
+        },
+        {
+          "role": "item",
+          "itemId": "30",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/30",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21315,
+          "sha256": "7913a224ad5016bb2a6d15372cee3f7e3e43ec4b4eba75fc896d3d59140ef263",
+          "pixelSize": {
+            "width": 182,
+            "height": 189
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/30.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/30.png"
+        },
+        {
+          "role": "item",
+          "itemId": "31",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/31",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 17110,
+          "sha256": "9093f8e615e6ee08e62483c0ccf2e5165460184810f09ead86ba37eff17353cc",
+          "pixelSize": {
+            "width": 182,
+            "height": 181
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/31.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/31.png"
+        },
+        {
+          "role": "item",
+          "itemId": "32",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/32",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 20094,
+          "sha256": "67928df6c4f069f1b14cba8e46552eec4c36c66fd22ca4915ea6f3bdb603573f",
+          "pixelSize": {
+            "width": 194,
+            "height": 168
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/32.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/32.png"
+        },
+        {
+          "role": "item",
+          "itemId": "33",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/33",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 16093,
+          "sha256": "e7eb31a24003108184bd8c55cbfd7cda2b039ad81e3e1e79157b301b9a0e896c",
+          "pixelSize": {
+            "width": 129,
+            "height": 209
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/33.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/33.png"
+        },
+        {
+          "role": "item",
+          "itemId": "34",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/34",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 22112,
+          "sha256": "41a4a4e8dc5b0b01844e8cbd42bcbe79d74f2c408cafecbad766eab251d143a0",
+          "pixelSize": {
+            "width": 162,
+            "height": 206
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/34.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/34.png"
+        },
+        {
+          "role": "item",
+          "itemId": "35",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/35",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21909,
+          "sha256": "ea26f01687d57caba9cadba12cfd93bd5808fb054419df456ae3c2547305844e",
+          "pixelSize": {
+            "width": 202,
+            "height": 185
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/35.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/35.png"
+        },
+        {
+          "role": "item",
+          "itemId": "36",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/36",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 18018,
+          "sha256": "68602c33a965e3a9e0df233a7d6a2dcde5513c665f5a93625fe48ceb56b1f7af",
+          "pixelSize": {
+            "width": 187,
+            "height": 197
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/36.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/36.png"
+        },
+        {
+          "role": "item",
+          "itemId": "37",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/37",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 18717,
+          "sha256": "1c3a8832c2b553691fbc09c2efd2f59ccfc3d8f6faae25570224c17b0ac7d684",
+          "pixelSize": {
+            "width": 174,
+            "height": 206
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/37.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/37.png"
+        },
+        {
+          "role": "item",
+          "itemId": "38",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/38",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 14498,
+          "sha256": "7474366588a19a797204e37d02576744a00a246b9171a21398f7a580d9e0984a",
+          "pixelSize": {
+            "width": 163,
+            "height": 179
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/38.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/38.png"
+        },
+        {
+          "role": "item",
+          "itemId": "39",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/39",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 21445,
+          "sha256": "9f6c607d9b53a6df4edefcbbd3bffe69954113152fa9158ae591a84e06d84a74",
+          "pixelSize": {
+            "width": 181,
+            "height": 181
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/39.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/39.png"
+        },
+        {
+          "role": "item",
+          "itemId": "40",
+          "reference": {
+            "id": "asset://pack/beads-structural-units-1/40",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 14879,
+          "sha256": "c0b1f498c6de3d375e6fb53aca7634fda86d149a476b1cdc6ab235b817526c94",
+          "pixelSize": {
+            "width": 222,
+            "height": 110
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Beads-Structural-Units%EF%BC%881%EF%BC%89/items/40.png?v=1",
+          "r2Path": "Beads-Structural-Units（1）/items/40.png"
+        }
+      ]
+    },
+    {
+      "id": "fabric-fiber-thread",
+      "revision": "1",
+      "status": "shipped",
+      "name": "Fabric fiber thread",
+      "category": "mixed",
+      "semanticTags": [],
+      "styles": [
+        "material-remix"
+      ],
+      "visibility": "visible",
+      "resolverMode": "strict",
+      "sourceDirectory": "Fabric-Fiber-Thread",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/fabric-fiber-thread/cover",
+          "kind": "image",
+          "revision": "1"
+        },
+        "packRevision": "1",
+        "mimeType": "image/jpeg",
+        "byteLength": 24541,
+        "sha256": "26180bdc9da611d2f92f059281d6a9fa559fdc12921d6e1d1ecea36e22d78320",
+        "pixelSize": {
+          "width": 512,
+          "height": 341
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/pack-sheet.jpg?v=1",
+        "r2Path": "Fabric-Fiber-Thread/pack-sheet.jpg"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "1",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/1",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 43079,
+          "sha256": "aaaffeba4e340cca95a7b483c92fef5572ca4fc597e094b2c8a4fc39ed91e415",
+          "pixelSize": {
+            "width": 287,
+            "height": 212
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/1.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "2",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 30085,
+          "sha256": "6f12388302dfaec1bdbd01a24315f932dab990e46de196ae5f49e8ba23451f4b",
+          "pixelSize": {
+            "width": 288,
+            "height": 201
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/2.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "3",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/3",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 38034,
+          "sha256": "28402a8f84e82870baf932e5fe31642cde35047e3f7efc26da85b6ad1d5583dc",
+          "pixelSize": {
+            "width": 306,
+            "height": 206
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/3.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/3.png"
+        },
+        {
+          "role": "item",
+          "itemId": "4",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/4",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 32390,
+          "sha256": "c7e4cbd4575ee94a87a733cafb118fcb178d5a4a419caf3fd14d43f3594ec868",
+          "pixelSize": {
+            "width": 292,
+            "height": 210
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/4.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "5",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/5",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 37335,
+          "sha256": "91d13798ca2483b54e9831fe65091862eb4cf00246eb16d116721b5951cc29e3",
+          "pixelSize": {
+            "width": 323,
+            "height": 191
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/5.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/5.png"
+        },
+        {
+          "role": "item",
+          "itemId": "6",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/6",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 49934,
+          "sha256": "5052d000994abcc978c95dd64cf37ee02149dbfa5c1423e7ecb8ffcea2c4f2f3",
+          "pixelSize": {
+            "width": 330,
+            "height": 195
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/6.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "7",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/7",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 31249,
+          "sha256": "9705481a50f9324a21e4f9fe700306643d517b55240b7669a9fbebe4a1fcce37",
+          "pixelSize": {
+            "width": 265,
+            "height": 196
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/7.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/7.png"
+        },
+        {
+          "role": "item",
+          "itemId": "8",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/8",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 33194,
+          "sha256": "4e64c3a7654f20044967d4597d7ba8a282345baa7f15d0ca049484e6fa1342ce",
+          "pixelSize": {
+            "width": 315,
+            "height": 195
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/8.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/8.png"
+        },
+        {
+          "role": "item",
+          "itemId": "9",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/9",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 28993,
+          "sha256": "637f274830ef688c6a60cebb47c778c6af710a959b3323e0bcbf41071933d797",
+          "pixelSize": {
+            "width": 317,
+            "height": 199
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/9.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/9.png"
+        },
+        {
+          "role": "item",
+          "itemId": "10",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/10",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 44464,
+          "sha256": "e080fbaf2ec1ca357a25d69356b9a6eedc1a4aacac794ef911960f96c59f232e",
+          "pixelSize": {
+            "width": 301,
+            "height": 192
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/10.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/10.png"
+        },
+        {
+          "role": "item",
+          "itemId": "11",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/11",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 32691,
+          "sha256": "a74ba22028ab9ff571ab29f4b8f4614a88fda19a2336243cbdbfaadeb3f517ea",
+          "pixelSize": {
+            "width": 313,
+            "height": 185
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/11.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/11.png"
+        },
+        {
+          "role": "item",
+          "itemId": "12",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/12",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 25604,
+          "sha256": "99392ef6a0334b497fb16a7b7ff8a1a0e3ec2bae9d6a68965b4b9833eee16465",
+          "pixelSize": {
+            "width": 305,
+            "height": 168
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/12.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/12.png"
+        },
+        {
+          "role": "item",
+          "itemId": "13",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/13",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 35229,
+          "sha256": "d8421db5b819f9bbf46ff69b1323b5e72b1491f54f9d8912635467f706d9c7cd",
+          "pixelSize": {
+            "width": 300,
+            "height": 186
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/13.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/13.png"
+        },
+        {
+          "role": "item",
+          "itemId": "14",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/14",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 42967,
+          "sha256": "b50bbe284ffa431024c8e6b08181706afd81c69aa26fc68aa33cdc1036bcdc70",
+          "pixelSize": {
+            "width": 316,
+            "height": 183
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/14.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/14.png"
+        },
+        {
+          "role": "item",
+          "itemId": "15",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/15",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 34555,
+          "sha256": "18b24fbc354fc817e5d6f17f9c13c28c9ee38bf2bbe169e5ff0a9274e403d8f2",
+          "pixelSize": {
+            "width": 290,
+            "height": 168
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/15.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/15.png"
+        },
+        {
+          "role": "item",
+          "itemId": "16",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/16",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 27035,
+          "sha256": "5485c6dee544127b0af8301f6b50baae8c3b92d5cc6b92775dade253e6c54b48",
+          "pixelSize": {
+            "width": 284,
+            "height": 197
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/16.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/16.png"
+        },
+        {
+          "role": "item",
+          "itemId": "17",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/17",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 32744,
+          "sha256": "519fcacb715d92b2e515e1475ba74110fd85c0606cd15efda0d3e738c21547ec",
+          "pixelSize": {
+            "width": 318,
+            "height": 203
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/17.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/17.png"
+        },
+        {
+          "role": "item",
+          "itemId": "18",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/18",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 40074,
+          "sha256": "920489ed1699bf6cf922dececac7af087cb45047e713e5e7135c08245b16d1bf",
+          "pixelSize": {
+            "width": 286,
+            "height": 188
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/18.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/18.png"
+        },
+        {
+          "role": "item",
+          "itemId": "19",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/19",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 30964,
+          "sha256": "908a0eb4550f153666035994c0496d6fb4be77161f5ad0d5867650745c981e38",
+          "pixelSize": {
+            "width": 302,
+            "height": 190
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/19.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/19.png"
+        },
+        {
+          "role": "item",
+          "itemId": "20",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/20",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 31609,
+          "sha256": "c0ce7027fc45fcba2bf5fda17361552bc2407854a34457ac1aeb6e253d7b881c",
+          "pixelSize": {
+            "width": 309,
+            "height": 194
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/20.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/20.png"
+        },
+        {
+          "role": "item",
+          "itemId": "21",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/21",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 39293,
+          "sha256": "0433c1c5e626fbe2b060037e52b226ea0e26f5acee8dd9912efa049e0cb531bc",
+          "pixelSize": {
+            "width": 289,
+            "height": 196
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/21.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/21.png"
+        },
+        {
+          "role": "item",
+          "itemId": "22",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/22",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 38267,
+          "sha256": "ec7a3c96a92c0306a3fc09e73ec3e8cfb5e73fc36a572d696963a6aa128a5715",
+          "pixelSize": {
+            "width": 331,
+            "height": 202
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/22.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/22.png"
+        },
+        {
+          "role": "item",
+          "itemId": "23",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/23",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 36188,
+          "sha256": "f9c1f2e74b1e562c5d1a022bb1b1d3d1fa542e00fb7dc06f80870dd2dd7da8fe",
+          "pixelSize": {
+            "width": 301,
+            "height": 195
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/23.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/23.png"
+        },
+        {
+          "role": "item",
+          "itemId": "24",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/24",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 27858,
+          "sha256": "c2aef5ecc59c96cff44667fbc548863975f52b63dcd732db6a6af61341e0386a",
+          "pixelSize": {
+            "width": 305,
+            "height": 194
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/24.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/24.png"
+        },
+        {
+          "role": "item",
+          "itemId": "25",
+          "reference": {
+            "id": "asset://pack/fabric-fiber-thread/25",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "1",
+          "mimeType": "image/png",
+          "byteLength": 32822,
+          "sha256": "c5178542bed4bb0298b00f16cda445cfd82edd2fe2fc67bdec6d98749e999ad8",
+          "pixelSize": {
+            "width": 305,
+            "height": 193
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/Fabric-Fiber-Thread/items/25.png?v=1",
+          "r2Path": "Fabric-Fiber-Thread/items/25.png"
+        }
+      ]
+    },
+    {
       "id": "paper-01",
       "revision": "1",
       "status": "shipped",
@@ -10916,7 +15468,7 @@
         "play-pop"
       ],
       "visibility": "visible",
-      "resolverMode": "compatibility",
+      "resolverMode": "strict",
       "sourceDirectory": "caise-01",
       "cover": {
         "role": "cover",
@@ -11350,7 +15902,7 @@
         "play-pop"
       ],
       "visibility": "visible",
-      "resolverMode": "compatibility",
+      "resolverMode": "strict",
       "sourceDirectory": "caisebodian",
       "cover": {
         "role": "cover",
@@ -22438,7 +26990,7 @@
         "reference": {
           "id": "asset://pack/template-previews/cover",
           "kind": "image",
-          "revision": "2"
+          "revision": "1"
         },
         "packRevision": "1",
         "mimeType": "image/png",
@@ -22527,6 +27079,228 @@
           },
           "sourceUrl": "https://assets.zllarchi.site/template-previews/soft%20archive.png?v=1",
           "r2Path": "template-previews/soft archive.png"
+        }
+      ]
+    },
+    {
+      "id": "template-assets",
+      "revision": "2",
+      "status": "shipped",
+      "name": "Template fixed assets",
+      "category": "mixed",
+      "semanticTags": [],
+      "styles": [],
+      "visibility": "internal",
+      "resolverMode": "strict",
+      "cover": {
+        "role": "cover",
+        "itemId": "cover",
+        "reference": {
+          "id": "asset://pack/template-assets/cover",
+          "kind": "image",
+          "revision": "2"
+        },
+        "packRevision": "2",
+        "mimeType": "image/png",
+        "byteLength": 15626,
+        "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d",
+        "pixelSize": {
+          "width": 273,
+          "height": 198
+        },
+        "sourceUrl": "https://assets.zllarchi.site/packs/hudiejie/items/13.png?v=1",
+        "r2Path": "hudiejie/items/13.png"
+      },
+      "items": [
+        {
+          "role": "item",
+          "itemId": "romantic-deco-butterfly-knot",
+          "reference": {
+            "id": "asset://pack/template-assets/romantic-deco-butterfly-knot",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 15626,
+          "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d",
+          "pixelSize": {
+            "width": 273,
+            "height": 198
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/hudiejie/items/13.png?v=1",
+          "r2Path": "hudiejie/items/13.png"
+        },
+        {
+          "role": "item",
+          "itemId": "play-pop-background",
+          "reference": {
+            "id": "asset://pack/template-assets/play-pop-background",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/jpeg",
+          "byteLength": 244074,
+          "sha256": "574ddae0eae1d681796d28b87339014a3099c4616f9c4dd0c77d50c0c8ca7721",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/play-pop-background.jpg?v=1",
+          "r2Path": "template-previews/bg/play-pop-background.jpg"
+        },
+        {
+          "role": "item",
+          "itemId": "play-pop-photo-frame",
+          "reference": {
+            "id": "asset://pack/template-assets/play-pop-photo-frame",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 13079,
+          "sha256": "19af2edae561f55e28385afb0c6a8c13630ec80a1bd869b2ae32cb8736e7b617",
+          "pixelSize": {
+            "width": 1200,
+            "height": 1840
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/play-pop-photo-frame.png?v=1",
+          "r2Path": "template-previews/assets/play-pop-photo-frame.png"
+        },
+        {
+          "role": "item",
+          "itemId": "romantic-deco-background",
+          "reference": {
+            "id": "asset://pack/template-assets/romantic-deco-background",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/jpeg",
+          "byteLength": 17649,
+          "sha256": "f9b383ac7fb7b5a76ef8a75356b735b13ba9e8701b1b5eb18e4f81a49beebefd",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1024
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/romantic-deco-background.jpg?v=1",
+          "r2Path": "template-previews/bg/romantic-deco-background.jpg"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-background",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-background",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/jpeg",
+          "byteLength": 365537,
+          "sha256": "9a170a8d38cf17d5b490e029816b8c4b60c43d020035b408c4e70478555771ec",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/soft-archive-background.jpg?v=1",
+          "r2Path": "template-previews/bg/soft-archive-background.jpg"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-tape-left",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-tape-left",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 17286,
+          "sha256": "255f39c96ecf8d431f839925ddb77551978fd6e4a0dcc65077a60c1ad01bb15f",
+          "pixelSize": {
+            "width": 266,
+            "height": 138
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/29.png?v=1",
+          "r2Path": "jiaodai/items/29.png"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-tape-right",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-tape-right",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 12291,
+          "sha256": "30e1cefa59c04c238b6444fb715694af519b72d8cbd4b832cee7659f61c57df3",
+          "pixelSize": {
+            "width": 276,
+            "height": 102
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/31.png?v=1",
+          "r2Path": "jiaodai/items/31.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-multi-tape-left",
+          "reference": {
+            "id": "asset://pack/template-assets/digital-y2k-multi-tape-left",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 23007,
+          "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae",
+          "pixelSize": {
+            "width": 142,
+            "height": 304
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/17.png?v=1",
+          "r2Path": "jiaodai/items/17.png"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-multi-photo-frame",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-multi-photo-frame",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 33113,
+          "sha256": "2c6af49bdf2404331068b42473a5e6a0f83f5935d12f81302c75d2ba71c786e5",
+          "pixelSize": {
+            "width": 284,
+            "height": 663
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/xiangkuang/items/1.png?v=1",
+          "r2Path": "xiangkuang/items/1.png"
+        },
+        {
+          "role": "item",
+          "itemId": "play-pop-multi-paper-cutout",
+          "reference": {
+            "id": "asset://pack/template-assets/play-pop-multi-paper-cutout",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 10457,
+          "sha256": "9341cb6742f711c73cfe9e87ddf00987311731155e26b84df1b19566cfdecdd9",
+          "pixelSize": {
+            "width": 205,
+            "height": 216
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/jiazi/items/2.png?v=1",
+          "r2Path": "jiazi/items/2.png"
         }
       ]
     }

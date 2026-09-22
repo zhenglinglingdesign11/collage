@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "purpose": "P1-T02 build-only mapping from human-calibrated template instances to deterministic production template records.",
+  "recipeInputPath": "content/template-recipe-input.v1.json",
+  "templates": [
+    {
+      "id": "romantic-deco",
+      "name": "Romantic Deco",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/romantic-deco", "kind": "image", "revision": "1" },
+      "source": { "kind": "template-definition", "path": "content/templates/romantic-deco.template.json" }
+    },
+    {
+      "id": "romantic-deco-two-photo",
+      "name": "Romantic Deco — Two Photo",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/romantic-deco-two-photo", "kind": "image", "revision": "1" },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/romantic-deco-two-photo.template-studio.json",
+        "photoSlots": [
+          { "sourceLayerId": "image-layer-dc62deb3-f0f4-4eed-a95b-36760e164654", "id": "top-framed-photo", "name": "Top framed photo" },
+          { "sourceLayerId": "image-layer-460daac8-3bfb-44a8-8c17-0a446ca249d3", "id": "bottom-photo", "name": "Bottom photo" }
+        ],
+        "photoSlotPositionOverrides": {
+          "bottom-photo": { "x": 136.2, "y": 224.0 }
+        }
+      }
+    },
+    {
+      "id": "play-pop",
+      "name": "Play Pop",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/play-pop", "kind": "image", "revision": "1" },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/template-play-pop.json",
+        "photoSlots": [
+          { "sourceLayerId": "image-layer-e46f1e09-5eb4-4e23-bd71-3cffed8cda30", "id": "hero-photo", "name": "Portrait with blue frame" }
+        ],
+        "fixedLayerOrder": [
+          "pack-layer-aaf4b583-d329-4dcd-81ef-5deb3f22afa7",
+          "pack-layer-0362f127-9c89-4d8f-87d3-7fe0f8950386",
+          "pack-layer-3bf32de6-3f65-4442-8bd0-3e8ace7a197a",
+          "pack-layer-87b88abd-30a3-4367-9ca8-e52532f755ba",
+          "pack-layer-bd463f5a-8d61-40d8-97df-fdec0a1580e0",
+          "pack-layer-85fa0245-88c3-46af-9dad-a4ce725cf416",
+          "pack-layer-09002f2d-0816-4546-aec3-151b66a721c8",
+          "pack-layer-f9f09f93-1dd6-4d2f-b3e1-27b4079dfd41",
+          "pack-layer-246d0e5f-f55c-45d6-9f80-9574d6041cd3",
+          "pack-layer-1286ff9b-40e6-4b4a-b341-9d18f1107a7d",
+          "pack-layer-86d9c096-020f-48c2-8b53-6f461315a2e6",
+          "pack-layer-ab571a93-8532-430a-9638-787990dd5490"
+        ]
+      }
+    }
+  ]
+}

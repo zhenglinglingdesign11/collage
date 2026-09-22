@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/romantic-deco",
+  "revision": "1",
+  "status": "ready",
+  "name": "Romantic Deco",
+  "canvas": {
+    "size": { "width": 1254, "height": 1254 },
+    "background": "#F7E6E8",
+    "backgroundAsset": {
+      "id": "asset://pack/template-assets/romantic-deco-background",
+      "kind": "image",
+      "revision": "1"
+    }
+  },
+  "preview": {
+    "id": "asset://pack/template-previews/romantic-deco",
+    "kind": "image",
+    "revision": "1"
+  },
+  "photoSlots": [
+    {
+      "type": "photo",
+      "id": "hero-photo",
+      "required": true,
+      "frame": { "width": 620, "height": 705 },
+      "transform": {
+        "position": { "x": 317, "y": 270 },
+        "scale": { "x": 1, "y": 1 },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "layerStack": ["fixed:fixed-lace-frame", "photo:hero-photo", "fixed:fixed-top-bow"],
+  "fixedLayers": [
+    {
+      "type": "image",
+      "id": "fixed-lace-frame",
+      "name": "Romantic Deco lace frame",
+      "asset": {
+        "id": "asset://pack/romantic-deco-lace-frame-1/9",
+        "kind": "image",
+        "revision": "2"
+      },
+      "frame": { "width": 1094, "height": 1094 },
+      "transform": {
+        "position": { "x": 80, "y": 80 },
+        "scale": { "x": 1, "y": 1 },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": [],
+      "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }
+    },
+    {
+      "type": "image",
+      "id": "fixed-top-bow",
+      "name": "Top bow",
+      "asset": {
+        "id": "asset://pack/template-assets/romantic-deco-butterfly-knot",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": { "width": 382, "height": 277 },
+      "transform": {
+        "position": { "x": 436, "y": 72 },
+        "scale": { "x": 1, "y": 1 },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": [],
+      "crop": { "x": 0, "y": 0, "width": 1, "height": 1 }
+    }
+  ],
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/romantic-deco",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/romantic-deco-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/romantic-deco-lace-frame-1/9",
+        "kind": "image",
+        "revision": "2"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/romantic-deco-butterfly-knot",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    }
+  ],
+  "requiredCapabilities": ["image.replace", "image.crop", "material.resolve"]
+}

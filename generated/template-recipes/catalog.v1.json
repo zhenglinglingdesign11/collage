@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "catalogRevision": "9",
+  "templates": [
+    {
+      "id": "template://journalcollage/romantic-deco",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/romantic-deco",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/romantic-deco-two-photo",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/romantic-deco-two-photo",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/play-pop",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/play-pop",
+        "kind": "image",
+        "revision": "1"
+      }
+    }
+  ]
+}

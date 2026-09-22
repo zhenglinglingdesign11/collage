@@ -1,0 +1,246 @@
+{
+  "format": "journalcollage.template-studio",
+  "formatVersion": 1,
+  "exportedAt": "2026-09-22T07:06:24.267Z",
+  "document": {
+    "schemaVersion": 4,
+    "id": "template-studio-8524a886-c697-4ffa-a574-884daada2487",
+    "canvas": {
+      "size": {
+        "label": "1024×1536",
+        "width": 1024,
+        "height": 1536
+      },
+      "background": "#FDFDFB"
+    },
+    "layers": [
+      {
+        "id": "image-layer-dc62deb3-f0f4-4eed-a95b-36760e164654",
+        "name": "IMG_0011.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-dc62deb3-f0f4-4eed-a95b-36760e164654",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 298.25,
+            "y": 388
+          },
+          "scale": {
+            "x": 2.3953216374269006,
+            "y": 2.0210526315789474
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-5cc49224-8468-416d-9507-d3f59064bb6d",
+        "name": "decorative-statement-lace-1-2",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/decorative-statement-lace-1/2",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 396,
+          "height": 607
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 314.9865125240848,
+            "y": 137.96435452793838
+          },
+          "scale": {
+            "x": 1.3336868686868686,
+            "y": 1.3336902800658978
+          },
+          "rotation": 1.5707963267948966
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-5748c142-7122-42e4-99cb-2e65a700c638",
+        "name": "essential-lace-trims-3",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/essential-lace-trims/3",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 760,
+          "height": 109
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 134.95953757225448,
+            "y": 784.5289017341041
+          },
+          "scale": {
+            "x": 1.3790394736842104,
+            "y": 1.3790825688073394
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-2a5d92a4-f91b-4425-b6e3-77f3b7496a83",
+        "name": "pixel-ascii-7",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/pixel-ascii/7",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 506,
+          "height": 448
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -57.67052023121387,
+            "y": 898.1579961464355
+          },
+          "scale": {
+            "x": 0.5461857707509882,
+            "y": 0.5461830357142857
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "image-layer-460daac8-3bfb-44a8-8c17-0a446ca249d3",
+        "name": "IMG_0010.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-460daac8-3bfb-44a8-8c17-0a446ca249d3",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 303.1825626204239,
+            "y": 57.51830443159918
+          },
+          "scale": {
+            "x": 0.7828063475584351,
+            "y": 0.7828063475584351
+          },
+          "rotation": 1.5707963267948966
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      }
+    ],
+    "selectedLayerId": null,
+    "createdAt": "2026-09-22T06:30:21.182Z",
+    "updatedAt": "2026-09-22T07:06:22.517Z"
+  },
+  "photoSlotLayerIds": [
+    "image-layer-dc62deb3-f0f4-4eed-a95b-36760e164654",
+    "image-layer-460daac8-3bfb-44a8-8c17-0a446ca249d3"
+  ],
+  "localAssets": [
+    {
+      "reference": {
+        "id": "user://image/user-image-6acba978-e7a8-4697-bc42-24fa6ac47a56",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    },
+    {
+      "reference": {
+        "id": "user://image/user-image-e5ce3efb-967e-4c4f-84b1-55c0edda18de",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    },
+    {
+      "reference": {
+        "id": "user://image/user-image-1854f811-4c8f-4ceb-bff7-490aff76327e",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    },
+    {
+      "reference": {
+        "id": "user://image/user-image-293ecc04-f605-4b99-a504-b48cc62efec5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    }
+  ]
+}

@@ -38,7 +38,9 @@ export type EditorCommand =
   | Readonly<{ type: 'text.content.set'; layerId: string; text: string }>
   | Readonly<{ type: 'text.style.set'; layerId: string; fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null }>
   | Readonly<{ type: 'layer.lock.set'; layerId: string; isLocked: boolean }>
-  | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference }>
+  | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference; preserveCrop?: boolean }>
+  /** Canonicalizes a reference image into an upright authoring photo slot. */
+  | Readonly<{ type: 'image.photo-slot.convert'; layerId: string; asset: AssetReference }>
   | Readonly<{ type: 'canvas.background.set'; background: string; asset: AssetReference | null }>
   | Readonly<{ type: 'canvas.size.set'; size: Size }>
   | Readonly<{ type: 'layer.select'; layerId: string | null }>;
@@ -289,7 +291,26 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
     case 'image.asset.replace': {
       const layer = draft.layers[layerIndex];
       if (layerIndex < 0 || layer.type !== 'image' || layer.asset.id === command.asset.id) return { draft, changed: false };
-      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image' ? { ...candidate, asset: command.asset, crop: { x: 0, y: 0, width: 1, height: 1 } } : candidate) });
+      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image' ? { ...candidate, asset: command.asset, ...(command.preserveCrop ? {} : { crop: { x: 0, y: 0, width: 1, height: 1 } }) } : candidate) });
+    }
+    case 'image.photo-slot.convert': {
+      const layer = draft.layers[layerIndex];
+      if (layerIndex < 0 || layer.type !== 'image') return { draft, changed: false };
+      const quarterTurn = Math.PI / 2;
+      const rotatedQuarterTurn = Math.abs(Math.abs(layer.transform.rotation) - quarterTurn) <= 0.0001;
+      const frame = rotatedQuarterTurn ? { width: layer.frame.height, height: layer.frame.width } : layer.frame;
+      const scale = rotatedQuarterTurn ? { x: layer.transform.scale.y, y: layer.transform.scale.x } : layer.transform.scale;
+      const center = {
+        x: layer.transform.position.x + layer.frame.width * layer.transform.scale.x / 2,
+        y: layer.transform.position.y + layer.frame.height * layer.transform.scale.y / 2,
+      };
+      const transform = {
+        position: { x: center.x - frame.width * scale.x / 2, y: center.y - frame.height * scale.y / 2 },
+        scale: { ...scale }, rotation: 0,
+      };
+      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image'
+        ? { ...candidate, asset: command.asset, frame, transform, crop: { x: 0, y: 0, width: 1, height: 1 }, effects: candidate.effects.filter((effect) => effect.type !== 'shape.round-corners') }
+        : candidate) });
     }
     case 'canvas.background.set': {
       const currentAsset = draft.canvas.backgroundAsset;

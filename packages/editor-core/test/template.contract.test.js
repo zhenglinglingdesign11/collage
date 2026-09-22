@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const core = require('/private/tmp/journal-collage-editor-core-tests/index.js');
 
@@ -51,4 +53,171 @@ test('P1-T00 rejects an unsupported capability and a material slot with a user p
   const issues = core.validateTemplateDefinition(invalid);
   assert.ok(issues.some((issue) => issue.message.includes('stable, explicitly revised product image asset')));
   assert.ok(issues.some((issue) => issue.message.includes('known and unique')));
+});
+
+test('P1-T01 parses a valid untrusted TemplateDefinition before instantiation', () => {
+  const result = core.parseTemplateDefinition(sample('play-pop', 'Play Pop', 1));
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.template.id, 'template://composition-test/play-pop');
+});
+
+test('P1-T01 rejects unknown template fields, including nested slot fields', () => {
+  const template = sample('soft-archive', 'Soft Archive', 1);
+  const result = core.parseTemplateDefinition({
+    ...template,
+    deliveryUrl: 'https://assets.example.com/template.json',
+    photoSlots: [{ ...template.photoSlots[0], runtimeUri: 'file:///cache/preview.png' }],
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(result.issues.some((issue) => issue.path === 'deliveryUrl'));
+    assert.ok(result.issues.some((issue) => issue.path === 'photoSlots[0].runtimeUri'));
+  }
+});
+
+test('P1-T01 rejects malformed raw fields and unknown status without throwing', () => {
+  const template = sample('romantic-deco', 'Romantic Deco', 1);
+  const malformed = core.parseTemplateDefinition({ ...template, photoSlots: {}, status: 'live' });
+  assert.equal(malformed.ok, false);
+  if (!malformed.ok) assert.ok(malformed.issues.some((issue) => issue.path === 'photoSlots'));
+
+  const unknownStatus = core.parseTemplateDefinition({ ...template, status: 'live' });
+  assert.equal(unknownStatus.ok, false);
+  if (!unknownStatus.ok) assert.ok(unknownStatus.issues.some((issue) => issue.path === 'status'));
+});
+
+const firstReleaseSample = (id, photoCount = 1) => {
+  const template = sample(id, id, photoCount);
+  return {
+    ...template,
+    id: `template://journalcollage/${id}`,
+    materialSlots: [],
+    requiredCapabilities: ['image.replace', 'image.crop', 'material.resolve'],
+  };
+};
+
+test('P1-T01 freezes the photo-only first-release template profile', () => {
+  const templates = [
+    firstReleaseSample('romantic-deco'),
+    firstReleaseSample('romantic-deco-two-photo', 2),
+    firstReleaseSample('play-pop'),
+    firstReleaseSample('soft-archive'),
+    firstReleaseSample('soft-archive-multi', 4),
+    firstReleaseSample('play-pop-multi', 4),
+    firstReleaseSample('fan-moodboard'),
+    firstReleaseSample('digital-y2k-ascii'),
+    firstReleaseSample('digital-y2k-multi', 6),
+    firstReleaseSample('material-remix'),
+  ];
+  templates.forEach((template) => assert.deepEqual(core.validateFirstReleaseTemplateDefinition(template), []));
+});
+
+test('P1-T01 rejects replacement capabilities and slot types outside the first-release profile', () => {
+  const template = firstReleaseSample('play-pop');
+  const invalid = {
+    ...template,
+    materialSlots: [{ ...sample('play-pop', 'Play Pop', 1).materialSlots[0] }],
+    requiredCapabilities: [...template.requiredCapabilities, 'material.replace'],
+  };
+  const issues = core.validateFirstReleaseTemplateDefinition(invalid);
+  assert.ok(issues.some((issue) => issue.path === 'materialSlots'));
+  assert.ok(issues.some((issue) => issue.message.includes('not enabled for the first-release profile')));
+});
+
+test('P1-T01 imports review metadata only through the draft boundary and strips it', () => {
+  const template = firstReleaseSample('soft-archive');
+  const draft = {
+    ...template,
+    _draft: {
+      source: 'ai',
+      layerNotes: [{
+        target: { collection: 'photoSlots', id: 'photo-1' },
+        confidence: 0.84,
+        reason: 'The reference image has one central portrait placeholder.',
+        needsReview: true,
+      }],
+    },
+  };
+  const productionResult = core.parseTemplateDefinition(draft);
+  assert.equal(productionResult.ok, false);
+
+  const draftResult = core.parseTemplateDraftDefinition(draft);
+  assert.equal(draftResult.ok, true);
+  if (draftResult.ok) assert.equal(Object.hasOwn(draftResult.template, '_draft'), false);
+});
+
+test('P1-T02 promotes the visually approved Romantic Deco draft to a strict production template', () => {
+  const productionPath = path.resolve(__dirname, '../../../content/templates/romantic-deco.template.json');
+  const production = JSON.parse(fs.readFileSync(productionPath, 'utf8'));
+  assert.equal(Object.hasOwn(production, '_draft'), false);
+  assert.equal(production.status, 'ready');
+  assert.deepEqual(core.parseTemplateDefinition(production), { ok: true, template: production });
+  assert.deepEqual(core.validateFirstReleaseTemplateDefinition(production), []);
+});
+
+test('P1-T01 rejects review notes without a real target and renderer-unsupported release layers', () => {
+  const template = firstReleaseSample('fan-moodboard');
+  const draftResult = core.parseTemplateDraftDefinition({
+    ...template,
+    _draft: { source: 'ai', layerNotes: [{ target: { collection: 'fixedLayers', id: 'not-a-layer' } }] },
+  });
+  assert.equal(draftResult.ok, false);
+  if (!draftResult.ok) assert.ok(draftResult.issues.some((issue) => issue.path === '_draft.layerNotes[0].target'));
+
+  const invalid = {
+    ...template,
+    fixedLayers: [{
+      type: 'text', id: 'printed-copy', text: 'Not a shipped bitmap', frame: { width: 200, height: 80 },
+      transform: transform(0, 0), opacity: 1, isLocked: true, effects: [],
+      fontId: 'editorial', fontVariantId: 'regular', fontSize: 24, color: '#111111', textAlign: 'left', backgroundColor: null,
+    }],
+  };
+  const issues = core.validateFirstReleaseTemplateDefinition(invalid);
+  assert.ok(issues.some((issue) => issue.path === 'fixedLayers[0].type'));
+});
+
+test('P1-T03 instantiates an independent Draft while retaining calibrated layer semantics', () => {
+  const backgroundAsset = { id: 'asset://pack/template-assets/play-pop-background', kind: 'image', revision: '1' };
+  const fixedAsset = { id: 'asset://pack/candy-shapes/4', kind: 'image', revision: '1' };
+  const template = {
+    ...firstReleaseSample('play-pop'),
+    canvas: { ...firstReleaseSample('play-pop').canvas, backgroundAsset },
+    dependencies: [
+      { reference: firstReleaseSample('play-pop').preview, availability: 'bundled' },
+      { reference: backgroundAsset, availability: 'bundled' },
+      { reference: fixedAsset, availability: 'bundled' },
+    ],
+    fixedLayers: [{ id: 'fixed-source', type: 'image', asset: fixedAsset, frame: { width: 240, height: 180 }, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: transform(60, 80), opacity: 1, isLocked: true, effects: [] }],
+  };
+  let sequence = 0;
+  const instance = core.instantiateTemplateDefinition(template, { now: '2026-09-22T00:00:00.000Z', createId: (prefix) => `${prefix}-${++sequence}` });
+  assert.equal(instance.draft.id, 'project-1');
+  assert.deepEqual(core.validateDraft(instance.draft), []);
+  assert.equal(instance.draft.canvas.backgroundAsset.id, 'asset://pack/template-assets/play-pop-background');
+  assert.equal(instance.draft.layers.length, 2);
+  const fixedLayer = instance.draft.layers[0];
+  const photoLayer = instance.draft.layers[1];
+  assert.equal(instance.photoSlotLayerIds['photo-1'], photoLayer.id);
+  assert.match(photoLayer.asset.id, /^generated:\/\/template-photo-slot\/project-1\/photo-1$/);
+  assert.notEqual(fixedLayer.id, 'fixed-source');
+  assert.deepEqual(fixedLayer.asset, template.fixedLayers[0].asset);
+  assert.equal(JSON.stringify(instance.draft).includes('template://'), false);
+});
+
+test('P1-T04 replaces only the mapped photo placeholder and preserves calibrated geometry', () => {
+  const base = firstReleaseSample('play-pop');
+  const template = {
+    ...base,
+    photoSlots: [{ ...base.photoSlots[0], crop: { x: 0.12, y: 0.08, width: 0.76, height: 0.84 }, effects: [{ instanceId: 'slot-effect', type: 'shape.round-corners', version: 1, enabled: true, stage: 'geometry', params: { radius: 16 } }] }],
+  };
+  let sequence = 0;
+  const instance = core.instantiateTemplateDefinition(template, { now: '2026-09-22T00:00:00.000Z', createId: (prefix) => `${prefix}-${++sequence}` });
+  const photoLayerId = instance.photoSlotLayerIds['photo-1'];
+  const before = instance.draft.layers.find((layer) => layer.id === photoLayerId);
+  const replaced = core.replaceInstantiatedTemplatePhoto(instance, 'photo-1', { id: 'user://image/imported-photo', kind: 'image', revision: '1' }, '2026-09-22T00:00:01.000Z');
+  const after = replaced.draft.layers.find((layer) => layer.id === photoLayerId);
+  assert.deepEqual(after, { ...before, asset: { id: 'user://image/imported-photo', kind: 'image', revision: '1' } });
+  assert.deepEqual(core.validateDraft(replaced.draft), []);
+  assert.throws(() => core.replaceInstantiatedTemplatePhoto(instance, 'missing-slot', { id: 'user://image/imported-photo', kind: 'image', revision: '1' }, '2026-09-22T00:00:01.000Z'));
+  assert.throws(() => core.replaceInstantiatedTemplatePhoto(instance, 'photo-1', { id: 'asset://pack/candy-shapes/4', kind: 'image', revision: '1' }, '2026-09-22T00:00:01.000Z'));
 });

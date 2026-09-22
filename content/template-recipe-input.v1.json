@@ -1,0 +1,184 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Build-time source mapping and visual-calibration input. This file is not a TemplateDefinition and must never be persisted in a Draft.",
+  "recipes": [
+    {
+      "id": "fan-moodboard",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/fan_moodboard.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "hero-photo" },
+      "photoSlots": [{ "id": "hero-photo", "required": true, "role": "full-bleed-photo" }],
+      "fixedAssets": [
+        { "role": "headline-label", "reference": { "id": "asset://pack/handmade-cutout-type/8", "kind": "image", "revision": "1" } },
+        { "role": "neon-frame-accent", "reference": { "id": "asset://pack/cutout-frames-cropping-accents/2", "kind": "image", "revision": "1" } },
+        { "role": "neon-frame-accent-secondary", "reference": { "id": "asset://pack/cutout-frames-cropping-accents/3", "kind": "image", "revision": "1" } },
+        { "role": "fan-highlight", "reference": { "id": "asset://pack/fan-edit-highlights/2", "kind": "image", "revision": "1" } },
+        { "role": "fan-highlight-copy", "reference": { "id": "asset://pack/fan-edit-highlights/2-copy", "kind": "image", "revision": "1" } },
+        { "role": "print-registration-fragment", "reference": { "id": "asset://pack/experimental-print-registration-fragments/3", "kind": "image", "revision": "1" } },
+        { "role": "print-registration-fragment-secondary", "reference": { "id": "asset://pack/experimental-print-registration-fragments/18", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "digital-y2k-ascii",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/digital_y2k_ascii.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "hero-photo" },
+      "photoSlots": [{ "id": "hero-photo", "required": true, "role": "full-bleed-photo" }],
+      "fixedAssets": [
+        { "role": "ascii-hero-overlay", "reference": { "id": "asset://pack/pixel-ascii/3-1", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "material-remix",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/material_remix.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "solid-paper" },
+      "photoSlots": [{ "id": "hero-photo", "required": true, "role": "centered-portrait-photo" }],
+      "fixedAssets": [
+        { "role": "structural-drape", "reference": { "id": "asset://pack/structural-plastic-beads-mesh/1", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-1", "reference": { "id": "asset://pack/beads-structural-units-1/5", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-2", "reference": { "id": "asset://pack/beads-structural-units-1/6", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-3", "reference": { "id": "asset://pack/beads-structural-units-1/18", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-4", "reference": { "id": "asset://pack/beads-structural-units-1/24", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-5", "reference": { "id": "asset://pack/beads-structural-units-1/31", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-6", "reference": { "id": "asset://pack/beads-structural-units-1/19", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-7", "reference": { "id": "asset://pack/beads-structural-units-1/20", "kind": "image", "revision": "1" } },
+        { "role": "lace-edge", "reference": { "id": "asset://pack/essential-lace-trims/3", "kind": "image", "revision": "1" } },
+        { "role": "fabric-bow", "reference": { "id": "asset://pack/fabric-fiber-thread/2", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "soft-archive-multi",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/soft_archive_multi.png",
+      "canvas": { "width": 1024, "height": 1241, "base": "solid-paper" },
+      "photoSlots": [
+        { "id": "left-photo", "required": true, "role": "left-photo-card" },
+        { "id": "right-photo-1", "required": true, "role": "right-frame-photo-1" },
+        { "id": "right-photo-2", "required": true, "role": "right-frame-photo-2" },
+        { "id": "right-photo-3", "required": true, "role": "right-frame-photo-3" }
+      ],
+      "fixedAssets": [
+        { "role": "blue-paper-accent-1", "reference": { "id": "asset://pack/soft-archive-blue/13", "kind": "image", "revision": "1" } },
+        { "role": "blue-paper-accent-2", "reference": { "id": "asset://pack/soft-archive-blue/18", "kind": "image", "revision": "1" } },
+        { "role": "blue-paper-accent-3", "reference": { "id": "asset://pack/soft-archive-blue/25", "kind": "image", "revision": "1" } },
+        { "role": "photo-frame", "reference": { "id": "asset://pack/template-assets/soft-archive-multi-photo-frame", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "play-pop-multi",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/play pop multi.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "solid-paper" },
+      "photoSlots": [
+        { "id": "polaroid-photo", "required": true, "role": "left-polaroid-photo" },
+        { "id": "frame-photo-1", "required": true, "role": "three-up-frame-photo-1" },
+        { "id": "frame-photo-2", "required": true, "role": "three-up-frame-photo-2" },
+        { "id": "frame-photo-3", "required": true, "role": "three-up-frame-photo-3" }
+      ],
+      "fixedAssets": [
+        { "role": "color-paper-1", "reference": { "id": "asset://pack/caise-01/1", "kind": "image", "revision": "1" } },
+        { "role": "color-paper-2", "reference": { "id": "asset://pack/caise-01/5", "kind": "image", "revision": "1" } },
+        { "role": "paper-cutout", "reference": { "id": "asset://pack/template-assets/play-pop-multi-paper-cutout", "kind": "image", "revision": "1" } },
+        { "role": "color-dot", "reference": { "id": "asset://pack/caisebodian/11", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "digital-y2k-multi",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/digital_y2k_multi.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "solid-paper" },
+      "photoSlots": [
+        { "id": "photo-1", "required": true, "role": "independent-photo-1" },
+        { "id": "photo-2", "required": true, "role": "independent-photo-2" },
+        { "id": "photo-3", "required": true, "role": "independent-photo-3" },
+        { "id": "photo-4", "required": true, "role": "independent-photo-4" },
+        { "id": "photo-5", "required": true, "role": "independent-photo-5" },
+        { "id": "photo-6", "required": true, "role": "independent-photo-6" }
+      ],
+      "fixedAssets": [
+        { "role": "chrome-symbol-1", "reference": { "id": "asset://pack/chrome-symbols/4", "kind": "image", "revision": "1" } },
+        { "role": "chrome-symbol-2", "reference": { "id": "asset://pack/chrome-symbols/7", "kind": "image", "revision": "1" } },
+        { "role": "chrome-symbol-3", "reference": { "id": "asset://pack/chrome-symbols/13", "kind": "image", "revision": "1" } },
+        { "role": "chrome-symbol-4", "reference": { "id": "asset://pack/chrome-symbols/14", "kind": "image", "revision": "1" } },
+        { "role": "editorial-index-1", "reference": { "id": "asset://pack/editorial-connectors-index-marks/1", "kind": "image", "revision": "1" } },
+        { "role": "editorial-index-2", "reference": { "id": "asset://pack/editorial-connectors-index-marks/10", "kind": "image", "revision": "1" } },
+        { "role": "editorial-index-3", "reference": { "id": "asset://pack/editorial-connectors-index-marks/11", "kind": "image", "revision": "1" } },
+        { "role": "tape-left", "reference": { "id": "asset://pack/template-assets/digital-y2k-multi-tape-left", "kind": "image", "revision": "1" } },
+        { "role": "tape-right", "reference": { "id": "asset://pack/template-assets/soft-archive-tape-right", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-1", "reference": { "id": "asset://pack/micro-editorial-1/7", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-2", "reference": { "id": "asset://pack/micro-editorial-1/12", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-3", "reference": { "id": "asset://pack/micro-editorial-1/13", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-4", "reference": { "id": "asset://pack/micro-editorial-1/19", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-5", "reference": { "id": "asset://pack/micro-editorial-1/14", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-6", "reference": { "id": "asset://pack/micro-editorial-1/9", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-7", "reference": { "id": "asset://pack/micro-editorial-1/21", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "romantic-deco",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/romantic deco.png",
+      "canvas": { "width": 1024, "height": 1024, "base": "solid-paper" },
+      "photoSlots": [{ "id": "hero-photo", "required": true, "role": "framed-portrait" }],
+      "fixedAssets": [
+        { "role": "background", "reference": { "id": "asset://pack/template-assets/romantic-deco-background", "kind": "image", "revision": "1" } },
+        { "role": "lace-frame", "reference": { "id": "asset://pack/romantic-deco-lace-frame-1/9", "kind": "image", "revision": "2" } },
+        { "role": "butterfly-knot", "reference": { "id": "asset://pack/template-assets/romantic-deco-butterfly-knot", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "romantic-deco-two-photo",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/romantic deco-1.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "photo-slots" },
+      "photoSlots": [
+        { "id": "top-framed-photo", "required": true, "role": "framed-landscape" },
+        { "id": "bottom-photo", "required": true, "role": "rotated-full-bleed" }
+      ],
+      "fixedAssets": [
+        { "role": "lace-frame", "reference": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "1" } },
+        { "role": "middle-lace-ribbon", "reference": { "id": "asset://pack/essential-lace-trims/3", "kind": "image", "revision": "1" } },
+        { "role": "ascii-hearts", "reference": { "id": "asset://pack/pixel-ascii/7", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "play-pop",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/play pop.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "solid-paper" },
+      "photoSlots": [{ "id": "hero-photo", "required": true, "role": "portrait-with-blue-frame" }],
+      "fixedAssets": [
+        { "role": "background", "reference": { "id": "asset://pack/template-assets/play-pop-background", "kind": "image", "revision": "1" } },
+        { "role": "candy-shape-1", "reference": { "id": "asset://pack/candy-shapes/4", "kind": "image", "revision": "1" } },
+        { "role": "candy-shape-2", "reference": { "id": "asset://pack/candy-shapes/6", "kind": "image", "revision": "1" } },
+        { "role": "candy-shape-3", "reference": { "id": "asset://pack/candy-shapes/1", "kind": "image", "revision": "1" } },
+        { "role": "candy-shape-4", "reference": { "id": "asset://pack/candy-shapes/5", "kind": "image", "revision": "1" } },
+        { "role": "candy-shape-5", "reference": { "id": "asset://pack/candy-shapes/3", "kind": "image", "revision": "1" } },
+        { "role": "blue-photo-frame", "reference": { "id": "asset://pack/template-assets/play-pop-photo-frame", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-1", "reference": { "id": "asset://pack/playful-doodles/3", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-2", "reference": { "id": "asset://pack/playful-doodles/11", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-3", "reference": { "id": "asset://pack/playful-doodles/2", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-4", "reference": { "id": "asset://pack/playful-doodles/9", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-5", "reference": { "id": "asset://pack/playful-doodles/14", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-6", "reference": { "id": "asset://pack/playful-doodles/12", "kind": "image", "revision": "1" } }
+      ]
+    },
+    {
+      "id": "soft-archive",
+      "status": "calibration-pending",
+      "sourcePreviewPath": "source-assets/配方模版/soft archive.png",
+      "canvas": { "width": 1024, "height": 1536, "base": "solid-paper" },
+      "photoSlots": [{ "id": "hero-photo", "required": true, "role": "centered-portrait" }],
+      "fixedAssets": [
+        { "role": "background-and-printed-copy", "reference": { "id": "asset://pack/template-assets/soft-archive-background", "kind": "image", "revision": "1" } },
+        { "role": "blue-paper-accent-1", "reference": { "id": "asset://pack/soft-archive-blue/30", "kind": "image", "revision": "1" } },
+        { "role": "blue-paper-accent-2", "reference": { "id": "asset://pack/soft-archive-blue/18", "kind": "image", "revision": "1" } },
+        { "role": "blue-paper-accent-3", "reference": { "id": "asset://pack/soft-archive-blue/8", "kind": "image", "revision": "1" } },
+        { "role": "editorial-label", "reference": { "id": "asset://pack/editorial-everyday-labels/20", "kind": "image", "revision": "1" } },
+        { "role": "tape-left", "reference": { "id": "asset://pack/template-assets/soft-archive-tape-left", "kind": "image", "revision": "1" } },
+        { "role": "tape-right", "reference": { "id": "asset://pack/template-assets/soft-archive-tape-right", "kind": "image", "revision": "1" } }
+      ]
+    }
+  ]
+}

@@ -22,7 +22,7 @@
 
 | 构建期输入 | 冻结稳定引用 |
 | --- | --- |
-| `new导出素材/Romantic Deco-Lace Frame(1)/items/6.png` | `asset://pack/romantic-deco-lace-frame-1/6` |
+| `new导出素材/Romantic Deco-Lace Frame(1)/items/9_2.png` | `asset://pack/romantic-deco-lace-frame-1/9` revision `2` |
 | `packs/hudiejie/items/13.png` | `asset://pack/hudiejie/13` |
 
 ## `template://journalcollage/romantic-deco-two-photo`

@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "purpose": "P1-T02 build-time layer inventory and reference-image calibration input. It is not a TemplateDefinition and must never be stored in a Draft.",
+  "coordinateSystem": "Each calibrated frame is normalized to its reference preview width and height. null means visual calibration has not yet assigned a frame.",
+  "templates": [
+    {
+      "id": "romantic-deco",
+      "referencePreviewPath": "source-assets/配方模版/romantic deco.png",
+      "referenceSize": { "width": 1254, "height": 1254 },
+      "photoSlots": [{ "id": "hero-photo", "role": "framed-portrait", "required": true, "normalizedFrame": null }],
+      "layers": [
+        { "role": "background", "source": "asset://pack/template-assets/romantic-deco-background@1", "strictState": "strict", "zIndex": 0, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "lace-frame", "source": "asset://pack/romantic-deco-lace-frame-1/9@2", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "butterfly-knot", "source": "asset://pack/template-assets/romantic-deco-butterfly-knot@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "romantic-deco-two-photo",
+      "referencePreviewPath": "source-assets/配方模版/romantic deco-1.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [
+        { "id": "top-framed-photo", "role": "framed-landscape", "required": true, "normalizedFrame": null },
+        { "id": "bottom-photo", "role": "rotated-full-bleed", "required": true, "normalizedFrame": null }
+      ],
+      "layers": [
+        { "role": "lace-frame", "source": "asset://pack/decorative-statement-lace-1/2@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "middle-lace-ribbon", "source": "asset://pack/essential-lace-trims/3@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "ascii-hearts", "source": "asset://pack/pixel-ascii/7@1", "strictState": "strict", "zIndex": 40, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "play-pop",
+      "referencePreviewPath": "source-assets/配方模版/play pop.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [{ "id": "hero-photo", "role": "portrait-with-blue-frame", "required": true, "normalizedFrame": null }],
+      "layers": [
+        { "role": "paper-background", "source": "asset://pack/template-assets/play-pop-background@1", "strictState": "strict", "zIndex": 0, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "candy-shapes", "source": "asset://pack/candy-shapes/{4,6,1,5,3}@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "playful-doodles", "source": "asset://pack/playful-doodles/{3,11,2,9,14,12}@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "soft-archive",
+      "referencePreviewPath": "source-assets/配方模版/soft archive.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [{ "id": "hero-photo", "role": "centered-portrait", "required": true, "normalizedFrame": null }],
+      "layers": [
+        { "role": "paper-background-and-printed-copy", "source": "asset://pack/template-assets/soft-archive-background@1", "strictState": "strict", "zIndex": 0, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "blue-paper-accents", "source": "asset://pack/soft-archive-blue/{30,18,8}@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "editorial-label", "source": "asset://pack/editorial-everyday-labels/20@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "tape-left", "source": "asset://pack/template-assets/soft-archive-tape-left@1", "strictState": "strict", "zIndex": 40, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "tape-right", "source": "asset://pack/template-assets/soft-archive-tape-right@1", "strictState": "strict", "zIndex": 41, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "soft-archive-multi",
+      "referencePreviewPath": "source-assets/配方模版/soft_archive_multi.png",
+      "referenceSize": { "width": 1024, "height": 1241 },
+      "photoSlots": [
+        { "id": "left-photo", "role": "left-photo-card", "required": true, "normalizedFrame": null },
+        { "id": "right-photo-1", "role": "right-frame-photo-1", "required": true, "normalizedFrame": null },
+        { "id": "right-photo-2", "role": "right-frame-photo-2", "required": true, "normalizedFrame": null },
+        { "id": "right-photo-3", "role": "right-frame-photo-3", "required": true, "normalizedFrame": null }
+      ],
+      "layers": [
+        { "role": "blue-paper-accents", "source": "asset://pack/soft-archive-blue/{13,18,25}@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "photo-frame", "source": "asset://pack/template-assets/soft-archive-multi-photo-frame@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "play-pop-multi",
+      "referencePreviewPath": "source-assets/配方模版/play pop multi.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [
+        { "id": "polaroid-photo", "role": "left-polaroid-photo", "required": true, "normalizedFrame": null },
+        { "id": "frame-photo-1", "role": "three-up-frame-photo-1", "required": true, "normalizedFrame": null },
+        { "id": "frame-photo-2", "role": "three-up-frame-photo-2", "required": true, "normalizedFrame": null },
+        { "id": "frame-photo-3", "role": "three-up-frame-photo-3", "required": true, "normalizedFrame": null }
+      ],
+      "layers": [
+        { "role": "color-paper", "source": "asset://pack/caise-01/{1,5}@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "paper-cutout", "source": "asset://pack/template-assets/play-pop-multi-paper-cutout@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "color-dot", "source": "asset://pack/caisebodian/11@1", "strictState": "strict", "zIndex": 40, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "fan-moodboard",
+      "referencePreviewPath": "source-assets/配方模版/fan_moodboard.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [{ "id": "hero-photo", "role": "full-bleed-photo", "required": true, "normalizedFrame": null }],
+      "layers": [{ "role": "recipe-fixed-assets", "source": "content/template-recipe-input.v1.json#fan-moodboard", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true }]
+    },
+    {
+      "id": "digital-y2k-ascii",
+      "referencePreviewPath": "source-assets/配方模版/digital_y2k_ascii.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [{ "id": "hero-photo", "role": "full-bleed-photo", "required": true, "normalizedFrame": null }],
+      "layers": [{ "role": "ascii-overlay", "source": "asset://pack/pixel-ascii/3-1@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true }]
+    },
+    {
+      "id": "digital-y2k-multi",
+      "referencePreviewPath": "source-assets/配方模版/digital_y2k_multi.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [
+        { "id": "photo-1", "role": "independent-photo-1", "required": true, "normalizedFrame": null },
+        { "id": "photo-2", "role": "independent-photo-2", "required": true, "normalizedFrame": null },
+        { "id": "photo-3", "role": "independent-photo-3", "required": true, "normalizedFrame": null },
+        { "id": "photo-4", "role": "independent-photo-4", "required": true, "normalizedFrame": null },
+        { "id": "photo-5", "role": "independent-photo-5", "required": true, "normalizedFrame": null },
+        { "id": "photo-6", "role": "independent-photo-6", "required": true, "normalizedFrame": null }
+      ],
+      "layers": [
+        { "role": "chrome-symbols", "source": "asset://pack/chrome-symbols/{4,7,13,14}@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "editorial-index", "source": "asset://pack/editorial-connectors-index-marks/{1,10,11}@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "tape-left", "source": "asset://pack/template-assets/digital-y2k-multi-tape-left@1", "strictState": "strict", "zIndex": 40, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "tape-right", "source": "asset://pack/template-assets/soft-archive-tape-right@1", "strictState": "strict", "zIndex": 41, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "micro-editorial", "source": "asset://pack/micro-editorial-1/{7,12,13,19,14,7,9,21}@1", "strictState": "strict", "zIndex": 50, "normalizedFrame": null, "rotation": 0, "locked": true }
+      ]
+    },
+    {
+      "id": "material-remix",
+      "referencePreviewPath": "source-assets/配方模版/material_remix.png",
+      "referenceSize": { "width": 1024, "height": 1536 },
+      "photoSlots": [{ "id": "hero-photo", "role": "centered-portrait-photo", "required": true, "normalizedFrame": null }],
+      "layers": [{ "role": "recipe-fixed-assets", "source": "content/template-recipe-input.v1.json#material-remix", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true }]
+    }
+  ]
+}

@@ -4,11 +4,15 @@ import { Canvas, LinearGradient, Rect, vec, type Transforms3d } from '@shopify/r
 import { useSharedValue } from 'react-native-reanimated';
 import { assetUriMap, backgroundPaperPack, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap } from '@journalcollage/asset-system';
 import type { Draft } from '@journalcollage/editor-core';
+import type { TemplateDefinition } from '@journalcollage/editor-core';
 import { ProceduralPaperPreview, SkiaEditorScene } from '@journalcollage/editor-renderer';
 import { cacheRemoteResource, hasSavedDraftsSync, loadCachedHomeShowcaseManifest, loadSavedDrafts, resolvedRemoteResourceUri, saveCachedHomeShowcaseManifest, type SavedDraft, type StoredWorkspace } from '../localWorkspace';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
 import { fallbackHomeShowcaseGroupsForMarket, homeShowcaseManifestUrlForMarket, normalizeHomeShowcaseManifest, withBackgroundShowcaseGroup, type HomeMarket, type HomeShowcaseEffect, type HomeShowcaseGroup, type HomeShowcaseItem } from './homeShowcases';
+import { CachedRemoteImage } from './CachedRemoteImage';
+import { productCatalogAssetForReference } from '../shippedProductAssetCatalog';
+import { localTemplateCatalog } from '../localTemplateCatalog';
 
 export type CreateEntry = 'blank' | 'photo' | 'restore' | 'showcase';
 export type ShowcaseIntent = Readonly<{ id: string; effect?: HomeShowcaseEffect; backgroundPresetId?: string }>;
@@ -21,10 +25,13 @@ const LACE_FRAME_SOURCES = {
 // China; all other builds use the US English feed by default.
 const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? 'cn' : 'us';
 
-export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
+export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateStudio }: Readonly<{
   locale: ProductLocale;
   onOpenAssets: () => void;
   onOpenEditor: (entry: CreateEntry, savedDraftId?: string, showcase?: ShowcaseIntent) => void;
+  onOpenTemplate: (template: TemplateDefinition) => void;
+  /** Development-only. Omitted by every release build. */
+  onOpenTemplateStudio?: () => void;
 }>) => {
   // The on-disk draft index is asynchronous. Keep this distinct from an
   // empty result so the home layout does not jump after a JS reload.
@@ -103,6 +110,13 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
         <QuickStartCard kind="materials" label={t(locale, 'create.materialPack')} onPress={onOpenAssets} />
       </View>
 
+      {onOpenTemplateStudio && <Pressable accessibilityLabel="Open Template Studio" accessibilityRole="button" onPress={onOpenTemplateStudio} style={styles.templateStudioEntry}><Text style={styles.templateStudioEyebrow}>DEVELOPMENT ONLY</Text><Text style={styles.templateStudioLabel}>Template Studio</Text><Text style={styles.templateStudioHint}>Create and export template authoring JSON</Text></Pressable>}
+
+      <SectionTitle>Templates</SectionTitle>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateTrack}>
+        {localTemplateCatalog.map((template) => <TemplateCard key={template.id} template={template} onPress={() => onOpenTemplate(template)} />)}
+      </ScrollView>
+
       {savedDrafts !== null && savedDrafts.length > 0 && (
         <>
           <SectionTitle>{t(locale, 'create.recentDrafts')}</SectionTitle>
@@ -121,6 +135,14 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor }: Readonly<{
 };
 
 const SectionTitle = ({ children }: Readonly<{ children: string }>) => <Text style={styles.sectionTitle}>{children}</Text>;
+
+const TemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
+  const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
+  return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.templateCard}>
+    {preview ? <CachedRemoteImage cacheKey={`template-preview-${template.id}`} reference={template.preview as Required<typeof template.preview>} source={preview.sourceUrl} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
+    <View style={styles.templateTitle}><Text numberOfLines={1} style={styles.templateTitleText}>{template.name}</Text><Text style={styles.templateUseText}>Use template</Text></View>
+  </Pressable>;
+};
 
 /** Keeps the asynchronous draft restore from shifting the home feed. */
 const RecentDraftLoadingRow = ({ locale }: Readonly<{ locale: ProductLocale }>) => <View>
@@ -221,6 +243,17 @@ const styles = StyleSheet.create({
   quickRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   quickCard: { alignItems: 'center', backgroundColor: productColor.surface, borderColor: productColor.border, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, flex: 1, flexDirection: 'row', gap: 9, height: 63, paddingHorizontal: 11, shadowColor: productColor.ink, shadowOffset: { height: 1, width: 0 }, shadowOpacity: 0.06, shadowRadius: 8 },
   quickLabel: { color: productColor.ink, flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  templateTrack: { gap: 12, paddingRight: productSpace.page },
+  templateCard: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.08)', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, height: 176, overflow: 'hidden', shadowColor: productColor.ink, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.06, shadowRadius: 10, width: 118 },
+  templatePreview: { height: 134, resizeMode: 'cover', width: '100%' },
+  templatePreviewFallback: { backgroundColor: '#F2F0EB', height: 134, width: '100%' },
+  templateTitle: { paddingHorizontal: 9, paddingTop: 5 },
+  templateTitleText: { color: productColor.ink, fontSize: 11, fontWeight: '700', lineHeight: 15 },
+  templateUseText: { color: productColor.secondaryText, fontSize: 10, fontWeight: '600', lineHeight: 13 },
+  templateStudioEntry: { backgroundColor: '#29251F', borderRadius: 14, marginTop: 12, paddingHorizontal: 16, paddingVertical: 13 },
+  templateStudioEyebrow: { color: '#E6CA7B', fontSize: 10, fontWeight: '700', letterSpacing: 1.1, lineHeight: 14 },
+  templateStudioLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', lineHeight: 22, marginTop: 2 },
+  templateStudioHint: { color: '#D8D0C2', fontSize: 12, lineHeight: 17, marginTop: 1 },
   blankGlyph: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.16)', borderRadius: 4, borderWidth: 1, height: 31, justifyContent: 'center', paddingHorizontal: 4, shadowColor: productColor.ink, shadowOffset: { height: 4, width: 0 }, shadowOpacity: 0.08, shadowRadius: 7, width: 24 },
   blankLine: { backgroundColor: '#E1DFDA', height: 1, width: '100%' },
   blankLineMiddle: { marginVertical: 4 },

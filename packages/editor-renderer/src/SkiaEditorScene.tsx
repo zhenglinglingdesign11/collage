@@ -533,6 +533,20 @@ const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, pr
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
   if (proceduralPaper !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralPaperLayer frame={contentFrame} paper={proceduralPaper} patternImageUri={assetUri} /></Group>;
   if (proceduralSticker !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralStickerLayer frame={contentFrame} sticker={proceduralSticker} textureUri={assetUri} /></Group>;
+  if (layer.asset.id.startsWith('generated://template-photo-slot/')) {
+    // Match the home add-photo control: a fixed circular chip with the system
+    // light-weight plus glyph. It is UI chrome, not artwork that scales with
+    // the photo frame.
+    const glyphSize = 60;
+    const glyphX = contentFrame.x + contentFrame.width / 2;
+    const glyphY = contentFrame.y + contentFrame.height / 2;
+    const plusFont = matchFont({ fontFamily: 'System', fontSize: 38, fontWeight: '300' });
+    // A calibrated slot may intentionally use non-uniform scale. Counter it
+    // only for this UI glyph, so the slot keeps its geometry while the icon
+    // remains an undistorted 1:1 circle.
+    const iconScale = { x: 1 / Math.max(Math.abs(layer.transform.scale.x), 0.001), y: 1 / Math.max(Math.abs(layer.transform.scale.y), 0.001) };
+    return <Group><Rect x={contentFrame.x} y={contentFrame.y} width={contentFrame.width} height={contentFrame.height} color="#E6E7E9" /><Group transform={[{ scaleX: iconScale.x }, { scaleY: iconScale.y }]} origin={{ x: glyphX, y: glyphY }}><Circle cx={glyphX} cy={glyphY} r={glyphSize / 2} color="#111111" /><Text x={glyphX - plusFont.measureText('+').width / 2} y={glyphY + 12} text="+" font={plusFont} color="#FFFFFF" /></Group></Group>;
+  }
   // A cut produces new fragment keys that remount this component. During the
   // one-frame `useImage` reload, a resolved URI is still a real image—not a
   // missing asset—so never replace it with the fixture artwork.

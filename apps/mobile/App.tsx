@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
+import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Canvas, Path, Skia, useCanvasRef, type Transforms3d } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimated';
@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { alignmentGuideKey, applyCommand, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type Transform } from '@journalcollage/editor-core';
+import { alignmentGuideKey, applyCommand, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, instantiateTemplateDefinition, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type TemplateDefinition, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
 import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
@@ -42,17 +42,24 @@ const showcaseEffectInstance = (instanceId: string, intent: ShowcaseIntent | und
   }
 };
 import { AssetDrawer } from './src/product-ui/AssetDrawer';
-import { isShippedProductAssetReference, shippedProductAssetResolver } from './src/shippedProductAssetCatalog';
+import { isShippedProductAssetReference, shippedProductAssetResolver, templateStudioBackgroundItems, templateStudioDecorativePacks } from './src/shippedProductAssetCatalog';
 import { BackgroundDrawer } from './src/product-ui/BackgroundDrawer';
 import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPanel';
 import { TEXT_EDITOR_PANEL_HEIGHT, TextEditorPanel } from './src/product-ui/TextEditorPanel';
 import { ensureTextFont, resolvedTextFontUri } from './src/product-ui/fonts';
 import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
+import { exportTemplateStudioJson, isTemplateStudioPhotoSlot, templateStudioPhotoSlotAsset } from './src/templateStudio';
 import { resolveProductLocale, t, type ProductCopyKey } from './src/product-ui/localization';
 import { productColor } from './src/product-ui/tokens';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
 
 const CANVAS_SIZE = { width: 1800, height: 2400 };
+/** Deliberately small preset list: template production starts with known target artboards. */
+const TEMPLATE_STUDIO_CANVAS_SIZES = [
+  { label: '1254×1254', width: 1254, height: 1254 },
+  { label: '1024×1536', width: 1024, height: 1536 },
+] as const;
+const TEMPLATE_STUDIO_CANVAS_SIZE = TEMPLATE_STUDIO_CANVAS_SIZES[0];
 type CanvasRatio = '3:4' | '1:1' | '9:16' | '16:9';
 const CANVAS_RATIO_SIZES: Readonly<Record<CanvasRatio, { width: number; height: number }>> = {
   '3:4': CANVAS_SIZE,
@@ -61,6 +68,11 @@ const CANVAS_RATIO_SIZES: Readonly<Record<CanvasRatio, { width: number; height: 
   '16:9': { width: 3200, height: 1800 },
 };
 const canvasRatioForSize = (size: { width: number; height: number }): CanvasRatio => (Object.entries(CANVAS_RATIO_SIZES).find(([, candidate]) => candidate.width === size.width && candidate.height === size.height)?.[0] ?? '3:4') as CanvasRatio;
+const aspectRatioLabel = (size: { width: number; height: number }): string => {
+  const gcd = (left: number, right: number): number => right === 0 ? left : gcd(right, left % right);
+  const divisor = gcd(Math.round(size.width), Math.round(size.height));
+  return `${Math.round(size.width) / divisor}:${Math.round(size.height) / divisor}`;
+};
 // This Canvas lives off screen solely for PNG snapshots. On a 3× device the
 // old 9:16 surface became a 5400 × 9600 Metal texture, which exceeds the
 // drawable limits on some devices/simulators and aborts the process. Cap the
@@ -174,24 +186,30 @@ const editorReducer = (state: EditorState, action: EditorAction): EditorState =>
   return { past: [...state.past, state.present], present: result.draft, future: [] };
 };
 
-const EditorWorkspace = (props: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => (
+const EditorWorkspace = (props: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
   </SafeAreaProvider>
 );
 
-const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialShowcase, restoreSavedDraftId, onExit, onInitialPackItemsConsumed, onOpenAssets }: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; restoreSavedDraftId?: string | null; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => {
+const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets }: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const locale = resolveProductLocale();
-  const [state, dispatch] = useReducer(editorReducer, undefined, () => ({
+  const [state, dispatch] = useReducer(editorReducer, undefined, () => {
+    const templateInstance = initialTemplate ? instantiateTemplateDefinition(initialTemplate, { now: new Date().toISOString() }) : null;
+    return {
     past: [],
     present: initialEntry === 'restore'
       ? createFixtureDraft()
-      : createDraft({ id: createStableId('project'), size: CANVAS_SIZE, now: new Date().toISOString() }),
+      : templateInstance
+        ? { ...templateInstance.draft, selectedLayerId: Object.values(templateInstance.photoSlotLayerIds)[0] ?? null }
+      : createDraft({ id: createStableId(templateStudio ? 'template-studio' : 'project'), size: templateStudio ? TEMPLATE_STUDIO_CANVAS_SIZE : CANVAS_SIZE, now: new Date().toISOString() }),
     future: [],
-  }));
+    };
+  });
   const [catalog, setCatalog] = useState<AssetCatalog>(() => emptyAssetCatalog());
+  const initialTemplateDraftRef = useRef<Draft | null>(initialTemplate ? state.present : null);
   const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
     const uri = resolvedRemoteResourceUri(frame.cacheKey, frame.source);
     return uri ? [[id, uri]] : [];
@@ -204,6 +222,8 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const [effectSheetOpen, setEffectSheetOpen] = useState(false);
   const [effectSheetBaseEffects, setEffectSheetBaseEffects] = useState<readonly Effect[] | null>(null);
   const [layerEffectControl, setLayerEffectControl] = useState<Readonly<{ layerId: string; type: 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners' }> | null>(null);
+  // Template entry presents the calibrated composition first; editing remains
+  // an explicit action, as it is for a blank user canvas.
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
   const [ratioPickerOpen, setRatioPickerOpen] = useState(false);
   const [effectPreview, setEffectPreview] = useState<Readonly<{ layerId: string; effects: readonly Effect[] }> | null>(null);
@@ -331,6 +351,18 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   }, [window.height]);
 
   useEffect(() => {
+    if (templateStudio) {
+      setWorkspaceReady(true);
+      return;
+    }
+    if (initialTemplate !== null && initialTemplateDraftRef.current !== null) {
+      void recoverWorkspaceProductAssets({ draft: initialTemplateDraftRef.current, catalog: emptyAssetCatalog() }).then((recovered) => {
+        dispatch({ type: 'hydrate', draft: recovered.workspace.draft });
+        setCatalog(recovered.workspace.catalog);
+        setAssetRecoveryFailureCount(recovered.failures.length);
+      }).finally(() => setWorkspaceReady(true));
+      return;
+    }
     const workspacePromise = restoreSavedDraftId ? loadSavedDraft(restoreSavedDraftId) : loadWorkspace();
     void workspacePromise.then(async (workspace) => {
       if (initialEntry === 'restore' && workspace !== null) {
@@ -343,7 +375,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
         }
       }
     }).finally(() => setWorkspaceReady(true));
-  }, [initialEntry, restoreSavedDraftId]);
+  }, [initialEntry, initialTemplate, restoreSavedDraftId, templateStudio]);
   // Renderer-only values: no Draft or React state update occurs while fingers move.
   const positionX = useSharedValue(0);
   const positionY = useSharedValue(0);
@@ -357,6 +389,13 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const startScaleY = useSharedValue(1);
   const startRotation = useSharedValue(0);
   const gestureLayerId = useSharedValue<string | null>(null);
+  // Template production benefits from a deliberate, exact canvas-centre stop.
+  // These live values keep that assist on the UI thread and out of user mode.
+  const templateStudioSnapEnabled = useSharedValue(false);
+  const snapCanvasWidth = useSharedValue(canvasSize.width);
+  const snapCanvasHeight = useSharedValue(canvasSize.height);
+  const gestureLayerWidth = useSharedValue(0);
+  const gestureLayerHeight = useSharedValue(0);
   const straightCutRef = useRef<StraightCutSession | null>(null);
   const straightCutDragRef = useRef<StraightCutSession | null>(null);
   straightCutRef.current = straightCut;
@@ -370,13 +409,26 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     rotation.value = transform.rotation;
   }, [positionX, positionY, rotation, scaleX, scaleY, selectedLayer]);
   useEffect(() => { gestureScale.value = viewport.scale; }, [gestureScale, viewport.scale]);
+  useEffect(() => {
+    templateStudioSnapEnabled.value = templateStudio;
+    snapCanvasWidth.value = canvasSize.width;
+    snapCanvasHeight.value = canvasSize.height;
+  }, [canvasSize, snapCanvasHeight, snapCanvasWidth, templateStudio, templateStudioSnapEnabled]);
 
   const activeTransform = useDerivedValue<Transforms3d>(() => [
     { translateX: positionX.value }, { translateY: positionY.value }, { scaleX: scaleX.value }, { scaleY: scaleY.value }, { rotate: rotation.value },
   ]);
+  /** In Studio, decorative assets should win a tap over a broad photo placeholder beneath them. */
+  const templatePhotoPickerRef = useRef<(layerId: string) => void>(() => undefined);
+  const layerAtCanvasPoint = useCallback((point: Point) => {
+    if (!templateStudio) return hitTest(state.present, point);
+    const fixedLayerDraft: Draft = { ...state.present, layers: state.present.layers.filter((layer) => !isTemplateStudioPhotoSlot(layer)), selectedLayerId: null };
+    return hitTest(fixedLayerDraft, point) ?? hitTest(state.present, point);
+  }, [state.present, templateStudio]);
   const selectAt = useCallback((screenX: number, screenY: number) => {
     if (viewport.scale === 0) return;
-    const layer = hitTest(state.present, { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale });
+    const canvasPoint = { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale };
+    const layer = layerAtCanvasPoint(canvasPoint);
     // This assignment must happen in the same turn as selection. Otherwise
     // Skia briefly applies the previously selected layer's shared transform
     // before the effect below synchronizes it.
@@ -388,19 +440,30 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     rotation.value = transform.rotation;
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: layer?.id ?? null } });
     setLayerPanelOpen(layer !== null);
-  }, [positionX, positionY, rotation, scaleX, scaleY, state.present, viewport]);
-  const prepareDirectTransform = useCallback((screenX: number, screenY: number) => {
+    if (layer?.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/')) {
+      const local = pointInLayerSpace(canvasPoint, layer);
+      const iconHitRadius = Math.min(layer.frame.width, layer.frame.height) * 0.14;
+      if (Math.hypot(local.x - layer.frame.width / 2, local.y - layer.frame.height / 2) <= iconHitRadius) templatePhotoPickerRef.current(layer.id);
+    }
+  }, [layerAtCanvasPoint, positionX, positionY, rotation, scaleX, scaleY, viewport]);
+  const prepareDirectTransform = useCallback((screenX: number, screenY: number, preferSelected = false) => {
     if (viewport.scale === 0) return;
     // A straight-cut fragment has a transparent sibling and a deliberately
     // introduced gap. Retain its committed selection as a fallback so the
     // fragment can be dragged immediately after confirming the cut.
-    const layer = hitTest(state.present, { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale }) ?? selectedLayer;
+    // The Simulator's Option gesture starts at the pinch centre, which can be
+    // inside the transparent opening of a decorative frame. In Studio that
+    // must not steal the already selected frame and manipulate its photo slot.
+    const selectedStudioAsset = preferSelected && templateStudio && selectedLayer !== null && !isTemplateStudioPhotoSlot(selectedLayer) ? selectedLayer : null;
+    const layer = selectedStudioAsset ?? layerAtCanvasPoint({ x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale }) ?? selectedLayer;
     if (layer === null || layer.isLocked) {
       gestureLayerId.value = null;
       if (layer === null) dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
       return;
     }
     gestureLayerId.value = layer.id;
+    gestureLayerWidth.value = layer.frame.width;
+    gestureLayerHeight.value = layer.frame.height;
     positionX.value = startX.value = layer.transform.position.x;
     positionY.value = startY.value = layer.transform.position.y;
     scaleX.value = startScaleX.value = layer.transform.scale.x;
@@ -409,7 +472,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: layer.id } });
     setLayerPanelOpen(true);
     setIsTransforming(true);
-  }, [gestureLayerId, positionX, positionY, rotation, scaleX, scaleY, selectedLayer, startRotation, startScaleX, startScaleY, startX, startY, state.present, viewport]);
+  }, [gestureLayerHeight, gestureLayerId, gestureLayerWidth, layerAtCanvasPoint, positionX, positionY, rotation, scaleX, scaleY, selectedLayer, startRotation, startScaleX, startScaleY, startX, startY, templateStudio, viewport]);
   const beginTransformGesture = useCallback(() => setIsTransforming(true), []);
   const clearAlignmentGuides = useCallback(() => {
     movementGuideState.current = null;
@@ -458,9 +521,20 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   // `onBegin` fires as soon as a finger touches the canvas, including an
   // ordinary tap. Keep shared transforms dormant until a gesture is actually
   // active so selecting a cut fragment cannot momentarily move its siblings.
-  const pan = Gesture.Pan().minDistance(8).enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.x, event.y); }).onUpdate((event) => { const layerId = gestureLayerId.value; if (layerId === null) return; positionX.value = startX.value + event.translationX / gestureScale.value; positionY.value = startY.value + event.translationY / gestureScale.value; runOnJS(updateMovementAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value); }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
-  const pinch = Gesture.Pinch().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.focalX, event.focalY); }).onUpdate((event) => { if (gestureLayerId.value === null) return; const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
-  const rotate = Gesture.Rotation().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.anchorX, event.anchorY); }).onUpdate((event) => { const layerId = gestureLayerId.value; if (layerId === null) return; rotation.value = startRotation.value + event.rotation; runOnJS(updateRotationAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value); }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  const pan = Gesture.Pan().minDistance(8).enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.x, event.y); }).onUpdate((event) => {
+    const layerId = gestureLayerId.value;
+    if (layerId === null) return;
+    const threshold = ALIGNMENT_GUIDE_SCREEN_THRESHOLD / Math.max(gestureScale.value, 0.001);
+    const rawX = startX.value + event.translationX / gestureScale.value;
+    const rawY = startY.value + event.translationY / gestureScale.value;
+    const centreX = rawX + gestureLayerWidth.value * scaleX.value / 2;
+    const centreY = rawY + gestureLayerHeight.value * scaleY.value / 2;
+    positionX.value = templateStudioSnapEnabled.value && Math.abs(centreX - snapCanvasWidth.value / 2) <= threshold ? snapCanvasWidth.value / 2 - gestureLayerWidth.value * scaleX.value / 2 : rawX;
+    positionY.value = templateStudioSnapEnabled.value && Math.abs(centreY - snapCanvasHeight.value / 2) <= threshold ? snapCanvasHeight.value / 2 - gestureLayerHeight.value * scaleY.value / 2 : rawY;
+    runOnJS(updateMovementAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value);
+  }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  const pinch = Gesture.Pinch().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.focalX, event.focalY, true); }).onUpdate((event) => { if (gestureLayerId.value === null) return; const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  const rotate = Gesture.Rotation().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.anchorX, event.anchorY, true); }).onUpdate((event) => { const layerId = gestureLayerId.value; if (layerId === null) return; rotation.value = startRotation.value + event.rotation; runOnJS(updateRotationAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value); }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
   // A completed pan/rotation must never also be treated as a canvas tap: that
   // would clear selection (and its transient alignment guides) on finger-up.
   const ordinaryGesture = Gesture.Exclusive(Gesture.Simultaneous(pan, pinch, rotate), tap);
@@ -979,17 +1053,22 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     void applyBackgroundItem(item);
   }, [applyBackgroundItem, initialShowcase, workspaceReady]);
   const openAssetsFromEditor = useCallback(async () => {
+    if (templateStudio) {
+      Alert.alert('Template Studio', 'Use the material drawer here. The full user Assets flow is intentionally unavailable so this development document remains isolated.');
+      return;
+    }
     // The Assets tab is a separate product surface. Persist first so returning
     // through the pending transfer route restores this exact canvas.
     await saveWorkspace({ draft: state.present, catalog });
     onOpenAssets();
-  }, [catalog, onOpenAssets, state.present]);
+  }, [catalog, onOpenAssets, state.present, templateStudio]);
   const commitImportedPhotos = useCallback(async (assets: readonly ImagePicker.ImagePickerAsset[], replaceLayerId: string | null = null) => {
     try {
       const records = await Promise.all(assets.map((source) => importLocalImage({ uri: source.uri, width: source.width, height: source.height, mimeType: source.mimeType ?? null })));
       records.forEach((record) => setCatalog((current) => upsertAsset(current, record)));
       if (replaceLayerId !== null) {
-        dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference } });
+        const layer = state.present.layers.find((candidate) => candidate.id === replaceLayerId);
+        dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference, preserveCrop: layer?.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/') } });
         return;
       }
       records.forEach((record, index) => {
@@ -1010,7 +1089,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     } catch {
       Alert.alert('Could not add photo', 'The selected photo could not be stored. Please try again.');
     }
-  }, [canvasSize, initialShowcase]);
+  }, [canvasSize, initialShowcase, state.present.layers]);
   const pickPhoto = useCallback(async (source: 'camera' | 'library', replaceLayerId: string | null = null) => {
     try {
       if (source === 'camera') {
@@ -1039,6 +1118,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
       Alert.alert('Could not open photo library', 'Please close the picker and try again. If this continues, reinstall the development build.');
     }
   }, [commitImportedPhotos]);
+  templatePhotoPickerRef.current = (layerId) => { void pickPhoto('library', layerId); };
   const openPhotoSource = useCallback(() => {
     const choose = (source: 'camera' | 'library' | 'collage') => {
       if (source === 'collage') {
@@ -1121,7 +1201,25 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
       Alert.alert('Export ready', 'Your PNG is ready to save or share from this device.');
     }
   }, [exportCanvasRef]);
+  const exportTemplateStudio = useCallback(async () => {
+    try {
+      const uri = await exportTemplateStudioJson(state.present, catalog);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'application/json', dialogTitle: 'Export template authoring JSON' });
+      } else {
+        Alert.alert('Template JSON ready', 'The development template JSON has been written to this app’s documents directory.');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      Alert.alert('Could not export template JSON', message);
+    }
+  }, [catalog, state.present]);
   const requestExit = useCallback(() => {
+    // Studio documents deliberately do not become user workspaces or recent user drafts.
+    if (templateStudio) {
+      onExit();
+      return;
+    }
     const hasCreativeContent = state.present.layers.length > 0
       || state.present.canvas.backgroundAsset !== undefined
       || state.present.canvas.background !== DEFAULT_CANVAS_BACKGROUND;
@@ -1160,7 +1258,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
       ],
     );
     void wouldPruneOldestSavedDraft(state.present.id).then(showSavePrompt).catch(() => showSavePrompt(false));
-  }, [catalog, onExit, state.present]);
+  }, [catalog, onExit, state.present, templateStudio]);
   const savePngToPhotoLibrary = useCallback(async () => {
     const mediaLibrary = loadMediaLibrary();
     if (mediaLibrary === null) {
@@ -1188,10 +1286,17 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   }, [exportCanvasRef]);
   const isTablet = window.width >= 768;
   const drawerOpen = assetDrawerOpen || backgroundDrawerOpen || effectSheetOpen;
+  // The selected-layer toolbar is absolutely positioned at the bottom on a
+  // phone. Reserve its measured visual height so the composition is not
+  // hidden behind it while making template or user edits.
+  const templatePrecisionVisible = templateStudio && !isTablet && layerPanelOpen && selectedLayer !== null && layerEffectControl === null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null;
+  const layerEditorOverlay = !isTablet && layerPanelOpen && selectedLayer !== null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null
+    ? 160 + insets.bottom + (templatePrecisionVisible ? 82 : 0)
+    : 0;
   // Keep the paper at its normal editing scale while the keyboard is up. The
   // mini-program only lifts the canvas enough to retain the text selection,
   // rather than shrinking it into the remaining keyboard-free rectangle.
-  const canvasBottomOverlay = crop !== null ? 112 : emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : effectSheetOpen ? 286 : drawerOpen ? Math.max(assetDrawerHeight, 520) : 0;
+  const canvasBottomOverlay = crop !== null ? 112 : emboss !== null ? 176 : decorativeBrush !== null ? BRUSH_EDITOR_PANEL_HEIGHT : brushCut !== null ? 112 : textEdit !== null ? TEXT_EDITOR_PANEL_HEIGHT : effectSheetOpen ? 286 : drawerOpen ? Math.max(assetDrawerHeight, 520) : layerEditorOverlay;
   const textCanvasOffset = textEdit !== null && keyboardHeight > 0 ? Math.min(120, Math.round(keyboardHeight * 0.35)) : 0;
   const previewSize = useMemo(() => {
     // The crop session is a focused source-image editor, rather than a paper
@@ -1231,11 +1336,19 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   })();
   const cropPreview = crop === null ? null : { layerId: crop.layer.id, bounds: { x: crop.bounds.x * crop.layer.frame.width, y: crop.bounds.y * crop.layer.frame.height, width: crop.bounds.width * crop.layer.frame.width, height: crop.bounds.height * crop.layer.frame.height } } as CropPreview;
   const canvasRatio = canvasRatioForSize(canvasSize);
+  const canvasLabel = templateStudio || initialTemplate !== null ? aspectRatioLabel(canvasSize) : canvasRatio;
   const changeCanvasRatio = useCallback((ratio: CanvasRatio) => {
+    if (templateStudio) return;
     setRatioPickerOpen(false);
     setLayerEffectControl(null);
     setLayerPanelOpen(false);
     dispatch({ type: 'command', command: { type: 'canvas.size.set', size: CANVAS_RATIO_SIZES[ratio] } });
+  }, [templateStudio]);
+  const changeTemplateStudioCanvasSize = useCallback((size: typeof TEMPLATE_STUDIO_CANVAS_SIZES[number]) => {
+    setRatioPickerOpen(false);
+    setLayerEffectControl(null);
+    setLayerPanelOpen(false);
+    dispatch({ type: 'command', command: { type: 'canvas.size.set', size } });
   }, []);
   const scene = <SkiaEditorScene draft={renderedDraft} viewport={viewport} activeLayer={{ layerId: selectedLayerId, transform: activeTransform, isInteracting: isTransforming }} alignmentGuides={alignmentGuides} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={brushCut === null ? canvasBackgroundPaper : undefined} canvasBackgroundUri={brushCut === null ? canvasBackgroundUri : undefined} showCanvasBackground={crop === null} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={layerPanelOpen && emboss === null && crop === null} surfaceColor="#FAFAF8" straightCutPreview={straightCut as StraightCutPreview | null} brushCutPreview={brushCutPreview} cropPreview={cropPreview} visibilityMaskPreview={emboss === null ? null : { layerId: emboss.layer.id, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds } }} />;
   const dismissLayerEditing = useCallback(() => {
@@ -1247,6 +1360,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const inspector = <Inspector layer={selectedLayer} onToggleEffect={toggleEffect} onTornEdgeChange={updateTornEdge} onCropChange={updateCrop} />;
   const showLockedLayerFeedback = useCallback(() => showHeaderFeedback(t(locale, 'editor.feedback.unlockLayer')), [locale, showHeaderFeedback]);
   const imageLayerToolbar = selectedLayer?.type === 'image' && straightCut === null && emboss === null ? <ImageLayerToolbar bottomInset={insets.bottom} locale={locale} locked={selectedLayer.isLocked} onLockedPress={showLockedLayerFeedback} onDismissAdjustment={() => setLayerEffectControl(null)}
+    onConvertToPhotoSlot={templateStudio && !isTemplateStudioPhotoSlot(selectedLayer) ? () => dispatch({ type: 'command', command: { type: 'image.photo-slot.convert', layerId: selectedLayer.id, asset: templateStudioPhotoSlotAsset(selectedLayer.id) } }) : undefined}
     onUp={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.min(state.present.layers.length - 1, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) + 1) } })}
     onDown={() => dispatch({ type: 'command', command: { type: 'layer.reorder', layerId: selectedLayer.id, toIndex: Math.max(0, state.present.layers.findIndex((layer) => layer.id === selectedLayer.id) - 1) } })}
     onCopy={() => dispatch({ type: 'command', command: { type: 'layer.duplicate', layerId: selectedLayer.id, duplicate: { ...selectedLayer, id: createStableId('layer'), transform: { ...selectedLayer.transform, position: { x: selectedLayer.transform.position.x + 44, y: selectedLayer.transform.position.y + 44 } } } } })}
@@ -1306,9 +1420,11 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, crop !== null && a3Styles.cropEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
-        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void exportPng(); }} onExit={requestExit} onRatioPress={() => setRatioPickerOpen((open) => !open)} ratio={canvasRatio} />}
+        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} exportLabel={templateStudio ? '导出 JSON' : undefined} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void (templateStudio ? exportTemplateStudio() : exportPng()); }} onExit={requestExit} onRatioPress={() => setRatioPickerOpen((open) => !open)} ratio={canvasLabel} />}
         {assetRecoveryFailureCount > 0 && <Pressable accessibilityLabel="Retry unavailable materials" onPress={() => { void recoverWorkspaceProductAssets({ draft: state.present, catalog }).then((recovered) => { setCatalog(recovered.workspace.catalog); setAssetRecoveryFailureCount(recovered.failures.length); }); }} style={{ alignSelf: 'center', backgroundColor: '#6D5041', borderRadius: 14, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>{`${assetRecoveryFailureCount} material${assetRecoveryFailureCount === 1 ? '' : 's'} unavailable · Retry`}</Text></Pressable>}
-        {ratioPickerOpen && <CanvasRatioPicker activeRatio={canvasRatio} onClose={() => setRatioPickerOpen(false)} onSelect={changeCanvasRatio} />}
+        {ratioPickerOpen && (templateStudio
+          ? <TemplateStudioCanvasPicker activeSize={canvasSize} onClose={() => setRatioPickerOpen(false)} onSelect={changeTemplateStudioCanvasSize} />
+          : <CanvasRatioPicker activeRatio={canvasRatio} onClose={() => setRatioPickerOpen(false)} onSelect={changeCanvasRatio} />)}
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -1326,15 +1442,30 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
             {straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && imageSelectionControls}
             {(selectedLayer === null || !layerPanelOpen) && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onBrush={beginDecorativeBrush} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
             {layerPanelOpen && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? brushLayerToolbar ?? (selectedLayer !== null && inspector))}
+            {templatePrecisionVisible && selectedLayer !== null && <TemplatePrecisionPanel key={selectedLayer.id} bottomInset={insets.bottom} layer={selectedLayer} onApply={({ width, height, rotation }) => {
+              if (selectedLayer.isLocked) {
+                showLockedLayerFeedback();
+                return;
+              }
+              dispatch({ type: 'command', command: {
+                type: 'layer.transform',
+                layerId: selectedLayer.id,
+                transform: {
+                  ...selectedLayer.transform,
+                  scale: { x: width / selectedLayer.frame.width, y: height / selectedLayer.frame.height },
+                  rotation: rotation * Math.PI / 180,
+                },
+              } });
+            }} />}
             {layerEffectControl !== null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={() => setLayerEffectControl(null)} style={a3Styles.layerEffectControlBackdrop} />}
             {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} type={layerEffectControl.type} onChange={(value) => { if (layerEffectControl.type === 'opacity') { dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: value } }); return; } const effect = selectedLayer.effects.find((item) => item.type === layerEffectControl.type); if (!effect) return; const spec = layerEffectControlSpec(layerEffectControl.type); dispatch({ type: 'command', command: { type: 'layer.effect.patch', layerId: selectedLayer.id, instanceId: effect.instanceId, params: { ...effect.params, [spec.param]: value } } }); }} />}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <AssetDrawer initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
+              <AssetDrawer additionalPacks={templateStudio ? templateStudioDecorativePacks : undefined} initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
             </>}
             {backgroundDrawerOpen && <>
               <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} />
+              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} templateBackgroundItems={templateStudio ? templateStudioBackgroundItems : undefined} />
             </>}
             {textEdit !== null && selectedLayer?.type === 'text' && <TextEditorPanel key={textEdit.layerId} bottomInset={insets.bottom} keyboardHeight={keyboardHeight} layer={selectedLayer} locale={locale} text={textEdit.text} onCancel={cancelTextEditing} onChangeText={(text) => setTextEdit((current) => current === null ? null : { ...current, text })} onDone={finishTextEditing} onStyleChange={(change) => updateTextStyle(selectedLayer.id, change)} />}
             {cutPaletteOpen && straightCut === null && <Pressable accessibilityLabel={t(locale, 'editor.cut.dismiss')} accessibilityRole="button" onPress={() => setCutPaletteOpen(false)} style={a3Styles.cutPaletteBackdrop} />}
@@ -1381,8 +1512,34 @@ const LayerEffectControlPanel = ({ bottomInset, effect, locale, onChange, opacit
     <View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onResponderGrant={setFromEvent} onResponderMove={setFromEvent} onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} style={a3Styles.layerEffectSlider}><View style={[a3Styles.layerEffectSliderFill, { width: `${ratio * 100}%` }]} /><View pointerEvents="none" style={[a3Styles.layerEffectSliderThumb, { left: `${ratio * 100}%` }]} /></View>
   </View>;
 };
+const precisionValue = (value: number) => String(Math.round(value * 100) / 100);
+/** Development-only Template Studio control. Sizes are rendered dimensions, so
+ * it maps directly to the existing scale transform and needs no new schema. */
+const TemplatePrecisionPanel = ({ bottomInset, layer, onApply }: Readonly<{ bottomInset: number; layer: Draft['layers'][number]; onApply: (values: Readonly<{ width: number; height: number; rotation: number }>) => void }>) => {
+  const [width, setWidth] = useState(() => precisionValue(layer.frame.width * layer.transform.scale.x));
+  const [height, setHeight] = useState(() => precisionValue(layer.frame.height * layer.transform.scale.y));
+  const [rotation, setRotation] = useState(() => precisionValue(layer.transform.rotation * 180 / Math.PI));
+  const apply = () => {
+    const values = { width: Number(width), height: Number(height), rotation: Number(rotation) };
+    if (!Number.isFinite(values.width) || values.width <= 0 || !Number.isFinite(values.height) || values.height <= 0 || !Number.isFinite(values.rotation)) {
+      Alert.alert('请输入有效数值', '宽度和高度必须大于 0；旋转角度可以为负数。');
+      return;
+    }
+    onApply(values);
+  };
+  return <View pointerEvents="box-none" style={[a3Styles.templatePrecisionPanel, { bottom: 160 + bottomInset }]}>
+    <Text style={a3Styles.templatePrecisionLabel}>精确调整</Text>
+    <TextInput accessibilityLabel="Layer visible width" keyboardType="default" onChangeText={setWidth} selectTextOnFocus style={a3Styles.templatePrecisionInput} value={width} />
+    <Text style={a3Styles.templatePrecisionUnit}>W</Text>
+    <TextInput accessibilityLabel="Layer visible height" keyboardType="default" onChangeText={setHeight} selectTextOnFocus style={a3Styles.templatePrecisionInput} value={height} />
+    <Text style={a3Styles.templatePrecisionUnit}>H</Text>
+    <TextInput accessibilityLabel="Layer rotation in degrees" keyboardType="default" onChangeText={setRotation} selectTextOnFocus style={a3Styles.templatePrecisionAngleInput} value={rotation} />
+    <Text style={a3Styles.templatePrecisionUnit}>°</Text>
+    <Pressable accessibilityLabel="Apply precise layer adjustment" accessibilityRole="button" onPress={apply} style={a3Styles.templatePrecisionApply}><Text style={a3Styles.templatePrecisionApplyText}>应用</Text></Pressable>
+  </View>;
+};
 const EditorCanvas = ({ bare = false, bottomOverlay, children, frame, gesture, immersive = false, keyboardOffset, onFrameLayout, onLayout }: { bare?: boolean; bottomOverlay: number; children: React.ReactNode; frame: { width: number; height: number }; gesture: ReturnType<typeof Gesture.Simultaneous> | ReturnType<typeof Gesture.Pan> | ReturnType<typeof Gesture.Exclusive>; immersive?: boolean; keyboardOffset: number; onFrameLayout: (event: LayoutChangeEvent) => void; onLayout: (event: LayoutChangeEvent) => void }) => (
-  <View pointerEvents="box-none" style={[a3Styles.canvasStage, bottomOverlay > 0 && !immersive ? a3Styles.canvasStageWithSheet : { paddingBottom: immersive ? 0 : 104 }]}>
+  <View pointerEvents="box-none" style={[a3Styles.canvasStage, bottomOverlay > 0 && !immersive ? [a3Styles.canvasStageWithSheet, { paddingBottom: bottomOverlay }] : { paddingBottom: immersive ? 0 : 104 }]}>
     <View onLayout={onFrameLayout} style={[a3Styles.canvasFrame, bare && a3Styles.canvasFrameBare, frame, keyboardOffset > 0 && { transform: [{ translateY: -keyboardOffset }] }]}>
       <View onLayout={onLayout} style={a3Styles.canvasMeasurement}>
         <GestureDetector gesture={gesture}>
@@ -1396,6 +1553,15 @@ const CanvasRatioPicker = ({ activeRatio, onClose, onSelect }: Readonly<{ active
   <>
     <Pressable accessibilityLabel="Close canvas ratios" accessibilityRole="button" onPress={onClose} style={a3Styles.ratioPickerBackdrop} />
     <View style={a3Styles.ratioPicker}>{(Object.keys(CANVAS_RATIO_SIZES) as CanvasRatio[]).map((ratio) => <Pressable accessibilityRole="button" key={ratio} onPress={() => onSelect(ratio)} style={[a3Styles.ratioPickerOption, ratio === activeRatio && a3Styles.ratioPickerOptionActive]}><Text style={[a3Styles.ratioPickerLabel, ratio === activeRatio && a3Styles.ratioPickerLabelActive]}>{ratio}</Text></Pressable>)}</View>
+  </>
+);
+const TemplateStudioCanvasPicker = ({ activeSize, onClose, onSelect }: Readonly<{ activeSize: Draft['canvas']['size']; onClose: () => void; onSelect: (size: typeof TEMPLATE_STUDIO_CANVAS_SIZES[number]) => void }>) => (
+  <>
+    <Pressable accessibilityLabel="Close template canvas sizes" accessibilityRole="button" onPress={onClose} style={a3Styles.ratioPickerBackdrop} />
+    <View style={a3Styles.ratioPicker}>{TEMPLATE_STUDIO_CANVAS_SIZES.map((size) => {
+      const active = activeSize.width === size.width && activeSize.height === size.height;
+      return <Pressable accessibilityRole="button" key={size.label} onPress={() => onSelect(size)} style={[a3Styles.ratioPickerOption, active && a3Styles.ratioPickerOptionActive]}><Text style={[a3Styles.ratioPickerLabel, active && a3Styles.ratioPickerLabelActive]}>{size.label}</Text></Pressable>;
+    })}</View>
   </>
 );
 const LayerPanel = ({ layers, selectedLayerId, onSelect }: { layers: Draft['layers']; selectedLayerId: string | null; onSelect: (layerId: string) => void }) => <View style={styles.layerPanel}><Text style={styles.panelLabel}>LAYERS</Text>{[...layers].reverse().map((layer) => <Pressable key={layer.id} onPress={() => onSelect(layer.id)} style={[styles.layerRow, layer.id === selectedLayerId && styles.layerRowSelected]}><View style={[styles.layerSwatch, { backgroundColor: layer.type === 'image' ? '#5E7D79' : layer.type === 'material' ? '#E5AFA1' : '#D6C2A9' }]} /><View><Text style={styles.layerName}>{layer.name ?? layer.type}</Text><Text style={styles.layerType}>{layer.type}</Text></View></Pressable>)}</View>;
@@ -1528,7 +1694,10 @@ const a3Styles = StyleSheet.create({
   cropEditorWorkspace: { backgroundColor: '#FAFAF8' },
   workspaceDismissBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   canvasStage: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingBottom: 104, paddingTop: 8 },
-  canvasStageWithSheet: { justifyContent: 'flex-start', paddingBottom: 0, paddingTop: 8 },
+  // Centre the paper in the remaining visible area above an editor sheet;
+  // the dynamic bottom padding reserves the sheet without pinning the paper
+  // against the header.
+  canvasStageWithSheet: { justifyContent: 'center', paddingBottom: 0, paddingTop: 8 },
   assetDrawerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 9 },
   cutPaletteBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 6 },
   canvasFrame: { backgroundColor: '#FDFDFB', shadowColor: '#111111', shadowOffset: { height: 9, width: 0 }, shadowOpacity: 0.12, shadowRadius: 29 },
@@ -1557,6 +1726,13 @@ const a3Styles = StyleSheet.create({
   layerEffectControlBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0, zIndex: 7 },
   layerEffectControlPanel: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 54, left: 16, paddingHorizontal: 16, position: 'absolute', right: 16, shadowColor: '#111111', shadowOffset: { height: 5, width: 0 }, shadowOpacity: 0.08, shadowRadius: 12, zIndex: 9 },
   layerEffectControlLabel: { color: '#111111', fontSize: 13, fontWeight: '700', marginRight: 14 },
+  templatePrecisionPanel: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, elevation: 20, flexDirection: 'row', height: 66, left: 16, paddingHorizontal: 10, position: 'absolute', right: 16, shadowColor: '#111111', shadowOffset: { height: 5, width: 0 }, shadowOpacity: 0.08, shadowRadius: 12, zIndex: 20 },
+  templatePrecisionLabel: { color: '#111111', fontSize: 11, fontWeight: '700', marginRight: 7 },
+  templatePrecisionInput: { backgroundColor: '#F4F3F0', borderRadius: 8, color: '#111111', fontSize: 13, fontVariant: ['tabular-nums'], height: 34, paddingHorizontal: 7, textAlign: 'right', width: 48, zIndex: 21 },
+  templatePrecisionAngleInput: { backgroundColor: '#F4F3F0', borderRadius: 8, color: '#111111', fontSize: 13, fontVariant: ['tabular-nums'], height: 34, paddingHorizontal: 7, textAlign: 'right', width: 42, zIndex: 21 },
+  templatePrecisionUnit: { color: '#77736D', fontSize: 11, fontWeight: '700', marginHorizontal: 3 },
+  templatePrecisionApply: { alignItems: 'center', backgroundColor: '#111111', borderRadius: 9, height: 34, justifyContent: 'center', marginLeft: 5, paddingHorizontal: 8 },
+  templatePrecisionApplyText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
   layerEffectSlider: { backgroundColor: '#E6E4DF', borderRadius: 4, flex: 1, height: 5 },
   layerEffectSliderFill: { backgroundColor: '#111111', borderRadius: 4, height: 5 },
   layerEffectSliderThumb: { backgroundColor: '#FFFFFF', borderColor: '#111111', borderRadius: 10, borderWidth: 2, height: 20, marginLeft: -10, marginTop: -7.5, position: 'absolute', width: 20 },
@@ -1612,16 +1788,18 @@ export default function App() {
   const [pendingPackItems, setPendingPackItems] = useState<readonly RemotePackItem[]>([]);
   const [restoreSavedDraftId, setRestoreSavedDraftId] = useState<string | null>(null);
   const [initialShowcase, setInitialShowcase] = useState<ShowcaseIntent | null>(null);
+  const [initialTemplate, setInitialTemplate] = useState<TemplateDefinition | null>(null);
+  const [templateStudio, setTemplateStudio] = useState(false);
   const locale = resolveProductLocale();
 
-  if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} restoreSavedDraftId={restoreSavedDraftId} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
+  if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setTemplateStudio(false); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
 
   return (
     <>
     <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTab(nextTab); }}>
       <StatusBar style="dark" />
       {tab === 'create'
-        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} />
+        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setTemplateStudio(false); setInitialTemplate(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={(template) => { setTemplateStudio(false); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(template); setEditorEntry('blank'); setEditing(true); }} onOpenTemplateStudio={__DEV__ ? () => { setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
         : tab === 'assets'
           ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { setPendingPackItems(items); if (assetsEntryContext !== 'editor') setRestoreSavedDraftId(null); setEditorEntry(assetsEntryContext === 'editor' ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
           : tab === 'mine'

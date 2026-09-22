@@ -46,8 +46,21 @@ function compilePack(definition) {
   if (!['sticker', 'tape', 'note', 'mixed', 'frame', 'paper'].includes(definition.category)) fail(`Invalid frontend category for ${definition.id}`);
   if (Array.isArray(definition.remoteAssets)) return compileRemotePack(definition);
   const packDirectory = path.join(packsRoot, definition.sourceDirectory);
-  const revision = definition.revision ?? '1';
-  if (!/^\d+$/.test(revision)) fail(`Invalid revision for ${definition.id}`);
+  // A pack revision describes its browse metadata and visible item set. An
+  // item revision describes the immutable bytes a Draft/template resolves.
+  // They deliberately diverge when one item is replaced: the rest of the
+  // pack must retain their earlier identities.
+  if (definition.packRevision !== undefined && definition.revision !== undefined && definition.packRevision !== definition.revision) {
+    fail(`Conflicting pack revisions for ${definition.id}. Use packRevision only.`);
+  }
+  const packRevision = definition.packRevision ?? definition.revision ?? '1';
+  if (!/^\d+$/.test(packRevision)) fail(`Invalid pack revision for ${definition.id}`);
+  // `revision` is the legacy all-items revision field. New definitions use
+  // `packRevision`, whose default item revision is deliberately 1 so a pack
+  // metadata bump does not silently rewrite every item identity.
+  const defaultItemRevision = definition.defaultItemRevision ?? (definition.packRevision === undefined ? packRevision : '1');
+  if (!/^\d+$/.test(defaultItemRevision)) fail(`Invalid default item revision for ${definition.id}`);
+  if (definition.itemOverrides !== undefined && (!isPlainObject(definition.itemOverrides))) fail(`Invalid itemOverrides for ${definition.id}`);
   // Stable pack IDs are intentionally independent from their R2 object prefix:
   // existing buckets retain the source-directory names visible in the CDN.
   const r2Directory = definition.r2Directory ?? definition.sourceDirectory;
@@ -63,11 +76,22 @@ function compilePack(definition) {
   const buildAsset = (filePath, itemId, role) => {
     const metadata = imageMetadata(filePath);
     const fileName = path.basename(filePath);
+    const override = role === 'item' ? definition.itemOverrides?.[itemId] : undefined;
+    if (override !== undefined && !isPlainObject(override)) fail(`Invalid item override for ${definition.id}/${itemId}`);
+    if (override !== undefined && Object.keys(override).some((key) => key !== 'revision' && key !== 'r2Path')) fail(`Unknown item override field for ${definition.id}/${itemId}`);
+    const itemRevision = role === 'item' ? (override?.revision ?? defaultItemRevision) : packRevision;
+    if (typeof itemRevision !== 'string' || !/^\d+$/.test(itemRevision)) fail(`Invalid item revision for ${definition.id}/${itemId}`);
+    const defaultR2Path = `${r2Directory}/${role === 'cover' ? fileName : `items/${fileName}`}`;
+    const r2Path = role === 'item' ? (override?.r2Path ?? defaultR2Path) : defaultR2Path;
+    if (typeof r2Path !== 'string' || !r2Path || r2Path.startsWith('/') || r2Path.split('/').some((segment) => !segment || segment === '.' || segment === '..')) {
+      fail(`Invalid R2 path for ${definition.id}/${itemId}`);
+    }
+    if (!r2Path.startsWith(`${r2Directory}/`)) fail(`R2 path must remain inside ${r2Directory} for ${definition.id}/${itemId}`);
     return {
       role,
       itemId,
-      reference: { id: `asset://pack/${definition.id}/${itemId}`, kind: 'image', revision },
-      packRevision: revision,
+      reference: { id: `asset://pack/${definition.id}/${itemId}`, kind: 'image', revision: itemRevision },
+      packRevision,
       mimeType: metadata.mimeType,
       byteLength: metadata.byteLength,
       sha256: metadata.sha256,
@@ -75,14 +99,14 @@ function compilePack(definition) {
       // Cloudflare caches query variants independently. The frozen catalog
       // revision makes an object URL immutable for clients even when a legacy
       // unversioned key had previously been cached at the edge.
-      sourceUrl: `${remoteUrl(input.baseUrl, r2Directory, role === 'cover' ? fileName : 'items', role === 'cover' ? null : fileName)}?v=${encodeURIComponent(revision)}`,
-      r2Path: `${r2Directory}/${role === 'cover' ? fileName : `items/${fileName}`}`,
+      sourceUrl: `${remoteUrlForPath(input.baseUrl, r2Path)}?v=${encodeURIComponent(itemRevision)}`,
+      r2Path,
       localPath: path.relative(repoRoot, filePath),
     };
   };
   return {
     id: definition.id,
-    revision,
+    revision: packRevision,
     status: definition.status ?? input.defaultPackStatus,
     name: definition.name,
     category: definition.category,
@@ -98,6 +122,9 @@ function compilePack(definition) {
     items: (() => {
       const itemIds = names.map(assetItemId);
       if (new Set(itemIds).size !== itemIds.length) fail(`Item filenames collapse to duplicate stable IDs in ${definition.id}.`);
+      Object.keys(definition.itemOverrides ?? {}).forEach((itemId) => {
+        if (!itemIds.includes(itemId)) fail(`Item override targets a missing item in ${definition.id}: ${itemId}`);
+      });
       return names.map((name, index) => buildAsset(path.join(itemsDirectory, name), itemIds[index], 'item'));
     })(),
   };
@@ -105,22 +132,28 @@ function compilePack(definition) {
 
 function compileRemotePack(definition) {
   if (!definition.remoteAssets.length) fail(`No remote assets in ${definition.id}.`);
-  const revision = definition.revision ?? '1';
-  if (!/^\d+$/.test(revision)) fail(`Invalid revision for ${definition.id}`);
+  if (definition.packRevision !== undefined && definition.revision !== undefined && definition.packRevision !== definition.revision) {
+    fail(`Conflicting pack revisions for ${definition.id}. Use packRevision only.`);
+  }
+  const packRevision = definition.packRevision ?? definition.revision ?? '1';
+  const defaultItemRevision = definition.defaultItemRevision ?? (definition.packRevision === undefined ? packRevision : '1');
+  if (!/^\d+$/.test(packRevision) || !/^\d+$/.test(defaultItemRevision)) fail(`Invalid revision for ${definition.id}`);
   const items = definition.remoteAssets.map((asset) => {
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(asset.itemId)) fail(`Invalid remote item ID in ${definition.id}: ${asset.itemId}`);
     if (!/^https:\/\//.test(asset.sourceUrl) || !asset.r2Path || asset.r2Path.startsWith('/') || asset.r2Path.includes('..')) fail(`Invalid remote URL or R2 path for ${definition.id}/${asset.itemId}`);
     if (!['image/png', 'image/jpeg'].includes(asset.mimeType) || !Number.isInteger(asset.byteLength) || asset.byteLength <= 0 || !/^[a-f0-9]{64}$/.test(asset.sha256) || !Number.isInteger(asset.pixelSize?.width) || !Number.isInteger(asset.pixelSize?.height) || asset.pixelSize.width <= 0 || asset.pixelSize.height <= 0) fail(`Invalid remote metadata for ${definition.id}/${asset.itemId}`);
+    const itemRevision = asset.revision ?? defaultItemRevision;
+    if (typeof itemRevision !== 'string' || !/^\d+$/.test(itemRevision)) fail(`Invalid remote item revision for ${definition.id}/${asset.itemId}`);
     return {
       role: 'item',
       itemId: asset.itemId,
-      reference: { id: `asset://pack/${definition.id}/${asset.itemId}`, kind: 'image', revision },
-      packRevision: revision,
+      reference: { id: `asset://pack/${definition.id}/${asset.itemId}`, kind: 'image', revision: itemRevision },
+      packRevision,
       mimeType: asset.mimeType,
       byteLength: asset.byteLength,
       sha256: asset.sha256,
       pixelSize: asset.pixelSize,
-      sourceUrl: versionedUrl(asset.sourceUrl, revision),
+      sourceUrl: versionedUrl(asset.sourceUrl, itemRevision),
       r2Path: asset.r2Path,
       localPath: null,
     };
@@ -128,7 +161,7 @@ function compileRemotePack(definition) {
   const coverItem = items[0];
   return {
     id: definition.id,
-    revision,
+    revision: packRevision,
     status: definition.status ?? input.defaultPackStatus,
     name: definition.name,
     category: definition.category,
@@ -137,7 +170,7 @@ function compileRemotePack(definition) {
     visibility: definition.visibility ?? 'visible',
     resolverMode: definition.resolverMode ?? 'strict',
     uploadRequired: false,
-    cover: { ...coverItem, role: 'cover', itemId: 'cover', reference: { id: `asset://pack/${definition.id}/cover`, kind: 'image', revision: input.catalogRevision } },
+    cover: { ...coverItem, role: 'cover', itemId: 'cover', reference: { id: `asset://pack/${definition.id}/cover`, kind: 'image', revision: packRevision } },
     items,
   };
 }
@@ -179,14 +212,17 @@ function jpegSize(bytes, filePath) {
 }
 
 function naturalCompare(a, b) { return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }); }
+function isPlainObject(value) { return typeof value === 'object' && value !== null && !Array.isArray(value); }
 /** Stable IDs must not inherit spaces, parentheses, or underscores from R2 filenames. */
 function assetItemId(fileName) {
-  const base = path.basename(fileName, path.extname(fileName));
+  // Preserve the source's explicit Chinese copy marker before ASCII
+  // normalization. Otherwise `2.png` and `2_副本.png` both collapse to `2`.
+  const base = path.basename(fileName, path.extname(fileName)).replace(/副本/g, 'copy');
   const id = base.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) fail(`Cannot derive stable item ID from ${fileName}.`);
   return id;
 }
-function remoteUrl(baseUrl, ...segments) { return `${baseUrl}/${segments.filter((segment) => segment !== null).map((segment) => encodeURIComponent(segment)).join('/')}`; }
+function remoteUrlForPath(baseUrl, r2Path) { return `${baseUrl}/${r2Path.split('/').map((segment) => encodeURIComponent(segment)).join('/')}`; }
 function versionedUrl(url, revision) { const parsed = new URL(url); parsed.searchParams.set('v', revision); return parsed.toString(); }
 function writeJson(filePath, value) { fs.mkdirSync(path.dirname(filePath), { recursive: true }); fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`); }
 function fail(message) { throw new Error(message); }

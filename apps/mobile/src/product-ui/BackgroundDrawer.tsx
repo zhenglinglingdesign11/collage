@@ -5,7 +5,7 @@ import { productColor } from './tokens';
 import { CachedRemoteImage } from './CachedRemoteImage';
 import { ProceduralItemPreview } from './ProceduralMaterialPreview';
 
-type Category = Readonly<{ id: BackgroundMaterialCategory; label: string }>;
+type Category = Readonly<{ id: BackgroundMaterialCategory | 'template'; label: string }>;
 
 // This is deliberately the same category split as the mini-program. The
 // contents themselves are the Notes paper inventory, not background copies.
@@ -20,17 +20,20 @@ const categories: readonly Category[] = [
 const packsFor = (category: BackgroundMaterialCategory): readonly RemoteAssetPack[] =>
   category === 'plain' || category === 'polka' ? [backgroundPaperPack(category)] : backgroundMaterialPacks[category];
 
-export const BackgroundDrawer = ({ onApply, onClear, onClose, onCustomPolka, onHeightChange }: Readonly<{
+export const BackgroundDrawer = ({ onApply, onClear, onClose, onCustomPolka, onHeightChange, templateBackgroundItems = [] }: Readonly<{
   onApply: (item: RemotePackItem) => void;
   onClear: () => void;
   onClose: () => void;
   onCustomPolka: () => void;
   onHeightChange?: (height: number) => void;
+  /** Development-only opt-in. Product background choices stay unchanged. */
+  templateBackgroundItems?: readonly RemotePackItem[];
 }>) => {
-  const [category, setCategory] = useState<BackgroundMaterialCategory>('plain');
+  const [category, setCategory] = useState<Category['id']>('plain');
+  const availableCategories = useMemo(() => templateBackgroundItems.length > 0 ? [...categories, { id: 'template' as const, label: 'Template' }] : categories, [templateBackgroundItems.length]);
   const visibleItems = useMemo(
-    () => packsFor(category).flatMap((pack) => pack.items.filter((item) => item.action === undefined)),
-    [category],
+    () => category === 'template' ? templateBackgroundItems : packsFor(category).flatMap((pack) => pack.items.filter((item) => item.action === undefined)),
+    [category, templateBackgroundItems],
   );
 
   return <View onLayout={(event: LayoutChangeEvent) => onHeightChange?.(event.nativeEvent.layout.height)} style={styles.sheet}>
@@ -41,14 +44,14 @@ export const BackgroundDrawer = ({ onApply, onClear, onClose, onCustomPolka, onH
     </View>
     <>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories} style={styles.categoriesScroll}>
-        {categories.map((entry) => <Pressable key={entry.id} onPress={() => setCategory(entry.id)} style={[styles.chip, category === entry.id && styles.chipActive]}><Text style={[styles.chipLabel, category === entry.id && styles.chipLabelActive]}>{entry.label}</Text></Pressable>)}
+        {availableCategories.map((entry) => <Pressable key={entry.id} onPress={() => setCategory(entry.id)} style={[styles.chip, category === entry.id && styles.chipActive]}><Text style={[styles.chipLabel, category === entry.id && styles.chipLabelActive]}>{entry.label}</Text></Pressable>)}
       </ScrollView>
       <ScrollView contentContainerStyle={styles.itemGrid} showsVerticalScrollIndicator={false}>
       {category === 'polka' && <Pressable accessibilityLabel="Customize polka background" onPress={onCustomPolka} style={styles.itemTile}>
         <View style={styles.customEntry}><Text style={styles.customEntryPlus}>+</Text><Text style={styles.customEntryLabel}>Custom</Text></View>
       </Pressable>}
       {visibleItems.map((item) => <Pressable key={item.id} accessibilityLabel={`Use ${item.id} as background`} onPress={() => onApply(item)} style={styles.itemTile}>
-        {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} source={item.source} style={styles.itemImage} />}
+        {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
       </Pressable>)}
       </ScrollView>
     </>

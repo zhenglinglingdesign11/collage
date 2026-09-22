@@ -43,6 +43,43 @@ export const shippedProductMaterialPacks: readonly RemoteAssetPack[] = [
   ...remoteAssetPacks.filter((pack) => pack.proceduralPreview !== undefined),
 ];
 
+/** Internal template-only backgrounds are stable Catalog assets, but must not
+ * appear in the customer material browser. Template Studio opts in explicitly. */
+export const templateStudioBackgroundItems: readonly RemoteAssetPack['items'][number][] = shippedProductAssetCatalog.packs
+  .filter((pack) => pack.id === 'template-assets')
+  .flatMap((pack) => pack.items
+    .filter((asset) => asset.itemId.endsWith('-background'))
+    .map((asset) => ({
+      id: `${pack.id}-${asset.itemId}`,
+      reference: asset.reference,
+      source: asset.sourceUrl,
+      width: asset.pixelSize.width,
+      height: asset.pixelSize.height,
+    })));
+
+/** Internal decorative assets are opt-in for Template Studio only. Keeping
+ * them out of `shippedProductMaterialPacks` ensures customers cannot browse
+ * template-owned art in the ordinary creation experience. */
+export const templateStudioDecorativePacks: readonly RemoteAssetPack[] = shippedProductAssetCatalog.packs
+  .filter((pack) => pack.id === 'template-assets')
+  .map((pack): RemoteAssetPack => ({
+    id: pack.id,
+    revision: pack.revision,
+    name: pack.name,
+    category: pack.category,
+    cover: pack.cover.sourceUrl,
+    coverReference: pack.cover.reference,
+    items: pack.items
+      .filter((asset) => !asset.itemId.endsWith('-background'))
+      .map((asset) => ({
+        id: `${pack.id}-${asset.itemId}`,
+        reference: asset.reference,
+        source: asset.sourceUrl,
+        width: asset.pixelSize.width,
+        height: asset.pixelSize.height,
+      })),
+  }));
+
 export const isShippedProductAssetReference = (reference: Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>): boolean => {
   try { shippedProductAssetResolver.descriptorFor(reference); return true; } catch { return false; }
 };

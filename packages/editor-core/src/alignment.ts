@@ -52,14 +52,23 @@ const nearestGuide = (moving: readonly AlignmentGuide[], references: readonly Al
 export const movementAlignmentGuides = (draft: Draft, layerId: string, transform: Transform, threshold: number): readonly AlignmentGuide[] => {
   const layer = draft.layers.find((candidate) => candidate.id === layerId);
   if (layer === undefined || !Number.isFinite(threshold) || threshold < 0) return [];
-  const references = [
-    ...canvasAnchors(draft),
-    ...draft.layers.filter((candidate) => candidate.id !== layerId).flatMap((candidate) => anchorsForLayer(candidate, candidate.transform)),
-  ];
+  const canvas = canvasAnchors(draft);
+  const layerReferences = draft.layers.filter((candidate) => candidate.id !== layerId).flatMap((candidate) => anchorsForLayer(candidate, candidate.transform));
   const anchors = anchorsForLayer(layer, transform);
+  const guideForAxis = (axis: AlignmentGuide['axis']): AlignmentGuide | null => {
+    const moving = anchors.filter((anchor) => anchor.axis === axis);
+    // Canvas centre is an intentional composition target, rather than merely
+    // one competing anchor among many nearby layer edges. Without this
+    // priority a layer adjacent to the centre can hide the canvas crosshair.
+    const centreValue = axis === 'x' ? draft.canvas.size.width / 2 : draft.canvas.size.height / 2;
+    const centre = canvas.find((anchor) => anchor.axis === axis && anchor.value === centreValue);
+    const movingCentre = moving[1];
+    const centred = centre && movingCentre && Math.abs(movingCentre.value - centre.value) <= threshold ? centre : null;
+    return centred ?? nearestGuide(moving, [...canvas, ...layerReferences], threshold);
+  };
   return [
-    nearestGuide(anchors.filter((anchor) => anchor.axis === 'x'), references, threshold),
-    nearestGuide(anchors.filter((anchor) => anchor.axis === 'y'), references, threshold),
+    guideForAxis('x'),
+    guideForAxis('y'),
   ].filter((guide): guide is AlignmentGuide => guide !== null);
 };
 

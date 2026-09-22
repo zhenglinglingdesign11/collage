@@ -4,29 +4,31 @@ import { resolveProductAsset, type ProductAssetId } from './assets';
 import { t, type ProductCopyKey, type ProductLocale } from './localization';
 import { productColor } from './tokens';
 
-export const EditorHeader = ({ actionsDisabled = false, canRedo, canUndo, locale, onActionUnavailable, onExit, onExport, onRatioPress, onRedo, onUndo, ratio }: Readonly<{
+export const EditorHeader = ({ actionsDisabled = false, canRedo, canUndo, exportLabel, locale, onActionUnavailable, onExit, onExport, onRatioPress, onRedo, onUndo, ratio }: Readonly<{
   /** An uncommitted tool session owns its own undo/confirm lifecycle. */
   actionsDisabled?: boolean;
   canRedo: boolean;
   canUndo: boolean;
+  /** Development-only authoring can export JSON rather than a user-facing PNG. */
+  exportLabel?: string;
   locale: ProductLocale;
   /** Keeps session-owned actions visually unavailable while explaining why. */
   onActionUnavailable?: () => void;
   onExit: () => void;
   onExport: () => void;
-  onRatioPress: () => void;
+  onRatioPress?: () => void;
   onRedo: () => void;
   onUndo: () => void;
   ratio: string;
 }>) => (
   <View style={styles.header}>
     <Pressable accessibilityLabel="Back" accessibilityRole="button" hitSlop={8} onPress={onExit} style={[styles.headerIconButton, styles.headerBack]}><BackGlyph /></Pressable>
-    <View pointerEvents="box-none" style={styles.ratioAnchor}><Pressable accessibilityLabel="Canvas ratio" accessibilityRole="button" onPress={onRatioPress} style={styles.ratioPill}><Text style={styles.ratioLabel}>{ratio}</Text></Pressable></View>
+    <View pointerEvents="box-none" style={styles.ratioAnchor}>{onRatioPress ? <Pressable accessibilityLabel="Canvas ratio" accessibilityRole="button" onPress={onRatioPress} style={styles.ratioPill}><Text style={styles.ratioLabel}>{ratio}</Text></Pressable> : <View style={styles.ratioPill}><Text style={styles.ratioLabel}>{ratio}</Text></View>}</View>
     <View style={styles.headerActions}>
       <HeaderAction disabled={actionsDisabled || !canUndo} direction="undo" onDisabledPress={actionsDisabled ? onActionUnavailable : undefined} onPress={onUndo} />
       <HeaderAction disabled={actionsDisabled || !canRedo} direction="redo" onDisabledPress={actionsDisabled ? onActionUnavailable : undefined} onPress={onRedo} />
       <Pressable accessibilityLabel={t(locale, 'editor.export')} accessibilityRole="button" disabled={actionsDisabled && onActionUnavailable === undefined} onPress={actionsDisabled ? onActionUnavailable : onExport} style={[styles.exportButton, actionsDisabled && styles.headerIconDisabled]}>
-        <Text style={styles.exportLabel}>{t(locale, 'editor.export')}</Text>
+        <Text style={styles.exportLabel}>{exportLabel ?? t(locale, 'editor.export')}</Text>
       </Pressable>
     </View>
   </View>
@@ -38,9 +40,10 @@ const HeaderAction = ({ direction, disabled, onDisabledPress, onPress }: Readonl
   </Pressable>
 );
 
-export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onBrush, onEmboss, onMaterial, onPhoto, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onBrush: () => void; onEmboss: () => void; onMaterial: () => void; onPhoto: () => void; onScissors: () => void; onText: () => void }>) => (
+export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, onBrush, onEmboss, onMaterial, onPhoto, onPhotoSlot, onScissors, onText }: Readonly<{ bottomInset?: number; locale: ProductLocale; onBackground: () => void; onBrush: () => void; onEmboss: () => void; onMaterial: () => void; onPhoto: () => void; onPhotoSlot?: () => void; onScissors: () => void; onText: () => void }>) => (
   <View style={[styles.toolbar, { bottom: 24 + bottomInset }]}>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.toolbarTrack}>
+      {onPhotoSlot && <Pressable accessibilityLabel="Add photo slot" accessibilityRole="button" onPress={onPhotoSlot} style={styles.templateSlotTool}><Text style={styles.templateSlotGlyph}>＋</Text><Text style={styles.templateSlotLabel}>照片槽</Text></Pressable>}
       <EditorTool asset="asset://ui/editor/tool/image" compact={locale === 'zh-Hans'} label="editor.tool.image" locale={locale} onPress={onPhoto} />
       <EditorTool asset="asset://ui/editor/tool/material" compact={locale === 'zh-Hans'} label="editor.tool.material" locale={locale} onPress={onMaterial} />
       <EditorTool asset="asset://ui/editor/tool/background" compact={locale === 'zh-Hans'} label="editor.tool.background" locale={locale} onPress={onBackground} wide />
@@ -52,10 +55,12 @@ export const EditorPrimaryToolbar = ({ bottomInset = 0, locale, onBackground, on
   </View>
 );
 
-export const ImageLayerToolbar = ({ bottomInset = 0, locale, locked = false, onCopy, onCorner, onCrop, onDelete, onDismissAdjustment, onDown, onEmboss, onEffects, onLockedPress, onOpacity, onOutline, onScissors, onShadow, onUp }: Readonly<{
+export const ImageLayerToolbar = ({ bottomInset = 0, locale, locked = false, onConvertToPhotoSlot, onCopy, onCorner, onCrop, onDelete, onDismissAdjustment, onDown, onEmboss, onEffects, onLockedPress, onOpacity, onOutline, onScissors, onShadow, onUp }: Readonly<{
   bottomInset?: number;
   locked?: boolean;
   locale: ProductLocale;
+  /** Development-only template action; absent from the product editor. */
+  onConvertToPhotoSlot?: () => void;
   onCopy: () => void;
   onCorner: () => void;
   onCrop: () => void;
@@ -73,7 +78,7 @@ export const ImageLayerToolbar = ({ bottomInset = 0, locale, locked = false, onC
 }>) => (
   <View style={[styles.layerToolbar, { height: 160 + bottomInset, paddingBottom: bottomInset }]}>
     <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={onDismissAdjustment} style={styles.layerToolbarDismissArea} />
-    <View style={styles.layerToolbarHead}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text></View>
+    <View style={[styles.layerToolbarHead, onConvertToPhotoSlot && styles.textLayerToolbarHead]}><Text style={styles.layerToolbarTitle}>{t(locale, 'editor.layer.selected')}</Text>{onConvertToPhotoSlot && <Pressable accessibilityLabel="Convert selected image to photo slot" hitSlop={8} onPress={locked ? onLockedPress : onConvertToPhotoSlot}><Text style={styles.textEditLink}>转为照片槽</Text></Pressable>}</View>
     <View style={styles.layerActions}>
       <View style={styles.layerActionRow}>
         <LayerAction asset="asset://ui/editor/layer/move-up" label="editor.layer.up" locale={locale} onPress={onUp} />
@@ -248,6 +253,9 @@ const styles = StyleSheet.create({
   toolIcon: { height: 41, opacity: 0.72, width: 41 },
   toolIconSmall: { height: 28, width: 28 },
   toolLabel: { color: productColor.secondaryText, fontSize: 12, lineHeight: 16, marginTop: -3, textAlign: 'center', width: '100%' },
+  templateSlotTool: { alignItems: 'center', height: 54, justifyContent: 'center', width: 54 },
+  templateSlotGlyph: { color: productColor.ink, fontSize: 25, fontWeight: '300', lineHeight: 29 },
+  templateSlotLabel: { color: productColor.secondaryText, fontSize: 11, lineHeight: 15, marginTop: -1 },
   layerToolbar: { backgroundColor: productColor.surface, borderTopColor: productColor.divider, borderTopWidth: StyleSheet.hairlineWidth, borderTopLeftRadius: 18, borderTopRightRadius: 18, bottom: 0, height: 160, left: 0, position: 'absolute', right: 0, shadowColor: productColor.ink, shadowOffset: { height: -8, width: 0 }, shadowOpacity: 0.06, shadowRadius: 22, zIndex: 8 },
   layerToolbarDismissArea: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
   layerToolbarHead: { height: 34, justifyContent: 'center', paddingHorizontal: 20, zIndex: 1 },
