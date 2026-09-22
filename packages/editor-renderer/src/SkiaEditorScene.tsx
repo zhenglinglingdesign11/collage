@@ -537,15 +537,20 @@ const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, pr
     // Match the home add-photo control: a fixed circular chip with the system
     // light-weight plus glyph. It is UI chrome, not artwork that scales with
     // the photo frame.
-    const glyphSize = 60;
+    // Photo slots are commonly shown on a scaled-down editor canvas. Use a
+    // deliberately prominent affordance so both basic layouts and recipes
+    // retain a clear upload target at every canvas ratio.
+    const glyphSize = 96;
     const glyphX = contentFrame.x + contentFrame.width / 2;
     const glyphY = contentFrame.y + contentFrame.height / 2;
-    const plusFont = matchFont({ fontFamily: 'System', fontSize: 38, fontWeight: '300' });
+    const plusFont = matchFont({ fontFamily: 'System', fontSize: 60, fontWeight: '300' });
+    const showSlotOutline = layer.visibilityMask === undefined;
     // A calibrated slot may intentionally use non-uniform scale. Counter it
     // only for this UI glyph, so the slot keeps its geometry while the icon
     // remains an undistorted 1:1 circle.
     const iconScale = { x: 1 / Math.max(Math.abs(layer.transform.scale.x), 0.001), y: 1 / Math.max(Math.abs(layer.transform.scale.y), 0.001) };
-    return <Group><Rect x={contentFrame.x} y={contentFrame.y} width={contentFrame.width} height={contentFrame.height} color="#E6E7E9" /><Group transform={[{ scaleX: iconScale.x }, { scaleY: iconScale.y }]} origin={{ x: glyphX, y: glyphY }}><Circle cx={glyphX} cy={glyphY} r={glyphSize / 2} color="#111111" /><Text x={glyphX - plusFont.measureText('+').width / 2} y={glyphY + 12} text="+" font={plusFont} color="#FFFFFF" /></Group></Group>;
+    const borderInset = 12;
+    return <Group><Rect x={contentFrame.x} y={contentFrame.y} width={contentFrame.width} height={contentFrame.height} color="#E6E7E9" />{showSlotOutline && <Rect x={contentFrame.x + borderInset} y={contentFrame.y + borderInset} width={Math.max(0, contentFrame.width - borderInset * 2)} height={Math.max(0, contentFrame.height - borderInset * 2)} color="#9D988E" style="stroke" strokeWidth={5}><DashPathEffect intervals={[22, 16]} /></Rect>}<Group transform={[{ scaleX: iconScale.x }, { scaleY: iconScale.y }]} origin={{ x: glyphX, y: glyphY }}><Circle cx={glyphX} cy={glyphY} r={glyphSize / 2} color="#111111" /><Text x={glyphX - plusFont.measureText('+').width / 2} y={glyphY + 19} text="+" font={plusFont} color="#FFFFFF" /></Group></Group>;
   }
   // A cut produces new fragment keys that remount this component. During the
   // one-frame `useImage` reload, a resolved URI is still a real image—not a

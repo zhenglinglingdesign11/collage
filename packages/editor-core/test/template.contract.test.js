@@ -61,6 +61,17 @@ test('P1-T01 parses a valid untrusted TemplateDefinition before instantiation', 
   if (result.ok) assert.equal(result.template.id, 'template://composition-test/play-pop');
 });
 
+test('P1-T01 preserves a shaped photo slot through parsing and instantiation', () => {
+  const template = sample('heart-layout', 'Heart layout', 1);
+  const visibilityMask = { type: 'shape', shape: 'heart', bounds: { x: 0, y: 0, width: 640, height: 760 } };
+  const shaped = { ...template, photoSlots: [{ ...template.photoSlots[0], visibilityMask }], materialSlots: [], requiredCapabilities: ['image.replace', 'image.crop'] };
+  const parsed = core.parseTemplateDefinition(shaped);
+  assert.equal(parsed.ok, true);
+  let sequence = 0;
+  const instance = core.instantiateTemplateDefinition(shaped, { now: '2026-09-12T00:00:00.000Z', projectId: 'heart-layout-project', createId: (prefix) => `${prefix}-${++sequence}` });
+  assert.deepEqual(instance.draft.layers[0].visibilityMask, visibilityMask);
+});
+
 test('P1-T01 rejects unknown template fields, including nested slot fields', () => {
   const template = sample('soft-archive', 'Soft Archive', 1);
   const result = core.parseTemplateDefinition({

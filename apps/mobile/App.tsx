@@ -13,6 +13,8 @@ import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPr
 import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
+import { TemplateCatalogScreen } from './src/product-ui/TemplateCatalogScreen';
+import { basicLayoutTemplate, basicLayouts, type BasicLayout, type BasicLayoutId } from './src/basicLayouts';
 import { MineHome } from './src/product-ui/MineHome';
 import { NativeRenderParityProbe } from './src/NativeRenderParityProbe';
 import { RemoteAssetVerificationProbe } from './src/RemoteAssetVerificationProbe';
@@ -186,13 +188,13 @@ const editorReducer = (state: EditorState, action: EditorAction): EditorState =>
   return { past: [...state.past, state.present], present: result.draft, future: [] };
 };
 
-const EditorWorkspace = (props: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => (
+const EditorWorkspace = (props: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
   </SafeAreaProvider>
 );
 
-const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets }: { initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void }) => {
+const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets, onStartTemplate }: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const locale = resolveProductLocale();
@@ -208,6 +210,13 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     future: [],
     };
   });
+  // A layout's slot IDs survive photo replacement, while its generated asset
+  // references do not. Keep this session-only map so ratio changes can reflow
+  // the same user-photo layers without persisting template metadata in Draft.
+  const basicLayoutSlotLayerIds = useRef<Readonly<Record<string, string>>>(basicLayoutId === null || initialTemplate === null ? {} : Object.fromEntries(initialTemplate.photoSlots.flatMap((slot) => {
+    const layer = state.present.layers.find((candidate) => candidate.type === 'image' && candidate.asset.id.endsWith(`/${slot.id}`));
+    return layer ? [[slot.id, layer.id]] : [];
+  })));
   const [catalog, setCatalog] = useState<AssetCatalog>(() => emptyAssetCatalog());
   const initialTemplateDraftRef = useRef<Draft | null>(initialTemplate ? state.present : null);
   const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
@@ -218,6 +227,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
   const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
   const [canvasFrame, setCanvasFrame] = useState({ x: 0, y: 0 });
   const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
+  const [templateCatalogOpen, setTemplateCatalogOpen] = useState(false);
   const [backgroundDrawerOpen, setBackgroundDrawerOpen] = useState(false);
   const [effectSheetOpen, setEffectSheetOpen] = useState(false);
   const [effectSheetBaseEffects, setEffectSheetBaseEffects] = useState<readonly Effect[] | null>(null);
@@ -1119,10 +1129,37 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     }
   }, [commitImportedPhotos]);
   templatePhotoPickerRef.current = (layerId) => { void pickPhoto('library', layerId); };
+  const startTemplateFromCatalog = useCallback((template: TemplateDefinition) => {
+    const start = () => onStartTemplate(template);
+    const showCreatePrompt = () => Alert.alert('Create a new work?', 'This template starts a new work. Your current canvas will remain only if you save it as a draft.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Create new', style: 'destructive', onPress: start },
+    ]);
+    if (templateStudio || state.past.length === 0) {
+      showCreatePrompt();
+      return;
+    }
+    Alert.alert('Save current draft?', 'This template starts a new work. Save your edited canvas first so you can continue it later.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Don’t save', style: 'destructive', onPress: start },
+      { text: 'Save draft', onPress: () => { void saveWorkspace({ draft: state.present, catalog }, { markAsSaved: true }).then(start).catch(() => Alert.alert('Could not save draft', 'Please check available storage and try again.')); } },
+    ]);
+  }, [catalog, onStartTemplate, state.past.length, state.present, templateStudio]);
+  const insertBasicLayoutFromCatalog = useCallback((layout: BasicLayout) => {
+    // Layout presets are tools, not creations: add their upload slots to this
+    // Draft at its current dimensions and leave every existing layer intact.
+    // The generated slot IDs are unique per instantiation, making the action
+    // fully undoable one layer at a time with the ordinary editor history.
+    const instance = instantiateTemplateDefinition(basicLayoutTemplate(layout, canvasSize), { now: new Date().toISOString() });
+    instance.draft.layers.forEach((layer, index) => {
+      dispatch({ type: 'command', command: { type: 'layer.add', layer, select: index === instance.draft.layers.length - 1 } });
+    });
+    setTemplateCatalogOpen(false);
+  }, [canvasSize]);
   const openPhotoSource = useCallback(() => {
     const choose = (source: 'camera' | 'library' | 'collage') => {
       if (source === 'collage') {
-        Alert.alert('Collage layout', 'Collage layouts are the next image workflow to be connected.');
+        setTemplateCatalogOpen(true);
         return;
       }
       void pickPhoto(source);
@@ -1138,6 +1175,7 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     Alert.alert(t(locale, 'editor.tool.image'), undefined, [
       { text: t(locale, 'editor.source.library'), onPress: () => choose('library') },
       { text: t(locale, 'editor.source.camera'), onPress: () => choose('camera') },
+      { text: t(locale, 'editor.source.collage'), onPress: () => choose('collage') },
       { text: t(locale, 'editor.source.cancel'), style: 'cancel' },
     ]);
   }, [locale, pickPhoto]);
@@ -1342,8 +1380,18 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     setRatioPickerOpen(false);
     setLayerEffectControl(null);
     setLayerPanelOpen(false);
-    dispatch({ type: 'command', command: { type: 'canvas.size.set', size: CANVAS_RATIO_SIZES[ratio] } });
-  }, [templateStudio]);
+    const size = CANVAS_RATIO_SIZES[ratio];
+    const basicLayout = basicLayoutId === null ? undefined : basicLayouts.find((layout) => layout.id === basicLayoutId);
+    if (basicLayout === undefined) {
+      dispatch({ type: 'command', command: { type: 'canvas.size.set', size } });
+      return;
+    }
+    const slots = basicLayoutTemplate(basicLayout, size).photoSlots.flatMap((slot) => {
+      const layerId = basicLayoutSlotLayerIds.current[slot.id];
+      return layerId ? [{ layerId, frame: slot.frame, transform: slot.transform }] : [];
+    });
+    dispatch({ type: 'command', command: { type: 'canvas.layout.set', size, slots } });
+  }, [basicLayoutId, basicLayoutSlotLayerIds, templateStudio]);
   const changeTemplateStudioCanvasSize = useCallback((size: typeof TEMPLATE_STUDIO_CANVAS_SIZES[number]) => {
     setRatioPickerOpen(false);
     setLayerEffectControl(null);
@@ -1416,6 +1464,14 @@ const EditorWorkspaceContent = ({ initialEntry, initialPackItems = [], initialSh
     onToggleLock={() => dispatch({ type: 'command', command: { type: 'layer.lock.set', layerId: selectedLayer.id, isLocked: !selectedLayer.isLocked } })}
     replaceStyle={{ left: replaceControlPoint!.x - 14, top: replaceControlPoint!.y - 14 }}
   /> : null;
+
+  if (templateCatalogOpen) return <TemplateCatalogScreen
+    locale={locale}
+    onBack={() => setTemplateCatalogOpen(false)}
+    onOpenBasicLayout={insertBasicLayoutFromCatalog}
+    onOpenTemplate={(template) => startTemplateFromCatalog(template)}
+    withTopSafeArea
+  />;
 
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
@@ -1789,21 +1845,39 @@ export default function App() {
   const [restoreSavedDraftId, setRestoreSavedDraftId] = useState<string | null>(null);
   const [initialShowcase, setInitialShowcase] = useState<ShowcaseIntent | null>(null);
   const [initialTemplate, setInitialTemplate] = useState<TemplateDefinition | null>(null);
+  const [initialBasicLayoutId, setInitialBasicLayoutId] = useState<BasicLayoutId | null>(null);
   const [templateStudio, setTemplateStudio] = useState(false);
+  const [templateCatalogOpen, setTemplateCatalogOpen] = useState(false);
+  const [editorSessionKey, setEditorSessionKey] = useState(0);
   const locale = resolveProductLocale();
 
-  if (editing) return <EditorWorkspace initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setTemplateStudio(false); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} />;
+  const openTemplate = (template: TemplateDefinition, basicLayoutId: BasicLayoutId | null = null) => {
+    setTemplateCatalogOpen(false);
+    setTemplateStudio(false);
+    setRestoreSavedDraftId(null);
+    setInitialShowcase(null);
+    setInitialTemplate(template);
+    setInitialBasicLayoutId(basicLayoutId);
+    setEditorEntry('blank');
+    setEditorSessionKey((key) => key + 1);
+    setEditing(true);
+  };
+  const openBasicLayout = (layout: BasicLayout) => openTemplate(basicLayoutTemplate(layout), layout.id);
+
+  if (editing) return <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartTemplate={openTemplate} />;
 
   return (
     <>
-    <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTab(nextTab); }}>
+    <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
       <StatusBar style="dark" />
-      {tab === 'create'
-        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setTemplateStudio(false); setInitialTemplate(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={(template) => { setTemplateStudio(false); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(template); setEditorEntry('blank'); setEditing(true); }} onOpenTemplateStudio={__DEV__ ? () => { setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
+      {templateCatalogOpen
+        ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenTemplate={openTemplate} />
+        : tab === 'create'
+        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
         : tab === 'assets'
           ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { setPendingPackItems(items); if (assetsEntryContext !== 'editor') setRestoreSavedDraftId(null); setEditorEntry(assetsEntryContext === 'editor' ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
           : tab === 'mine'
-            ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setEditorEntry('restore'); setEditing(true); }} />
+            ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setEditorEntry('restore'); setEditing(true); }} />
           : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
     </ProductAppShell>
     {showDevelopmentProbes && <NativeRenderParityProbe />}

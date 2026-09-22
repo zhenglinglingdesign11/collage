@@ -43,6 +43,8 @@ export type EditorCommand =
   | Readonly<{ type: 'image.photo-slot.convert'; layerId: string; asset: AssetReference }>
   | Readonly<{ type: 'canvas.background.set'; background: string; asset: AssetReference | null }>
   | Readonly<{ type: 'canvas.size.set'; size: Size }>
+  /** Atomically changes a canvas and reflows its image slots into the new bounds. */
+  | Readonly<{ type: 'canvas.layout.set'; size: Size; slots: readonly Readonly<{ layerId: string; frame: Size; transform: Transform }>[]}>
   | Readonly<{ type: 'layer.select'; layerId: string | null }>;
 
 export type CommandResult = Readonly<{ draft: Draft; changed: boolean }>;
@@ -344,6 +346,28 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
           },
         })),
       });
+    }
+    case 'canvas.layout.set': {
+      if (!Number.isFinite(command.size.width) || !Number.isFinite(command.size.height) || command.size.width <= 0 || command.size.height <= 0) return { draft, changed: false };
+      const seen = new Set<string>();
+      const updates = new Map<string, Readonly<{ frame: Size; transform: Transform }>>();
+      for (const slot of command.slots) {
+        const layer = draft.layers.find((candidate) => candidate.id === slot.layerId);
+        if (seen.has(slot.layerId) || layer?.type !== 'image' || !Number.isFinite(slot.frame.width) || !Number.isFinite(slot.frame.height) || slot.frame.width <= 0 || slot.frame.height <= 0
+          || !Number.isFinite(slot.transform.position.x) || !Number.isFinite(slot.transform.position.y) || !Number.isFinite(slot.transform.scale.x) || !Number.isFinite(slot.transform.scale.y) || !Number.isFinite(slot.transform.rotation)) return { draft, changed: false };
+        seen.add(slot.layerId);
+        updates.set(slot.layerId, { frame: slot.frame, transform: slot.transform });
+      }
+      if (updates.size === 0) return { draft, changed: false };
+      const next: Draft = {
+        ...draft,
+        canvas: { ...draft.canvas, size: command.size },
+        layers: draft.layers.map((layer) => {
+          const update = updates.get(layer.id);
+          return update && layer.type === 'image' ? { ...layer, frame: { ...update.frame }, transform: { position: { ...update.transform.position }, scale: { ...update.transform.scale }, rotation: update.transform.rotation } } : layer;
+        }),
+      };
+      return validateDraft(next).length > 0 ? { draft, changed: false } : touch(next);
     }
     case 'layer.select':
       if (command.layerId !== null && !draft.layers.some((layer) => layer.id === command.layerId)) return { draft, changed: false };

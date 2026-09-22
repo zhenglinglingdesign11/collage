@@ -113,6 +113,27 @@ test('canvas size changes retain every layer at the paper centre', () => {
   assert.deepEqual(resized.layers[0].transform.position, { x: 580, y: 520 });
 });
 
+test('canvas layout reflow changes the canvas and photo slots atomically', () => {
+  const draft = {
+    ...makeDraft(),
+    layers: [makeImage('left'), makeImage('right')],
+    selectedLayerId: 'left',
+  };
+  const reflowed = run(draft, {
+    type: 'canvas.layout.set',
+    size: { width: 1800, height: 1800 },
+    slots: [
+      { layerId: 'left', frame: { width: 900, height: 1800 }, transform: core.identityTransform() },
+      { layerId: 'right', frame: { width: 900, height: 1800 }, transform: { ...core.identityTransform(), position: { x: 900, y: 0 } } },
+    ],
+  });
+  assert.deepEqual(reflowed.canvas.size, { width: 1800, height: 1800 });
+  assert.deepEqual(reflowed.layers.map((layer) => ({ id: layer.id, frame: layer.frame, position: layer.transform.position })), [
+    { id: 'left', frame: { width: 900, height: 1800 }, position: { x: 0, y: 0 } },
+    { id: 'right', frame: { width: 900, height: 1800 }, position: { x: 900, y: 0 } },
+  ]);
+});
+
 const emboss = (draft, layerId, suffix) => run(draft, {
   type: 'image.mask.split',
   layerId,

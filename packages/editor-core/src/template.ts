@@ -1,10 +1,10 @@
 import { applyCommand } from './commands';
-import { createDraft, type AssetReference, type Draft, type Effect, type ImageLayer, type Layer, type TextLayer } from './document';
+import { createDraft, type AssetReference, type Draft, type Effect, type ImageLayer, type Layer, type TextLayer, type VisibilityMask } from './document';
 import type { Rect, Size, Transform } from './geometry';
 import { isFiniteSize } from './geometry';
 import { effectDefinitionFor } from './effects';
 import { createStableId } from './identity';
-import { isStableAssetReference, type ValidationIssue, validateDraft } from './validation';
+import { isStableAssetReference, isValidVisibilityMask, type ValidationIssue, validateDraft } from './validation';
 
 /**
  * This is deliberately separate from a Draft. A template describes how to
@@ -44,6 +44,8 @@ export type TemplatePhotoSlot = SlotLayerBase & Readonly<{
   id: string;
   required: boolean;
   crop: Rect;
+  /** Optional, portable preset crop for a non-rectangular photo slot. */
+  visibilityMask?: Extract<VisibilityMask, { type: 'shape' }>;
 }>;
 
 /** The font reference closes the otherwise implicit font dependency. */
@@ -217,7 +219,7 @@ export const parseTemplateDefinition = (raw: unknown): TemplateParseResult => {
   const checkSlot = (slot: unknown, path: string, type: 'photo' | 'text' | 'material'): void => {
     if (!requireRecord(slot, path, issues)) return;
     const common = ['type', 'id', 'name', 'required', 'frame', 'transform', 'opacity', 'isLocked', 'effects'];
-    const specific = type === 'photo' ? ['crop'] : type === 'text' ? ['defaultText', 'fontId', 'fontVariantId', 'fontReference', 'fontSize', 'color', 'textAlign', 'backgroundColor'] : ['initialAsset', 'replacementPackId', 'allowedItemIds'];
+    const specific = type === 'photo' ? ['crop', 'visibilityMask'] : type === 'text' ? ['defaultText', 'fontId', 'fontVariantId', 'fontReference', 'fontSize', 'color', 'textAlign', 'backgroundColor'] : ['initialAsset', 'replacementPackId', 'allowedItemIds'];
     rejectUnknownKeys(slot, [...common, ...specific], path, issues);
     if (slot.type !== type) push(issues, `${path}.type`, `Must be ${type}.`);
     if (typeof slot.id !== 'string') push(issues, `${path}.id`, 'Must be a string.');
@@ -244,6 +246,19 @@ export const parseTemplateDefinition = (raw: unknown): TemplateParseResult => {
       if (requireRecord(crop, `${path}.crop`, issues)) {
         rejectUnknownKeys(crop, ['x', 'y', 'width', 'height'], `${path}.crop`, issues);
         ['x', 'y', 'width', 'height'].forEach((key) => { if (typeof crop[key] !== 'number') push(issues, `${path}.crop.${key}`, 'Must be a number.'); });
+      }
+      if (slot.visibilityMask !== undefined) {
+        const mask = slot.visibilityMask;
+        if (requireRecord(mask, `${path}.visibilityMask`, issues)) {
+          rejectUnknownKeys(mask, ['type', 'shape', 'bounds'], `${path}.visibilityMask`, issues);
+          if (mask.type !== 'shape') push(issues, `${path}.visibilityMask.type`, 'Photo slot masks must be shape masks.');
+          if (typeof mask.shape !== 'string') push(issues, `${path}.visibilityMask.shape`, 'Must be a supported shape identifier.');
+          const bounds = mask.bounds;
+          if (requireRecord(bounds, `${path}.visibilityMask.bounds`, issues)) {
+            rejectUnknownKeys(bounds, ['x', 'y', 'width', 'height'], `${path}.visibilityMask.bounds`, issues);
+            ['x', 'y', 'width', 'height'].forEach((key) => { if (typeof bounds[key] !== 'number') push(issues, `${path}.visibilityMask.bounds.${key}`, 'Must be a number.'); });
+          }
+        }
       }
     }
     if (!Array.isArray(slot.effects)) push(issues, `${path}.effects`, 'Must be an array.');
@@ -348,6 +363,7 @@ export const validateTemplateDefinition = (template: TemplateDefinition): readon
     validateSlotLayerBase(slot, path, issues);
     const crop = slot.crop;
     if (![crop.x, crop.y, crop.width, crop.height].every(Number.isFinite) || crop.x < 0 || crop.y < 0 || crop.width <= 0 || crop.height <= 0 || crop.x + crop.width > 1 || crop.y + crop.height > 1) push(issues, `${path}.crop`, 'Photo slot crop must be normalized within the source image.');
+    if (slot.visibilityMask && !isValidVisibilityMask(slot.visibilityMask, slot.frame)) push(issues, `${path}.visibilityMask`, 'Photo slot masks must be finite shape bounds within the slot frame.');
   });
   template.textSlots.forEach((slot, index) => {
     const path = `textSlots[${index}]`;
@@ -507,6 +523,7 @@ export const instantiateTemplateDefinition = (template: TemplateDefinition, opti
       asset: { id: `generated://template-photo-slot/${projectId}/${slot.id}`, kind: 'image', revision: template.revision },
       frame: { ...slot.frame },
       crop: { ...slot.crop },
+      ...(slot.visibilityMask ? { visibilityMask: { type: 'shape', shape: slot.visibilityMask.shape, bounds: { ...slot.visibilityMask.bounds } } } : {}),
       transform: copiedTransform(slot.transform),
       opacity: slot.opacity,
       isLocked: slot.isLocked,

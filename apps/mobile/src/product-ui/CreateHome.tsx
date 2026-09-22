@@ -25,11 +25,12 @@ const LACE_FRAME_SOURCES = {
 // China; all other builds use the US English feed by default.
 const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? 'cn' : 'us';
 
-export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateStudio }: Readonly<{
+export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
   locale: ProductLocale;
   onOpenAssets: () => void;
   onOpenEditor: (entry: CreateEntry, savedDraftId?: string, showcase?: ShowcaseIntent) => void;
   onOpenTemplate: (template: TemplateDefinition) => void;
+  onOpenTemplateCatalog: () => void;
   /** Development-only. Omitted by every release build. */
   onOpenTemplateStudio?: () => void;
 }>) => {
@@ -112,7 +113,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
 
       {onOpenTemplateStudio && <Pressable accessibilityLabel="Open Template Studio" accessibilityRole="button" onPress={onOpenTemplateStudio} style={styles.templateStudioEntry}><Text style={styles.templateStudioEyebrow}>DEVELOPMENT ONLY</Text><Text style={styles.templateStudioLabel}>Template Studio</Text><Text style={styles.templateStudioHint}>Create and export template authoring JSON</Text></Pressable>}
 
-      <SectionTitle>Templates</SectionTitle>
+      <SectionHeader actionLabel={t(locale, 'templateCatalog.viewAll')} onAction={onOpenTemplateCatalog} title={t(locale, 'templateCatalog.featured')} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateTrack}>
         {localTemplateCatalog.map((template) => <TemplateCard key={template.id} template={template} onPress={() => onOpenTemplate(template)} />)}
       </ScrollView>
@@ -136,11 +137,17 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
 
 const SectionTitle = ({ children }: Readonly<{ children: string }>) => <Text style={styles.sectionTitle}>{children}</Text>;
 
+const SectionHeader = ({ actionLabel, onAction, title }: Readonly<{ actionLabel: string; onAction: () => void; title: string }>) => <View style={styles.sectionHeader}>
+  <Text style={styles.sectionHeaderTitle}>{title}</Text>
+  <Pressable accessibilityLabel={actionLabel} accessibilityRole="button" hitSlop={8} onPress={onAction} style={styles.sectionAction}><Text style={styles.sectionActionText}>{actionLabel}</Text></Pressable>
+</View>;
+
 const TemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
   const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
   return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.templateCard}>
     {preview ? <CachedRemoteImage cacheKey={`template-preview-${template.id}`} reference={template.preview as Required<typeof template.preview>} source={preview.sourceUrl} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
-    <View style={styles.templateTitle}><Text numberOfLines={1} style={styles.templateTitleText}>{template.name}</Text><Text style={styles.templateUseText}>Use template</Text></View>
+    <ImageCardTitleScrim />
+    <View pointerEvents="none" style={styles.templateTitle}><Text numberOfLines={1} style={styles.templateTitleText}>{template.name}</Text></View>
   </Pressable>;
 };
 
@@ -211,7 +218,7 @@ const ShowcaseRow = ({ items, onPress, previewUris }: Readonly<{ items: readonly
     {items.map((item) => (
       <Pressable accessibilityRole="button" accessibilityLabel={item.title} key={item.id} onPress={() => onPress(item)} style={styles.showcaseCard}>
         {item.imageSrc ? <ShowcaseImagePreview uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
-        {!item.hideTitle && <><ShowcaseTitleScrim /><View style={styles.showcaseTitle}><Text numberOfLines={1} style={styles.showcaseTitleText}>{item.title}</Text></View></>}
+        {!item.hideTitle && <><ImageCardTitleScrim /><View style={styles.showcaseTitle}><Text numberOfLines={1} style={styles.showcaseTitleText}>{item.title}</Text></View></>}
       </Pressable>
     ))}
   </ScrollView>
@@ -226,7 +233,7 @@ const HomeBackgroundPreview = ({ item }: Readonly<{ item: ReturnType<typeof back
   ? <ProceduralPaperPreview paper={item.paper} patternImageUri={item.paper.imageAsset ? homePolkaPatternUris[item.paper.imageAsset] : undefined} size={{ width: 123, height: 150 }} />
   : <View style={styles.backgroundPreview} />;
 const ShowcaseImagePreview = ({ uri }: Readonly<{ uri: string | undefined }>) => uri ? <Image source={{ uri }} style={styles.showcaseImage} /> : <View style={styles.showcaseImagePlaceholder}><View style={styles.showcaseImagePlaceholderMark} /></View>;
-const ShowcaseTitleScrim = () => <Canvas pointerEvents="none" style={styles.showcaseTitleScrim}><Rect height={52} width={123} x={0} y={0}><LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.15)']} end={vec(0, 52)} start={vec(0, 0)} /></Rect></Canvas>;
+const ImageCardTitleScrim = () => <Canvas pointerEvents="none" style={styles.imageCardTitleScrim}><Rect height={52} width={123} x={0} y={0}><LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.15)']} end={vec(0, 52)} start={vec(0, 0)} /></Rect></Canvas>;
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 28, paddingHorizontal: productSpace.page, paddingTop: 18 },
@@ -244,12 +251,11 @@ const styles = StyleSheet.create({
   quickCard: { alignItems: 'center', backgroundColor: productColor.surface, borderColor: productColor.border, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, flex: 1, flexDirection: 'row', gap: 9, height: 63, paddingHorizontal: 11, shadowColor: productColor.ink, shadowOffset: { height: 1, width: 0 }, shadowOpacity: 0.06, shadowRadius: 8 },
   quickLabel: { color: productColor.ink, flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
   templateTrack: { gap: 12, paddingRight: productSpace.page },
-  templateCard: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.08)', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, height: 176, overflow: 'hidden', shadowColor: productColor.ink, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.06, shadowRadius: 10, width: 118 },
-  templatePreview: { height: 134, resizeMode: 'cover', width: '100%' },
-  templatePreviewFallback: { backgroundColor: '#F2F0EB', height: 134, width: '100%' },
-  templateTitle: { paddingHorizontal: 9, paddingTop: 5 },
-  templateTitleText: { color: productColor.ink, fontSize: 11, fontWeight: '700', lineHeight: 15 },
-  templateUseText: { color: productColor.secondaryText, fontSize: 10, fontWeight: '600', lineHeight: 13 },
+  templateCard: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.06)', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, height: 150, overflow: 'hidden', shadowColor: productColor.ink, shadowOffset: { height: 3, width: 0 }, shadowOpacity: 0.06, shadowRadius: 10, width: 123 },
+  templatePreview: { height: '100%', resizeMode: 'cover', width: '100%' },
+  templatePreviewFallback: { backgroundColor: '#F3F1EC', height: '100%', width: '100%' },
+  templateTitle: { bottom: 0, left: 0, paddingHorizontal: 9, paddingVertical: 7, position: 'absolute', right: 0 },
+  templateTitleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
   templateStudioEntry: { backgroundColor: '#29251F', borderRadius: 14, marginTop: 12, paddingHorizontal: 16, paddingVertical: 13 },
   templateStudioEyebrow: { color: '#E6CA7B', fontSize: 10, fontWeight: '700', letterSpacing: 1.1, lineHeight: 14 },
   templateStudioLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', lineHeight: 22, marginTop: 2 },
@@ -261,6 +267,10 @@ const styles = StyleSheet.create({
   paperBack: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.10)', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, height: 25, position: 'absolute', right: 1, top: 2, transform: [{ rotate: '8deg' }], width: 18 },
   paperFront: { backgroundColor: '#EFE7D8', borderColor: 'rgba(17,17,17,0.10)', borderRadius: 3, borderWidth: StyleSheet.hairlineWidth, height: 25, left: 2, position: 'absolute', top: 7, transform: [{ rotate: '-8deg' }], width: 20 },
   sectionTitle: { color: productColor.ink, fontSize: 14, fontWeight: '600', lineHeight: 20, marginBottom: 12, marginTop: 28 },
+  sectionHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12, marginTop: 28 },
+  sectionHeaderTitle: { color: productColor.ink, fontSize: 14, fontWeight: '600', lineHeight: 20 },
+  sectionAction: { minHeight: 28, justifyContent: 'center', paddingLeft: 12 },
+  sectionActionText: { color: productColor.secondaryText, fontSize: 12, fontWeight: '600', lineHeight: 18 },
   horizontalTrack: { gap: 12 },
   recentCard: { backgroundColor: productColor.surface, borderRadius: 7, height: 118, overflow: 'hidden', padding: 4, shadowColor: productColor.ink, shadowOffset: { height: 1, width: 0 }, shadowOpacity: 0.06, shadowRadius: 8, width: 94 },
   recentLoadingTrack: { flexDirection: 'row', gap: 12 },
@@ -273,7 +283,7 @@ const styles = StyleSheet.create({
   showcaseImage: { height: '100%', resizeMode: 'cover', width: '100%' },
   showcaseImagePlaceholder: { alignItems: 'center', backgroundColor: '#F3F1EC', height: '100%', justifyContent: 'center', width: '100%' },
   showcaseImagePlaceholderMark: { backgroundColor: '#E3E0D9', borderRadius: 18, height: 36, width: 36 },
-  showcaseTitleScrim: { bottom: 0, height: 52, left: 0, position: 'absolute', width: 123 },
+  imageCardTitleScrim: { bottom: 0, height: 52, left: 0, position: 'absolute', width: 123 },
   showcaseTitle: { bottom: 0, left: 0, paddingHorizontal: 9, paddingVertical: 7, position: 'absolute', right: 0 },
   showcaseTitleText: { color: '#FFFFFF', fontSize: 11, fontWeight: '600' },
   backgroundPreview: { backgroundColor: '#FDFDFB', height: '100%', width: '100%' },
