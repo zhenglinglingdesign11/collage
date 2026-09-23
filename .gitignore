@@ -1,4 +1,6 @@
-source-assets/
+source-assets/*
+!source-assets/template-bundle-locked/
+!source-assets/template-bundle-locked/**
 node_modules/
 tools/sprite-cutter/node_modules/
 .venv/

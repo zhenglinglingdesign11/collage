@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
 import { brushDefinitionsById, emptyAssetCatalog, getTextFont, remoteAssetPacks, upsertAsset, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
 import { isCompatibilityProductAssetReference, isShippedProductAssetReference, productCatalogAssetForReference, shippedProductAssetCatalog, shippedProductAssetResolver } from './shippedProductAssetCatalog';
-import { clearResolvedVerifiedProductAssetUris } from './productAssetResolver';
+import { clearResolvedVerifiedProductAssetUris, resolvedVerifiedProductAssetUri } from './productAssetResolver';
 import { clearVerifiedRemoteAssetCache, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } from './verifiedRemoteAssetCache';
 import { createStableId, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type AssetReference, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
 
@@ -312,6 +312,33 @@ export type ProductAssetRecoveryResult = Readonly<{ workspace: StoredWorkspace; 
 const requiredReference = (reference: AssetReference | undefined): Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>> | null =>
   reference?.revision ? { id: reference.id, kind: reference.kind, revision: reference.revision } : null;
 
+/**
+ * Produces an immediate render catalog from bytes already accepted by the
+ * strict resolver in this process. It performs no file I/O and never trusts
+ * disk state; normal asynchronous recovery still verifies every dependency.
+ */
+export const hydrateWorkspaceFromResolvedProductAssets = (workspace: StoredWorkspace): StoredWorkspace => {
+  const references = [workspace.draft.canvas.backgroundAsset, ...workspace.draft.layers.flatMap((layer) => 'asset' in layer ? [layer.asset] : [])]
+    .map(requiredReference)
+    .filter((reference): reference is Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>> => reference !== null);
+  let catalog = workspace.catalog;
+  [...new Map(references.map((reference) => [`${reference.id}\u0000${reference.kind}\u0000${reference.revision}`, reference])).values()].forEach((reference) => {
+    if (!isShippedProductAssetReference(reference)) return;
+    const originalUri = resolvedVerifiedProductAssetUri(reference);
+    const descriptor = productCatalogAssetForReference(reference);
+    if (!originalUri || !descriptor) return;
+    catalog = upsertAsset(catalog, {
+      reference,
+      originalUri,
+      width: descriptor.pixelSize.width,
+      height: descriptor.pixelSize.height,
+      mimeType: descriptor.mimeType,
+      createdAt: new Date().toISOString(),
+    });
+  });
+  return catalog === workspace.catalog ? workspace : { ...workspace, catalog };
+};
+
 /** Restores only product assets actually used by this saved Draft; it never mutates the Draft itself. */
 export const recoverWorkspaceProductAssets = async (workspace: StoredWorkspace): Promise<ProductAssetRecoveryResult> => {
   const references = [workspace.draft.canvas.backgroundAsset, ...workspace.draft.layers.flatMap((layer) => 'asset' in layer ? [layer.asset] : [])]
@@ -386,6 +413,22 @@ const saveExplicitDraft = async (workspace: StoredWorkspace, savedAt: string): P
   const retained = ordered.slice(0, MAX_SAVED_DRAFTS);
   await Promise.all(ordered.slice(MAX_SAVED_DRAFTS).map((entry) => FileSystem.deleteAsync(savedDraftUri(entry.id), { idempotent: true })));
   await writeSavedDraftIndex(retained);
+};
+
+/**
+ * Persists a recovered catalog for one existing saved draft without changing
+ * its saved time or reordering the user's recent creations.
+ */
+export const updateSavedDraftWorkspace = async (id: string, workspace: StoredWorkspace): Promise<void> => {
+  await ensureDirectories();
+  const index = await readSavedDraftIndex();
+  const entry = index.drafts.find((candidate) => candidate.id === id);
+  if (!entry) return;
+  await FileSystem.writeAsStringAsync(savedDraftUri(id), JSON.stringify({
+    draft: workspace.draft,
+    catalog: workspace.catalog,
+    savedAt: workspace.savedAt ?? entry.savedAt,
+  }), { encoding: FileSystem.EncodingType.UTF8 });
 };
 
 /** True only when saving this draft would create entry 21 and prune the oldest one. */

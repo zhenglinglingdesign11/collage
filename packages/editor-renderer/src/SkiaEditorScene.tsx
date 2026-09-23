@@ -571,7 +571,11 @@ const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, pr
     return <Group clip={{ x: contentFrame.x, y: contentFrame.y, width: contentFrame.width, height: contentFrame.height }}><SkiaImage image={image} x={x} y={y} width={sourceWidth * scale} height={sourceHeight * scale} fit="fill" /></Group>;
   }
   return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}>
-    {image && contentEffects.some(isRuntimePrintEffect) ? <PrintEffectImage effects={contentEffects} frame={contentFrame} image={image} /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
+    {image && contentEffects.some(isRuntimePrintEffect)
+      ? <PrintEffectImage effects={contentEffects} frame={contentFrame} image={image} />
+      // An unresolved asset is loading state, not artwork. Keep this neutral
+      // so templates and restored drafts never flash the old scenic fixture.
+      : <RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#D9D9D7" />}
   </Group>;
 };
 

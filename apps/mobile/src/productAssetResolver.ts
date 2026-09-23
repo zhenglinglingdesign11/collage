@@ -1,8 +1,10 @@
 import { createProductAssetResolver, type ProductAssetCatalog } from '@journalcollage/asset-system';
 import type { AssetReference } from '@journalcollage/editor-core';
+import { Asset } from 'expo-asset';
 import { cacheVerifiedRemoteAsset, findVerifiedBundledAsset, findVerifiedRemoteAsset } from './verifiedRemoteAssetCache';
 
-export type BundledProductAssets = Readonly<Record<string, string>>;
+/** Metro module IDs keep static assets bundle-addressable in both dev and release builds. */
+export type BundledProductAssets = Readonly<Record<string, number>>;
 type ProductAssetReference = Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>;
 
 const resolvedSessionUris = new Map<string, string>();
@@ -19,7 +21,21 @@ export const clearResolvedVerifiedProductAssetUris = (): void => resolvedSession
 export const createMobileProductAssetResolver = (catalog: ProductAssetCatalog, bundledAssets: BundledProductAssets = {}) => {
   const resolver = createProductAssetResolver(catalog, {
     findVerifiedCachedAsset: findVerifiedRemoteAsset,
-    findVerifiedBundledAsset: (descriptor) => findVerifiedBundledAsset(descriptor, bundledAssets[descriptor.reference.id]),
+    findVerifiedBundledAsset: async (descriptor) => {
+      const moduleId = bundledAssets[descriptor.reference.id];
+      if (moduleId === undefined) return null;
+      // Expo copies a static Metro module to a local URI in development as
+      // well as release builds. The strict verifier must read those bytes,
+      // never the development server URI exposed by Image.resolveAssetSource.
+      try {
+        const asset = await Asset.fromModule(moduleId).downloadAsync();
+        return findVerifiedBundledAsset(descriptor, asset.localUri ?? undefined);
+      } catch {
+        // A development server can disappear while resolving an asset. Keep
+        // the resolver's specified cache → bundle → CDN fallback order.
+        return null;
+      }
+    },
     downloadAndCacheAsset: cacheVerifiedRemoteAsset,
   });
   return {

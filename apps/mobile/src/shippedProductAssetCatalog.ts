@@ -1,12 +1,13 @@
 import { remoteAssetPacks, type ProductAssetCatalog, type RemoteAssetPack } from '@journalcollage/asset-system';
 import type { AssetReference } from '@journalcollage/editor-core';
 import { createMobileProductAssetResolver } from './productAssetResolver';
+import { bundledTemplateDependencyModules } from './bundledTemplateDependencies.generated';
 
 declare const require: (path: string) => unknown;
 
 /** The only product-material catalog eligible for runtime resolution in 1.0. */
 export const shippedProductAssetCatalog = require('../../../generated/first-release-product-catalog.v1.json') as ProductAssetCatalog;
-export const shippedProductAssetResolver = createMobileProductAssetResolver(shippedProductAssetCatalog);
+export const shippedProductAssetResolver = createMobileProductAssetResolver(shippedProductAssetCatalog, bundledTemplateDependencyModules);
 const referenceKey = (reference: Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>): string => `${reference.id}\u0000${reference.kind}\u0000${reference.revision}`;
 const compatibilityProductAssetReferences = new Set(
   shippedProductAssetCatalog.packs

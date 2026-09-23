@@ -1,0 +1,1162 @@
+{
+  "schemaVersion": 1,
+  "templateCount": 10,
+  "dependencyCount": 77,
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/beads-structural-units-1/19",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Beads-Structural-Units（1）/items/19.png",
+      "mimeType": "image/png",
+      "byteLength": 20266,
+      "sha256": "11d04010b23667869a68c51883854778f77aef0617e1f6184d267871fd87f57f",
+      "pixelSize": {
+        "width": 189,
+        "height": 181
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/beads-structural-units-1/20",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Beads-Structural-Units（1）/items/20.png",
+      "mimeType": "image/png",
+      "byteLength": 17448,
+      "sha256": "4231142924e1afe3a0e5c5b600a5257daea7d032036ca1b7b78d71d1baed3c80",
+      "pixelSize": {
+        "width": 183,
+        "height": 179
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/beads-structural-units-1/24",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Beads-Structural-Units（1）/items/24.png",
+      "mimeType": "image/png",
+      "byteLength": 13076,
+      "sha256": "a62eca32b18d9f5bce1bd844c088b5e52617a1f49ef1e9e794a41e1170f035a4",
+      "pixelSize": {
+        "width": 181,
+        "height": 159
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/beads-structural-units-1/5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Beads-Structural-Units（1）/items/5.png",
+      "mimeType": "image/png",
+      "byteLength": 20327,
+      "sha256": "0f24368c0897c3bfe70f17050c6a07f474759ee441cf16a7731d22b255650952",
+      "pixelSize": {
+        "width": 185,
+        "height": 183
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/beads-structural-units-1/6",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Beads-Structural-Units（1）/items/6.png",
+      "mimeType": "image/png",
+      "byteLength": 15747,
+      "sha256": "04931c3f485018f83f74850b48269bd6b75c6a1f264943cc3a4f253d8d9e82df",
+      "pixelSize": {
+        "width": 181,
+        "height": 182
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/beads-structural-units-1/7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Beads-Structural-Units（1）/items/7.png",
+      "mimeType": "image/png",
+      "byteLength": 18584,
+      "sha256": "7119a5cd5c36b7a2c032326b9831c97b1198723215b96383209eb15b266c3390",
+      "pixelSize": {
+        "width": 178,
+        "height": 178
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/caise-01/1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/caise-01/items/1.png",
+      "mimeType": "image/png",
+      "byteLength": 42636,
+      "sha256": "c59b2e6863cc4aa762cbc0907a3f349692ac4b6f29b6711426a492b09f3e4c8e",
+      "pixelSize": {
+        "width": 360,
+        "height": 296
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/caise-01/5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/caise-01/items/5.png",
+      "mimeType": "image/png",
+      "byteLength": 29859,
+      "sha256": "8d1df9ca857d28dda6bc8bdc1d733415b22640ac185c6e8f24cb9fe65c6d29d0",
+      "pixelSize": {
+        "width": 296,
+        "height": 221
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/candy-shapes/1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Candy-Shapes/items/1.png",
+      "mimeType": "image/png",
+      "byteLength": 15830,
+      "sha256": "6ca06518128e5ba521a1def1eb480308ea2a39bd4698e0820bdbde171a6760ab",
+      "pixelSize": {
+        "width": 279,
+        "height": 292
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/candy-shapes/3",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Candy-Shapes/items/3.png",
+      "mimeType": "image/png",
+      "byteLength": 15669,
+      "sha256": "c88c1415df9811d521160e44bd9a6d43944ac800510b4a7ef25918066c26d714",
+      "pixelSize": {
+        "width": 224,
+        "height": 269
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/candy-shapes/4",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Candy-Shapes/items/4.png",
+      "mimeType": "image/png",
+      "byteLength": 16744,
+      "sha256": "8a115f21798ed6fb7d7d4197365d5bd598848a93dc1b8ba2e675ca7c57c676eb",
+      "pixelSize": {
+        "width": 246,
+        "height": 252
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/candy-shapes/5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Candy-Shapes/items/5.png",
+      "mimeType": "image/png",
+      "byteLength": 14378,
+      "sha256": "aac98c2f050c8098e9d8f4ea20c5fffe8410a0edda1092b4d90be003bcb26d3b",
+      "pixelSize": {
+        "width": 238,
+        "height": 240
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/candy-shapes/6",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Candy-Shapes/items/6.png",
+      "mimeType": "image/png",
+      "byteLength": 19897,
+      "sha256": "0dfc83ac12e99dbd90a01ba385e97fdbfbda93082ffc0fff7d05abbadecc0b1b",
+      "pixelSize": {
+        "width": 254,
+        "height": 250
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/chrome-symbols/13",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Chrome-Symbols/items/13.png",
+      "mimeType": "image/png",
+      "byteLength": 21920,
+      "sha256": "14e08784090a2dc1be1a008ec72bced41ba9472db6518e812ad44e39ef4d6508",
+      "pixelSize": {
+        "width": 190,
+        "height": 250
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/chrome-symbols/14",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Chrome-Symbols/items/14.png",
+      "mimeType": "image/png",
+      "byteLength": 20557,
+      "sha256": "a702537fd09494fc1e405ae02823673c392450189e5befd12f3327d5a691b38b",
+      "pixelSize": {
+        "width": 223,
+        "height": 242
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/chrome-symbols/4",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Chrome-Symbols/items/4.png",
+      "mimeType": "image/png",
+      "byteLength": 31926,
+      "sha256": "6621b05670a55da98155bd81ea768c873e4501adabfd358cf5fd3b819b56c567",
+      "pixelSize": {
+        "width": 261,
+        "height": 226
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/chrome-symbols/7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Chrome-Symbols/items/7.png",
+      "mimeType": "image/png",
+      "byteLength": 27923,
+      "sha256": "f00ca2ee2252da5e78bef553cd20b7fd02eb392e9005c68c4926ad302007823a",
+      "pixelSize": {
+        "width": 252,
+        "height": 245
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/decorative-statement-lace-1/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/2.png",
+      "mimeType": "image/png",
+      "byteLength": 47236,
+      "sha256": "0776e2a34af8fbb7f6b0941340f4d8c546ee11c419a2a1361ec772601245ada8",
+      "pixelSize": {
+        "width": 220,
+        "height": 337
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/editorial-connectors-index-marks/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Editorial-Connectors-Index-Marks/items/2.png",
+      "mimeType": "image/png",
+      "byteLength": 8007,
+      "sha256": "b33d7f7eabbc0171e523524a7aafb26f8c0e9cb8c29aed25e10ea9925739b59d",
+      "pixelSize": {
+        "width": 182,
+        "height": 167
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/editorial-connectors-index-marks/34",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Editorial-Connectors-Index-Marks/items/34.png",
+      "mimeType": "image/png",
+      "byteLength": 4010,
+      "sha256": "22d35666130b1c7cdf98832067c756a8627d24699fc984f87d5710232dbd8ed5",
+      "pixelSize": {
+        "width": 215,
+        "height": 69
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/editorial-connectors-index-marks/6",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Editorial-Connectors-Index-Marks/items/6.png",
+      "mimeType": "image/png",
+      "byteLength": 5113,
+      "sha256": "a8c4ae52e307d1c049ad5672fe73a75910fc32908439d51d1fc78ffc9405abfb",
+      "pixelSize": {
+        "width": 122,
+        "height": 154
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/editorial-everyday-labels/20",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Editorial-&-Everyday-Labels/items/20.png",
+      "mimeType": "image/png",
+      "byteLength": 18319,
+      "sha256": "39a027fc2e17d58d48e979c6bd003daf8f53e48c9300d6ba7f633bc48fb2726b",
+      "pixelSize": {
+        "width": 200,
+        "height": 199
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/essential-lace-trims/3",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Essential-Lace-Trims/items/3.png",
+      "mimeType": "image/png",
+      "byteLength": 89401,
+      "sha256": "81fb7aa247caec4d4c0c69e283bc33c3fc6a80dc16806a9bce578869739029d1",
+      "pixelSize": {
+        "width": 945,
+        "height": 135
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/experimental-print-registration-fragments/18",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Experimental-Print-Registration-Fragments/items/18.png",
+      "mimeType": "image/png",
+      "byteLength": 370787,
+      "sha256": "ea7b8e23d441c074af60ce04dea051ca9a4c8097def519ba2a8f7ea3ab439cfd",
+      "pixelSize": {
+        "width": 489,
+        "height": 360
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/experimental-print-registration-fragments/3",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Experimental-Print-Registration-Fragments/items/3.png",
+      "mimeType": "image/png",
+      "byteLength": 162502,
+      "sha256": "a4a7998b01fcbd845905518a0b8c7c29e45dace7b15d21075363d31a32fc06e1",
+      "pixelSize": {
+        "width": 262,
+        "height": 294
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/fabric-fiber-thread/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Fabric-Fiber-Thread/items/2.png",
+      "mimeType": "image/png",
+      "byteLength": 30085,
+      "sha256": "6f12388302dfaec1bdbd01a24315f932dab990e46de196ae5f49e8ba23451f4b",
+      "pixelSize": {
+        "width": 288,
+        "height": 201
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/fan-edit-highlights/2-copy",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Fan-Edit-Highlights/items/2_副本.png",
+      "mimeType": "image/png",
+      "byteLength": 30974,
+      "sha256": "c3e1d4604260cf818a5737f5a46214323ba8d90c95c5f3f61583e168d8070623",
+      "pixelSize": {
+        "width": 280,
+        "height": 340
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/fan-edit-highlights/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Fan-Edit-Highlights/items/2.png",
+      "mimeType": "image/png",
+      "byteLength": 30241,
+      "sha256": "02f33096a51cbc32537ec80b40544e5512458a4f9a096f2585d66a60849d17d7",
+      "pixelSize": {
+        "width": 200,
+        "height": 387
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/handmade-cutout-type/8",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Handmade-Cutout-Type/items/8.png",
+      "mimeType": "image/png",
+      "byteLength": 70128,
+      "sha256": "23294c21fac87b5801011486c54aa5c762d27d6fbb67e0daad5bae4a66f6286c",
+      "pixelSize": {
+        "width": 452,
+        "height": 286
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/12",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/12.png",
+      "mimeType": "image/png",
+      "byteLength": 14171,
+      "sha256": "51b4c60a21b966818922fb0032401e8b2bf934adfc779ed95d6708d1871c1206",
+      "pixelSize": {
+        "width": 119,
+        "height": 208
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/13",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/13.png",
+      "mimeType": "image/png",
+      "byteLength": 20890,
+      "sha256": "8ecc7715cf53fa4296d73e6dc457fa38f4eb7bf07d0b4cba4299a568781e202c",
+      "pixelSize": {
+        "width": 186,
+        "height": 215
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/14",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/14.png",
+      "mimeType": "image/png",
+      "byteLength": 22149,
+      "sha256": "7762a99eb082699aba2f316df48226bc52310b3d02ca8b3162c2b3fefff6cabc",
+      "pixelSize": {
+        "width": 190,
+        "height": 196
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/17",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/17.png",
+      "mimeType": "image/png",
+      "byteLength": 24231,
+      "sha256": "18074addcbec12cf9b95719ae642300f1f94820e7b2e7251a0669448f0c53349",
+      "pixelSize": {
+        "width": 199,
+        "height": 216
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/19",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/19.png",
+      "mimeType": "image/png",
+      "byteLength": 21671,
+      "sha256": "6000498010b7626488c8d01eb080c05fc0bccfdd3fadb9510c53740042b71921",
+      "pixelSize": {
+        "width": 165,
+        "height": 206
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/21",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/21.png",
+      "mimeType": "image/png",
+      "byteLength": 26682,
+      "sha256": "c20e24cd99d2848b7c0bee9d0f332f10a4f4b61c3f808dab44e79f2ac4148da2",
+      "pixelSize": {
+        "width": 183,
+        "height": 208
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/7.png",
+      "mimeType": "image/png",
+      "byteLength": 25842,
+      "sha256": "581df5861ed46295af4223bd769ae8519c977fdbb69b6228e1b42dd632739960",
+      "pixelSize": {
+        "width": 216,
+        "height": 204
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/micro-editorial-1/9",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Micro-Editorial（1）/items/9.png",
+      "mimeType": "image/png",
+      "byteLength": 23821,
+      "sha256": "dd226784334c0cd1abecf66e2b125148173810c1108c2efeecef68dfb561b373",
+      "pixelSize": {
+        "width": 215,
+        "height": 226
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/pixel-ascii/3-1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Pixel & ASCII/items/3 (1).png",
+      "mimeType": "image/png",
+      "byteLength": 29868,
+      "sha256": "90eb8c8c34dbebea2ac3ade66928ffd0be2e85be19392c35838e001fa8c676be",
+      "pixelSize": {
+        "width": 304,
+        "height": 253
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/pixel-ascii/7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Pixel & ASCII/items/7.png",
+      "mimeType": "image/png",
+      "byteLength": 9863,
+      "sha256": "8fcfaa36732062c21e8ae711a4579260495b3d29ff74c54aec65e2246133fa16",
+      "pixelSize": {
+        "width": 281,
+        "height": 249
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/11",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/11.png",
+      "mimeType": "image/png",
+      "byteLength": 5165,
+      "sha256": "fb51e98b7104141721fa1ffb2beab8dee62990b90311318e5b5af34be5e38721",
+      "pixelSize": {
+        "width": 303,
+        "height": 124
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/12",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/12.png",
+      "mimeType": "image/png",
+      "byteLength": 11219,
+      "sha256": "3e425eebd960c2969086620b266d733c1269cb2f624614bdc18f65a5283e5b94",
+      "pixelSize": {
+        "width": 310,
+        "height": 118
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/14",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/14.png",
+      "mimeType": "image/png",
+      "byteLength": 6391,
+      "sha256": "e95b8bb9b205be7eaa1ab13ebb471d0ad48c9eb0f06207534928e219f0d53756",
+      "pixelSize": {
+        "width": 207,
+        "height": 216
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/15",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/15.png",
+      "mimeType": "image/png",
+      "byteLength": 6965,
+      "sha256": "fc591961d83984ebc8a4dc34800cdfaa6be7bca47eb585af52c877cc00c1a53f",
+      "pixelSize": {
+        "width": 199,
+        "height": 226
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/2.png",
+      "mimeType": "image/png",
+      "byteLength": 18770,
+      "sha256": "11fe26538ea60775b09d05198cbbea1bb84229ce6500156c2b0c39c945c13669",
+      "pixelSize": {
+        "width": 296,
+        "height": 296
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/3",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/3.png",
+      "mimeType": "image/png",
+      "byteLength": 20540,
+      "sha256": "d56f478dcbe6f4a8e99333d6bf99aec3647a265437ed95290dd1c684198c034c",
+      "pixelSize": {
+        "width": 254,
+        "height": 302
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/playful-doodles/9",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/Playful Doodles/items/9.png",
+      "mimeType": "image/png",
+      "byteLength": 8302,
+      "sha256": "db2091b4cf344ece9a127d623ddfac7ea657ab89eea2c4d3761e7e4d0e9dacb8",
+      "pixelSize": {
+        "width": 231,
+        "height": 163
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/romantic-deco-lace-frame-1/9",
+        "kind": "image",
+        "revision": "2"
+      },
+      "sourcePath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/9.png",
+      "mimeType": "image/png",
+      "byteLength": 749087,
+      "sha256": "cd5df883bf3ee91bd71d048b13b6ea808ced8fa773c9d975e423a65bbe12f7fd",
+      "pixelSize": {
+        "width": 1254,
+        "height": 1254
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/18",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/soft archive blue/items/18.png",
+      "mimeType": "image/png",
+      "byteLength": 8613,
+      "sha256": "c83c28bef326f9f60bf16d73a829df35ac05cfc982916017816ec5e50fdea196",
+      "pixelSize": {
+        "width": 205,
+        "height": 84
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/30",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/soft archive blue/items/30.png",
+      "mimeType": "image/png",
+      "byteLength": 8862,
+      "sha256": "c4eef5a76b2cfc768806e6a51d0c4bf5e5ec6a77eeab1dcf9c0d692f9bbb5534",
+      "pixelSize": {
+        "width": 199,
+        "height": 123
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/8",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/soft archive blue/items/8.png",
+      "mimeType": "image/png",
+      "byteLength": 10751,
+      "sha256": "752f11b128674a7dda5a8f3ab3ba877162fae6aa4ec88bcb4f48495013086972",
+      "pixelSize": {
+        "width": 232,
+        "height": 112
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/structural-plastic-beads-mesh/1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/new导出素材/09.21用于素材被压缩过的/Structural-Plastic-Beads-Mesh/items/1.png",
+      "mimeType": "image/png",
+      "byteLength": 53676,
+      "sha256": "08abd973ca1ac319b8caaf007280a1750b347e10fc812ea0ac2bae5aad7245d4",
+      "pixelSize": {
+        "width": 370,
+        "height": 328
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/背景/compressed/digital-y2k-multi-background.png",
+      "mimeType": "image/png",
+      "byteLength": 1773635,
+      "sha256": "b84e1fac0844b39b0fb3aa7e7a44ded86b811568f990b368a42951cbef24ae46",
+      "pixelSize": {
+        "width": 1086,
+        "height": 1448
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-blue-paper",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/私有素材/digital-y2k-multi/digital-y2k-multi-blue-paper.png",
+      "mimeType": "image/png",
+      "byteLength": 806573,
+      "sha256": "e465f898b929f3c356b87e26d445419f8ff90305f9b9827c9e304be74297c7c2",
+      "pixelSize": {
+        "width": 390,
+        "height": 1286
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-photo-frame",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/私有素材/digital-y2k-multi/digital-y2k-multi-photo-frame.png",
+      "mimeType": "image/png",
+      "byteLength": 191396,
+      "sha256": "a557ecd23e06459aeb6741b264eb710433ec54b114843552d72209b02ad02652",
+      "pixelSize": {
+        "width": 438,
+        "height": 570
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-photo-strip",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/私有素材/digital-y2k-multi/digital-y2k-multi-photo-strip.png",
+      "mimeType": "image/png",
+      "byteLength": 294756,
+      "sha256": "99d9e5b043872846c23d3ff5031a07411c8b340d28c858b60247f48ac2ef3f49",
+      "pixelSize": {
+        "width": 361,
+        "height": 1262
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-tape-left",
+        "kind": "image",
+        "revision": "2"
+      },
+      "sourcePath": "source-assets/packs/jiaodai/items/17.png",
+      "mimeType": "image/png",
+      "byteLength": 23007,
+      "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae",
+      "pixelSize": {
+        "width": 142,
+        "height": 304
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/material-remix-crystal-accent",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/template-bundle-locked/material-remix-crystal-accent.png",
+      "mimeType": "image/png",
+      "byteLength": 13353,
+      "sha256": "ba176a51b5bf404035ecb4594cd64efb07451003f4394ccd7be4692235fdd3e2",
+      "pixelSize": {
+        "width": 205,
+        "height": 185
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/play-pop-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/背景/compressed/play-pop-background.jpg",
+      "mimeType": "image/jpeg",
+      "byteLength": 244074,
+      "sha256": "574ddae0eae1d681796d28b87339014a3099c4616f9c4dd0c77d50c0c8ca7721",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/play-pop-photo-frame",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/私有素材/play-pop-photo-frame.png",
+      "mimeType": "image/png",
+      "byteLength": 13079,
+      "sha256": "19af2edae561f55e28385afb0c6a8c13630ec80a1bd869b2ae32cb8736e7b617",
+      "pixelSize": {
+        "width": 1200,
+        "height": 1840
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/romantic-deco-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/背景/compressed/romantic-deco-background.jpg",
+      "mimeType": "image/jpeg",
+      "byteLength": 17649,
+      "sha256": "f9b383ac7fb7b5a76ef8a75356b735b13ba9e8701b1b5eb18e4f81a49beebefd",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1024
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/romantic-deco-butterfly-knot",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/hudiejie/items/13.png",
+      "mimeType": "image/png",
+      "byteLength": 15626,
+      "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d",
+      "pixelSize": {
+        "width": 273,
+        "height": 198
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/背景/compressed/soft-archive-background.jpg",
+      "mimeType": "image/jpeg",
+      "byteLength": 365537,
+      "sha256": "9a170a8d38cf17d5b490e029816b8c4b60c43d020035b408c4e70478555771ec",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-multi-fugu-accent",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/template-bundle-locked/soft-archive-multi-fugu-accent.png",
+      "mimeType": "image/png",
+      "byteLength": 28465,
+      "sha256": "9376eeee612a39a8320451ee1a284ebaf0f02ffa24f8804c6e326a3d0efadcf9",
+      "pixelSize": {
+        "width": 229,
+        "height": 206
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-multi-photo-frame-v2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/template-bundle-locked/soft-archive-multi-photo-frame-v2.png",
+      "mimeType": "image/png",
+      "byteLength": 14046,
+      "sha256": "1ed91591676073b3b9c2ed39e31b228f989ebd06aa8807ec6eb7ab20ce78f7f3",
+      "pixelSize": {
+        "width": 233,
+        "height": 405
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-multi-tape",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/jiaodai/items/41.png",
+      "mimeType": "image/png",
+      "byteLength": 12390,
+      "sha256": "e31cb61e7c01c75859d4a5e50b11ba4e9d7b6c95b32e6b6e9c895636fcf5897e",
+      "pixelSize": {
+        "width": 235,
+        "height": 112
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-tape-left",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/jiaodai/items/29.png",
+      "mimeType": "image/png",
+      "byteLength": 17286,
+      "sha256": "255f39c96ecf8d431f839925ddb77551978fd6e4a0dcc65077a60c1ad01bb15f",
+      "pixelSize": {
+        "width": 266,
+        "height": 138
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-tape-right",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/packs/jiaodai/items/31.png",
+      "mimeType": "image/png",
+      "byteLength": 12291,
+      "sha256": "30e1cefa59c04c238b6444fb715694af519b72d8cbd4b832cee7659f61c57df3",
+      "pixelSize": {
+        "width": 276,
+        "height": 102
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/digital-y2k-ascii",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/digital_y2k_ascii.png",
+      "mimeType": "image/png",
+      "byteLength": 2271331,
+      "sha256": "c40816c9a176b3c753298d91c2fceaface3cabe91245d177bb1986cd8cbf4b75",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/digital-y2k-multi",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/digital_y2k_multi.png",
+      "mimeType": "image/png",
+      "byteLength": 2737830,
+      "sha256": "fbd3e3101f3a0910c33311a0b7513da643cb6f0f412f7d7d2b1971f235fc5d80",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/fan-moodboard",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/fan_moodboard.png",
+      "mimeType": "image/png",
+      "byteLength": 2974155,
+      "sha256": "26842b16bec71ebc47a8bc6491effa47136bea835c6de9386264f42a3dd66a9e",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/material-remix",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/material_remix.png",
+      "mimeType": "image/png",
+      "byteLength": 2109205,
+      "sha256": "4fdb31c624c5c82b324f83b010b1f39953af74b10f0f5b28b4c9d71458e1f2ac",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/play-pop-multi",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/play pop multi.png",
+      "mimeType": "image/png",
+      "byteLength": 2613262,
+      "sha256": "955cf8c349a287ab953684c2db452fcaec53735b36c9b449c18eef4110612886",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/play-pop",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/play pop.png",
+      "mimeType": "image/png",
+      "byteLength": 2452850,
+      "sha256": "42cacbb9b58dade7a05d699d6baefe6b7647eaa91e74f5394351f4b31edd1365",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/romantic-deco-two-photo",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/romantic deco-1.png",
+      "mimeType": "image/png",
+      "byteLength": 3377068,
+      "sha256": "885fcfe2654034d740af02b5592ec9c9dbe702c91b6df43407ead84b91e3abe6",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/romantic-deco",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/romantic deco.png",
+      "mimeType": "image/png",
+      "byteLength": 2312708,
+      "sha256": "6b4eb751f37addc98e3c89ff3e0d67ee73bf3733ff0be1ac3f2d19a01da34bfc",
+      "pixelSize": {
+        "width": 1254,
+        "height": 1254
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/soft-archive-multi",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/soft_archive_multi.png",
+      "mimeType": "image/png",
+      "byteLength": 1782063,
+      "sha256": "9321f227d806d528e59d1e9d8f789f931080cd7471500ac9ca1949b13428e269",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1241
+      }
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/soft-archive",
+        "kind": "image",
+        "revision": "1"
+      },
+      "sourcePath": "source-assets/配方模版/soft archive.png",
+      "mimeType": "image/png",
+      "byteLength": 2435847,
+      "sha256": "9f9459816cf2166be8722a36754ba11b8708eb3e7bfca3a76bcad57188463f3c",
+      "pixelSize": {
+        "width": 1024,
+        "height": 1536
+      }
+    }
+  ]
+}

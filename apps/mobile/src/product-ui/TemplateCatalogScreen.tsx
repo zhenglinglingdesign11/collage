@@ -1,5 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, LinearGradient, Rect, vec } from '@shopify/react-native-skia';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { TemplateDefinition } from '@journalcollage/editor-core';
@@ -7,6 +7,7 @@ import { basicLayoutTemplate, basicLayouts, type BasicLayout } from '../basicLay
 import { localTemplateCatalog } from '../localTemplateCatalog';
 import { locallySupportedTemplates } from '../templateCapabilities';
 import { productCatalogAssetForReference } from '../shippedProductAssetCatalog';
+import { bundledTemplateDependencyModules } from '../bundledTemplateDependencies.generated';
 import { CachedRemoteImage } from './CachedRemoteImage';
 import { fallbackHomeShowcaseGroupsForMarket, type HomeShowcaseEffect, type HomeShowcaseItem } from './homeShowcases';
 import { t, type ProductLocale } from './localization';
@@ -101,11 +102,28 @@ const BasicLayoutCard = ({ compact = false, layout, locale, onPress }: Readonly<
 
 const DesignedTemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
   const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
+  const bundledPreview = bundledTemplateDependencyModules[(template.preview as Required<typeof template.preview>).id];
   return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.card}>
-    {preview ? <CachedRemoteImage cacheKey={`template-catalog-preview-${template.id}`} reference={template.preview as Required<typeof template.preview>} source={preview.sourceUrl} style={styles.designedPreview} /> : <View style={styles.designedPreviewFallback} />}
+    {/* A catalog preview is display-only: it never becomes a Draft asset.
+        Reading and hashing all ten through the strict resolver here can block
+        a subsequent template press, so use the already verified static module.
+        The editor still resolves every actual template dependency strictly. */}
+    {bundledPreview !== undefined && preview !== undefined
+      ? <BundledTemplatePreview fallbackSource={preview.sourceUrl} moduleId={bundledPreview} />
+      : preview ? <CatalogPreview source={preview.sourceUrl} /> : <View style={styles.designedPreviewFallback} />}
     <CardTitleGradient />
     <Text numberOfLines={1} style={styles.designedTitle}>{template.name}</Text>
   </Pressable>;
+};
+
+/** Preview display is deliberately independent of the strict Draft resolver. */
+const CatalogPreview = ({ source }: Readonly<{ source: string }>) => <Image source={{ uri: source }} style={styles.designedPreview} />;
+const BundledTemplatePreview = ({ fallbackSource, moduleId }: Readonly<{ fallbackSource: string; moduleId: number }>) => {
+  const [useFallback, setUseFallback] = useState(false);
+  useEffect(() => { setUseFallback(false); }, [moduleId]);
+  return useFallback
+    ? <CatalogPreview source={fallbackSource} />
+    : <Image onError={() => setUseFallback(true)} source={moduleId} style={styles.designedPreview} />;
 };
 
 const ShowcaseEffectCard = ({ compact = false, item, onPress }: Readonly<{ compact?: boolean; item: HomeShowcaseItem; onPress: () => void }>) => <Pressable accessibilityLabel={item.title} accessibilityRole="button" onPress={onPress} style={[styles.card, styles.effectCard, compact && styles.compactEffectCard]}>

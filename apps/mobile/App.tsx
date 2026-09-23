@@ -10,7 +10,7 @@ import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-
 import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
 import { alignmentGuideKey, applyCommand, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, instantiateTemplateDefinition, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type TemplateDefinition, type Transform } from '@journalcollage/editor-core';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
-import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
+import { cacheRemotePackItem, cacheRemoteResource, hydrateWorkspaceFromResolvedProductAssets, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
 import { TemplateCatalogScreen, type TemplateCatalogShowcaseIntent } from './src/product-ui/TemplateCatalogScreen';
@@ -122,6 +122,7 @@ type DecorativeBrushSession = Readonly<{ kind: 'create' | 'edit'; layerId: strin
 type EmbossSession = Readonly<{ layer: ImageLayer; shape: MaskShapeId; bounds: Rect; initialBounds: Rect; aspectLocked: boolean }>;
 type EmbossDrag = Readonly<{ session: EmbossSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
 type CropRatio = 'free' | 'original' | '1:1' | '4:5' | '3:4' | '4:3' | '9:16' | '16:9';
+type EditorReturnDestination = 'create-home' | 'create-styles' | 'assets' | 'mine';
 type CropSession = Readonly<{ layer: ImageLayer; bounds: Rect; initialBounds: Rect; ratio: CropRatio }>;
 type CropDrag = Readonly<{ session: CropSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
 type TemplatePhotoContentDrag = Readonly<{ layerId: string; frame: { width: number; height: number }; transform: Transform; crop: Rect; source: { width: number; height: number } }>;
@@ -243,7 +244,9 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     const layer = state.present.layers.find((candidate) => candidate.type === 'image' && candidate.asset.id.endsWith(`/${slot.id}`));
     return layer ? [[slot.id, layer.id]] : [];
   })));
-  const [catalog, setCatalog] = useState<AssetCatalog>(() => emptyAssetCatalog());
+  const [catalog, setCatalog] = useState<AssetCatalog>(() => initialTemplate
+    ? hydrateWorkspaceFromResolvedProductAssets({ draft: state.present, catalog: emptyAssetCatalog() }).catalog
+    : emptyAssetCatalog());
   const initialTemplateDraftRef = useRef<Draft | null>(initialTemplate ? state.present : null);
   const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
     const uri = resolvedRemoteResourceUri(frame.cacheKey, frame.source);
@@ -1994,6 +1997,9 @@ export default function App() {
   const [templateStudio, setTemplateStudio] = useState(false);
   const [templateCatalogOpen, setTemplateCatalogOpen] = useState(false);
   const [editorSessionKey, setEditorSessionKey] = useState(0);
+  // The editor is an overlay rather than a navigator screen, so retain the
+  // launch surface explicitly instead of making every Back action go home.
+  const [editorReturnDestination, setEditorReturnDestination] = useState<EditorReturnDestination>('create-home');
   const locale = resolveProductLocale();
 
   const openTemplate = (template: TemplateDefinition, basicLayoutId: BasicLayoutId | null = null) => {
@@ -2002,6 +2008,7 @@ export default function App() {
       Alert.alert('Template unavailable', `This version of the app does not support: ${capabilityGate.missing.join(', ')}.`);
       return;
     }
+    setEditorReturnDestination(templateCatalogOpen ? 'create-styles' : 'create-home');
     setTemplateCatalogOpen(false);
     setTemplateStudio(false);
     setRestoreSavedDraftId(null);
@@ -2014,6 +2021,7 @@ export default function App() {
   };
   const openBasicLayout = (layout: BasicLayout) => openTemplate(basicLayoutTemplate(layout), layout.id);
   const openShowcase = (showcase: TemplateCatalogShowcaseIntent) => {
+    setEditorReturnDestination(templateCatalogOpen ? 'create-styles' : 'create-home');
     setTemplateCatalogOpen(false);
     setTemplateStudio(false);
     setRestoreSavedDraftId(null);
@@ -2025,22 +2033,26 @@ export default function App() {
     setEditing(true);
   };
 
-  if (editing) return <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartShowcase={openShowcase} onStartTemplate={openTemplate} />;
+  const editor = editing ? <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { const returnToCreateStyles = editorReturnDestination === 'create-styles'; setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab(editorReturnDestination === 'mine' ? 'mine' : editorReturnDestination === 'assets' ? 'assets' : 'create'); setTemplateCatalogOpen(returnToCreateStyles); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartShowcase={openShowcase} onStartTemplate={openTemplate} /> : null;
 
   return (
     <>
-    <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
-      <StatusBar style="dark" />
-      {templateCatalogOpen
-        ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenShowcase={openShowcase} onOpenTemplate={openTemplate} />
-        : tab === 'create'
-        ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
-        : tab === 'assets'
-          ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { setPendingPackItems(items); if (assetsEntryContext !== 'editor') setRestoreSavedDraftId(null); setEditorEntry(assetsEntryContext === 'editor' ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
-          : tab === 'mine'
-            ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setEditorEntry('restore'); setEditing(true); }} />
-          : <View style={productShellStyles.page}><Text style={productShellStyles.title}>{t(locale, `tab.${tab}`)}</Text></View>}
-    </ProductAppShell>
+    <View style={productShellStyles.root}>
+      <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
+        <StatusBar style="dark" />
+        <View pointerEvents={tab === 'create' && !templateCatalogOpen ? 'auto' : 'none'} style={tab === 'create' && !templateCatalogOpen ? productShellStyles.tabSurface : productShellStyles.hiddenTabSurface}>
+          <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
+        </View>
+        {templateCatalogOpen
+          ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenShowcase={openShowcase} onOpenTemplate={openTemplate} />
+          : tab === 'assets'
+            ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { const returnsToEditor = assetsEntryContext === 'editor'; setPendingPackItems(items); if (!returnsToEditor) { setEditorReturnDestination('assets'); setRestoreSavedDraftId(null); } setEditorEntry(returnsToEditor ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
+            : tab === 'mine'
+              ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setEditorReturnDestination('mine'); setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setEditorEntry('restore'); setEditing(true); }} />
+              : null}
+      </ProductAppShell>
+      {editor !== null && <View style={productShellStyles.editorOverlay}>{editor}</View>}
+    </View>
     {showDevelopmentProbes && <NativeRenderParityProbe />}
     {showDevelopmentProbes && <RemoteAssetVerificationProbe />}
     </>
@@ -2048,6 +2060,12 @@ export default function App() {
 }
 
 const productShellStyles = StyleSheet.create({
+  root: { flex: 1, position: 'relative' },
+  // Keep the previous product surface from flashing through while a newly
+  // mounted editor initializes its canvas and resolves template resources.
+  editorOverlay: { ...StyleSheet.absoluteFill, backgroundColor: '#FAFAF8', zIndex: 10 },
+  tabSurface: { flex: 1 },
+  hiddenTabSurface: { display: 'none' },
   page: { flex: 1, paddingHorizontal: 20, paddingTop: 32 },
   title: { color: '#111111', fontSize: 22, fontWeight: '600', lineHeight: 28 },
 });

@@ -1,30 +1,27 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, LinearGradient, Rect, vec, type Transforms3d } from '@shopify/react-native-skia';
 import { useSharedValue } from 'react-native-reanimated';
 import { assetUriMap, backgroundPaperPack, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap } from '@journalcollage/asset-system';
 import type { Draft } from '@journalcollage/editor-core';
 import type { TemplateDefinition } from '@journalcollage/editor-core';
 import { ProceduralPaperPreview, SkiaEditorScene } from '@journalcollage/editor-renderer';
-import { cacheRemoteResource, hasSavedDraftsSync, loadCachedHomeShowcaseManifest, loadSavedDrafts, resolvedRemoteResourceUri, saveCachedHomeShowcaseManifest, type SavedDraft, type StoredWorkspace } from '../localWorkspace';
+import { cacheRemoteResource, loadCachedHomeShowcaseManifest, recoverWorkspaceProductAssets, saveCachedHomeShowcaseManifest, updateSavedDraftWorkspace, type StoredWorkspace } from '../localWorkspace';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
 import { fallbackHomeShowcaseGroupsForMarket, homeShowcaseManifestUrlForMarket, normalizeHomeShowcaseManifest, withBackgroundShowcaseGroup, type HomeMarket, type HomeShowcaseEffect, type HomeShowcaseGroup, type HomeShowcaseItem } from './homeShowcases';
-import { CachedRemoteImage } from './CachedRemoteImage';
 import { productCatalogAssetForReference } from '../shippedProductAssetCatalog';
 import { localTemplateCatalog } from '../localTemplateCatalog';
 import { locallySupportedTemplates } from '../templateCapabilities';
+import { bundledTemplateDependencyModules } from '../bundledTemplateDependencies.generated';
 
 export type CreateEntry = 'blank' | 'photo' | 'restore' | 'showcase';
 export type ShowcaseIntent = Readonly<{ id: string; effect?: HomeShowcaseEffect; backgroundPresetId?: string }>;
-const LACE_FRAME_SOURCES = {
-  'wide-hole': { cacheKey: 'effect-frame-lace-center-wide-hole', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-center-01.png' },
-  'classic-doily': { cacheKey: 'effect-frame-lace-center-classic-doily', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-doily-frame-transparent.png' },
-  'foil-crumpled': { cacheKey: 'effect-frame-foil-center-crumpled', source: 'https://assets.zllarchi.site/effects/foil-frame-02-compress.png' },
-} as const;
 // Build-time release setting. Set EXPO_PUBLIC_HOME_MARKET=cn for mainland
 // China; all other builds use the US English feed by default.
 const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? 'cn' : 'us';
+const HOME_PREVIEW_BATCH_SIZE = 3;
+const HOME_PREVIEW_START_DELAY_MS = 180;
 
 export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
   locale: ProductLocale;
@@ -36,21 +33,8 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
   onOpenTemplateStudio?: () => void;
 }>) => {
   const supportedTemplates = locallySupportedTemplates(localTemplateCatalog);
-  // The on-disk draft index is asynchronous. Keep this distinct from an
-  // empty result so the home layout does not jump after a JS reload.
-  const [savedDrafts, setSavedDrafts] = useState<readonly SavedDraft[] | null>(() => hasSavedDraftsSync() === false ? [] : null);
   const [showcaseGroups, setShowcaseGroups] = useState<readonly HomeShowcaseGroup[]>(() => withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
   const [showcaseUris, setShowcaseUris] = useState<Readonly<Record<string, string>>>({});
-  const [laceFrameUris, setLaceFrameUris] = useState<Readonly<Record<string, string>>>(() => Object.fromEntries(Object.entries(LACE_FRAME_SOURCES).flatMap(([id, frame]) => {
-    const uri = resolvedRemoteResourceUri(frame.cacheKey, frame.source);
-    return uri ? [[id, uri]] : [];
-  })));
-
-  useEffect(() => {
-    let active = true;
-    void loadSavedDrafts().then((drafts) => { if (active) setSavedDrafts(drafts); }).catch(() => { if (active) setSavedDrafts([]); });
-    return () => { active = false; };
-  }, []);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -76,24 +60,21 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
   }, []);
   useEffect(() => {
     let active = true;
-    showcaseGroups.flatMap((group) => group.items).forEach((item) => {
-      if (!item.imageSrc) return;
-      void cacheRemoteResource(`home-showcase-${item.id}`, item.imageSrc).then((uri) => {
-        if (active) setShowcaseUris((current) => ({ ...current, [item.id]: uri }));
-      }).catch(() => undefined);
-    });
-    return () => { active = false; };
+    const timer = setTimeout(() => {
+      void (async () => {
+        const items = showcaseGroups.flatMap((group) => group.items).filter((item) => item.imageSrc);
+        for (let start = 0; start < items.length; start += HOME_PREVIEW_BATCH_SIZE) {
+          const restored = await Promise.all(items.slice(start, start + HOME_PREVIEW_BATCH_SIZE).map(async (item) => {
+            try { return [item.id, await cacheRemoteResource(`home-showcase-${item.id}`, item.imageSrc!)] as const; } catch { return null; }
+          }));
+          if (!active) return;
+          const next = Object.fromEntries(restored.filter((entry): entry is readonly [string, string] => entry !== null));
+          if (Object.keys(next).length > 0) setShowcaseUris((current) => ({ ...current, ...next }));
+        }
+      })();
+    }, HOME_PREVIEW_START_DELAY_MS);
+    return () => { active = false; clearTimeout(timer); };
   }, [showcaseGroups]);
-  useEffect(() => {
-    let active = true;
-    Object.entries(LACE_FRAME_SOURCES).forEach(([id, frame]) => {
-      void cacheRemoteResource(frame.cacheKey, frame.source).then((uri) => {
-        if (active) setLaceFrameUris((current) => ({ ...current, [id]: uri }));
-      }).catch(() => undefined);
-    });
-    return () => { active = false; };
-  }, []);
-
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>{t(locale, 'create.title')}</Text>
@@ -116,21 +97,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
       {onOpenTemplateStudio && <Pressable accessibilityLabel="Open Template Studio" accessibilityRole="button" onPress={onOpenTemplateStudio} style={styles.templateStudioEntry}><Text style={styles.templateStudioEyebrow}>DEVELOPMENT ONLY</Text><Text style={styles.templateStudioLabel}>Template Studio</Text><Text style={styles.templateStudioHint}>Create and export template authoring JSON</Text></Pressable>}
 
       <SectionHeader actionLabel={t(locale, 'templateCatalog.viewAll')} onAction={onOpenTemplateCatalog} title={t(locale, 'templateCatalog.featured')} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateTrack}>
-        {supportedTemplates.map((template) => <TemplateCard key={template.id} template={template} onPress={() => onOpenTemplate(template)} />)}
-      </ScrollView>
-
-      {savedDrafts !== null && savedDrafts.length > 0 && (
-        <>
-          <SectionTitle>{t(locale, 'create.recentDrafts')}</SectionTitle>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalTrack}>
-            {savedDrafts.map((savedDraft) => <Pressable key={savedDraft.id} accessibilityRole="button" accessibilityLabel={t(locale, 'create.recentDrafts')} onPress={() => onOpenEditor('restore', savedDraft.id)} style={styles.recentCard}>
-              <RecentDraftArtwork laceFrameUris={laceFrameUris} workspace={savedDraft.workspace} />
-            </Pressable>)}
-          </ScrollView>
-        </>
-      )}
-      {savedDrafts === null && <RecentDraftLoadingRow locale={locale} />}
+      <FlatList contentContainerStyle={styles.templateTrack} data={supportedTemplates} horizontal initialNumToRender={4} keyExtractor={(template) => template.id} maxToRenderPerBatch={3} renderItem={({ item: template }) => <TemplateCard template={template} onPress={() => onOpenTemplate(template)} />} showsHorizontalScrollIndicator={false} windowSize={3} />
 
       {showcaseGroups.map((group) => <View key={group.id}><SectionTitle>{group.title}</SectionTitle><ShowcaseRow items={group.items} previewUris={showcaseUris} onPress={(item) => onOpenEditor('showcase', undefined, { id: item.id, effect: item.effect, backgroundPresetId: item.backgroundPresetId })} /></View>)}
     </ScrollView>
@@ -146,27 +113,24 @@ const SectionHeader = ({ actionLabel, onAction, title }: Readonly<{ actionLabel:
 
 const TemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
   const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
-  // The authored Play Pop Multi preview has not been published to the CDN
-  // yet. Bundle its source preview for development so the new catalog card is
-  // immediately reviewable; published templates continue to use cached CDN
-  // previews through the regular catalog path.
-  const localPreview = template.id === 'template://journalcollage/play-pop-multi'
-    ? require('../../../../source-assets/配方模版/play pop multi.png')
-    : undefined;
+  const bundledPreview = bundledTemplateDependencyModules[(template.preview as Required<typeof template.preview>).id];
   return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.templateCard}>
-    {localPreview ? <Image source={localPreview} style={styles.templatePreview} /> : preview ? <CachedRemoteImage cacheKey={`template-preview-${template.id}`} reference={template.preview as Required<typeof template.preview>} source={preview.sourceUrl} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
+    {bundledPreview !== undefined && preview !== undefined
+      ? <HomeTemplatePreview fallbackSource={preview.sourceUrl} moduleId={bundledPreview} />
+      : preview ? <Image source={{ uri: preview.sourceUrl }} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
     <ImageCardTitleScrim />
     <View pointerEvents="none" style={styles.templateTitle}><Text numberOfLines={1} style={styles.templateTitleText}>{template.name}</Text></View>
   </Pressable>;
 };
 
-/** Keeps the asynchronous draft restore from shifting the home feed. */
-const RecentDraftLoadingRow = ({ locale }: Readonly<{ locale: ProductLocale }>) => <View>
-  <SectionTitle>{t(locale, 'create.recentDrafts')}</SectionTitle>
-  <View accessibilityLabel={t(locale, 'create.recentDrafts')} style={styles.recentLoadingTrack}>
-    {Array.from({ length: 3 }, (_, index) => <View key={index} style={styles.recentLoadingCard}><View style={styles.recentLoadingArtwork} /></View>)}
-  </View>
-</View>;
+/** Mirrors Create styles: display-only previews never wait for strict Draft resolution. */
+const HomeTemplatePreview = ({ fallbackSource, moduleId }: Readonly<{ fallbackSource: string; moduleId: number }>) => {
+  const [useFallback, setUseFallback] = useState(false);
+  useEffect(() => { setUseFallback(false); }, [moduleId]);
+  return useFallback
+    ? <Image source={{ uri: fallbackSource }} style={styles.templatePreview} />
+    : <Image onError={() => setUseFallback(true)} source={moduleId} style={styles.templatePreview} />;
+};
 
 const QuickStartCard = ({ kind, label, onPress }: Readonly<{ kind: 'blank' | 'materials'; label: string; onPress: () => void }>) => (
   <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.quickCard}>
@@ -184,7 +148,21 @@ const DotPaper = () => <View pointerEvents="none" style={styles.dotPaper}>{Array
 /** A real renderer-backed thumbnail, rather than a static placeholder artwork. */
 export const RecentDraftArtwork = ({ laceFrameUris, workspace }: Readonly<{ laceFrameUris: Readonly<Record<string, string>>; workspace: StoredWorkspace }>) => {
   const inactiveTransform = useSharedValue<Transforms3d>([]);
-  const { draft, catalog } = workspace;
+  const [renderWorkspace, setRenderWorkspace] = useState(workspace);
+  useEffect(() => {
+    let active = true;
+    setRenderWorkspace(workspace);
+    // A saved draft deliberately retains stable references, not remote URLs.
+    // After cache cleanup, resolve only this thumbnail's used references so it
+    // can render without requiring the user to open the artwork first.
+    void recoverWorkspaceProductAssets(workspace).then((recovered) => {
+      if (!active || recovered.workspace.catalog === workspace.catalog) return;
+      setRenderWorkspace(recovered.workspace);
+      void updateSavedDraftWorkspace(workspace.draft.id, recovered.workspace).catch(() => undefined);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [workspace]);
+  const { draft, catalog } = renderWorkspace;
   const assetUris = { ...remoteAssetUriMap(), ...assetUriMap(catalog), ...recentLocalPolkaUris };
   const proceduralPapers = Object.fromEntries(draft.layers.flatMap((layer) => layer.type === 'image' ? (() => { const paper = proceduralPaperForReferenceId(layer.asset.id); return paper ? [[layer.asset.id, paper] as const] : []; })() : []));
   const proceduralStickers = Object.fromEntries(draft.layers.flatMap((layer) => layer.type === 'image' ? (() => { const sticker = proceduralStickerForReferenceId(layer.asset.id); return sticker ? [[layer.asset.id, sticker] as const] : []; })() : []));
@@ -226,7 +204,7 @@ const ShowcaseRow = ({ items, onPress, previewUris }: Readonly<{ items: readonly
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.showcaseTrack}>
     {items.map((item) => (
       <Pressable accessibilityRole="button" accessibilityLabel={item.title} key={item.id} onPress={() => onPress(item)} style={styles.showcaseCard}>
-        {item.imageSrc ? <ShowcaseImagePreview uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
+        {item.imageSrc ? <ShowcaseImagePreview fallbackSource={item.imageSrc} uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
         {!item.hideTitle && <><ImageCardTitleScrim /><View style={styles.showcaseTitle}><Text numberOfLines={1} style={styles.showcaseTitleText}>{item.title}</Text></View></>}
       </Pressable>
     ))}
@@ -241,7 +219,14 @@ const homePolkaPatternUris = {
 const HomeBackgroundPreview = ({ item }: Readonly<{ item: ReturnType<typeof backgroundItemById> }>) => item?.paper
   ? <ProceduralPaperPreview paper={item.paper} patternImageUri={item.paper.imageAsset ? homePolkaPatternUris[item.paper.imageAsset] : undefined} size={{ width: 123, height: 150 }} />
   : <View style={styles.backgroundPreview} />;
-const ShowcaseImagePreview = ({ uri }: Readonly<{ uri: string | undefined }>) => uri ? <Image source={{ uri }} style={styles.showcaseImage} /> : <View style={styles.showcaseImagePlaceholder}><View style={styles.showcaseImagePlaceholderMark} /></View>;
+/** Cache writes happen lazily. A cache clear can invalidate an existing
+ * file:// URI while this mounted page still holds it, so fall back immediately
+ * to the display-only source instead of leaving the card blank. */
+const ShowcaseImagePreview = ({ fallbackSource, uri }: Readonly<{ fallbackSource: string; uri: string | undefined }>) => {
+  const [useFallback, setUseFallback] = useState(false);
+  useEffect(() => { setUseFallback(false); }, [fallbackSource, uri]);
+  return <Image onError={() => setUseFallback(true)} source={{ uri: useFallback ? fallbackSource : uri ?? fallbackSource }} style={styles.showcaseImage} />;
+};
 const ImageCardTitleScrim = () => <Canvas pointerEvents="none" style={styles.imageCardTitleScrim}><Rect height={52} width={123} x={0} y={0}><LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.15)']} end={vec(0, 52)} start={vec(0, 0)} /></Rect></Canvas>;
 
 const styles = StyleSheet.create({
@@ -280,11 +265,6 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: { color: productColor.ink, fontSize: 14, fontWeight: '600', lineHeight: 20 },
   sectionAction: { minHeight: 28, justifyContent: 'center', paddingLeft: 12 },
   sectionActionText: { color: productColor.secondaryText, fontSize: 12, fontWeight: '600', lineHeight: 18 },
-  horizontalTrack: { gap: 12 },
-  recentCard: { backgroundColor: productColor.surface, borderRadius: 7, height: 118, overflow: 'hidden', padding: 4, shadowColor: productColor.ink, shadowOffset: { height: 1, width: 0 }, shadowOpacity: 0.06, shadowRadius: 8, width: 94 },
-  recentLoadingTrack: { flexDirection: 'row', gap: 12 },
-  recentLoadingCard: { backgroundColor: productColor.surface, borderColor: 'rgba(17,17,17,0.04)', borderRadius: 7, borderWidth: StyleSheet.hairlineWidth, height: 118, overflow: 'hidden', padding: 4, width: 94 },
-  recentLoadingArtwork: { backgroundColor: '#F1F0EC', borderRadius: 4, flex: 1 },
   recentArtwork: { backgroundColor: '#FDFDFB', borderRadius: 4, flex: 1, overflow: 'hidden' },
   recentCanvas: { height: 110, width: 86 },
   showcaseTrack: { gap: 10, paddingRight: productSpace.page },
