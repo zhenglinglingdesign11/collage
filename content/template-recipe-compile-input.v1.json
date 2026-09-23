@@ -18,12 +18,19 @@
       "source": {
         "kind": "template-studio",
         "path": "content/template-drafts/romantic-deco-two-photo.template-studio.json",
+        "targetCanvas": { "width": 1080, "height": 1440 },
         "photoSlots": [
           { "sourceLayerId": "image-layer-dc62deb3-f0f4-4eed-a95b-36760e164654", "id": "top-framed-photo", "name": "Top framed photo" },
           { "sourceLayerId": "image-layer-460daac8-3bfb-44a8-8c17-0a446ca249d3", "id": "bottom-photo", "name": "Bottom photo" }
         ],
         "photoSlotPositionOverrides": {
           "bottom-photo": { "x": 136.2, "y": 224.0 }
+        },
+        "photoSlotGeometryOverrides": {
+          "top-framed-photo": {
+            "position": { "x": 314.560546875, "y": 319.21875 },
+            "scale": { "y": 1.7964912280701755 }
+          }
         }
       }
     },

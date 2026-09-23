@@ -107,12 +107,12 @@ const softenPlayPopDecorations = (template: TemplateDefinition): TemplateDefinit
 export const localTemplateCatalog: readonly TemplateDefinition[] = [
   parseBundledTemplate(require('../../../generated/template-recipes/romantic-deco.template.json'), 'romantic-deco'),
   centerCropToThreeByFour(parseBundledTemplate(require('../../../generated/template-recipes/romantic-deco-two-photo.template.json'), 'romantic-deco-two-photo')),
-  softenPlayPopDecorations(centerCropToThreeByFour(parseBundledTemplate(require('../../../generated/template-recipes/play-pop.template.json'), 'play-pop'))),
   parseBundledTemplate(require('../../../generated/template-recipes/soft-archive.template.json'), 'soft-archive'),
-  parseBundledTemplate(require('../../../generated/template-recipes/play-pop-multi.template.json'), 'play-pop-multi'),
   parseBundledTemplate(require('../../../generated/template-recipes/soft-archive-multi.template.json'), 'soft-archive-multi'),
-  parseBundledTemplate(require('../../../generated/template-recipes/fan-moodboard.template.json'), 'fan-moodboard'),
   parseBundledTemplate(require('../../../generated/template-recipes/digital-y2k-ascii.template.json'), 'digital-y2k-ascii'),
   parseBundledTemplate(require('../../../generated/template-recipes/digital-y2k-multi.template.json'), 'digital-y2k-multi'),
+  softenPlayPopDecorations(centerCropToThreeByFour(parseBundledTemplate(require('../../../generated/template-recipes/play-pop.template.json'), 'play-pop'))),
+  parseBundledTemplate(require('../../../generated/template-recipes/play-pop-multi.template.json'), 'play-pop-multi'),
+  parseBundledTemplate(require('../../../generated/template-recipes/fan-moodboard.template.json'), 'fan-moodboard'),
   parseBundledTemplate(require('../../../generated/template-recipes/material-remix.template.json'), 'material-remix'),
 ];

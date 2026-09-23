@@ -61,6 +61,57 @@ const normalizePhotoSlot = (photo) => {
   };
 };
 
+/** Normalize an artboard at build time so its compiled geometry is already in
+ * the product canvas coordinate system rather than being rewritten by UI code. */
+const normalizeCanvas = (template, targetSize, templateId) => {
+  if (targetSize === undefined) return template;
+  if (!isRecord(targetSize) || !Number.isFinite(targetSize.width) || !Number.isFinite(targetSize.height) || targetSize.width <= 0 || targetSize.height <= 0) fail(`${templateId} has an invalid target canvas size.`);
+  const sourceSize = template.canvas.size;
+  const scale = Math.max(targetSize.width / sourceSize.width, targetSize.height / sourceSize.height);
+  const cropX = (sourceSize.width * scale - targetSize.width) / 2;
+  const cropY = (sourceSize.height * scale - targetSize.height) / 2;
+  const reframe = (layer) => ({
+    ...layer,
+    frame: { width: layer.frame.width * scale, height: layer.frame.height * scale },
+    transform: { ...layer.transform, position: { x: layer.transform.position.x * scale - cropX, y: layer.transform.position.y * scale - cropY } },
+  });
+  return {
+    ...template,
+    canvas: { ...template.canvas, size: clone(targetSize) },
+    photoSlots: template.photoSlots.map(reframe),
+    fixedLayers: template.fixedLayers.map(reframe),
+  };
+};
+
+const applyPhotoSlotGeometryOverrides = (template, overrides, templateId) => {
+  if (overrides === undefined) return template;
+  if (!isRecord(overrides)) fail(`${templateId} photo-slot geometry overrides must be an object.`);
+  const knownSlots = new Set(template.photoSlots.map((slot) => slot.id));
+  Object.keys(overrides).forEach((slotId) => {
+    if (!knownSlots.has(slotId) || !isRecord(overrides[slotId])) fail(`${templateId} has an invalid photo-slot geometry override for ${slotId}.`);
+  });
+  const numberPatch = (value, fields, label) => {
+    if (value === undefined) return undefined;
+    if (!isRecord(value) || Object.keys(value).some((field) => !fields.includes(field)) || Object.values(value).some((number) => !Number.isFinite(number))) fail(`${templateId} has an invalid ${label} override.`);
+    return value;
+  };
+  return {
+    ...template,
+    photoSlots: template.photoSlots.map((slot) => {
+      const patch = overrides[slot.id];
+      if (!patch) return slot;
+      const frame = numberPatch(patch.frame, ['width', 'height'], `${slot.id} frame`);
+      const position = numberPatch(patch.position, ['x', 'y'], `${slot.id} position`);
+      const scale = numberPatch(patch.scale, ['x', 'y'], `${slot.id} scale`);
+      return {
+        ...slot,
+        ...(frame ? { frame: { ...slot.frame, ...frame } } : {}),
+        transform: { ...slot.transform, ...(position ? { position: { ...slot.transform.position, ...position } } : {}), ...(scale ? { scale: { ...slot.transform.scale, ...scale } } : {}) },
+      };
+    }),
+  };
+};
+
 const compileStudio = (entry) => {
   const source = entry.source;
   const studio = readJson(source.path);
@@ -99,7 +150,7 @@ const compileStudio = (entry) => {
   }
   const sourceCanvas = studio.document.canvas;
   if (!isRecord(sourceCanvas) || !isRecord(sourceCanvas.size) || typeof sourceCanvas.size.width !== 'number' || typeof sourceCanvas.size.height !== 'number' || typeof sourceCanvas.background !== 'string') fail(`${entry.id} has an invalid Studio canvas.`);
-  return {
+  return applyPhotoSlotGeometryOverrides(normalizeCanvas({
     schemaVersion: 1,
     id: `template://journalcollage/${entry.id}`,
     revision: entry.revision,
@@ -118,7 +169,7 @@ const compileStudio = (entry) => {
     layerStack,
     dependencies: [],
     requiredCapabilities: ['image.replace', 'image.crop', 'material.resolve'],
-  };
+  }, source.targetCanvas, entry.id), source.photoSlotGeometryOverrides, entry.id);
 };
 
 const compileDefinition = (entry) => {

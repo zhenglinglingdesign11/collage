@@ -556,11 +556,23 @@ const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, pr
   // one-frame `useImage` reload, a resolved URI is still a real image—not a
   // missing asset—so never replace it with the fixture artwork.
   if (assetUri !== undefined && image === null) return null;
-  return (
-  <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }, { translateX: -layer.crop.x * contentFrame.width / layer.crop.width }, { translateY: -layer.crop.y * contentFrame.height / layer.crop.height }, { scaleX: 1 / layer.crop.width }, { scaleY: 1 / layer.crop.height }]}>
-    {image && contentEffects.some(isRuntimePrintEffect) ? <PrintEffectImage effects={contentEffects} frame={contentFrame} image={image} /> : image ? <SkiaImage image={image} x={0} y={0} width={contentFrame.width} height={contentFrame.height} fit="cover" /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
-  </Group>
-  );
+  if (image && !contentEffects.some(isRuntimePrintEffect)) {
+    // `crop` is evaluated against original image pixels. The previous order
+    // fitted the full image with `cover` first, permanently hiding its long
+    // edge before crop could move there. Draw the full source at one uniform
+    // scale, clip the photo frame, and centre the chosen source rectangle.
+    const sourceWidth = image.width();
+    const sourceHeight = image.height();
+    const selectedWidth = sourceWidth * layer.crop.width;
+    const selectedHeight = sourceHeight * layer.crop.height;
+    const scale = Math.max(contentFrame.width / selectedWidth, contentFrame.height / selectedHeight);
+    const x = contentFrame.x + (contentFrame.width - selectedWidth * scale) / 2 - layer.crop.x * sourceWidth * scale;
+    const y = contentFrame.y + (contentFrame.height - selectedHeight * scale) / 2 - layer.crop.y * sourceHeight * scale;
+    return <Group clip={{ x: contentFrame.x, y: contentFrame.y, width: contentFrame.width, height: contentFrame.height }}><SkiaImage image={image} x={x} y={y} width={sourceWidth * scale} height={sourceHeight * scale} fit="fill" /></Group>;
+  }
+  return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}>
+    {image && contentEffects.some(isRuntimePrintEffect) ? <PrintEffectImage effects={contentEffects} frame={contentFrame} image={image} /> : <><RoundedRect x={0} y={0} width={contentFrame.width} height={contentFrame.height} r={28} color="#5E7D79" /><Circle cx={contentFrame.width * 0.76} cy={contentFrame.height * 0.24} r={contentFrame.width * 0.1} color="#F8D88B" /><Rect x={0} y={contentFrame.height * 0.55} width={contentFrame.width} height={contentFrame.height * 0.45} color="#355C58" /><Rect x={0} y={contentFrame.height * 0.7} width={contentFrame.width} height={contentFrame.height * 0.3} color="#284A47" /></>}
+  </Group>;
 };
 
 const ProceduralStickerLayer = ({ frame, sticker, textureUri }: { frame: { width: number; height: number }; sticker: ProceduralStickerPaint; textureUri?: string | null }) => {

@@ -61,6 +61,15 @@ test('P1-T01 parses a valid untrusted TemplateDefinition before instantiation', 
   if (result.ok) assert.equal(result.template.id, 'template://composition-test/play-pop');
 });
 
+test('P1-T06 gates templates by the client capability set without consulting entitlements', () => {
+  const template = firstReleaseSample('play-pop');
+  const supported = core.templateCapabilityGate(template, core.FIRST_RELEASE_TEMPLATE_CAPABILITIES);
+  assert.deepEqual(supported, { supported: true, missing: [] });
+
+  const unsupported = core.templateCapabilityGate(template, new Set(['image.replace', 'image.crop']));
+  assert.deepEqual(unsupported, { supported: false, missing: ['material.resolve'] });
+});
+
 test('P1-T01 preserves a shaped photo slot through parsing and instantiation', () => {
   const template = sample('heart-layout', 'Heart layout', 1);
   const visibilityMask = { type: 'shape', shape: 'heart', bounds: { x: 0, y: 0, width: 640, height: 760 } };
@@ -166,6 +175,18 @@ test('P1-T02 promotes the visually approved Romantic Deco draft to a strict prod
   assert.deepEqual(core.validateFirstReleaseTemplateDefinition(production), []);
 });
 
+test('P1-T07 parses the representative compiled template dependency samples', () => {
+  [
+    'romantic-deco-two-photo',
+    'soft-archive-multi',
+    'material-remix',
+  ].forEach((id) => {
+    const template = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../../../generated/template-recipes/${id}.template.json`), 'utf8'));
+    const result = core.parseTemplateDefinition(template);
+    assert.equal(result.ok, true, `${id} should parse as a production TemplateDefinition`);
+  });
+});
+
 test('P1-T01 rejects review notes without a real target and renderer-unsupported release layers', () => {
   const template = firstReleaseSample('fan-moodboard');
   const draftResult = core.parseTemplateDraftDefinition({
@@ -231,4 +252,17 @@ test('P1-T04 replaces only the mapped photo placeholder and preserves calibrated
   assert.deepEqual(core.validateDraft(replaced.draft), []);
   assert.throws(() => core.replaceInstantiatedTemplatePhoto(instance, 'missing-slot', { id: 'user://image/imported-photo', kind: 'image', revision: '1' }, '2026-09-22T00:00:01.000Z'));
   assert.throws(() => core.replaceInstantiatedTemplatePhoto(instance, 'photo-1', { id: 'asset://pack/candy-shapes/4', kind: 'image', revision: '1' }, '2026-09-22T00:00:01.000Z'));
+});
+
+test('photo replacement can persist a crop selected from the new original image', () => {
+  const instance = core.instantiateTemplateDefinition(firstReleaseSample('play-pop'), { now: '2026-09-23T00:00:00.000Z', projectId: 'crop-project', createId: (prefix) => `${prefix}-crop` });
+  const layerId = instance.photoSlotLayerIds['photo-1'];
+  const crop = { x: 0.2, y: 0, width: 0.6, height: 1 };
+  const result = core.applyCommand(instance.draft, {
+    type: 'image.asset.replace', layerId,
+    asset: { id: 'user://image/original-wide-photo', kind: 'image', revision: '1' }, crop,
+  }, '2026-09-23T00:00:01.000Z');
+  const layer = result.draft.layers.find((candidate) => candidate.id === layerId);
+  assert.equal(result.changed, true);
+  assert.deepEqual(layer.crop, crop);
 });

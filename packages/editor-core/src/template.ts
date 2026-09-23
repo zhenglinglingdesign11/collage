@@ -131,6 +131,14 @@ export type TemplateInstantiationOptions = Readonly<{
   createId?: (prefix: string) => string;
 }>;
 
+/** Result of comparing a portable template requirement with a concrete client.
+ * This deliberately says nothing about subscriptions or entitlements: it only
+ * answers whether this renderer/editor can faithfully open the template. */
+export type TemplateCapabilityGateResult = Readonly<{
+  supported: boolean;
+  missing: readonly TemplateCapability[];
+}>;
+
 const TEMPLATE_ID = /^template:\/\/[a-z0-9]+(?:-[a-z0-9]+)*\/[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DECIMAL_REVISION = /^[1-9][0-9]*$/;
 const CAPABILITIES = new Set<TemplateCapability>([
@@ -153,9 +161,29 @@ const FIRST_RELEASE_SLOT_COUNTS = new Map<string, number>([
 ]);
 const FIRST_RELEASE_CAPABILITIES = new Set<TemplateCapability>(['image.replace', 'image.crop', 'material.resolve']);
 
+/** Capabilities implemented by the 1.0 client. Keep this local, explicit
+ * baseline instead of introducing a remotely configurable policy surface. */
+export const FIRST_RELEASE_TEMPLATE_CAPABILITIES: ReadonlySet<TemplateCapability> = new Set<TemplateCapability>([
+  ...FIRST_RELEASE_CAPABILITIES,
+  'image.mask',
+]);
+
 export type TemplateParseResult =
   | Readonly<{ ok: true; template: TemplateDefinition }>
   | Readonly<{ ok: false; issues: readonly ValidationIssue[] }>;
+
+/**
+ * A small, deterministic runtime gate for catalog and deep-link entry points.
+ * Validation owns whether a capability name is legal; this function only
+ * reports requirements the current client does not implement.
+ */
+export const templateCapabilityGate = (
+  template: Pick<TemplateDefinition, 'requiredCapabilities'>,
+  availableCapabilities: ReadonlySet<TemplateCapability>,
+): TemplateCapabilityGateResult => {
+  const missing = template.requiredCapabilities.filter((capability) => !availableCapabilities.has(capability));
+  return { supported: missing.length === 0, missing };
+};
 
 const dependencyKey = (reference: AssetReference): string =>
   `${reference.id}\u0000${reference.kind}\u0000${reference.revision ?? ''}`;

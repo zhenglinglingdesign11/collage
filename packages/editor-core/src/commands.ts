@@ -38,7 +38,7 @@ export type EditorCommand =
   | Readonly<{ type: 'text.content.set'; layerId: string; text: string }>
   | Readonly<{ type: 'text.style.set'; layerId: string; fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null }>
   | Readonly<{ type: 'layer.lock.set'; layerId: string; isLocked: boolean }>
-  | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference; preserveCrop?: boolean }>
+  | Readonly<{ type: 'image.asset.replace'; layerId: string; asset: AssetReference; /** Crop is normalized in the newly selected source image. */ crop?: Rect; preserveCrop?: boolean }>
   /** Canonicalizes a reference image into an upright authoring photo slot. */
   | Readonly<{ type: 'image.photo-slot.convert'; layerId: string; asset: AssetReference }>
   | Readonly<{ type: 'canvas.background.set'; background: string; asset: AssetReference | null }>
@@ -293,7 +293,9 @@ export const applyCommand = (draft: Draft, command: EditorCommand, now: string):
     case 'image.asset.replace': {
       const layer = draft.layers[layerIndex];
       if (layerIndex < 0 || layer.type !== 'image' || layer.asset.id === command.asset.id) return { draft, changed: false };
-      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image' ? { ...candidate, asset: command.asset, ...(command.preserveCrop ? {} : { crop: { x: 0, y: 0, width: 1, height: 1 } }) } : candidate) });
+      const nextCrop = command.crop ?? (command.preserveCrop ? layer.crop : { x: 0, y: 0, width: 1, height: 1 });
+      if (![nextCrop.x, nextCrop.y, nextCrop.width, nextCrop.height].every(Number.isFinite) || nextCrop.width <= 0 || nextCrop.height <= 0 || nextCrop.x < 0 || nextCrop.y < 0 || nextCrop.x + nextCrop.width > 1 || nextCrop.y + nextCrop.height > 1) return { draft, changed: false };
+      return touch({ ...draft, layers: draft.layers.map((candidate) => candidate.id === command.layerId && candidate.type === 'image' ? { ...candidate, asset: command.asset, crop: nextCrop } : candidate) });
     }
     case 'image.photo-slot.convert': {
       const layer = draft.layers[layerIndex];

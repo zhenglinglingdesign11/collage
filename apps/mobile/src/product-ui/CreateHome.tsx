@@ -13,6 +13,7 @@ import { fallbackHomeShowcaseGroupsForMarket, homeShowcaseManifestUrlForMarket, 
 import { CachedRemoteImage } from './CachedRemoteImage';
 import { productCatalogAssetForReference } from '../shippedProductAssetCatalog';
 import { localTemplateCatalog } from '../localTemplateCatalog';
+import { locallySupportedTemplates } from '../templateCapabilities';
 
 export type CreateEntry = 'blank' | 'photo' | 'restore' | 'showcase';
 export type ShowcaseIntent = Readonly<{ id: string; effect?: HomeShowcaseEffect; backgroundPresetId?: string }>;
@@ -34,6 +35,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
   /** Development-only. Omitted by every release build. */
   onOpenTemplateStudio?: () => void;
 }>) => {
+  const supportedTemplates = locallySupportedTemplates(localTemplateCatalog);
   // The on-disk draft index is asynchronous. Keep this distinct from an
   // empty result so the home layout does not jump after a JS reload.
   const [savedDrafts, setSavedDrafts] = useState<readonly SavedDraft[] | null>(() => hasSavedDraftsSync() === false ? [] : null);
@@ -115,7 +117,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
 
       <SectionHeader actionLabel={t(locale, 'templateCatalog.viewAll')} onAction={onOpenTemplateCatalog} title={t(locale, 'templateCatalog.featured')} />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.templateTrack}>
-        {localTemplateCatalog.map((template) => <TemplateCard key={template.id} template={template} onPress={() => onOpenTemplate(template)} />)}
+        {supportedTemplates.map((template) => <TemplateCard key={template.id} template={template} onPress={() => onOpenTemplate(template)} />)}
       </ScrollView>
 
       {savedDrafts !== null && savedDrafts.length > 0 && (

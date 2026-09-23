@@ -15,6 +15,7 @@
     "compile:first-release-catalog": "node scripts/compile-first-release-product-catalog.js",
     "compile:first-release-runtime-catalog": "node scripts/compile-first-release-product-catalog.js --runtime",
     "compile:template-recipes": "node scripts/compile-template-recipes.js",
+    "validate:template-asset-samples": "npm run compile:template-recipes && node scripts/validate-template-asset-samples.js",
     "validate:template-layer-inventory": "node scripts/validate-template-layer-inventory.js",
     "calibrate:template-layer": "node scripts/calibrate-template-layer-inventory.js"
   }

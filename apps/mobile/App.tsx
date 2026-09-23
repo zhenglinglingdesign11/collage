@@ -13,13 +13,14 @@ import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPr
 import { cacheRemotePackItem, cacheRemoteResource, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
-import { TemplateCatalogScreen } from './src/product-ui/TemplateCatalogScreen';
+import { TemplateCatalogScreen, type TemplateCatalogShowcaseIntent } from './src/product-ui/TemplateCatalogScreen';
 import { basicLayoutTemplate, basicLayouts, type BasicLayout, type BasicLayoutId } from './src/basicLayouts';
 import { MineHome } from './src/product-ui/MineHome';
 import { NativeRenderParityProbe } from './src/NativeRenderParityProbe';
 import { RemoteAssetVerificationProbe } from './src/RemoteAssetVerificationProbe';
 import { EffectSheet } from './src/product-ui/EffectSheet';
 import { BrushLayerToolbar, EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
+import { localTemplateCapabilityGate } from './src/templateCapabilities';
 
 type BuiltinEffectType = 'light.shadow' | 'edge.outline' | 'paper.torn-edge' | 'shape.round-corners';
 const effectInstance = (instanceId: string, type: BuiltinEffectType): Effect => type === 'light.shadow'
@@ -123,6 +124,7 @@ type EmbossDrag = Readonly<{ session: EmbossSession; mode: 'move' | 'resize'; ha
 type CropRatio = 'free' | 'original' | '1:1' | '4:5' | '3:4' | '4:3' | '9:16' | '16:9';
 type CropSession = Readonly<{ layer: ImageLayer; bounds: Rect; initialBounds: Rect; ratio: CropRatio }>;
 type CropDrag = Readonly<{ session: CropSession; mode: 'move' | 'resize'; handle?: 'tl' | 'tr' | 'br' | 'bl'; start: Point }>;
+type TemplatePhotoContentDrag = Readonly<{ layerId: string; frame: { width: number; height: number }; transform: Transform; crop: Rect; source: { width: number; height: number } }>;
 type CutStyle = 'straight' | 'wave' | 'free' | 'subject';
 // Manual diagnostics must never cover product navigation merely because a dev
 // build is running. Enable explicitly from a debugger when needed.
@@ -149,6 +151,20 @@ const cropBoundsForRatio = (bounds: Rect, frame: { width: number; height: number
   let height = width * frame.width / (value * frame.height);
   if (height > 1) { height = 1; width = height * value * frame.height / frame.width; }
   return clampCropBounds({ x: centre.x - width / 2, y: centre.y - height / 2, width, height });
+};
+/** The crop is a rectangle in the original photo, not a second crop over an
+ * already cover-fitted render. This derives the centred cover rectangle used
+ * as the initial template-slot view. */
+const centeredCoverCrop = (source: { width: number; height: number }, slot: { width: number; height: number }): Rect => {
+  if (![source.width, source.height, slot.width, slot.height].every((value) => Number.isFinite(value) && value > 0)) return { x: 0, y: 0, width: 1, height: 1 };
+  const sourceRatio = source.width / source.height;
+  const slotRatio = slot.width / slot.height;
+  if (sourceRatio > slotRatio) {
+    const width = slotRatio / sourceRatio;
+    return { x: (1 - width) / 2, y: 0, width, height: 1 };
+  }
+  const height = sourceRatio / slotRatio;
+  return { x: 0, y: (1 - height) / 2, width: 1, height };
 };
 
 /** Avoid a startup crash in Expo Go or a development build made before this native module was installed. */
@@ -198,13 +214,13 @@ const editorReducer = (state: EditorState, action: EditorAction): EditorState =>
   return { past: [...state.past, state.present], present: result.draft, future: [] };
 };
 
-const EditorWorkspace = (props: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => (
+const EditorWorkspace = (props: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
   </SafeAreaProvider>
 );
 
-const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets, onStartTemplate }: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => {
+const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets, onStartShowcase, onStartTemplate }: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const locale = resolveProductLocale();
@@ -292,6 +308,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const embossDragRef = useRef<EmbossDrag | null>(null);
   const cropRef = useRef<CropSession | null>(null);
   const cropDragRef = useRef<CropDrag | null>(null);
+  const templatePhotoContentDragRef = useRef<TemplatePhotoContentDrag | null>(null);
   const canvasSize = state.present.canvas.size;
   const exportSurface = useMemo(() => exportSurfaceForCanvas(canvasSize), [canvasSize]);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
@@ -409,6 +426,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const startScaleY = useSharedValue(1);
   const startRotation = useSharedValue(0);
   const gestureLayerId = useSharedValue<string | null>(null);
+  const gestureMovesTemplatePhotoContent = useSharedValue(false);
   // Template production benefits from a deliberate, exact canvas-centre stop.
   // These live values keep that assist on the UI thread and out of user mode.
   const templateStudioSnapEnabled = useSharedValue(false);
@@ -446,11 +464,11 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     if (!templateStudio) {
       // Template frame art is deliberately locked and often sits above its
       // photo slot. It must not consume the tap that opens photo replacement.
-      const hasTemplatePhotoSlots = state.present.layers.some((layer) => layer.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/'));
+      const hasTemplatePhotoSlots = state.present.layers.some((layer) => layer.type === 'image' && (layer.asset.id.startsWith('generated://template-photo-slot/') || layer.id.startsWith('template-photo-')));
       if (!hasTemplatePhotoSlots) return hitTest(state.present, point);
       const replaceableDraft: Draft = {
         ...state.present,
-        layers: state.present.layers.filter((layer) => !layer.isLocked || (layer.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/'))),
+        layers: state.present.layers.filter((layer) => !layer.isLocked || (layer.type === 'image' && (layer.asset.id.startsWith('generated://template-photo-slot/') || layer.id.startsWith('template-photo-')))),
         selectedLayerId: null,
       };
       return hitTest(replaceableDraft, point) ?? hitTest(state.present, point);
@@ -479,7 +497,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
       if (Math.hypot(local.x - layer.frame.width / 2, local.y - layer.frame.height / 2) <= iconHitRadius) templatePhotoPickerRef.current(layer.id);
     }
   }, [layerAtCanvasPoint, positionX, positionY, rotation, scaleX, scaleY, viewport]);
-  const prepareDirectTransform = useCallback((screenX: number, screenY: number, preferSelected = false) => {
+  const prepareDirectTransform = useCallback((screenX: number, screenY: number, preferSelected = false, moveTemplatePhotoContent = false) => {
     if (viewport.scale === 0) return;
     // A straight-cut fragment has a transparent sibling and a deliberately
     // introduced gap. Retain its committed selection as a fallback so the
@@ -491,9 +509,24 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     const layer = selectedStudioAsset ?? layerAtCanvasPoint({ x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale }) ?? selectedLayer;
     if (layer === null || layer.isLocked) {
       gestureLayerId.value = null;
+      gestureMovesTemplatePhotoContent.value = false;
       if (layer === null) dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
       return;
     }
+    const source = layer.type === 'image'
+      ? catalog.assets.find((asset) => asset.reference.id === layer.asset.id && asset.reference.revision === layer.asset.revision)
+      : undefined;
+    // Template photo layer IDs are local, generated Draft identities. They
+    // persist with the work but do not embed a template record or catalog URI.
+    if (moveTemplatePhotoContent && layer.type === 'image' && layer.id.startsWith('template-photo-') && layer.asset.id.startsWith('user://image/') && source && source.width > 0 && source.height > 0) {
+      templatePhotoContentDragRef.current = { layerId: layer.id, frame: layer.frame, transform: layer.transform, crop: layer.crop, source: { width: source.width, height: source.height } };
+      gestureLayerId.value = null;
+      gestureMovesTemplatePhotoContent.value = true;
+      dispatch({ type: 'command', command: { type: 'layer.select', layerId: layer.id } });
+      setLayerPanelOpen(true);
+      return;
+    }
+    gestureMovesTemplatePhotoContent.value = false;
     gestureLayerId.value = layer.id;
     gestureLayerWidth.value = layer.frame.width;
     gestureLayerHeight.value = layer.frame.height;
@@ -505,7 +538,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: layer.id } });
     setLayerPanelOpen(true);
     setIsTransforming(true);
-  }, [gestureLayerHeight, gestureLayerId, gestureLayerWidth, layerAtCanvasPoint, positionX, positionY, rotation, scaleX, scaleY, selectedLayer, startRotation, startScaleX, startScaleY, startX, startY, templateStudio, viewport]);
+  }, [catalog.assets, gestureLayerHeight, gestureLayerId, gestureLayerWidth, gestureMovesTemplatePhotoContent, layerAtCanvasPoint, positionX, positionY, rotation, scaleX, scaleY, selectedLayer, startRotation, startScaleX, startScaleY, startX, startY, templateStudio, viewport]);
   const beginTransformGesture = useCallback(() => setIsTransforming(true), []);
   const clearAlignmentGuides = useCallback(() => {
     movementGuideState.current = null;
@@ -543,9 +576,36 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     setIsTransforming(false);
   }, [clearAlignmentGuides]);
 
+  const moveTemplatePhotoContent = useCallback((screenDx: number, screenDy: number) => {
+    const session = templatePhotoContentDragRef.current;
+    if (session === null || gestureScale.value <= 0) return;
+    const canvasDx = screenDx / gestureScale.value;
+    const canvasDy = screenDy / gestureScale.value;
+    const cos = Math.cos(session.transform.rotation);
+    const sin = Math.sin(session.transform.rotation);
+    const localDx = (canvasDx * cos + canvasDy * sin) / Math.max(0.001, session.transform.scale.x);
+    const localDy = (-canvasDx * sin + canvasDy * cos) / Math.max(0.001, session.transform.scale.y);
+    const sourceScale = Math.max(
+      session.frame.width / (session.source.width * session.crop.width),
+      session.frame.height / (session.source.height * session.crop.height),
+    );
+    const crop = clampCropBounds({
+      ...session.crop,
+      // Moving the rendered photo right reveals pixels farther left.
+      x: session.crop.x - localDx / (session.source.width * sourceScale),
+      y: session.crop.y - localDy / (session.source.height * sourceScale),
+    }, Math.min(session.crop.width, session.crop.height));
+    dispatch({ type: 'command', command: { type: 'layer.crop.set', layerId: session.layerId, crop } });
+  }, [gestureScale]);
+
   const selectedLayerId = selectedLayer?.id ?? null;
   const commitOnEnd = () => {
     'worklet';
+    if (gestureMovesTemplatePhotoContent.value) {
+      gestureMovesTemplatePhotoContent.value = false;
+      gestureLayerId.value = null;
+      return;
+    }
     const layerId = gestureLayerId.value;
     if (layerId !== null) runOnJS(commitActiveTransform)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value);
     gestureLayerId.value = null;
@@ -554,7 +614,11 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   // `onBegin` fires as soon as a finger touches the canvas, including an
   // ordinary tap. Keep shared transforms dormant until a gesture is actually
   // active so selecting a cut fragment cannot momentarily move its siblings.
-  const pan = Gesture.Pan().minDistance(8).enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.x, event.y); }).onUpdate((event) => {
+  const pan = Gesture.Pan().minDistance(8).enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.x, event.y, false, true); }).onUpdate((event) => {
+    if (gestureMovesTemplatePhotoContent.value) {
+      runOnJS(moveTemplatePhotoContent)(event.translationX, event.translationY);
+      return;
+    }
     const layerId = gestureLayerId.value;
     if (layerId === null) return;
     const threshold = ALIGNMENT_GUIDE_SCREEN_THRESHOLD / Math.max(gestureScale.value, 0.001);
@@ -565,7 +629,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     positionX.value = templateStudioSnapEnabled.value && Math.abs(centreX - snapCanvasWidth.value / 2) <= threshold ? snapCanvasWidth.value / 2 - gestureLayerWidth.value * scaleX.value / 2 : rawX;
     positionY.value = templateStudioSnapEnabled.value && Math.abs(centreY - snapCanvasHeight.value / 2) <= threshold ? snapCanvasHeight.value / 2 - gestureLayerHeight.value * scaleY.value / 2 : rawY;
     runOnJS(updateMovementAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value);
-  }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
+  }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureMovesTemplatePhotoContent.value = false; gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
   const pinch = Gesture.Pinch().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.focalX, event.focalY, true); }).onUpdate((event) => { if (gestureLayerId.value === null) return; const next = Math.max(0.15, Math.min(event.scale, 5)); scaleX.value = startScaleX.value * next; scaleY.value = startScaleY.value * next; }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
   const rotate = Gesture.Rotation().enabled(straightCut === null && brushCut === null && decorativeBrush === null).onStart((event) => { runOnJS(clearAlignmentGuides)(); runOnJS(prepareDirectTransform)(event.anchorX, event.anchorY, true); }).onUpdate((event) => { const layerId = gestureLayerId.value; if (layerId === null) return; rotation.value = startRotation.value + event.rotation; runOnJS(updateRotationAlignment)(layerId, positionX.value, positionY.value, scaleX.value, scaleY.value, rotation.value); }).onEnd(commitOnEnd).onFinalize((_event, success) => { if (!success) { gestureLayerId.value = null; runOnJS(cancelTransformGesture)(); } });
   // A completed pan/rotation must never also be treated as a canvas tap: that
@@ -869,12 +933,16 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     setLayerEffectControl(null);
     // Crop is about the source image, not the composition paper. Present it
     // almost edge-to-edge while preserving its original aspect ratio.
-    const previewScale = canvasSize.width * 0.92 / selectedLayer.frame.width;
+    const sourceAsset = catalog.assets.find((asset) => asset.reference.id === selectedLayer.asset.id && asset.reference.revision === selectedLayer.asset.revision);
+    const sourceFrame = sourceAsset && sourceAsset.width > 0 && sourceAsset.height > 0
+      ? { width: sourceAsset.width, height: sourceAsset.height }
+      : selectedLayer.frame;
+    const previewScale = canvasSize.width * 0.92 / sourceFrame.width;
     // Skia scales a layer around its frame centre. Keep the unscaled frame
     // centred here, so the scaled image remains horizontally centred as well.
-    const previewLayer = { ...selectedLayer, transform: { ...identityTransform(), position: { x: (canvasSize.width - selectedLayer.frame.width) / 2, y: (canvasSize.height - selectedLayer.frame.height) / 2 }, scale: { x: previewScale, y: previewScale } } };
+    const previewLayer = { ...selectedLayer, frame: sourceFrame, transform: { ...identityTransform(), position: { x: (canvasSize.width - sourceFrame.width) / 2, y: (canvasSize.height - sourceFrame.height) / 2 }, scale: { x: previewScale, y: previewScale } } };
     setCrop({ layer: previewLayer, bounds: selectedLayer.crop, initialBounds: selectedLayer.crop, ratio: 'free' });
-  }, [canvasSize, locale, selectedLayer]);
+  }, [canvasSize, catalog.assets, locale, selectedLayer]);
   const cropPoint = useCallback((x: number, y: number, session: CropSession): Point => {
     const point = { x: (x - viewport.x) / viewport.scale, y: (y - viewport.y) / viewport.scale };
     const origin = { x: session.layer.frame.width / 2, y: session.layer.frame.height / 2 };
@@ -1101,7 +1169,8 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
       records.forEach((record) => setCatalog((current) => upsertAsset(current, record)));
       if (replaceLayerId !== null) {
         const layer = state.present.layers.find((candidate) => candidate.id === replaceLayerId);
-        dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference, preserveCrop: layer?.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/') } });
+        const crop = layer?.type === 'image' ? centeredCoverCrop(records[0], layer.frame) : undefined;
+        dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference, ...(crop ? { crop } : {}) } });
         return;
       }
       records.forEach((record, index) => {
@@ -1541,6 +1610,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     locale={locale}
     onBack={() => setTemplateCatalogOpen(false)}
     onOpenBasicLayout={insertBasicLayoutFromCatalog}
+    onOpenShowcase={onStartShowcase}
     onOpenTemplate={(template) => startTemplateFromCatalog(template)}
     withTopSafeArea
   />;
@@ -1927,6 +1997,11 @@ export default function App() {
   const locale = resolveProductLocale();
 
   const openTemplate = (template: TemplateDefinition, basicLayoutId: BasicLayoutId | null = null) => {
+    const capabilityGate = localTemplateCapabilityGate(template);
+    if (!capabilityGate.supported) {
+      Alert.alert('Template unavailable', `This version of the app does not support: ${capabilityGate.missing.join(', ')}.`);
+      return;
+    }
     setTemplateCatalogOpen(false);
     setTemplateStudio(false);
     setRestoreSavedDraftId(null);
@@ -1938,15 +2013,26 @@ export default function App() {
     setEditing(true);
   };
   const openBasicLayout = (layout: BasicLayout) => openTemplate(basicLayoutTemplate(layout), layout.id);
+  const openShowcase = (showcase: TemplateCatalogShowcaseIntent) => {
+    setTemplateCatalogOpen(false);
+    setTemplateStudio(false);
+    setRestoreSavedDraftId(null);
+    setInitialTemplate(null);
+    setInitialBasicLayoutId(null);
+    setInitialShowcase(showcase);
+    setEditorEntry('showcase');
+    setEditorSessionKey((key) => key + 1);
+    setEditing(true);
+  };
 
-  if (editing) return <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartTemplate={openTemplate} />;
+  if (editing) return <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab('create'); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartShowcase={openShowcase} onStartTemplate={openTemplate} />;
 
   return (
     <>
     <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
       <StatusBar style="dark" />
       {templateCatalogOpen
-        ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenTemplate={openTemplate} />
+        ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenShowcase={openShowcase} onOpenTemplate={openTemplate} />
         : tab === 'create'
         ? <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
         : tab === 'assets'
