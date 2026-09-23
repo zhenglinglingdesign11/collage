@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/digital-y2k-ascii",
+  "revision": "1",
+  "status": "ready",
+  "name": "Digital Y2K ASCII",
+  "canvas": {
+    "size": {
+      "width": 1080,
+      "height": 1440
+    },
+    "background": "#FDFDFB"
+  },
+  "preview": {
+    "id": "asset://pack/template-previews/digital-y2k-ascii",
+    "kind": "image",
+    "revision": "1"
+  },
+  "photoSlots": [
+    {
+      "id": "hero-photo",
+      "name": "Hero photo",
+      "type": "photo",
+      "frame": {
+        "width": 427.5,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 326.2500000000001,
+          "y": 341.04121475054217
+        },
+        "scale": {
+          "x": 2.526315789473684,
+          "y": 1.894736842105263
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [
+        {
+          "instanceId": "effect-a3f297fd-9c23-42ed-973f-cdb99801cae3",
+          "type": "shape.round-corners",
+          "version": 1,
+          "enabled": true,
+          "stage": "geometry",
+          "params": {
+            "radius": 3
+          }
+        }
+      ],
+      "required": true
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "fixedLayers": [
+    {
+      "id": "pack-layer-af78eebc-977e-416b-beda-5a9493362b04",
+      "name": "pixel-ascii-3-1",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/pixel-ascii/3-1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 547,
+        "height": 455
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 266.5,
+          "y": 492.5
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    }
+  ],
+  "layerStack": [
+    "photo:hero-photo",
+    "fixed:pack-layer-af78eebc-977e-416b-beda-5a9493362b04"
+  ],
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/digital-y2k-ascii",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/pixel-ascii/3-1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    }
+  ],
+  "requiredCapabilities": [
+    "image.replace",
+    "image.crop",
+    "material.resolve"
+  ]
+}

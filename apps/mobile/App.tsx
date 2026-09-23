@@ -50,7 +50,7 @@ import { BRUSH_EDITOR_PANEL_HEIGHT, BrushPanel } from './src/product-ui/BrushPan
 import { TEXT_EDITOR_PANEL_HEIGHT, TextEditorPanel } from './src/product-ui/TextEditorPanel';
 import { ensureTextFont, resolvedTextFontUri } from './src/product-ui/fonts';
 import { AssetsLibrary } from './src/product-ui/AssetsLibrary';
-import { exportTemplateStudioJson, isTemplateStudioPhotoSlot, templateStudioPhotoSlotAsset } from './src/templateStudio';
+import { exportTemplateStudioJson, importTemplateStudioJson, isTemplateStudioPhotoSlot, listTemplateStudioJsonFiles, templateStudioPhotoSlotAsset } from './src/templateStudio';
 import { resolveProductLocale, t, type ProductCopyKey } from './src/product-ui/localization';
 import { productColor } from './src/product-ui/tokens';
 import type { ProductTab } from './src/product-ui/ProductTabBar';
@@ -58,8 +58,9 @@ import type { ProductTab } from './src/product-ui/ProductTabBar';
 const CANVAS_SIZE = { width: 1800, height: 2400 };
 /** Deliberately small preset list: template production starts with known target artboards. */
 const TEMPLATE_STUDIO_CANVAS_SIZES = [
-  { label: '1254×1254', width: 1254, height: 1254 },
-  { label: '1024×1536', width: 1024, height: 1536 },
+  { label: '1:1', width: 1080, height: 1080 },
+  { label: '3:4', width: 1080, height: 1440 },
+  { label: '9:16', width: 1080, height: 1920 },
 ] as const;
 const TEMPLATE_STUDIO_CANVAS_SIZE = TEMPLATE_STUDIO_CANVAS_SIZES[0];
 type CanvasRatio = '3:4' | '1:1' | '9:16' | '16:9';
@@ -156,6 +157,15 @@ const loadMediaLibrary = (): MediaLibraryModule | null => {
     return require('expo-media-library/legacy') as MediaLibraryModule;
   } catch {
     return null;
+  }
+};
+
+/** Keep a pre-DocumentPicker development client launchable until it is rebuilt. */
+const loadDocumentPicker = (): typeof import('expo-document-picker') => {
+  try {
+    return require('expo-document-picker') as typeof import('expo-document-picker');
+  } catch {
+    throw new Error('导入 JSON 需要重建开发客户端。');
   }
 };
 
@@ -426,12 +436,25 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   }, [canvasSize, snapCanvasHeight, snapCanvasWidth, templateStudio, templateStudioSnapEnabled]);
 
   const activeTransform = useDerivedValue<Transforms3d>(() => [
-    { translateX: positionX.value }, { translateY: positionY.value }, { scaleX: scaleX.value }, { scaleY: scaleY.value }, { rotate: rotation.value },
+    // Skia concatenates this array right-to-left. Rotate after applying the
+    // independent X/Y size scales so the result remains a right-angle rect.
+    { translateX: positionX.value }, { translateY: positionY.value }, { rotate: rotation.value }, { scaleX: scaleX.value }, { scaleY: scaleY.value },
   ]);
   /** In Studio, decorative assets should win a tap over a broad photo placeholder beneath them. */
   const templatePhotoPickerRef = useRef<(layerId: string) => void>(() => undefined);
   const layerAtCanvasPoint = useCallback((point: Point) => {
-    if (!templateStudio) return hitTest(state.present, point);
+    if (!templateStudio) {
+      // Template frame art is deliberately locked and often sits above its
+      // photo slot. It must not consume the tap that opens photo replacement.
+      const hasTemplatePhotoSlots = state.present.layers.some((layer) => layer.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/'));
+      if (!hasTemplatePhotoSlots) return hitTest(state.present, point);
+      const replaceableDraft: Draft = {
+        ...state.present,
+        layers: state.present.layers.filter((layer) => !layer.isLocked || (layer.type === 'image' && layer.asset.id.startsWith('generated://template-photo-slot/'))),
+        selectedLayerId: null,
+      };
+      return hitTest(replaceableDraft, point) ?? hitTest(state.present, point);
+    }
     const fixedLayerDraft: Draft = { ...state.present, layers: state.present.layers.filter((layer) => !isTemplateStudioPhotoSlot(layer)), selectedLayerId: null };
     return hitTest(fixedLayerDraft, point) ?? hitTest(state.present, point);
   }, [state.present, templateStudio]);
@@ -1252,6 +1275,55 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
       Alert.alert('Could not export template JSON', message);
     }
   }, [catalog, state.present]);
+  const importTemplateStudioFromUri = useCallback(async (uri: string) => {
+    try {
+      const draft = await importTemplateStudioJson(uri);
+      const applyImportedDraft = () => {
+        dispatch({ type: 'hydrate', draft });
+        setLayerPanelOpen(false);
+        setLayerEffectControl(null);
+        setRatioPickerOpen(false);
+        Alert.alert('已导入 Template JSON', `已载入 ${draft.layers.length} 个图层和 ${draft.layers.filter(isTemplateStudioPhotoSlot).length} 个照片槽。`);
+      };
+      const hasCurrentContent = state.present.layers.length > 0 || state.present.canvas.backgroundAsset !== undefined || state.present.canvas.background !== DEFAULT_CANVAS_BACKGROUND;
+      if (hasCurrentContent) {
+        Alert.alert('替换当前画布？', '导入会替换当前 Template Studio 画布。请先导出 JSON 保存当前工作。', [
+          { text: '取消', style: 'cancel' },
+          { text: '替换', style: 'destructive', onPress: applyImportedDraft },
+        ]);
+      } else {
+        applyImportedDraft();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      Alert.alert('无法导入 Template JSON', message);
+    }
+  }, [state.present]);
+  const importTemplateStudioFromFiles = useCallback(async () => {
+    try {
+      const result = await loadDocumentPicker().getDocumentAsync({ type: ['application/json', 'text/json', 'text/plain'], copyToCacheDirectory: true, multiple: false });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      if (!asset) throw new Error('未选择 JSON 文件。');
+      await importTemplateStudioFromUri(asset.uri);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      Alert.alert('无法打开文件选择器', message);
+    }
+  }, [importTemplateStudioFromUri]);
+  const chooseTemplateStudioImport = useCallback(async () => {
+    try {
+      const localFiles = await listTemplateStudioJsonFiles();
+      Alert.alert('导入 Template JSON', localFiles.length > 0 ? '可直接导入本机 Template Studio 目录中的文件，或从系统“文件”中选择。' : '本机 Template Studio 目录暂无 JSON 文件。', [
+        ...localFiles.map((file) => ({ text: file.name, onPress: () => { void importTemplateStudioFromUri(file.uri); } })),
+        { text: '从“文件”选择', onPress: () => { void importTemplateStudioFromFiles(); } },
+        { text: '取消', style: 'cancel' },
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      Alert.alert('无法读取本机模板目录', message);
+    }
+  }, [importTemplateStudioFromFiles, importTemplateStudioFromUri]);
   const requestExit = useCallback(() => {
     // Studio documents deliberately do not become user workspaces or recent user drafts.
     if (templateStudio) {
@@ -1496,6 +1568,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
             {crop !== null && <CropEditor bottomInset={insets.bottom} locale={locale} ratio={crop.ratio} onCancel={() => setCrop(null)} onConfirm={confirmCrop} onSelectRatio={(ratio) => setCrop((current) => current === null ? null : { ...current, ratio, bounds: cropBoundsForRatio(current.bounds, current.layer.frame, ratio) })} />}
             {emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
             {straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && imageSelectionControls}
+            {templateStudio && (selectedLayer === null || !layerPanelOpen) && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <Pressable accessibilityLabel="Import Template JSON" accessibilityRole="button" onPress={() => { void chooseTemplateStudioImport(); }} style={[a3Styles.templateStudioImportButton, { bottom: 96 + insets.bottom }]}><Text style={a3Styles.templateStudioImportLabel}>导入 JSON</Text></Pressable>}
             {(selectedLayer === null || !layerPanelOpen) && !drawerOpen && textEdit === null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <EditorPrimaryToolbar bottomInset={insets.bottom} locale={locale} onBackground={() => setBackgroundDrawerOpen(true)} onBrush={beginDecorativeBrush} onEmboss={beginEmboss} onMaterial={() => setAssetDrawerOpen(true)} onPhoto={openPhotoSource} onScissors={openCutPalette} onText={addText} />}
             {layerPanelOpen && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && (imageLayerToolbar ?? textLayerToolbar ?? brushLayerToolbar ?? (selectedLayer !== null && inspector))}
             {templatePrecisionVisible && selectedLayer !== null && <TemplatePrecisionPanel key={selectedLayer.id} bottomInset={insets.bottom} layer={selectedLayer} onApply={({ width, height, rotation }) => {
@@ -1749,6 +1822,8 @@ const a3Styles = StyleSheet.create({
   embossEditorWorkspace: { backgroundColor: '#FAFAF8' },
   cropEditorWorkspace: { backgroundColor: '#FAFAF8' },
   workspaceDismissBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 0 },
+  templateStudioImportButton: { alignItems: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, elevation: 8, height: 36, justifyContent: 'center', paddingHorizontal: 13, position: 'absolute', right: 18, shadowColor: '#111111', shadowOffset: { height: 4, width: 0 }, shadowOpacity: 0.12, shadowRadius: 10, zIndex: 8 },
+  templateStudioImportLabel: { color: '#111111', fontSize: 12, fontWeight: '700' },
   canvasStage: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingBottom: 104, paddingTop: 8 },
   // Centre the paper in the remaining visible area above an editor sheet;
   // the dynamic bottom padding reserves the sheet without pinning the paper

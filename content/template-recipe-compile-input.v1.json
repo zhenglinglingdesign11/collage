@@ -53,6 +53,144 @@
           "pack-layer-ab571a93-8532-430a-9638-787990dd5490"
         ]
       }
+    },
+    {
+      "id": "soft-archive",
+      "name": "Soft Archive",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/soft-archive",
+        "kind": "image",
+        "revision": "1"
+      },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/soft_archive.json",
+        "photoSlots": [
+          {
+            "sourceLayerId": "image-layer-32cab687-b509-4696-96f1-975da9aa3466",
+            "id": "hero-photo",
+            "name": "Centered portrait"
+          }
+        ],
+        "assetReferenceOverrides": {
+          "asset://pack/jiaodai/29@1": {
+            "id": "asset://pack/template-assets/soft-archive-tape-left",
+            "kind": "image",
+            "revision": "1"
+          },
+          "asset://pack/jiaodai/31@1": {
+            "id": "asset://pack/template-assets/soft-archive-tape-right",
+            "kind": "image",
+            "revision": "1"
+          }
+        }
+      }
+    },
+    {
+      "id": "play-pop-multi",
+      "name": "Play Pop Multi",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/play-pop-multi", "kind": "image", "revision": "1" },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/play-pop-multi.template-draft.json",
+        "photoSlots": [
+          { "sourceLayerId": "image-layer-2d3491ed-1338-461b-bd9f-879b71869ad7", "id": "polaroid-photo", "name": "Left lace diamond photo" },
+          { "sourceLayerId": "image-layer-f8dbf880-907e-4001-abb4-89dcc043c7cf", "id": "frame-photo-1", "name": "Frame photo 1" },
+          { "sourceLayerId": "layer-27aeedc1-1052-4491-ab81-fea7b95bde42", "id": "frame-photo-2", "name": "Frame photo 2" },
+          { "sourceLayerId": "layer-5f4d9706-f090-4800-a14f-4777d1093b33", "id": "frame-photo-3", "name": "Frame photo 3" }
+        ]
+      }
+    },
+    {
+      "id": "digital-y2k-ascii",
+      "name": "Digital Y2K ASCII",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/digital-y2k-ascii",
+        "kind": "image",
+        "revision": "1"
+      },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/digital_y2k.template-draft.json",
+        "photoSlots": [
+          {
+            "sourceLayerId": "image-layer-ef78cca9-e97f-433f-8727-62457c181687",
+            "id": "hero-photo",
+            "name": "Hero photo"
+          }
+        ]
+      }
+    },
+    {
+      "id": "digital-y2k-multi",
+      "name": "Digital Y2K Multi",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/digital-y2k-multi",
+        "kind": "image",
+        "revision": "1"
+      },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/digital_y2k_multi.template-draft.json",
+        "photoSlots": [
+          { "sourceLayerId": "layer-68806fee-d6bc-4d4d-9364-c7c4f5f3e79f", "id": "photo-1", "name": "Photo 1" },
+          { "sourceLayerId": "layer-b22033ce-334b-426c-a481-7b8b6253c5b6", "id": "photo-2", "name": "Photo 2" },
+          { "sourceLayerId": "layer-e2f7c3c6-a672-41b0-8c04-9abb382f4d3d", "id": "photo-3", "name": "Photo 3" },
+          { "sourceLayerId": "layer-7c420d09-a29a-40b1-83b2-62cbc8fa0521", "id": "photo-4", "name": "Photo 4" },
+          { "sourceLayerId": "layer-d6836e71-bd65-4b0f-9d13-06ab514ca976", "id": "photo-5", "name": "Photo 5" },
+          { "sourceLayerId": "image-layer-6fbbce51-4b7f-495f-8edb-d0f28ae833d7", "id": "photo-6", "name": "Photo 6" }
+        ]
+      }
+    },
+    {
+      "id": "soft-archive-multi",
+      "name": "Soft Archive Multi",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/soft-archive-multi", "kind": "image", "revision": "1" },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/soft_archive_multi.json",
+        "photoSlots": [
+          { "sourceLayerId": "image-layer-32cab687-b509-4696-96f1-975da9aa3466", "id": "left-photo", "name": "Left photo card" },
+          { "sourceLayerId": "image-layer-9fedf4b8-98b2-4ae6-8a34-99b261871f3e", "id": "right-photo-1", "name": "Right frame photo 1" },
+          { "sourceLayerId": "layer-cd803018-219c-4347-9397-88990014fcdd", "id": "right-photo-2", "name": "Right frame photo 2" },
+          { "sourceLayerId": "layer-ced1819e-6fc0-4cd2-91dd-4f0deedd6666", "id": "right-photo-3", "name": "Right frame photo 3" }
+        ],
+        "assetReferenceOverrides": {
+          "asset://pack/fugu-03/6@1": { "id": "asset://pack/template-assets/soft-archive-multi-fugu-accent", "kind": "image", "revision": "1" },
+          "asset://pack/jiaodai/41@1": { "id": "asset://pack/template-assets/soft-archive-multi-tape", "kind": "image", "revision": "1" },
+          "asset://pack/xiangkuang-02/4@1": { "id": "asset://pack/template-assets/soft-archive-multi-photo-frame-v2", "kind": "image", "revision": "1" }
+        }
+      }
+    },
+    {
+      "id": "fan-moodboard",
+      "name": "Fan Moodboard",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/fan-moodboard", "kind": "image", "revision": "1" },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/fan_moodboard.json",
+        "photoSlots": [{ "sourceLayerId": "image-layer-c2e29d28-d0a2-4612-a18c-9127bccc3a5f", "id": "hero-photo", "name": "Full-bleed photo" }]
+      }
+    },
+    {
+      "id": "material-remix",
+      "name": "Material Remix",
+      "revision": "1",
+      "preview": { "id": "asset://pack/template-previews/material-remix", "kind": "image", "revision": "1" },
+      "source": {
+        "kind": "template-studio",
+        "path": "content/template-drafts/material_remix.json",
+        "photoSlots": [{ "sourceLayerId": "image-layer-f770e1dc-8624-4c34-9bb1-6db1ada418fe", "id": "hero-photo", "name": "Centered portrait photo" }],
+        "assetReferenceOverrides": {
+          "asset://pack/blingshuijing/2@1": { "id": "asset://pack/template-assets/material-remix-crystal-accent", "kind": "image", "revision": "1" }
+        }
+      }
     }
   ]
 }

@@ -1387,7 +1387,9 @@ const seeded = (seed: number) => {
 const layerTransform = (layer: Layer): Transforms3d => [
   { translateX: layer.transform.position.x },
   { translateY: layer.transform.position.y },
+  // Keep non-uniform scale in local axes, then rotate the completed rectangle.
+  // Reversing these operations shears an otherwise rectangular photo slot.
+  { rotate: layer.transform.rotation },
   { scaleX: layer.transform.scale.x },
   { scaleY: layer.transform.scale.y },
-  { rotate: layer.transform.rotation },
 ];

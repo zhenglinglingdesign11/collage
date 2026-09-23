@@ -20,6 +20,14 @@ const retryDelayMs = 200;
 const downloadTimeoutMs = 8_000;
 
 const bytesFromBase64 = (value: string): Uint8Array => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+const base64FromBytes = (bytes: Uint8Array): string => {
+  // Avoid spreading a complete image into String.fromCharCode: it can exceed
+  // JavaScript's argument limit for otherwise valid catalogue assets.
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  return btoa(binary);
+};
 const extensionFor = (mimeType: RemoteAssetIntegrityDescriptor['mimeType']): string => mimeType === 'image/png' ? 'png' : 'jpg';
 const readBytes = async (uri: string): Promise<Uint8Array> => bytesFromBase64(await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }));
 const identity = (descriptor: RemoteAssetIntegrityDescriptor): string => sha256HexForBytes(new TextEncoder().encode(remoteAssetCacheKey(descriptor)));
@@ -41,16 +49,31 @@ const deleteLocation = async (directory: string): Promise<void> => { await FileS
 const wait = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const retryableDownloadFailure = (error: unknown): boolean =>
   !(error instanceof RemoteAssetIntegrityError) || (error.code === 'asset-download-failed' && /HTTP 5\d\d\./.test(error.message));
-const downloadWithTimeout = async (sourceUrl: string, destination: string): Promise<Awaited<ReturnType<typeof FileSystem.downloadAsync>>> => {
-  const task = FileSystem.createDownloadResumable(sourceUrl, destination);
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const settle = (action: () => void) => { if (!settled) { settled = true; clearTimeout(timer); action(); } };
-    const timer = setTimeout(() => {
-      void task.cancelAsync().catch(() => undefined).finally(() => settle(() => reject(new Error(`Remote asset download timed out after ${downloadTimeoutMs}ms.`))));
-    }, downloadTimeoutMs);
-    void task.downloadAsync().then((result) => settle(() => result ? resolve(result) : reject(new Error('Remote asset download was cancelled.'))), (error) => settle(() => reject(error)));
-  });
+type ForegroundDownload = Readonly<{ status: number; headers: Readonly<Record<string, string>> }>;
+
+/**
+ * Do not use expo-file-system's NSURLSession background downloader here. A
+ * simulator can temporarily lose its nsurlsessiond XPC connection, which made
+ * every uncached material fail even when its CDN URL was healthy. Fetch uses
+ * the app's foreground session; the bytes are still written only to staging
+ * and validated before becoming a cache entry.
+ */
+const downloadWithTimeout = async (sourceUrl: string, destination: string): Promise<ForegroundDownload> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), downloadTimeoutMs);
+  try {
+    const response = await fetch(sourceUrl, { signal: controller.signal });
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, name) => { headers[name] = value; });
+    await FileSystem.writeAsStringAsync(destination, base64FromBytes(bytes), { encoding: FileSystem.EncodingType.Base64 });
+    return { status: response.status, headers };
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`Remote asset download timed out after ${downloadTimeoutMs}ms.`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 };
 
 const cachedAssetUri = async (descriptor: RemoteAssetIntegrityDescriptor): Promise<string | null> => {

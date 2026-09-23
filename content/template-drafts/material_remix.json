@@ -1,0 +1,471 @@
+{
+  "format": "journalcollage.template-studio",
+  "formatVersion": 1,
+  "exportedAt": "2026-09-23T05:48:33.056Z",
+  "document": {
+    "schemaVersion": 4,
+    "id": "template-studio-dd43f2c9-0f9d-4a76-8e78-fcfeeb3eecb4",
+    "canvas": {
+      "size": {
+        "label": "3:4",
+        "width": 1080,
+        "height": 1440
+      },
+      "background": "#F5F3F1"
+    },
+    "layers": [
+      {
+        "id": "image-layer-f770e1dc-8624-4c34-9bb1-6db1ada418fe",
+        "name": "IMG_0009.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-f770e1dc-8624-4c34-9bb1-6db1ada418fe",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 316.9960195227766,
+            "y": 364.35
+          },
+          "scale": {
+            "x": 1.2478830409356725,
+            "y": 0.9359210526315789
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": true,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-90197941-74cc-4f80-9669-48b3783d57ad",
+        "name": "structural-plastic-beads-mesh-1",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/structural-plastic-beads-mesh/1",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 666,
+          "height": 590
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 71.64208242950104,
+            "y": 205.30368763557507
+          },
+          "scale": {
+            "x": 0.44293286910875185,
+            "y": 0.44293500187487816
+          },
+          "rotation": -0.04818927891511526
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "layer-f48d3091-fb7c-4614-983a-23fe3373aeb1",
+        "name": "structural-plastic-beads-mesh-1",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/structural-plastic-beads-mesh/1",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 666,
+          "height": 590
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 355.12147505422996,
+            "y": 202.4490238611714
+          },
+          "scale": {
+            "x": 0.4432732732732733,
+            "y": 0.4432881355932204
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-0a8d106f-e52c-4ca5-a7c3-83e90ee7b7a3",
+        "name": "fabric-fiber-thread-2",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/fabric-fiber-thread/2",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 518,
+          "height": 362
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 84.21041214750541,
+            "y": 222.4707158351411
+          },
+          "scale": {
+            "x": 0.7016200046960878,
+            "y": 0.7016200046960878
+          },
+          "rotation": -0.14474140007581826
+        },
+        "opacity": 0.8500000000000001,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-26f07e41-88dd-48dc-a886-c90637ae3234",
+        "name": "beads-structural-units-1-5",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/beads-structural-units-1/5",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 333,
+          "height": 329
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -77.34598698481562,
+            "y": 333.72125813449
+          },
+          "scale": {
+            "x": 0.16516516516516516,
+            "y": 0.16717325227963525
+          },
+          "rotation": 3.4280011838420625
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-60874131-5b1b-41d5-81a3-1563ccd7abf7",
+        "name": "beads-structural-units-1-19",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/beads-structural-units-1/19",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 340,
+          "height": 326
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 750.0433839479392,
+            "y": 798.5618221258135
+          },
+          "scale": {
+            "x": 0.1922159472383246,
+            "y": 0.1922159472383246
+          },
+          "rotation": -2.01040829202599
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-bb054b69-1dd8-4189-8750-77f95c7d5c3a",
+        "name": "beads-structural-units-1-20",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/beads-structural-units-1/20",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 329,
+          "height": 322
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -47.23318872017357,
+            "y": 878.6529284164858
+          },
+          "scale": {
+            "x": 0.182370820668693,
+            "y": 0.18633540372670807
+          },
+          "rotation": 0.3895574890451344
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-e94f7066-6c96-4018-8857-fd4416296d7e",
+        "name": "beads-structural-units-1-6",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/beads-structural-units-1/6",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 326,
+          "height": 328
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 750.7960954446855,
+            "y": 376.91106290672434
+          },
+          "scale": {
+            "x": 0.18404907975460122,
+            "y": 0.18292682926829268
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-b2555e56-db47-48fd-9135-cad217cf2b93",
+        "name": "beads-structural-units-1-7",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/beads-structural-units-1/7",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 320,
+          "height": 320
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 703.8177874186551,
+            "y": 560
+          },
+          "scale": {
+            "x": 0.171875,
+            "y": 0.171875
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-185184ed-3dc3-4bd7-8f0f-cfd41b56f3d7",
+        "name": "beads-structural-units-1-24",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/beads-structural-units-1/24",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 326,
+          "height": 286
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 22.9869848156181,
+            "y": 529.945770065076
+          },
+          "scale": {
+            "x": 0.18404907975460122,
+            "y": 0.1888111888111888
+          },
+          "rotation": -0.5235987755982988
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-5ddd1deb-6178-4529-829f-5cf11a4777aa",
+        "name": "blingshuijing-2",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/blingshuijing/2",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 369,
+          "height": 333
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -19.33731019522781,
+            "y": 708.6409978308027
+          },
+          "scale": {
+            "x": 0.16260162601626016,
+            "y": 0.16216216216216217
+          },
+          "rotation": -0.12147491593880534
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-9c64db9d-1bbb-45ac-87c2-eb8cb28527db",
+        "name": "essential-lace-trims-3",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/essential-lace-trims/3",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 760,
+          "height": 109
+        },
+        "crop": {
+          "width": 0.4832122969058149,
+          "height": 1,
+          "x": 0.08849822940997465,
+          "y": 0
+        },
+        "transform": {
+          "position": {
+            "x": 332.8416485900217,
+            "y": 987.2353579175707
+          },
+          "scale": {
+            "x": 0.4605263157894737,
+            "y": 1
+          },
+          "rotation": -0.5235987755982988
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      }
+    ],
+    "selectedLayerId": null,
+    "createdAt": "2026-09-23T05:25:33.289Z",
+    "updatedAt": "2026-09-23T05:48:08.972Z"
+  },
+  "photoSlotLayerIds": [
+    "image-layer-f770e1dc-8624-4c34-9bb1-6db1ada418fe"
+  ],
+  "localAssets": [
+    {
+      "reference": {
+        "id": "user://image/user-image-0f0432aa-5a82-4c0d-8592-6edcab92c332",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/jpeg",
+      "pixelSize": {
+        "width": 3000,
+        "height": 2002
+      }
+    },
+    {
+      "reference": {
+        "id": "user://image/user-image-a128ce35-3253-410c-a08e-f89a174924fd",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    },
+    {
+      "reference": {
+        "id": "user://image/user-image-88a923fe-a783-450a-9a44-0fae3b5d27c7",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3240,
+        "height": 4320
+      }
+    }
+  ]
+}

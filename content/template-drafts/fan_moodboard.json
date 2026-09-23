@@ -1,0 +1,413 @@
+{
+  "format": "journalcollage.template-studio",
+  "formatVersion": 1,
+  "exportedAt": "2026-09-23T04:58:23.738Z",
+  "document": {
+    "schemaVersion": 4,
+    "id": "template-studio-484036bf-f7e5-43e5-b6c0-bd8deea5e985",
+    "canvas": {
+      "size": {
+        "label": "3:4",
+        "width": 1080,
+        "height": 1440
+      },
+      "background": "#FDFDFB"
+    },
+    "layers": [
+      {
+        "id": "image-layer-c2e29d28-d0a2-4612-a18c-9127bccc3a5f",
+        "name": "IMG_0010.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-c2e29d28-d0a2-4612-a18c-9127bccc3a5f",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 326.25,
+            "y": 340
+          },
+          "scale": {
+            "x": 2.526315789473684,
+            "y": 1.894736842105263
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-ace42c54-c2a2-4e31-8f8d-5ff897f550a5",
+        "name": "experimental-print-registration-fragments-3",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/experimental-print-registration-fragments/3",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 472,
+          "height": 529
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 621.5704989154012,
+            "y": 676.2375271149674
+          },
+          "scale": {
+            "x": 0.5035642887157932,
+            "y": 0.5035642887157932
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-2fb63818-3d58-4e64-9cbe-54e411666a6e",
+        "name": "experimental-print-registration-fragments-18",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/experimental-print-registration-fragments/18",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 760,
+          "height": 560
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -295.0108459869848,
+            "y": -55.6182212581344
+          },
+          "scale": {
+            "x": 0.6506842105263158,
+            "y": 0.6506785714285714
+          },
+          "rotation": 1.5707963267948966
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-83c60554-6eb7-4c84-bd40-28eb93d6499b",
+        "name": "fan-edit-highlights-2-copy",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/fan-edit-highlights/2-copy",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 504,
+          "height": 612
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 713.8568329718004,
+            "y": 454.60737527114964
+          },
+          "scale": {
+            "x": 0.3766886823332844,
+            "y": 0.37668090890483863
+          },
+          "rotation": -2.5371253213143006
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-04335a47-9ca9-43c8-84cc-6bdf394c76c4",
+        "name": "editorial-connectors-index-marks-2",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/editorial-connectors-index-marks/2",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 328,
+          "height": 301
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 141.72668112798266,
+            "y": 321.6908893709328
+          },
+          "scale": {
+            "x": 0.46400724536832727,
+            "y": 0.46400724536832727
+          },
+          "rotation": -0.6628601591578196
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-bf34e5ff-5b32-4faf-87da-9e5282408017",
+        "name": "editorial-connectors-index-marks-6",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/editorial-connectors-index-marks/6",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 220,
+          "height": 277
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 86.39913232104126,
+            "y": 1073.9945770065076
+          },
+          "scale": {
+            "x": 0.801220924413089,
+            "y": 0.801220924413089
+          },
+          "rotation": -0.15407138964833544
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-c1efa26f-401d-4db7-befd-5e4bc5b8d785",
+        "name": "editorial-connectors-index-marks-34",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/editorial-connectors-index-marks/34",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 387,
+          "height": 124
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 602.6388286334054,
+            "y": 549.713665943601
+          },
+          "scale": {
+            "x": 0.8964384858823067,
+            "y": 0.8964384858823067
+          },
+          "rotation": -1.5744664957057874
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-8f59961d-594b-4f4a-9e6f-cb0e568d5bed",
+        "name": "handmade-cutout-type-8",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/handmade-cutout-type/8",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 760,
+          "height": 481
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 442.16919739696306,
+            "y": -19.24186550976158
+          },
+          "scale": {
+            "x": 0.5460803501791146,
+            "y": 0.5460803501791146
+          },
+          "rotation": -0.15422713218571982
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-59ea9dbc-a6ff-4f6d-b6b6-4b7f065e446d",
+        "name": "playful-doodles-9",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/9",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 416,
+          "height": 293
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 288.2689804772233,
+            "y": 73.71691973969627
+          },
+          "scale": {
+            "x": 0.39327818032408063,
+            "y": 0.39327818032408063
+          },
+          "rotation": 0.6394951860249567
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-f4d43572-ef93-462d-8caa-99f3812b6616",
+        "name": "playful-doodles-15",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/playful-doodles/15",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 358,
+          "height": 407
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": -20.084598698481493,
+            "y": 815.32863340564
+          },
+          "scale": {
+            "x": 0.2699797843583921,
+            "y": 0.2699797843583921
+          },
+          "rotation": 2.7987773794824538
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-7c0c5b3d-0269-403b-a85d-03e70db8dd0a",
+        "name": "fan-edit-highlights-2",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/fan-edit-highlights/2",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 360,
+          "height": 697
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 795.2277657266811,
+            "y": 1031.6301518438177
+          },
+          "scale": {
+            "x": 1.00443529739281,
+            "y": 1.00443529739281
+          },
+          "rotation": 3.2276899339426417
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      }
+    ],
+    "selectedLayerId": null,
+    "createdAt": "2026-09-23T04:44:12.198Z",
+    "updatedAt": "2026-09-23T04:58:19.189Z"
+  },
+  "photoSlotLayerIds": [
+    "image-layer-c2e29d28-d0a2-4612-a18c-9127bccc3a5f"
+  ],
+  "localAssets": [
+    {
+      "reference": {
+        "id": "user://image/user-image-def170bf-610b-4f37-b8f3-ec5056fb46c0",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    }
+  ]
+}

@@ -24,13 +24,23 @@ const catalogAssets = new Map(catalog.packs.flatMap((pack) => [pack.cover, ...pa
 const assetDependency = (reference) => ({ reference: clone(reference), availability: 'bundled' });
 const stableReference = (reference) => isRecord(reference) && typeof reference.id === 'string' && typeof reference.kind === 'string' && typeof reference.revision === 'string' && reference.id.startsWith('asset://pack/');
 const fixedLayer = (layer) => ({ ...clone(layer), isLocked: true });
+const referenceOverrideKey = (reference) => `${reference.id}@${reference.revision}`;
+const applyAssetReferenceOverrides = (layer, overrides, templateId) => {
+  if (!overrides || layer.type !== 'image') return layer;
+  const replacement = overrides[referenceOverrideKey(layer.asset)];
+  if (replacement === undefined) return layer;
+  if (!stableReference(replacement)) fail(`${templateId} has an invalid fixed-asset override for ${referenceOverrideKey(layer.asset)}.`);
+  return { ...layer, asset: clone(replacement) };
+};
 const normalizePhotoSlot = (photo) => {
   const quarterTurn = Math.PI / 2;
   // A Studio reference image is sometimes rotated solely to make that source
   // image look right in a slot. Preserve the visible slot bounds, but express
   // a quarter-turn as upright frame geometry so a replacement user photo does
   // not inherit that source-specific rotation.
-  if (Math.abs(Math.abs(photo.transform.rotation) - quarterTurn) > 0.0001) return { ...photo, transform: { ...photo.transform, rotation: 0 } };
+  // Non-right-angle rotations are intentional composition geometry (for
+  // example, a lace diamond photo slot) and must remain on the user photo.
+  if (Math.abs(Math.abs(photo.transform.rotation) - quarterTurn) > 0.0001) return clone(photo);
   const oldFrame = photo.frame;
   const oldScale = photo.transform.scale;
   const center = {
@@ -72,7 +82,11 @@ const compileStudio = (entry) => {
     .filter((layer) => !mappings.has(layer.id))
     .map((layer) => {
       if (layer.type !== 'image' || !stableReference(layer.asset)) fail(`${entry.id} has a non-product fixed layer ${layer.id}.`);
-      return fixedLayer(layer);
+      // Source exports can retain a legacy compatibility reference while the
+      // frozen template uses its audited strict copy. Overrides are explicit
+      // build-time calibration data; neither source reference escapes into the
+      // compiled template nor is any asset chosen dynamically at runtime.
+      return fixedLayer(applyAssetReferenceOverrides(layer, source.assetReferenceOverrides, entry.id));
     });
   const layerStack = studio.document.layers.map((layer) => mappings.has(layer.id)
     ? `photo:${mappings.get(layer.id).id}`

@@ -1,0 +1,375 @@
+{
+  "format": "journalcollage.template-studio",
+  "formatVersion": 1,
+  "exportedAt": "2026-09-23T05:23:23.389Z",
+  "document": {
+    "schemaVersion": 4,
+    "id": "template-studio-3aabe23b-03cc-4a93-9b19-5c66ed2fb3c8",
+    "canvas": {
+      "size": {
+        "label": "3:4",
+        "width": 1080,
+        "height": 1440
+      },
+      "background": "#FDFDFB",
+      "backgroundAsset": {
+        "id": "asset://pack/template-assets/soft-archive-background",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    "layers": [
+      {
+        "id": "pack-layer-15bcc4cb-8848-49a5-9569-45af71242f09",
+        "name": "fugu-03-6",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/fugu-03/6",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 412,
+          "height": 371
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 592.2212581344901,
+            "y": 114.8904555314534
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "image-layer-32cab687-b509-4696-96f1-975da9aa3466",
+        "name": "IMG_0002.jpeg",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-32cab687-b509-4696-96f1-975da9aa3466",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 717.3134328358209,
+          "height": 1080
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 72.44468546637746,
+            "y": 199.9190358249947
+          },
+          "scale": {
+            "x": 0.9050994590095713,
+            "y": 0.8015277777777777
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": [
+          {
+            "instanceId": "effect-22aadb33-65a0-4bcd-b04f-e6b3efa9dc7d",
+            "type": "shape.round-corners",
+            "version": 1,
+            "enabled": true,
+            "stage": "geometry",
+            "params": {
+              "radius": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "pack-layer-8b39b3f7-ebe7-40c9-a285-aeba89e3626f",
+        "name": "soft-archive-blue-18",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/soft-archive-blue/18",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 369,
+          "height": 151
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 13.981561822125656,
+            "y": 255.08568329717977
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": -0.17453292519943295
+        },
+        "opacity": 0.8,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "pack-layer-99c01b5b-50d8-4ca7-8ea7-2d996647a5f9",
+        "name": "jiaodai-41",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/jiaodai/41",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 423,
+          "height": 202
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 443.033622559653,
+            "y": 1047.9804772234274
+          },
+          "scale": {
+            "x": 1,
+            "y": 1
+          },
+          "rotation": 0
+        },
+        "opacity": 0.9,
+        "isLocked": false,
+        "effects": []
+      },
+      {
+        "id": "image-layer-9fedf4b8-98b2-4ae6-8a34-99b261871f3e",
+        "name": "IMG_0009.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/image-layer-9fedf4b8-98b2-4ae6-8a34-99b261871f3e",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 688.5927331887202,
+            "y": 247.3318872017353
+          },
+          "scale": {
+            "x": 0.3742690058479532,
+            "y": 0.16052631578947368
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": [
+          {
+            "instanceId": "effect-391f9037-efcd-4b94-b1a0-aca3a3931f2e",
+            "type": "shape.round-corners",
+            "version": 1,
+            "enabled": true,
+            "stage": "geometry",
+            "params": {
+              "radius": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "layer-cd803018-219c-4347-9397-88990014fcdd",
+        "name": "IMG_0009.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/layer-cd803018-219c-4347-9397-88990014fcdd",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 690.9441431670283,
+            "y": 387.1236442516269
+          },
+          "scale": {
+            "x": 0.3742690058479532,
+            "y": 0.16052631578947368
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": [
+          {
+            "instanceId": "effect-46b4ef4e-e1f7-4e3f-9ddb-68373866d2ca",
+            "type": "shape.round-corners",
+            "version": 1,
+            "enabled": true,
+            "stage": "geometry",
+            "params": {
+              "radius": 2
+            }
+          }
+        ]
+      },
+      {
+        "id": "layer-ced1819e-6fc0-4cd2-91dd-4f0deedd6666",
+        "name": "IMG_0009.png",
+        "type": "image",
+        "asset": {
+          "id": "asset://template-studio/photo-slot/layer-ced1819e-6fc0-4cd2-91dd-4f0deedd6666",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 427.5,
+          "height": 760
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 691.2131236442517,
+            "y": 523.7917570498917
+          },
+          "scale": {
+            "x": 0.3742690058479532,
+            "y": 0.16052631578947368
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": [
+          {
+            "instanceId": "effect-62e67ed3-b0d8-4e0e-875f-355e128df42b",
+            "type": "shape.round-corners",
+            "version": 1,
+            "enabled": true,
+            "stage": "geometry",
+            "params": {
+              "radius": 1
+            }
+          }
+        ]
+      },
+      {
+        "id": "pack-layer-81a64f7c-8437-4ac6-bc64-6043e0fcf9d2",
+        "name": "xiangkuang-02-4",
+        "type": "image",
+        "asset": {
+          "id": "asset://pack/xiangkuang-02/4",
+          "kind": "image",
+          "revision": "1"
+        },
+        "frame": {
+          "width": 419,
+          "height": 729
+        },
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1
+        },
+        "transform": {
+          "position": {
+            "x": 693.8839479392627,
+            "y": 404.14445770065066
+          },
+          "scale": {
+            "x": 0.6065871121718377,
+            "y": 0.6065980795610425
+          },
+          "rotation": 0
+        },
+        "opacity": 1,
+        "isLocked": false,
+        "effects": []
+      }
+    ],
+    "selectedLayerId": null,
+    "createdAt": "2026-09-23T04:58:41.358Z",
+    "updatedAt": "2026-09-23T05:23:10.621Z"
+  },
+  "photoSlotLayerIds": [
+    "image-layer-32cab687-b509-4696-96f1-975da9aa3466",
+    "image-layer-9fedf4b8-98b2-4ae6-8a34-99b261871f3e",
+    "layer-cd803018-219c-4347-9397-88990014fcdd",
+    "layer-ced1819e-6fc0-4cd2-91dd-4f0deedd6666"
+  ],
+  "localAssets": [
+    {
+      "reference": {
+        "id": "user://image/user-image-7cd2e38e-3f38-40b6-b6a2-05eb66bb70a5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/jpeg",
+      "pixelSize": {
+        "width": 4288,
+        "height": 2848
+      }
+    },
+    {
+      "reference": {
+        "id": "user://image/user-image-fa29a8d7-343e-4c7d-adc5-50a42313ebfb",
+        "kind": "image",
+        "revision": "1"
+      },
+      "mimeType": "image/png",
+      "pixelSize": {
+        "width": 3456,
+        "height": 6144
+      }
+    }
+  ]
+}

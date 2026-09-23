@@ -144,8 +144,15 @@ const SectionHeader = ({ actionLabel, onAction, title }: Readonly<{ actionLabel:
 
 const TemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
   const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
+  // The authored Play Pop Multi preview has not been published to the CDN
+  // yet. Bundle its source preview for development so the new catalog card is
+  // immediately reviewable; published templates continue to use cached CDN
+  // previews through the regular catalog path.
+  const localPreview = template.id === 'template://journalcollage/play-pop-multi'
+    ? require('../../../../source-assets/配方模版/play pop multi.png')
+    : undefined;
   return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.templateCard}>
-    {preview ? <CachedRemoteImage cacheKey={`template-preview-${template.id}`} reference={template.preview as Required<typeof template.preview>} source={preview.sourceUrl} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
+    {localPreview ? <Image source={localPreview} style={styles.templatePreview} /> : preview ? <CachedRemoteImage cacheKey={`template-preview-${template.id}`} reference={template.preview as Required<typeof template.preview>} source={preview.sourceUrl} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
     <ImageCardTitleScrim />
     <View pointerEvents="none" style={styles.templateTitle}><Text numberOfLines={1} style={styles.templateTitleText}>{template.name}</Text></View>
   </Pressable>;

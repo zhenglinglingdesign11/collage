@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "9",
+  "catalogRevision": "13",
   "templates": [
     {
       "id": "template://journalcollage/romantic-deco",
@@ -25,6 +25,69 @@
       "revision": "1",
       "preview": {
         "id": "asset://pack/template-previews/play-pop",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/soft-archive",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/soft-archive",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/play-pop-multi",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/play-pop-multi",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/digital-y2k-ascii",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/digital-y2k-ascii",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/digital-y2k-multi",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/digital-y2k-multi",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/soft-archive-multi",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/soft-archive-multi",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/fan-moodboard",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/fan-moodboard",
+        "kind": "image",
+        "revision": "1"
+      }
+    },
+    {
+      "id": "template://journalcollage/material-remix",
+      "revision": "1",
+      "preview": {
+        "id": "asset://pack/template-previews/material-remix",
         "kind": "image",
         "revision": "1"
       }

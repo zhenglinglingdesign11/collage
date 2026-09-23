@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "9",
+  "catalogRevision": "13",
   "defaultPackStatus": "shipped",
   "sourceOfTruth": "source-assets/拼贴.numbers_副本.numbers: 素材分类及进度（2026-09-20）",
   "baseUrl": "https://assets.zllarchi.site/packs",
@@ -16,7 +16,7 @@
       "name": "Romantic Deco lace frame 1",
       "category": "frame",
       "styles": ["romantic-deco"],
-      "packRevision": "2",
+      "packRevision": "3",
       "itemOverrides": {
         "9": {
           "revision": "2",
@@ -81,12 +81,19 @@
       "name": "Template previews",
       "category": "mixed",
       "styles": [],
+      "packRevision": "2",
       "visibility": "internal",
       "remoteAssets": [
         { "itemId": "play-pop", "r2Path": "template-previews/play pop.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/play%20pop.png", "mimeType": "image/png", "byteLength": 2452850, "sha256": "42cacbb9b58dade7a05d699d6baefe6b7647eaa91e74f5394351f4b31edd1365", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "play-pop-multi", "r2Path": "template-previews/play pop multi.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/play%20pop%20multi.png", "mimeType": "image/png", "byteLength": 2613262, "sha256": "955cf8c349a287ab953684c2db452fcaec53735b36c9b449c18eef4110612886", "pixelSize": { "width": 1024, "height": 1536 } },
         { "itemId": "romantic-deco-two-photo", "r2Path": "template-previews/romantic deco-1.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/romantic%20deco-1.png", "mimeType": "image/png", "byteLength": 3377068, "sha256": "885fcfe2654034d740af02b5592ec9c9dbe702c91b6df43407ead84b91e3abe6", "pixelSize": { "width": 1024, "height": 1536 } },
         { "itemId": "romantic-deco", "r2Path": "template-previews/romantic deco.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/romantic%20deco.png", "mimeType": "image/png", "byteLength": 2312708, "sha256": "6b4eb751f37addc98e3c89ff3e0d67ee73bf3733ff0be1ac3f2d19a01da34bfc", "pixelSize": { "width": 1254, "height": 1254 } },
-        { "itemId": "soft-archive", "r2Path": "template-previews/soft archive.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/soft%20archive.png", "mimeType": "image/png", "byteLength": 2435847, "sha256": "9f9459816cf2166be8722a36754ba11b8708eb3e7bfca3a76bcad57188463f3c", "pixelSize": { "width": 1024, "height": 1536 } }
+        { "itemId": "soft-archive", "r2Path": "template-previews/soft archive.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/soft%20archive.png", "mimeType": "image/png", "byteLength": 2435847, "sha256": "9f9459816cf2166be8722a36754ba11b8708eb3e7bfca3a76bcad57188463f3c", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "digital-y2k-ascii", "r2Path": "template-previews/digital_y2k_ascii.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/digital_y2k_ascii.png", "mimeType": "image/png", "byteLength": 2271331, "sha256": "c40816c9a176b3c753298d91c2fceaface3cabe91245d177bb1986cd8cbf4b75", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "digital-y2k-multi", "r2Path": "template-previews/digital_y2k_multi.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/digital_y2k_multi.png", "mimeType": "image/png", "byteLength": 2737830, "sha256": "fbd3e3101f3a0910c33311a0b7513da643cb6f0f412f7d7d2b1971f235fc5d80", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "soft-archive-multi", "r2Path": "template-previews/soft_archive_multi.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/soft_archive_multi.png", "mimeType": "image/png", "byteLength": 1782063, "sha256": "9321f227d806d528e59d1e9d8f789f931080cd7471500ac9ca1949b13428e269", "pixelSize": { "width": 1024, "height": 1241 } },
+        { "itemId": "fan-moodboard", "r2Path": "template-previews/fan_moodboard.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/fan_moodboard.png", "mimeType": "image/png", "byteLength": 2974155, "sha256": "26842b16bec71ebc47a8bc6491effa47136bea835c6de9386264f42a3dd66a9e", "pixelSize": { "width": 1024, "height": 1536 } },
+        { "itemId": "material-remix", "r2Path": "template-previews/material_remix.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/material_remix.png", "mimeType": "image/png", "byteLength": 2109205, "sha256": "4fdb31c624c5c82b324f83b010b1f39953af74b10f0f5b28b4c9d71458e1f2ac", "pixelSize": { "width": 1024, "height": 1536 } }
       ]
     },
     {
@@ -95,7 +102,7 @@
       "category": "mixed",
       "styles": [],
       "visibility": "internal",
-      "packRevision": "2",
+      "packRevision": "3",
       "defaultItemRevision": "1",
       "remoteAssets": [
         { "itemId": "romantic-deco-butterfly-knot", "r2Path": "hudiejie/items/13.png", "sourceUrl": "https://assets.zllarchi.site/packs/hudiejie/items/13.png?v=1", "mimeType": "image/png", "byteLength": 15626, "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d", "pixelSize": { "width": 273, "height": 198 } },
@@ -105,9 +112,17 @@
         { "itemId": "soft-archive-background", "r2Path": "template-previews/bg/soft-archive-background.jpg", "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/soft-archive-background.jpg", "mimeType": "image/jpeg", "byteLength": 365537, "sha256": "9a170a8d38cf17d5b490e029816b8c4b60c43d020035b408c4e70478555771ec", "pixelSize": { "width": 1024, "height": 1536 } },
         { "itemId": "soft-archive-tape-left", "r2Path": "jiaodai/items/29.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/29.png?v=1", "mimeType": "image/png", "byteLength": 17286, "sha256": "255f39c96ecf8d431f839925ddb77551978fd6e4a0dcc65077a60c1ad01bb15f", "pixelSize": { "width": 266, "height": 138 } },
         { "itemId": "soft-archive-tape-right", "r2Path": "jiaodai/items/31.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/31.png?v=1", "mimeType": "image/png", "byteLength": 12291, "sha256": "30e1cefa59c04c238b6444fb715694af519b72d8cbd4b832cee7659f61c57df3", "pixelSize": { "width": 276, "height": 102 } },
-        { "itemId": "digital-y2k-multi-tape-left", "r2Path": "jiaodai/items/17.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/17.png?v=2", "mimeType": "image/png", "byteLength": 23007, "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae", "pixelSize": { "width": 142, "height": 304 } },
+        { "itemId": "digital-y2k-multi-tape-left", "revision": "2", "r2Path": "jiaodai/items/17.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/17.png?v=2", "mimeType": "image/png", "byteLength": 23007, "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae", "pixelSize": { "width": 142, "height": 304 } },
         { "itemId": "soft-archive-multi-photo-frame", "r2Path": "xiangkuang/items/1.png", "sourceUrl": "https://assets.zllarchi.site/packs/xiangkuang/items/1.png?v=1", "mimeType": "image/png", "byteLength": 33113, "sha256": "2c6af49bdf2404331068b42473a5e6a0f83f5935d12f81302c75d2ba71c786e5", "pixelSize": { "width": 284, "height": 663 } },
-        { "itemId": "play-pop-multi-paper-cutout", "r2Path": "jiazi/items/2.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiazi/items/2.png?v=1", "mimeType": "image/png", "byteLength": 10457, "sha256": "9341cb6742f711c73cfe9e87ddf00987311731155e26b84df1b19566cfdecdd9", "pixelSize": { "width": 205, "height": 216 } }
+        { "itemId": "play-pop-multi-paper-cutout", "r2Path": "jiazi/items/2.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiazi/items/2.png?v=1", "mimeType": "image/png", "byteLength": 10457, "sha256": "9341cb6742f711c73cfe9e87ddf00987311731155e26b84df1b19566cfdecdd9", "pixelSize": { "width": 205, "height": 216 } },
+        { "itemId": "digital-y2k-multi-photo-frame", "r2Path": "template-previews/assets/digital-y2k-multi-photo-frame.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/digital-y2k-multi-photo-frame.png", "mimeType": "image/png", "byteLength": 191396, "sha256": "a557ecd23e06459aeb6741b264eb710433ec54b114843552d72209b02ad02652", "pixelSize": { "width": 438, "height": 570 } },
+        { "itemId": "digital-y2k-multi-photo-strip", "r2Path": "template-previews/assets/digital-y2k-multi-photo-strip.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/digital-y2k-multi-photo-strip.png", "mimeType": "image/png", "byteLength": 294756, "sha256": "99d9e5b043872846c23d3ff5031a07411c8b340d28c858b60247f48ac2ef3f49", "pixelSize": { "width": 361, "height": 1262 } },
+        { "itemId": "digital-y2k-multi-blue-paper", "r2Path": "template-previews/assets/digital-y2k-multi-blue-paper.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/digital-y2k-multi-blue-paper.png", "mimeType": "image/png", "byteLength": 806573, "sha256": "e465f898b929f3c356b87e26d445419f8ff90305f9b9827c9e304be74297c7c2", "pixelSize": { "width": 390, "height": 1286 } },
+        { "itemId": "digital-y2k-multi-background", "r2Path": "template-previews/bg/digital-y2k-multi-background.png", "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/digital-y2k-multi-background.png", "mimeType": "image/png", "byteLength": 1773635, "sha256": "b84e1fac0844b39b0fb3aa7e7a44ded86b811568f990b368a42951cbef24ae46", "pixelSize": { "width": 1086, "height": 1448 } },
+        { "itemId": "soft-archive-multi-fugu-accent", "r2Path": "fugu-03/items/6.png", "sourceUrl": "https://assets.zllarchi.site/packs/fugu-03/items/6.png?v=1", "mimeType": "image/png", "byteLength": 28465, "sha256": "9376eeee612a39a8320451ee1a284ebaf0f02ffa24f8804c6e326a3d0efadcf9", "pixelSize": { "width": 229, "height": 206 } },
+        { "itemId": "soft-archive-multi-tape", "r2Path": "jiaodai/items/41.png", "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/41.png?v=1", "mimeType": "image/png", "byteLength": 12390, "sha256": "e31cb61e7c01c75859d4a5e50b11ba4e9d7b6c95b32e6b6e9c895636fcf5897e", "pixelSize": { "width": 235, "height": 112 } },
+        { "itemId": "soft-archive-multi-photo-frame-v2", "r2Path": "xiangkuang-02/items/4.png", "sourceUrl": "https://assets.zllarchi.site/packs/xiangkuang-02/items/4.png?v=1", "mimeType": "image/png", "byteLength": 14046, "sha256": "1ed91591676073b3b9c2ed39e31b228f989ebd06aa8807ec6eb7ab20ce78f7f3", "pixelSize": { "width": 233, "height": 405 } },
+        { "itemId": "material-remix-crystal-accent", "r2Path": "blingshuijing/items/2.png", "sourceUrl": "https://assets.zllarchi.site/packs/blingshuijing/items/2.png?v=1", "mimeType": "image/png", "byteLength": 13353, "sha256": "ba176a51b5bf404035ecb4594cd64efb07451003f4394ccd7be4692235fdd3e2", "pixelSize": { "width": 205, "height": 185 } }
       ]
     }
   ],

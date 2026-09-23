@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/soft-archive-multi",
+  "revision": "1",
+  "status": "ready",
+  "name": "Soft Archive Multi",
+  "canvas": {
+    "size": {
+      "width": 1080,
+      "height": 1440
+    },
+    "background": "#FDFDFB",
+    "backgroundAsset": {
+      "id": "asset://pack/template-assets/soft-archive-background",
+      "kind": "image",
+      "revision": "1"
+    }
+  },
+  "preview": {
+    "id": "asset://pack/template-previews/soft-archive-multi",
+    "kind": "image",
+    "revision": "1"
+  },
+  "photoSlots": [
+    {
+      "id": "left-photo",
+      "name": "Left photo card",
+      "type": "photo",
+      "frame": {
+        "width": 717.3134328358209,
+        "height": 1080
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 72.44468546637746,
+          "y": 199.9190358249947
+        },
+        "scale": {
+          "x": 0.9050994590095713,
+          "y": 0.8015277777777777
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [
+        {
+          "instanceId": "effect-22aadb33-65a0-4bcd-b04f-e6b3efa9dc7d",
+          "type": "shape.round-corners",
+          "version": 1,
+          "enabled": true,
+          "stage": "geometry",
+          "params": {
+            "radius": 0
+          }
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "right-photo-1",
+      "name": "Right frame photo 1",
+      "type": "photo",
+      "frame": {
+        "width": 427.5,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 688.5927331887202,
+          "y": 247.3318872017353
+        },
+        "scale": {
+          "x": 0.3742690058479532,
+          "y": 0.16052631578947368
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [
+        {
+          "instanceId": "effect-391f9037-efcd-4b94-b1a0-aca3a3931f2e",
+          "type": "shape.round-corners",
+          "version": 1,
+          "enabled": true,
+          "stage": "geometry",
+          "params": {
+            "radius": 1
+          }
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "right-photo-2",
+      "name": "Right frame photo 2",
+      "type": "photo",
+      "frame": {
+        "width": 427.5,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 690.9441431670283,
+          "y": 387.1236442516269
+        },
+        "scale": {
+          "x": 0.3742690058479532,
+          "y": 0.16052631578947368
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [
+        {
+          "instanceId": "effect-46b4ef4e-e1f7-4e3f-9ddb-68373866d2ca",
+          "type": "shape.round-corners",
+          "version": 1,
+          "enabled": true,
+          "stage": "geometry",
+          "params": {
+            "radius": 2
+          }
+        }
+      ],
+      "required": true
+    },
+    {
+      "id": "right-photo-3",
+      "name": "Right frame photo 3",
+      "type": "photo",
+      "frame": {
+        "width": 427.5,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 691.2131236442517,
+          "y": 523.7917570498917
+        },
+        "scale": {
+          "x": 0.3742690058479532,
+          "y": 0.16052631578947368
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [
+        {
+          "instanceId": "effect-62e67ed3-b0d8-4e0e-875f-355e128df42b",
+          "type": "shape.round-corners",
+          "version": 1,
+          "enabled": true,
+          "stage": "geometry",
+          "params": {
+            "radius": 1
+          }
+        }
+      ],
+      "required": true
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "fixedLayers": [
+    {
+      "id": "pack-layer-15bcc4cb-8848-49a5-9569-45af71242f09",
+      "name": "fugu-03-6",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/soft-archive-multi-fugu-accent",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 412,
+        "height": 371
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 592.2212581344901,
+          "y": 114.8904555314534
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-8b39b3f7-ebe7-40c9-a285-aeba89e3626f",
+      "name": "soft-archive-blue-18",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/soft-archive-blue/18",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 369,
+        "height": 151
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 13.981561822125656,
+          "y": 255.08568329717977
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": -0.17453292519943295
+      },
+      "opacity": 0.8,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-99c01b5b-50d8-4ca7-8ea7-2d996647a5f9",
+      "name": "jiaodai-41",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/soft-archive-multi-tape",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 423,
+        "height": 202
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 443.033622559653,
+          "y": 1047.9804772234274
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0
+      },
+      "opacity": 0.9,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-81a64f7c-8437-4ac6-bc64-6043e0fcf9d2",
+      "name": "xiangkuang-02-4",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/soft-archive-multi-photo-frame-v2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 419,
+        "height": 729
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 693.8839479392627,
+          "y": 404.14445770065066
+        },
+        "scale": {
+          "x": 0.6065871121718377,
+          "y": 0.6065980795610425
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    }
+  ],
+  "layerStack": [
+    "fixed:pack-layer-15bcc4cb-8848-49a5-9569-45af71242f09",
+    "photo:left-photo",
+    "fixed:pack-layer-8b39b3f7-ebe7-40c9-a285-aeba89e3626f",
+    "fixed:pack-layer-99c01b5b-50d8-4ca7-8ea7-2d996647a5f9",
+    "photo:right-photo-1",
+    "photo:right-photo-2",
+    "photo:right-photo-3",
+    "fixed:pack-layer-81a64f7c-8437-4ac6-bc64-6043e0fcf9d2"
+  ],
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/soft-archive-multi",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-multi-fugu-accent",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/18",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-multi-tape",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-multi-photo-frame-v2",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    }
+  ],
+  "requiredCapabilities": [
+    "image.replace",
+    "image.crop",
+    "material.resolve"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "9",
+  "catalogRevision": "13",
   "releaseState": "shipped",
   "sourceOfTruth": "first-release-product-catalog.v1",
   "packs": [
@@ -3240,7 +3240,7 @@
     },
     {
       "id": "romantic-deco-lace-frame-1",
-      "revision": "2",
+      "revision": "3",
       "status": "shipped",
       "name": "Romantic Deco lace frame 1",
       "category": "frame",
@@ -3257,9 +3257,9 @@
         "reference": {
           "id": "asset://pack/romantic-deco-lace-frame-1/cover",
           "kind": "image",
-          "revision": "2"
+          "revision": "3"
         },
-        "packRevision": "2",
+        "packRevision": "3",
         "mimeType": "image/jpeg",
         "byteLength": 36190,
         "sha256": "3a0c7a183c4c7fa891378de952861dce780842c15a1f7f5e312a5a77c9aa7ca3",
@@ -3267,7 +3267,7 @@
           "width": 512,
           "height": 768
         },
-        "sourceUrl": "https://assets.zllarchi.site/packs/Romantic%20Deco-Lace%20Frame(1)/pack-sheet.jpg?v=2",
+        "sourceUrl": "https://assets.zllarchi.site/packs/Romantic%20Deco-Lace%20Frame(1)/pack-sheet.jpg?v=3",
         "r2Path": "Romantic Deco-Lace Frame(1)/pack-sheet.jpg"
       },
       "items": [
@@ -3279,7 +3279,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 53195,
           "sha256": "aacc72778ed4222f6631b83a23e278d45f049ded2df81735e3da1b2b44e2608e",
@@ -3298,7 +3298,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 57424,
           "sha256": "5e69227b927356d2125ec7723ad75cbe3b2408286389c510ca90fdc0400ded72",
@@ -3317,7 +3317,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 48428,
           "sha256": "577ed14b6f0b74671d457955ab5382313e22db335bec4a5e2ebe39cc83d88067",
@@ -3336,7 +3336,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 34811,
           "sha256": "8d05ee5d1e00e1dccc3d340a60c8a7d5902bd5055a7e1178f2379f5d19447ca7",
@@ -3355,7 +3355,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 54900,
           "sha256": "2b6536657f95fe426071df4d9d7cc06903ac923d9f6d0aedcaf012053e1fc871",
@@ -3374,7 +3374,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 46860,
           "sha256": "a70dab0addfe6de54ec9656a1150723dbeaaaf1011228d7fa2c5df76bab54ce4",
@@ -3393,7 +3393,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 47673,
           "sha256": "3ce0a83fc2e3036bfcebae7ef8ef7a15af4baa6ea5acac3a5dbb817f9310dd87",
@@ -3412,7 +3412,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 43396,
           "sha256": "d9e16be00c0fa2c8495d48845a38735a2b24dde499b16b49720675b548babe39",
@@ -3431,7 +3431,7 @@
             "kind": "image",
             "revision": "2"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 749087,
           "sha256": "cd5df883bf3ee91bd71d048b13b6ea808ced8fa773c9d975e423a65bbe12f7fd",
@@ -3450,7 +3450,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 52723,
           "sha256": "09b0434429086fc12dca37c42685f20daeab4d1043f87b91794997aa45df3937",
@@ -3469,7 +3469,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 52783,
           "sha256": "12deefb29b3dcf36785ff612555743fe487a0e3c96d43336487f499595334b8a",
@@ -3488,7 +3488,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 52360,
           "sha256": "1a6cce8ebdd350ab568fbdd18b575a39fb9f1499f000ea624680d991c03f307e",
@@ -26976,7 +26976,7 @@
     },
     {
       "id": "template-previews",
-      "revision": "1",
+      "revision": "2",
       "status": "shipped",
       "name": "Template previews",
       "category": "mixed",
@@ -26990,9 +26990,9 @@
         "reference": {
           "id": "asset://pack/template-previews/cover",
           "kind": "image",
-          "revision": "1"
+          "revision": "2"
         },
-        "packRevision": "1",
+        "packRevision": "2",
         "mimeType": "image/png",
         "byteLength": 2452850,
         "sha256": "42cacbb9b58dade7a05d699d6baefe6b7647eaa91e74f5394351f4b31edd1365",
@@ -27012,7 +27012,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 2452850,
           "sha256": "42cacbb9b58dade7a05d699d6baefe6b7647eaa91e74f5394351f4b31edd1365",
@@ -27025,13 +27025,32 @@
         },
         {
           "role": "item",
+          "itemId": "play-pop-multi",
+          "reference": {
+            "id": "asset://pack/template-previews/play-pop-multi",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 2613262,
+          "sha256": "955cf8c349a287ab953684c2db452fcaec53735b36c9b449c18eef4110612886",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/play%20pop%20multi.png?v=1",
+          "r2Path": "template-previews/play pop multi.png"
+        },
+        {
+          "role": "item",
           "itemId": "romantic-deco-two-photo",
           "reference": {
             "id": "asset://pack/template-previews/romantic-deco-two-photo",
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 3377068,
           "sha256": "885fcfe2654034d740af02b5592ec9c9dbe702c91b6df43407ead84b91e3abe6",
@@ -27050,7 +27069,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 2312708,
           "sha256": "6b4eb751f37addc98e3c89ff3e0d67ee73bf3733ff0be1ac3f2d19a01da34bfc",
@@ -27069,7 +27088,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "1",
+          "packRevision": "2",
           "mimeType": "image/png",
           "byteLength": 2435847,
           "sha256": "9f9459816cf2166be8722a36754ba11b8708eb3e7bfca3a76bcad57188463f3c",
@@ -27079,12 +27098,107 @@
           },
           "sourceUrl": "https://assets.zllarchi.site/template-previews/soft%20archive.png?v=1",
           "r2Path": "template-previews/soft archive.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-ascii",
+          "reference": {
+            "id": "asset://pack/template-previews/digital-y2k-ascii",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 2271331,
+          "sha256": "c40816c9a176b3c753298d91c2fceaface3cabe91245d177bb1986cd8cbf4b75",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/digital_y2k_ascii.png?v=1",
+          "r2Path": "template-previews/digital_y2k_ascii.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-multi",
+          "reference": {
+            "id": "asset://pack/template-previews/digital-y2k-multi",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 2737830,
+          "sha256": "fbd3e3101f3a0910c33311a0b7513da643cb6f0f412f7d7d2b1971f235fc5d80",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/digital_y2k_multi.png?v=1",
+          "r2Path": "template-previews/digital_y2k_multi.png"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-multi",
+          "reference": {
+            "id": "asset://pack/template-previews/soft-archive-multi",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 1782063,
+          "sha256": "9321f227d806d528e59d1e9d8f789f931080cd7471500ac9ca1949b13428e269",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1241
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/soft_archive_multi.png?v=1",
+          "r2Path": "template-previews/soft_archive_multi.png"
+        },
+        {
+          "role": "item",
+          "itemId": "fan-moodboard",
+          "reference": {
+            "id": "asset://pack/template-previews/fan-moodboard",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 2974155,
+          "sha256": "26842b16bec71ebc47a8bc6491effa47136bea835c6de9386264f42a3dd66a9e",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/fan_moodboard.png?v=1",
+          "r2Path": "template-previews/fan_moodboard.png"
+        },
+        {
+          "role": "item",
+          "itemId": "material-remix",
+          "reference": {
+            "id": "asset://pack/template-previews/material-remix",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "2",
+          "mimeType": "image/png",
+          "byteLength": 2109205,
+          "sha256": "4fdb31c624c5c82b324f83b010b1f39953af74b10f0f5b28b4c9d71458e1f2ac",
+          "pixelSize": {
+            "width": 1024,
+            "height": 1536
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/material_remix.png?v=1",
+          "r2Path": "template-previews/material_remix.png"
         }
       ]
     },
     {
       "id": "template-assets",
-      "revision": "2",
+      "revision": "3",
       "status": "shipped",
       "name": "Template fixed assets",
       "category": "mixed",
@@ -27098,9 +27212,9 @@
         "reference": {
           "id": "asset://pack/template-assets/cover",
           "kind": "image",
-          "revision": "2"
+          "revision": "3"
         },
-        "packRevision": "2",
+        "packRevision": "3",
         "mimeType": "image/png",
         "byteLength": 15626,
         "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d",
@@ -27120,7 +27234,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 15626,
           "sha256": "bbd19851dfb0a74a4e3b706818e620bfb7e3936a6690a43f5ef0344f3407c57d",
@@ -27139,7 +27253,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/jpeg",
           "byteLength": 244074,
           "sha256": "574ddae0eae1d681796d28b87339014a3099c4616f9c4dd0c77d50c0c8ca7721",
@@ -27158,7 +27272,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 13079,
           "sha256": "19af2edae561f55e28385afb0c6a8c13630ec80a1bd869b2ae32cb8736e7b617",
@@ -27177,7 +27291,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/jpeg",
           "byteLength": 17649,
           "sha256": "f9b383ac7fb7b5a76ef8a75356b735b13ba9e8701b1b5eb18e4f81a49beebefd",
@@ -27196,7 +27310,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/jpeg",
           "byteLength": 365537,
           "sha256": "9a170a8d38cf17d5b490e029816b8c4b60c43d020035b408c4e70478555771ec",
@@ -27215,7 +27329,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 17286,
           "sha256": "255f39c96ecf8d431f839925ddb77551978fd6e4a0dcc65077a60c1ad01bb15f",
@@ -27234,7 +27348,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 12291,
           "sha256": "30e1cefa59c04c238b6444fb715694af519b72d8cbd4b832cee7659f61c57df3",
@@ -27251,9 +27365,9 @@
           "reference": {
             "id": "asset://pack/template-assets/digital-y2k-multi-tape-left",
             "kind": "image",
-            "revision": "1"
+            "revision": "2"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 23007,
           "sha256": "27d95acd493e0c0e931d244e592b88fea8a31151b72515a9017001a13692dbae",
@@ -27261,7 +27375,7 @@
             "width": 142,
             "height": 304
           },
-          "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/17.png?v=1",
+          "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/17.png?v=2",
           "r2Path": "jiaodai/items/17.png"
         },
         {
@@ -27272,7 +27386,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 33113,
           "sha256": "2c6af49bdf2404331068b42473a5e6a0f83f5935d12f81302c75d2ba71c786e5",
@@ -27291,7 +27405,7 @@
             "kind": "image",
             "revision": "1"
           },
-          "packRevision": "2",
+          "packRevision": "3",
           "mimeType": "image/png",
           "byteLength": 10457,
           "sha256": "9341cb6742f711c73cfe9e87ddf00987311731155e26b84df1b19566cfdecdd9",
@@ -27301,6 +27415,158 @@
           },
           "sourceUrl": "https://assets.zllarchi.site/packs/jiazi/items/2.png?v=1",
           "r2Path": "jiazi/items/2.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-multi-photo-frame",
+          "reference": {
+            "id": "asset://pack/template-assets/digital-y2k-multi-photo-frame",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 191396,
+          "sha256": "a557ecd23e06459aeb6741b264eb710433ec54b114843552d72209b02ad02652",
+          "pixelSize": {
+            "width": 438,
+            "height": 570
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/digital-y2k-multi-photo-frame.png?v=1",
+          "r2Path": "template-previews/assets/digital-y2k-multi-photo-frame.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-multi-photo-strip",
+          "reference": {
+            "id": "asset://pack/template-assets/digital-y2k-multi-photo-strip",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 294756,
+          "sha256": "99d9e5b043872846c23d3ff5031a07411c8b340d28c858b60247f48ac2ef3f49",
+          "pixelSize": {
+            "width": 361,
+            "height": 1262
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/digital-y2k-multi-photo-strip.png?v=1",
+          "r2Path": "template-previews/assets/digital-y2k-multi-photo-strip.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-multi-blue-paper",
+          "reference": {
+            "id": "asset://pack/template-assets/digital-y2k-multi-blue-paper",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 806573,
+          "sha256": "e465f898b929f3c356b87e26d445419f8ff90305f9b9827c9e304be74297c7c2",
+          "pixelSize": {
+            "width": 390,
+            "height": 1286
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/assets/digital-y2k-multi-blue-paper.png?v=1",
+          "r2Path": "template-previews/assets/digital-y2k-multi-blue-paper.png"
+        },
+        {
+          "role": "item",
+          "itemId": "digital-y2k-multi-background",
+          "reference": {
+            "id": "asset://pack/template-assets/digital-y2k-multi-background",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 1773635,
+          "sha256": "b84e1fac0844b39b0fb3aa7e7a44ded86b811568f990b368a42951cbef24ae46",
+          "pixelSize": {
+            "width": 1086,
+            "height": 1448
+          },
+          "sourceUrl": "https://assets.zllarchi.site/template-previews/bg/digital-y2k-multi-background.png?v=1",
+          "r2Path": "template-previews/bg/digital-y2k-multi-background.png"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-multi-fugu-accent",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-multi-fugu-accent",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 28465,
+          "sha256": "9376eeee612a39a8320451ee1a284ebaf0f02ffa24f8804c6e326a3d0efadcf9",
+          "pixelSize": {
+            "width": 229,
+            "height": 206
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/fugu-03/items/6.png?v=1",
+          "r2Path": "fugu-03/items/6.png"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-multi-tape",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-multi-tape",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 12390,
+          "sha256": "e31cb61e7c01c75859d4a5e50b11ba4e9d7b6c95b32e6b6e9c895636fcf5897e",
+          "pixelSize": {
+            "width": 235,
+            "height": 112
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/jiaodai/items/41.png?v=1",
+          "r2Path": "jiaodai/items/41.png"
+        },
+        {
+          "role": "item",
+          "itemId": "soft-archive-multi-photo-frame-v2",
+          "reference": {
+            "id": "asset://pack/template-assets/soft-archive-multi-photo-frame-v2",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 14046,
+          "sha256": "1ed91591676073b3b9c2ed39e31b228f989ebd06aa8807ec6eb7ab20ce78f7f3",
+          "pixelSize": {
+            "width": 233,
+            "height": 405
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/xiangkuang-02/items/4.png?v=1",
+          "r2Path": "xiangkuang-02/items/4.png"
+        },
+        {
+          "role": "item",
+          "itemId": "material-remix-crystal-accent",
+          "reference": {
+            "id": "asset://pack/template-assets/material-remix-crystal-accent",
+            "kind": "image",
+            "revision": "1"
+          },
+          "packRevision": "3",
+          "mimeType": "image/png",
+          "byteLength": 13353,
+          "sha256": "ba176a51b5bf404035ecb4594cd64efb07451003f4394ccd7be4692235fdd3e2",
+          "pixelSize": {
+            "width": 205,
+            "height": 185
+          },
+          "sourceUrl": "https://assets.zllarchi.site/packs/blingshuijing/items/2.png?v=1",
+          "r2Path": "blingshuijing/items/2.png"
         }
       ]
     }

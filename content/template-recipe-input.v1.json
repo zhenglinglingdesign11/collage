@@ -6,16 +6,19 @@
       "id": "fan-moodboard",
       "status": "calibration-pending",
       "sourcePreviewPath": "source-assets/配方模版/fan_moodboard.png",
-      "canvas": { "width": 1024, "height": 1536, "base": "hero-photo" },
+      "canvas": { "width": 1080, "height": 1440, "base": "hero-photo" },
       "photoSlots": [{ "id": "hero-photo", "required": true, "role": "full-bleed-photo" }],
       "fixedAssets": [
-        { "role": "headline-label", "reference": { "id": "asset://pack/handmade-cutout-type/8", "kind": "image", "revision": "1" } },
-        { "role": "neon-frame-accent", "reference": { "id": "asset://pack/cutout-frames-cropping-accents/2", "kind": "image", "revision": "1" } },
-        { "role": "neon-frame-accent-secondary", "reference": { "id": "asset://pack/cutout-frames-cropping-accents/3", "kind": "image", "revision": "1" } },
-        { "role": "fan-highlight", "reference": { "id": "asset://pack/fan-edit-highlights/2", "kind": "image", "revision": "1" } },
-        { "role": "fan-highlight-copy", "reference": { "id": "asset://pack/fan-edit-highlights/2-copy", "kind": "image", "revision": "1" } },
         { "role": "print-registration-fragment", "reference": { "id": "asset://pack/experimental-print-registration-fragments/3", "kind": "image", "revision": "1" } },
-        { "role": "print-registration-fragment-secondary", "reference": { "id": "asset://pack/experimental-print-registration-fragments/18", "kind": "image", "revision": "1" } }
+        { "role": "print-registration-fragment-secondary", "reference": { "id": "asset://pack/experimental-print-registration-fragments/18", "kind": "image", "revision": "1" } },
+        { "role": "fan-highlight-copy", "reference": { "id": "asset://pack/fan-edit-highlights/2-copy", "kind": "image", "revision": "1" } },
+        { "role": "connector-index-mark-1", "reference": { "id": "asset://pack/editorial-connectors-index-marks/2", "kind": "image", "revision": "1" } },
+        { "role": "connector-index-mark-2", "reference": { "id": "asset://pack/editorial-connectors-index-marks/6", "kind": "image", "revision": "1" } },
+        { "role": "connector-index-mark-3", "reference": { "id": "asset://pack/editorial-connectors-index-marks/34", "kind": "image", "revision": "1" } },
+        { "role": "headline-label", "reference": { "id": "asset://pack/handmade-cutout-type/8", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-1", "reference": { "id": "asset://pack/playful-doodles/9", "kind": "image", "revision": "1" } },
+        { "role": "playful-doodle-2", "reference": { "id": "asset://pack/playful-doodles/15", "kind": "image", "revision": "1" } },
+        { "role": "fan-highlight", "reference": { "id": "asset://pack/fan-edit-highlights/2", "kind": "image", "revision": "1" } }
       ]
     },
     {
@@ -32,26 +35,27 @@
       "id": "material-remix",
       "status": "calibration-pending",
       "sourcePreviewPath": "source-assets/配方模版/material_remix.png",
-      "canvas": { "width": 1024, "height": 1536, "base": "solid-paper" },
+      "canvas": { "width": 1080, "height": 1440, "base": "solid-paper" },
       "photoSlots": [{ "id": "hero-photo", "required": true, "role": "centered-portrait-photo" }],
       "fixedAssets": [
-        { "role": "structural-drape", "reference": { "id": "asset://pack/structural-plastic-beads-mesh/1", "kind": "image", "revision": "1" } },
+        { "role": "structural-drape-1", "reference": { "id": "asset://pack/structural-plastic-beads-mesh/1", "kind": "image", "revision": "1" } },
+        { "role": "structural-drape-2", "reference": { "id": "asset://pack/structural-plastic-beads-mesh/1", "kind": "image", "revision": "1" } },
+        { "role": "fabric-bow", "reference": { "id": "asset://pack/fabric-fiber-thread/2", "kind": "image", "revision": "1" } },
         { "role": "bead-accent-1", "reference": { "id": "asset://pack/beads-structural-units-1/5", "kind": "image", "revision": "1" } },
-        { "role": "bead-accent-2", "reference": { "id": "asset://pack/beads-structural-units-1/6", "kind": "image", "revision": "1" } },
-        { "role": "bead-accent-3", "reference": { "id": "asset://pack/beads-structural-units-1/18", "kind": "image", "revision": "1" } },
-        { "role": "bead-accent-4", "reference": { "id": "asset://pack/beads-structural-units-1/24", "kind": "image", "revision": "1" } },
-        { "role": "bead-accent-5", "reference": { "id": "asset://pack/beads-structural-units-1/31", "kind": "image", "revision": "1" } },
-        { "role": "bead-accent-6", "reference": { "id": "asset://pack/beads-structural-units-1/19", "kind": "image", "revision": "1" } },
-        { "role": "bead-accent-7", "reference": { "id": "asset://pack/beads-structural-units-1/20", "kind": "image", "revision": "1" } },
-        { "role": "lace-edge", "reference": { "id": "asset://pack/essential-lace-trims/3", "kind": "image", "revision": "1" } },
-        { "role": "fabric-bow", "reference": { "id": "asset://pack/fabric-fiber-thread/2", "kind": "image", "revision": "1" } }
+        { "role": "bead-accent-2", "reference": { "id": "asset://pack/beads-structural-units-1/19", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-3", "reference": { "id": "asset://pack/beads-structural-units-1/20", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-4", "reference": { "id": "asset://pack/beads-structural-units-1/6", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-5", "reference": { "id": "asset://pack/beads-structural-units-1/7", "kind": "image", "revision": "1" } },
+        { "role": "bead-accent-6", "reference": { "id": "asset://pack/beads-structural-units-1/24", "kind": "image", "revision": "1" } },
+        { "role": "crystal-accent", "reference": { "id": "asset://pack/template-assets/material-remix-crystal-accent", "kind": "image", "revision": "1" } },
+        { "role": "lace-edge", "reference": { "id": "asset://pack/essential-lace-trims/3", "kind": "image", "revision": "1" } }
       ]
     },
     {
       "id": "soft-archive-multi",
       "status": "calibration-pending",
       "sourcePreviewPath": "source-assets/配方模版/soft_archive_multi.png",
-      "canvas": { "width": 1024, "height": 1241, "base": "solid-paper" },
+      "canvas": { "width": 1080, "height": 1440, "base": "solid-paper" },
       "photoSlots": [
         { "id": "left-photo", "required": true, "role": "left-photo-card" },
         { "id": "right-photo-1", "required": true, "role": "right-frame-photo-1" },
@@ -59,10 +63,10 @@
         { "id": "right-photo-3", "required": true, "role": "right-frame-photo-3" }
       ],
       "fixedAssets": [
-        { "role": "blue-paper-accent-1", "reference": { "id": "asset://pack/soft-archive-blue/13", "kind": "image", "revision": "1" } },
-        { "role": "blue-paper-accent-2", "reference": { "id": "asset://pack/soft-archive-blue/18", "kind": "image", "revision": "1" } },
-        { "role": "blue-paper-accent-3", "reference": { "id": "asset://pack/soft-archive-blue/25", "kind": "image", "revision": "1" } },
-        { "role": "photo-frame", "reference": { "id": "asset://pack/template-assets/soft-archive-multi-photo-frame", "kind": "image", "revision": "1" } }
+        { "role": "fugu-accent", "reference": { "id": "asset://pack/template-assets/soft-archive-multi-fugu-accent", "kind": "image", "revision": "1" } },
+        { "role": "blue-paper-accent", "reference": { "id": "asset://pack/soft-archive-blue/18", "kind": "image", "revision": "1" } },
+        { "role": "tape", "reference": { "id": "asset://pack/template-assets/soft-archive-multi-tape", "kind": "image", "revision": "1" } },
+        { "role": "photo-frame", "reference": { "id": "asset://pack/template-assets/soft-archive-multi-photo-frame-v2", "kind": "image", "revision": "1" } }
       ]
     },
     {
@@ -79,8 +83,9 @@
       "fixedAssets": [
         { "role": "color-paper-1", "reference": { "id": "asset://pack/caise-01/1", "kind": "image", "revision": "1" } },
         { "role": "color-paper-2", "reference": { "id": "asset://pack/caise-01/5", "kind": "image", "revision": "1" } },
-        { "role": "paper-cutout", "reference": { "id": "asset://pack/template-assets/play-pop-multi-paper-cutout", "kind": "image", "revision": "1" } },
-        { "role": "color-dot", "reference": { "id": "asset://pack/caisebodian/11", "kind": "image", "revision": "1" } }
+        { "role": "blue-paper", "reference": { "id": "asset://pack/template-assets/digital-y2k-multi-blue-paper", "kind": "image", "revision": "1" } },
+        { "role": "pink-photo-strip", "reference": { "id": "asset://pack/template-assets/digital-y2k-multi-photo-strip", "kind": "image", "revision": "1" } },
+        { "role": "taped-polaroid-frame", "reference": { "id": "asset://pack/template-assets/digital-y2k-multi-photo-frame", "kind": "image", "revision": "1" } }
       ]
     },
     {
@@ -101,10 +106,7 @@
         { "role": "chrome-symbol-2", "reference": { "id": "asset://pack/chrome-symbols/7", "kind": "image", "revision": "1" } },
         { "role": "chrome-symbol-3", "reference": { "id": "asset://pack/chrome-symbols/13", "kind": "image", "revision": "1" } },
         { "role": "chrome-symbol-4", "reference": { "id": "asset://pack/chrome-symbols/14", "kind": "image", "revision": "1" } },
-        { "role": "editorial-index-1", "reference": { "id": "asset://pack/editorial-connectors-index-marks/1", "kind": "image", "revision": "1" } },
-        { "role": "editorial-index-2", "reference": { "id": "asset://pack/editorial-connectors-index-marks/10", "kind": "image", "revision": "1" } },
-        { "role": "editorial-index-3", "reference": { "id": "asset://pack/editorial-connectors-index-marks/11", "kind": "image", "revision": "1" } },
-        { "role": "tape-left", "reference": { "id": "asset://pack/template-assets/digital-y2k-multi-tape-left", "kind": "image", "revision": "1" } },
+        { "role": "tape-left", "reference": { "id": "asset://pack/template-assets/digital-y2k-multi-tape-left", "kind": "image", "revision": "2" } },
         { "role": "tape-right", "reference": { "id": "asset://pack/template-assets/soft-archive-tape-right", "kind": "image", "revision": "1" } },
         { "role": "micro-editorial-1", "reference": { "id": "asset://pack/micro-editorial-1/7", "kind": "image", "revision": "1" } },
         { "role": "micro-editorial-2", "reference": { "id": "asset://pack/micro-editorial-1/12", "kind": "image", "revision": "1" } },
@@ -112,7 +114,8 @@
         { "role": "micro-editorial-4", "reference": { "id": "asset://pack/micro-editorial-1/19", "kind": "image", "revision": "1" } },
         { "role": "micro-editorial-5", "reference": { "id": "asset://pack/micro-editorial-1/14", "kind": "image", "revision": "1" } },
         { "role": "micro-editorial-6", "reference": { "id": "asset://pack/micro-editorial-1/9", "kind": "image", "revision": "1" } },
-        { "role": "micro-editorial-7", "reference": { "id": "asset://pack/micro-editorial-1/21", "kind": "image", "revision": "1" } }
+        { "role": "micro-editorial-7", "reference": { "id": "asset://pack/micro-editorial-1/21", "kind": "image", "revision": "1" } },
+        { "role": "micro-editorial-8", "reference": { "id": "asset://pack/micro-editorial-1/17", "kind": "image", "revision": "1" } }
       ]
     },
     {

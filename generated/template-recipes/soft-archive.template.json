@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/soft-archive",
+  "revision": "1",
+  "status": "ready",
+  "name": "Soft Archive",
+  "canvas": {
+    "size": {
+      "width": 1080,
+      "height": 1440
+    },
+    "background": "#FDFDFB",
+    "backgroundAsset": {
+      "id": "asset://pack/template-assets/soft-archive-background",
+      "kind": "image",
+      "revision": "1"
+    }
+  },
+  "preview": {
+    "id": "asset://pack/template-previews/soft-archive",
+    "kind": "image",
+    "revision": "1"
+  },
+  "photoSlots": [
+    {
+      "id": "hero-photo",
+      "name": "Centered portrait",
+      "type": "photo",
+      "frame": {
+        "width": 717.3134328358209,
+        "height": 1080
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 134.35266424299516,
+          "y": 79.13812476208793
+        },
+        "scale": {
+          "x": 0.7580890048050672,
+          "y": 0.7580926327972759
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "fixedLayers": [
+    {
+      "id": "pack-layer-2c12659c-d627-4802-9d32-fa90bd574771",
+      "name": "soft-archive-blue-30",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/soft-archive-blue/30",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 358,
+        "height": 221
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 666.0759219088939,
+          "y": 790.6713665943602
+        },
+        "scale": {
+          "x": 1.1959149765319563,
+          "y": 1.1959149765319563
+        },
+        "rotation": -1.218980688441648
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-8b39b3f7-ebe7-40c9-a285-aeba89e3626f",
+      "name": "soft-archive-blue-18",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/soft-archive-blue/18",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 369,
+        "height": 151
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 461.7039045553144,
+          "y": 107.23318872017352
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0.17453292519943295
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-20016c0b-c9a4-4d8c-8cfa-61fbf2f76111",
+      "name": "soft-archive-blue-8",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/soft-archive-blue/8",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 418,
+        "height": 202
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 309.1344902386117,
+          "y": 1130.2364425162687
+        },
+        "scale": {
+          "x": 0.8020063498954018,
+          "y": 0.8020063498954018
+        },
+        "rotation": 0.030118391099403174
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-6e6a26f9-0945-4758-afcd-42ef013699f5",
+      "name": "jiaodai-29",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/soft-archive-tape-left",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 479,
+        "height": 248
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": -27.482646420824334,
+          "y": 845.891540130152
+        },
+        "scale": {
+          "x": 0.5137058569455469,
+          "y": 0.5137058569455469
+        },
+        "rotation": 1.6825722542640544
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-2ee1ea76-c57d-4748-bdef-921dccfd2eac",
+      "name": "jiaodai-31",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/soft-archive-tape-right",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 497,
+        "height": 184
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 9.330802603036943,
+          "y": 817.5010845986984
+        },
+        "scale": {
+          "x": 0.7211066398390342,
+          "y": 0.7210869565217392
+        },
+        "rotation": 1.5707963267948966
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-c0d2f65d-2fea-469b-918a-7843f0ecd6f7",
+      "name": "editorial-everyday-labels-20",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/editorial-everyday-labels/20",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 360,
+        "height": 358
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 779.6095444685466,
+          "y": 693.0173535791756
+        },
+        "scale": {
+          "x": 0.5175961837029404,
+          "y": 0.5175961837029404
+        },
+        "rotation": -0.46725416691746896
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    }
+  ],
+  "layerStack": [
+    "fixed:pack-layer-2c12659c-d627-4802-9d32-fa90bd574771",
+    "photo:hero-photo",
+    "fixed:pack-layer-8b39b3f7-ebe7-40c9-a285-aeba89e3626f",
+    "fixed:pack-layer-20016c0b-c9a4-4d8c-8cfa-61fbf2f76111",
+    "fixed:pack-layer-6e6a26f9-0945-4758-afcd-42ef013699f5",
+    "fixed:pack-layer-2ee1ea76-c57d-4748-bdef-921dccfd2eac",
+    "fixed:pack-layer-c0d2f65d-2fea-469b-918a-7843f0ecd6f7"
+  ],
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/soft-archive",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-background",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/30",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/18",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/soft-archive-blue/8",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-tape-left",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/soft-archive-tape-right",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/editorial-everyday-labels/20",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    }
+  ],
+  "requiredCapabilities": [
+    "image.replace",
+    "image.crop",
+    "material.resolve"
+  ]
+}

@@ -1,0 +1,381 @@
+{
+  "schemaVersion": 1,
+  "id": "template://journalcollage/play-pop-multi",
+  "revision": "1",
+  "status": "ready",
+  "name": "Play Pop Multi",
+  "canvas": {
+    "size": {
+      "width": 1080,
+      "height": 1440
+    },
+    "background": "#DFD96E"
+  },
+  "preview": {
+    "id": "asset://pack/template-previews/play-pop-multi",
+    "kind": "image",
+    "revision": "1"
+  },
+  "photoSlots": [
+    {
+      "id": "frame-photo-3",
+      "name": "Frame photo 3",
+      "type": "photo",
+      "frame": {
+        "width": 507.072,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 270.3425249457703,
+          "y": 753.9002169197398
+        },
+        "scale": {
+          "x": 0.7099583491101855,
+          "y": 0.47368421052631576
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    },
+    {
+      "id": "frame-photo-1",
+      "name": "Frame photo 1",
+      "type": "photo",
+      "frame": {
+        "width": 507.072,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 284.38157049891555,
+          "y": 3.687635574837344
+        },
+        "scale": {
+          "x": 0.7099583491101855,
+          "y": 0.47368421052631576
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    },
+    {
+      "id": "frame-photo-2",
+      "name": "Frame photo 2",
+      "type": "photo",
+      "frame": {
+        "width": 507.072,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 279.4444772234275,
+          "y": 377.7527114967463
+        },
+        "scale": {
+          "x": 0.7099583491101855,
+          "y": 0.47368421052631576
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    },
+    {
+      "id": "polaroid-photo",
+      "name": "Left lace diamond photo",
+      "type": "photo",
+      "frame": {
+        "width": 507.072,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 16.789379609544582,
+          "y": 519.0889370932749
+        },
+        "scale": {
+          "x": 0.5521898270856999,
+          "y": 0.4868421052631579
+        },
+        "rotation": -0.20943951023931953
+      },
+      "opacity": 1,
+      "isLocked": false,
+      "effects": [],
+      "required": true
+    }
+  ],
+  "textSlots": [],
+  "materialSlots": [],
+  "fixedLayers": [
+    {
+      "id": "pack-layer-1636f29e-009a-4296-8f9c-cd8d1cf29a04",
+      "name": "template-assets-digital-y2k-multi-blue-paper",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-blue-paper",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 230,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 411.4642082429502,
+          "y": 301.47505422993487
+        },
+        "scale": {
+          "x": 1.9866782011021653,
+          "y": 1.9866782011021653
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-d90d17b2-cf81-41d9-922a-0327627d0405",
+      "name": "caise-01-1",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/caise-01/1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 648,
+        "height": 533
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 426.3253796095444,
+          "y": 226.51518438177874
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-54930939-754e-4c68-8a9f-0d3d5e6bd8fe",
+      "name": "template-assets-digital-y2k-multi-photo-strip",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-photo-strip",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 217,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 423.1702819956616,
+          "y": 320.2169197396963
+        },
+        "scale": {
+          "x": 1.7633128863776875,
+          "y": 1.7633128863776875
+        },
+        "rotation": 0.024450766221713938
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-e6f6b5db-9cc2-4659-bfa0-a191699de4a4",
+      "name": "caise-01-20",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/caise-01/5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 517,
+        "height": 374
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": 547.0097613882863,
+          "y": 1000.5054229934924
+        },
+        "scale": {
+          "x": 1,
+          "y": 1
+        },
+        "rotation": 0
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    },
+    {
+      "id": "pack-layer-f0eac166-5ebc-4673-80d1-b8ff398dc507",
+      "name": "template-assets-digital-y2k-multi-photo-frame",
+      "type": "image",
+      "asset": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-photo-frame",
+        "kind": "image",
+        "revision": "1"
+      },
+      "frame": {
+        "width": 584,
+        "height": 760
+      },
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1
+      },
+      "transform": {
+        "position": {
+          "x": -27.92190889370935,
+          "y": 503.4707158351408
+        },
+        "scale": {
+          "x": 0.6423630136986301,
+          "y": 0.6423684210526316
+        },
+        "rotation": -0.10471975511965977
+      },
+      "opacity": 1,
+      "isLocked": true,
+      "effects": []
+    }
+  ],
+  "layerStack": [
+    "fixed:pack-layer-1636f29e-009a-4296-8f9c-cd8d1cf29a04",
+    "fixed:pack-layer-d90d17b2-cf81-41d9-922a-0327627d0405",
+    "photo:frame-photo-3",
+    "photo:frame-photo-1",
+    "photo:frame-photo-2",
+    "fixed:pack-layer-54930939-754e-4c68-8a9f-0d3d5e6bd8fe",
+    "fixed:pack-layer-e6f6b5db-9cc2-4659-bfa0-a191699de4a4",
+    "photo:polaroid-photo",
+    "fixed:pack-layer-f0eac166-5ebc-4673-80d1-b8ff398dc507"
+  ],
+  "dependencies": [
+    {
+      "reference": {
+        "id": "asset://pack/template-previews/play-pop-multi",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-blue-paper",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/caise-01/1",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-photo-strip",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/caise-01/5",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    },
+    {
+      "reference": {
+        "id": "asset://pack/template-assets/digital-y2k-multi-photo-frame",
+        "kind": "image",
+        "revision": "1"
+      },
+      "availability": "bundled"
+    }
+  ],
+  "requiredCapabilities": [
+    "image.replace",
+    "image.crop",
+    "material.resolve"
+  ]
+}

@@ -25,6 +25,7 @@ let remoteCacheIndex: RemoteCacheIndex | null = null;
 const pendingRemoteDownloads = new Map<string, Promise<string>>();
 /** Avoid a disk round-trip (and a blank first frame) when a drawer view remounts. */
 const resolvedRemoteUris = new Map<string, string>();
+const remotePreviewDownloadTimeoutMs = 8_000;
 
 /** Workspace-only lifecycle metadata; it deliberately never enters Draft. */
 export type StoredWorkspace = Readonly<{ draft: Draft; catalog: AssetCatalog; savedAt?: string }>;
@@ -116,6 +117,35 @@ const saveRemoteCacheIndex = async (entries: readonly RemoteCacheEntry[]): Promi
 
 const cacheFileExtension = (source: string): string => /\.(?:jpe?g)(?:\?|$)/i.test(source) ? 'jpg' : /\.webp(?:\?|$)/i.test(source) ? 'webp' : 'png';
 const remoteCacheMemoryKey = (key: string, source: string): string => `${key}\u0000${source}`;
+const base64FromBytes = (bytes: Uint8Array): string => {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  return btoa(binary);
+};
+
+/**
+ * Preview caching deliberately uses the foreground session. On iOS Simulator,
+ * FileSystem.downloadAsync can depend on nsurlsessiond; if that daemon's XPC
+ * connection drops, every otherwise valid compatibility asset fails at once.
+ */
+const downloadRemotePreview = async (source: string, destination: string): Promise<Readonly<{ status: number; headers: Readonly<Record<string, string>>; uri: string }>> => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), remotePreviewDownloadTimeoutMs);
+  try {
+    const response = await fetch(source, { signal: controller.signal });
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, name) => { headers[name] = value; });
+    await FileSystem.writeAsStringAsync(destination, base64FromBytes(bytes), { encoding: FileSystem.EncodingType.Base64 });
+    return { status: response.status, headers, uri: destination };
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error(`Remote preview download timed out after ${remotePreviewDownloadTimeoutMs}ms.`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 /** Returns a URI only when it was resolved during this app session; it never does I/O. */
 export const resolvedRemoteResourceUri = (key: string, source: string): string | undefined => resolvedRemoteUris.get(remoteCacheMemoryKey(key, source));
@@ -142,7 +172,7 @@ export const cacheRemoteResource = async (key: string, source: string, options: 
     }
     const filename = `${key.replace(/[^a-zA-Z0-9_-]+/g, '_')}.${cacheFileExtension(source)}`;
     const uri = `${remoteCacheDirectory}${filename}`;
-    const result = await FileSystem.downloadAsync(source, uri);
+    const result = await downloadRemotePreview(source, uri);
     const contentType = Object.entries(result.headers ?? {}).find(([header]) => header.toLowerCase() === 'content-type')?.[1]?.split(';', 1)[0]?.trim().toLowerCase();
     if (result.status < 200 || result.status >= 300 || (options.requireImageMime && contentType !== 'image/png' && contentType !== 'image/jpeg')) {
       await FileSystem.deleteAsync(uri, { idempotent: true });
