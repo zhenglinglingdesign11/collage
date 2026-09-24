@@ -7,5 +7,5 @@
     "module": "node16",
     "moduleResolution": "node16"
   },
-  "files": ["src/localWorkspace.ts", "src/verifiedRemoteAssetCache.ts", "../../packages/asset-system/src/remoteAssetIntegrity.ts", "../../packages/asset-system/src/productAssetResolver.ts", "../../packages/editor-renderer/src/renderParity.ts"]
+  "files": ["src/editorHistory.ts", "src/initialPackImport.ts", "src/localWorkspace.ts", "src/verifiedRemoteAssetCache.ts", "../../packages/asset-system/src/remoteAssetIntegrity.ts", "../../packages/asset-system/src/productAssetResolver.ts", "../../packages/editor-renderer/src/renderParity.ts"]
 }

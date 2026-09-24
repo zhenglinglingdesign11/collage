@@ -1,10 +1,11 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { File } from 'expo-file-system';
-import { brushDefinitionsById, emptyAssetCatalog, getTextFont, remoteAssetPacks, upsertAsset, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { brushDefinitionsById, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetPacks, upsertAsset, type AssetCatalog, type LocalAssetRecord, type RemotePackItem } from '@journalcollage/asset-system';
 import { isCompatibilityProductAssetReference, isShippedProductAssetReference, productCatalogAssetForReference, shippedProductAssetCatalog, shippedProductAssetResolver } from './shippedProductAssetCatalog';
 import { clearResolvedVerifiedProductAssetUris, resolvedVerifiedProductAssetUri } from './productAssetResolver';
 import { clearVerifiedRemoteAssetCache, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } from './verifiedRemoteAssetCache';
-import { createStableId, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type AssetReference, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
+import { createStableId, DEFAULT_CANVAS_BACKGROUND, migrateDraft, migratePortableProjectEnvelope, PORTABLE_PROJECT_FORMAT, PORTABLE_PROJECT_FORMAT_VERSION, portableAssetReference, portableAssetReferencesForDraft, sha256HexForBytes, type AssetReference, type Draft, type PortableAssetReference, type PortableProjectIssue } from '@journalcollage/editor-core';
 
 const root = `${FileSystem.documentDirectory}journalcollage/`;
 const assetDirectory = `${root}assets/`;
@@ -18,6 +19,37 @@ const importedAssetDirectory = `${root}imported-project-assets/`;
 const homeShowcaseManifestUri = (market: string): string => `${root}home-showcase-manifest-${market.replace(/[^a-zA-Z0-9_-]+/g, '_')}.json`;
 const MAX_SAVED_DRAFTS = 20;
 const DOWNLOAD_CACHE_LIMIT_BYTES = 250 * 1024 * 1024;
+let workspaceWriteQueue: Promise<void> = Promise.resolve();
+const serializeWorkspaceWrite = (write: () => Promise<void>): Promise<void> => {
+  const result = workspaceWriteQueue.then(write);
+  workspaceWriteQueue = result.catch(() => undefined);
+  return result;
+};
+const writeRecoverableJson = async (uri: string, value: unknown): Promise<void> => {
+  const temporary = `${uri}.pending`;
+  const backup = `${uri}.backup`;
+  await FileSystem.writeAsStringAsync(temporary, JSON.stringify(value), { encoding: FileSystem.EncodingType.UTF8 });
+  const previous = await FileSystem.getInfoAsync(uri);
+  if (previous.exists) {
+    await FileSystem.deleteAsync(backup, { idempotent: true });
+    await FileSystem.moveAsync({ from: uri, to: backup });
+  }
+  try {
+    await FileSystem.moveAsync({ from: temporary, to: uri });
+  } catch (error) {
+    if (previous.exists) await FileSystem.moveAsync({ from: backup, to: uri });
+    throw error;
+  }
+};
+const readRecoverableJson = async (uri: string): Promise<string | null> => {
+  for (const candidate of [uri, `${uri}.backup`]) {
+    const info = await FileSystem.getInfoAsync(candidate);
+    if (!info.exists) continue;
+    try { return await FileSystem.readAsStringAsync(candidate, { encoding: FileSystem.EncodingType.UTF8 }); }
+    catch { /* A previous completed copy is still available. */ }
+  }
+  return null;
+};
 
 type RemoteCacheEntry = Readonly<{ key: string; source: string; uri: string; lastAccessedAt: string }>;
 type RemoteCacheIndex = Readonly<{ version: 1; entries: readonly RemoteCacheEntry[] }>;
@@ -267,16 +299,36 @@ export const pruneDownloadCache = async (currentWorkspace?: StoredWorkspace): Pr
 
 export const importLocalImage = async (input: { uri: string; width: number; height: number; mimeType: string | null }): Promise<LocalAssetRecord> => {
   await ensureDirectories();
+  // Photos from the library may be large HEIC originals. Normalize them before
+  // Skia loads the same asset in the editor and export canvases.
+  const maxEdge = 2400;
+  const context = ImageManipulator.ImageManipulator.manipulate(input.uri);
+  if (Math.max(input.width, input.height) > maxEdge) {
+    if (input.width >= input.height) context.resize({ width: maxEdge, height: null });
+    else context.resize({ width: null, height: maxEdge });
+  }
+  const rendered = await context.renderAsync();
+  const format = input.mimeType === 'image/png' ? ImageManipulator.SaveFormat.PNG : ImageManipulator.SaveFormat.JPEG;
+  const normalized = await rendered.saveAsync({ format, compress: 0.9 });
   const id = createStableId('user-image');
-  const extension = input.mimeType === 'image/png' ? 'png' : 'jpg';
+  const extension = format === ImageManipulator.SaveFormat.PNG ? 'png' : 'jpg';
   const originalUri = `${assetDirectory}${id}.${extension}`;
-  await FileSystem.copyAsync({ from: input.uri, to: originalUri });
+  try {
+    await FileSystem.copyAsync({ from: normalized.uri, to: originalUri });
+    const stored = await FileSystem.getInfoAsync(originalUri);
+    if (!stored.exists || !stored.size) throw new Error('Imported image is empty.');
+  } catch (error) {
+    await FileSystem.deleteAsync(originalUri, { idempotent: true });
+    throw error;
+  } finally {
+    await FileSystem.deleteAsync(normalized.uri, { idempotent: true }).catch(() => undefined);
+  }
   return {
     reference: { id: `user://image/${id}`, kind: 'image', revision: '1' },
     originalUri,
-    width: input.width,
-    height: input.height,
-    mimeType: input.mimeType,
+    width: normalized.width,
+    height: normalized.height,
+    mimeType: format === ImageManipulator.SaveFormat.PNG ? 'image/png' : 'image/jpeg',
     createdAt: new Date().toISOString(),
   };
 };
@@ -371,30 +423,20 @@ export const recoverWorkspaceProductAssets = async (workspace: StoredWorkspace):
   return { workspace: { ...workspace, catalog }, failures };
 };
 
-const existingSavedAt = async (): Promise<string | undefined> => {
-  const info = await FileSystem.getInfoAsync(workspaceUri);
-  if (!info.exists) return undefined;
-  try {
-    const payload = JSON.parse(await FileSystem.readAsStringAsync(workspaceUri, { encoding: FileSystem.EncodingType.UTF8 })) as StoredWorkspacePayload;
-    return typeof payload.savedAt === 'string' ? payload.savedAt : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
 const savedDraftUri = (id: string): string => `${savedDraftDirectory}${id.replace(/[^a-zA-Z0-9_-]+/g, '_')}.json`;
 const readSavedDraftIndex = async (): Promise<SavedDraftIndex> => {
-  const info = await FileSystem.getInfoAsync(savedDraftIndexUri);
-  if (!info.exists) return { version: 1, drafts: [] };
-  try {
-    const parsed = JSON.parse(await FileSystem.readAsStringAsync(savedDraftIndexUri, { encoding: FileSystem.EncodingType.UTF8 })) as SavedDraftIndex;
-    return parsed.version === 1 && Array.isArray(parsed.drafts) ? parsed : { version: 1, drafts: [] };
-  } catch {
-    return { version: 1, drafts: [] };
+  for (const uri of [savedDraftIndexUri, `${savedDraftIndexUri}.backup`]) {
+    const raw = await readRecoverableJson(uri);
+    if (raw === null) continue;
+    try {
+      const parsed = JSON.parse(raw) as SavedDraftIndex;
+      if (parsed.version === 1 && Array.isArray(parsed.drafts)) return parsed;
+    } catch { /* Try the last committed index. */ }
   }
+  return { version: 1, drafts: [] };
 };
 const writeSavedDraftIndex = async (drafts: SavedDraftIndex['drafts']): Promise<void> => {
-  await FileSystem.writeAsStringAsync(savedDraftIndexUri, JSON.stringify({ version: 1, drafts }), { encoding: FileSystem.EncodingType.UTF8 });
+  await writeRecoverableJson(savedDraftIndexUri, { version: 1, drafts });
 };
 const parseStoredWorkspace = (raw: string): StoredWorkspace | null => {
   try {
@@ -407,12 +449,12 @@ const parseStoredWorkspace = (raw: string): StoredWorkspace | null => {
 
 const saveExplicitDraft = async (workspace: StoredWorkspace, savedAt: string): Promise<void> => {
   const id = workspace.draft.id;
-  await FileSystem.writeAsStringAsync(savedDraftUri(id), JSON.stringify({ draft: workspace.draft, catalog: workspace.catalog, savedAt }), { encoding: FileSystem.EncodingType.UTF8 });
+  await writeRecoverableJson(savedDraftUri(id), { draft: workspace.draft, catalog: workspace.catalog, savedAt });
   const index = await readSavedDraftIndex();
   const ordered = [{ id, savedAt }, ...index.drafts.filter((entry) => entry.id !== id)].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   const retained = ordered.slice(0, MAX_SAVED_DRAFTS);
-  await Promise.all(ordered.slice(MAX_SAVED_DRAFTS).map((entry) => FileSystem.deleteAsync(savedDraftUri(entry.id), { idempotent: true })));
   await writeSavedDraftIndex(retained);
+  await Promise.all(ordered.slice(MAX_SAVED_DRAFTS).map((entry) => FileSystem.deleteAsync(savedDraftUri(entry.id), { idempotent: true }).catch(() => undefined)));
 };
 
 /**
@@ -420,15 +462,17 @@ const saveExplicitDraft = async (workspace: StoredWorkspace, savedAt: string): P
  * its saved time or reordering the user's recent creations.
  */
 export const updateSavedDraftWorkspace = async (id: string, workspace: StoredWorkspace): Promise<void> => {
-  await ensureDirectories();
-  const index = await readSavedDraftIndex();
-  const entry = index.drafts.find((candidate) => candidate.id === id);
-  if (!entry) return;
-  await FileSystem.writeAsStringAsync(savedDraftUri(id), JSON.stringify({
-    draft: workspace.draft,
-    catalog: workspace.catalog,
-    savedAt: workspace.savedAt ?? entry.savedAt,
-  }), { encoding: FileSystem.EncodingType.UTF8 });
+  return serializeWorkspaceWrite(async () => {
+    await ensureDirectories();
+    const index = await readSavedDraftIndex();
+    const entry = index.drafts.find((candidate) => candidate.id === id);
+    if (!entry) return;
+    await writeRecoverableJson(savedDraftUri(id), {
+      draft: workspace.draft,
+      catalog: workspace.catalog,
+      savedAt: workspace.savedAt ?? entry.savedAt,
+    });
+  });
 };
 
 /** True only when saving this draft would create entry 21 and prune the oldest one. */
@@ -439,22 +483,48 @@ export const wouldPruneOldestSavedDraft = async (draftId: string): Promise<boole
 
 /** A checkpoint preserves prior saved status; only an explicit user save marks a recent creation. */
 export const saveWorkspace = async (workspace: StoredWorkspace, options: Readonly<{ markAsSaved?: boolean }> = {}): Promise<void> => {
-  await ensureDirectories();
-  const savedAt = options.markAsSaved ? new Date().toISOString() : workspace.savedAt ?? await existingSavedAt();
-  const payload: StoredWorkspace = savedAt === undefined ? { draft: workspace.draft, catalog: workspace.catalog } : { draft: workspace.draft, catalog: workspace.catalog, savedAt };
-  await FileSystem.writeAsStringAsync(workspaceUri, JSON.stringify(payload), { encoding: FileSystem.EncodingType.UTF8 });
-  if (options.markAsSaved) {
-    await saveExplicitDraft(payload, savedAt!);
-    void pruneDownloadCache(payload).catch(() => undefined);
-  }
+  return serializeWorkspaceWrite(async () => {
+    await ensureDirectories();
+    const savedAt = options.markAsSaved ? new Date().toISOString() : workspace.savedAt;
+    const payload: StoredWorkspace = savedAt === undefined ? { draft: workspace.draft, catalog: workspace.catalog } : { draft: workspace.draft, catalog: workspace.catalog, savedAt };
+    if (options.markAsSaved) {
+      await saveExplicitDraft(payload, savedAt!);
+      // The indexed saved draft is already durable. A later workspace-checkpoint
+      // failure must not tell the user that this explicit save was lost.
+      try { await writeRecoverableJson(workspaceUri, payload); }
+      catch (error) { if (typeof __DEV__ !== 'undefined' && __DEV__) console.warn('[workspace] saved draft committed; checkpoint update failed', error); }
+    } else {
+      await writeRecoverableJson(workspaceUri, payload);
+    }
+    if (options.markAsSaved) void pruneDownloadCache(payload).catch(() => undefined);
+  });
 };
 
 export const loadWorkspace = async (): Promise<StoredWorkspace | null> => {
-  const info = await FileSystem.getInfoAsync(workspaceUri);
-  if (!info.exists) return null;
-  const raw = await FileSystem.readAsStringAsync(workspaceUri, { encoding: FileSystem.EncodingType.UTF8 });
-  return parseStoredWorkspace(raw);
+  for (const uri of [workspaceUri, `${workspaceUri}.backup`]) {
+    const raw = await readRecoverableJson(uri);
+    const parsed = raw === null ? null : parseStoredWorkspace(raw);
+    if (parsed) return parsed;
+  }
+  return null;
 };
+
+export const loadUnfinishedWorkspace = async (): Promise<StoredWorkspace | null> => {
+  const workspace = await loadWorkspace();
+  if (!workspace || (workspace.draft.layers.length === 0 && !workspace.draft.canvas.backgroundAsset && workspace.draft.canvas.background === DEFAULT_CANVAS_BACKGROUND)) return null;
+  const saved = await loadSavedDraft(workspace.draft.id);
+  // If the saved document is newer, an earlier checkpoint must not be offered
+  // as unfinished work after the final checkpoint write failed.
+  if (saved && saved.draft.updatedAt > workspace.draft.updatedAt) return null;
+  return saved && JSON.stringify({ canvas: saved.draft.canvas, layers: saved.draft.layers }) === JSON.stringify({ canvas: workspace.draft.canvas, layers: workspace.draft.layers }) ? null : workspace;
+};
+
+export const discardWorkspaceCheckpoint = async (draftId: string): Promise<void> => serializeWorkspaceWrite(async () => {
+  const workspace = await loadWorkspace();
+  if (workspace?.draft.id !== draftId) return;
+  await FileSystem.deleteAsync(workspaceUri, { idempotent: true });
+  await FileSystem.deleteAsync(`${workspaceUri}.backup`, { idempotent: true });
+});
 
 /** Returns only explicitly saved works, newest first. Legacy saved workspace is imported once. */
 export const loadSavedDrafts = async (): Promise<readonly SavedDraft[]> => {
@@ -468,9 +538,7 @@ export const loadSavedDrafts = async (): Promise<readonly SavedDraft[]> => {
     }
   }
   const drafts = await Promise.all(index.drafts.map(async (entry) => {
-    const info = await FileSystem.getInfoAsync(savedDraftUri(entry.id));
-    if (!info.exists) return null;
-    const workspace = parseStoredWorkspace(await FileSystem.readAsStringAsync(savedDraftUri(entry.id), { encoding: FileSystem.EncodingType.UTF8 }));
+    const workspace = await loadSavedDraft(entry.id);
     return workspace === null ? null : { id: entry.id, savedAt: entry.savedAt, workspace };
   }));
   const valid = drafts.filter((draft): draft is SavedDraft => draft !== null);
@@ -492,8 +560,12 @@ export const hasSavedDraftsSync = (): boolean | null => {
 };
 
 export const loadSavedDraft = async (id: string): Promise<StoredWorkspace | null> => {
-  const info = await FileSystem.getInfoAsync(savedDraftUri(id));
-  return info.exists ? parseStoredWorkspace(await FileSystem.readAsStringAsync(savedDraftUri(id), { encoding: FileSystem.EncodingType.UTF8 })) : null;
+  for (const uri of [savedDraftUri(id), `${savedDraftUri(id)}.backup`]) {
+    const raw = await readRecoverableJson(uri);
+    const parsed = raw === null ? null : parseStoredWorkspace(raw);
+    if (parsed) return parsed;
+  }
+  return null;
 };
 
 export const saveExportPng = async (base64: string): Promise<string> => {
@@ -501,6 +573,28 @@ export const saveExportPng = async (base64: string): Promise<string> => {
   const uri = `${root}${createStableId('export')}.png`;
   await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
   return uri;
+};
+
+/** Prevent a valid-looking PNG from silently omitting unresolved image inputs. */
+export const exportResourceUriReady = async (uri: string | undefined): Promise<boolean> => {
+  if (!uri || /^https?:\/\//i.test(uri)) return false;
+  return !uri.startsWith('file://') || (await FileSystem.getInfoAsync(uri)).exists;
+};
+
+export const missingExportImageReferences = async (draft: Draft, assetUris: Readonly<Record<string, string>>): Promise<readonly string[]> => {
+  const references = [
+    ...(draft.canvas.backgroundAsset ? [draft.canvas.backgroundAsset.id] : []),
+    ...draft.layers.filter((layer) => layer.type === 'image').map((layer) => layer.asset.id),
+  ];
+  const unique = [...new Set(references)].filter((id) => {
+    const paper = proceduralPaperForReferenceId(id);
+    const sticker = proceduralStickerForReferenceId(id);
+    return (!paper && !sticker) || paper?.shape === 'image' || sticker?.textureSource !== undefined;
+  });
+  const missing = await Promise.all(unique.map(async (id) => {
+    return await exportResourceUriReady(assetUris[id]) ? null : id;
+  }));
+  return missing.filter((id): id is string => id !== null);
 };
 
 const mimeForRecord = (record: LocalAssetRecord): string => record.mimeType ?? 'image/jpeg';

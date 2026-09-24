@@ -1,7 +1,7 @@
 # P1-T01：Template Schema 差距与验收清单
 
-状态：`ready-for-P1-T02`（Schema、生产/草稿解析边界与首发 profile 已冻结；10 个经 Recipe 编译的生产 fixture 由 P1-T02 产出）  
-日期：2026-09-21  
+状态：`completed-for-P1-T01`（10 个 Recipe 编译产物已通过 Schema/首发 profile 边界；发布前 Release 构建复核属于 P1-T10）
+日期：2026-09-23
 上位契约：[TEMPLATE_CONTRACT_P1_T00.md](TEMPLATE_CONTRACT_P1_T00.md)  
 实施计划：[ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md](ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md)
 

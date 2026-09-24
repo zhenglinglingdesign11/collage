@@ -1,7 +1,7 @@
 # JournalCollage 账号、订阅与云端作品路线
 
-> 状态：后续实施基线
-> 更新日期：2026-09-19
+> 状态：P1-T 已完成开发与真机核心验证；P2 entitlement 抽象可开始
+> 更新日期：2026-09-23
 > 适用范围：Expo + React Native iOS 首发、后续 Android，以及与 RevenueCat、Supabase、Cloudflare R2 相关的产品与服务端实现。
 > 执行计划：`ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md`
 > 关联文档：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`。

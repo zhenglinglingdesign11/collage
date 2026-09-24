@@ -22,7 +22,7 @@ import {
   useImage,
   type Transforms3d,
 } from '@shopify/react-native-skia';
-import { useMemo, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, type ReactNode } from 'react';
 import { visibleBoundsForLayer } from '@journalcollage/editor-core';
 import type { AlignmentGuide, BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, EffectStage, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
 import type { SharedValue } from 'react-native-reanimated';
@@ -124,6 +124,8 @@ type SkiaEditorSceneProps = Readonly<{
   viewport: CanvasViewport;
   activeLayer: ActiveLayerPresentation;
   assetUris?: Readonly<Record<string, string>>;
+  /** Optional export-only signal that an image URI has decoded in this scene. */
+  onImageReady?: (uri: string) => void;
   /** Resolved bitmap stamps for catalog brushes; never stored in a Draft. */
   brushAssetUris?: Readonly<Record<string, string>>;
   /** Catalog-owned definitions resolved by the product layer; never persisted in Draft. */
@@ -163,11 +165,11 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showCanvasBackground = true, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris = {}, laceFrameFallback = true, showSelection = true, alignmentGuides = [], surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, cropPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, onImageReady, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showCanvasBackground = true, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris = {}, laceFrameFallback = true, showSelection = true, alignmentGuides = [], surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, cropPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
-      {showCanvasBackground && <CanvasBackground frame={draft.canvas.size} color={draft.canvas.background} paper={canvasBackgroundPaper} assetUri={canvasBackgroundUri} />}
+      {showCanvasBackground && <CanvasBackground frame={draft.canvas.size} color={draft.canvas.background} paper={canvasBackgroundPaper} assetUri={canvasBackgroundUri} onImageReady={onImageReady} />}
       {draft.layers.map((layer) => (
         <SkiaLayer
           key={layer.id}
@@ -175,6 +177,7 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           selected={showSelection && draft.selectedLayerId === layer.id}
           transform={activeLayer.isInteracting === true && activeLayer.layerId === layer.id ? activeLayer.transform : layerTransform(layer)}
           assetUri={layer.type === 'image' ? assetUris[layer.asset.id] : undefined}
+          onImageReady={onImageReady}
           brushAssetUris={brushAssetUris}
           brushDefinitions={brushDefinitions}
           proceduralPaper={layer.type === 'image' ? proceduralPapers[layer.asset.id] : undefined}
@@ -207,9 +210,10 @@ const CanvasAlignmentGuides = ({ guides, size, strokeWidth }: Readonly<{ guides:
  * Canvas backgrounds intentionally bypass the layer renderer: they cannot be
  * selected, reordered, or accidentally exported with layer transforms.
  */
-const CanvasBackground = ({ frame, color, paper, assetUri }: Readonly<{ frame: { width: number; height: number }; color: string; paper?: ProceduralPaperPaint; assetUri?: string }>) => {
+const CanvasBackground = ({ frame, color, paper, assetUri, onImageReady }: Readonly<{ frame: { width: number; height: number }; color: string; paper?: ProceduralPaperPaint; assetUri?: string; onImageReady?: (uri: string) => void }>) => {
   const image = useImage(paper === undefined ? assetUri : undefined);
-  if (paper !== undefined) return <ProceduralPaperLayer frame={frame} paper={paper} patternImageUri={assetUri} />;
+  useEffect(() => { if (image && assetUri && paper === undefined) onImageReady?.(assetUri); }, [assetUri, image, onImageReady, paper]);
+  if (paper !== undefined) return <ProceduralPaperLayer frame={frame} paper={paper} patternImageUri={assetUri} onImageReady={onImageReady} />;
   return <>
     <RoundedRect x={0} y={0} width={frame.width} height={frame.height} r={4} color={color} />
     {image && <SkiaImage image={image} x={0} y={0} width={frame.width} height={frame.height} fit="cover" />}
@@ -221,6 +225,7 @@ type SkiaLayerProps = Readonly<{
   selected: boolean;
   transform: Transforms3d | SharedValue<Transforms3d>;
   assetUri?: string;
+  onImageReady?: (uri: string) => void;
   brushAssetUris: Readonly<Record<string, string>>;
   brushDefinitions: Readonly<Record<string, BrushDefinition>>;
   proceduralPaper?: ProceduralPaperPaint;
@@ -238,7 +243,7 @@ type SkiaLayerProps = Readonly<{
   visibilityMaskPreview: VisibilityMaskPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, cropPreview, visibilityMaskPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, cropPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
@@ -287,7 +292,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, brushAssetUris, brush
       <Group clip={contentPath}>
         <ContentEffectStage evaluation={contentEvaluation}>
           <Group transform={centerFrame ? [{ scale: laceContentZoom(centerFrame) }] : []} origin={{ x: frame.width / 2, y: frame.height / 2 }}>
-            {layer.type === 'image' && <ImageLayerContent contentEffects={activePrintEffect ? [activePrintEffect] : []} layer={layer} assetUri={assetUri} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
+            {layer.type === 'image' && <ImageLayerContent contentEffects={activePrintEffect ? [activePrintEffect] : []} layer={layer} assetUri={assetUri} onImageReady={onImageReady} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
             {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
             {layer.type === 'brush' && <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />}
             {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
@@ -340,8 +345,8 @@ const CropPreviewChrome = ({ bounds, frame }: Readonly<{ bounds: { x: number; y:
   </>;
 };
 
-const ImageLayerContent = ({ contentEffects, layer, assetUri, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {
-  const content = <ImagePlaceholder contentEffects={contentEffects} layer={layer} assetUri={assetUri} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
+const ImageLayerContent = ({ contentEffects, layer, assetUri, onImageReady, clipPaths, proceduralPaper, proceduralSticker }: Readonly<{ contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; onImageReady?: (uri: string) => void; clipPaths: readonly (readonly Point[])[]; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }>) => {
+  const content = <ImagePlaceholder contentEffects={contentEffects} layer={layer} assetUri={assetUri} onImageReady={onImageReady} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />;
   const clipped = clipPaths.reduceRight((child, points, index) => <Group key={`${index}-${points.length}`} clip={makePolygonPath(points)}>{child}</Group>, content);
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0 };
   const legacyMasked = layer.brushCutMask ? <BrushCutMaskedContent mask={layer.brushCutMask} offset={layer.brushCutMask.coordinateSpace === 'content' ? contentFrame : undefined}>{clipped}</BrushCutMaskedContent> : clipped;
@@ -528,11 +533,12 @@ const splitTextRuns = (text: string, cjkFont: ReturnType<typeof matchFont>, lati
   }, []);
 };
 
-const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, proceduralSticker }: { contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {
+const ImagePlaceholder = ({ contentEffects, layer, assetUri, onImageReady, proceduralPaper, proceduralSticker }: { contentEffects: readonly Effect[]; layer: Extract<Layer, { type: 'image' }>; assetUri?: string; onImageReady?: (uri: string) => void; proceduralPaper?: ProceduralPaperPaint; proceduralSticker?: ProceduralStickerPaint }) => {
   const image = useImage(assetUri);
+  useEffect(() => { if (image && assetUri && !proceduralPaper && !proceduralSticker) onImageReady?.(assetUri); }, [assetUri, image, onImageReady, proceduralPaper, proceduralSticker]);
   const contentFrame = layer.contentFrame ?? { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
-  if (proceduralPaper !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralPaperLayer frame={contentFrame} paper={proceduralPaper} patternImageUri={assetUri} /></Group>;
-  if (proceduralSticker !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralStickerLayer frame={contentFrame} sticker={proceduralSticker} textureUri={assetUri} /></Group>;
+  if (proceduralPaper !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralPaperLayer frame={contentFrame} paper={proceduralPaper} patternImageUri={assetUri} onImageReady={onImageReady} /></Group>;
+  if (proceduralSticker !== undefined) return <Group transform={[{ translateX: contentFrame.x }, { translateY: contentFrame.y }]}><ProceduralStickerLayer frame={contentFrame} sticker={proceduralSticker} textureUri={assetUri} onImageReady={onImageReady} /></Group>;
   if (layer.asset.id.startsWith('generated://template-photo-slot/')) {
     // Match the home add-photo control: a fixed circular chip with the system
     // light-weight plus glyph. It is UI chrome, not artwork that scales with
@@ -579,8 +585,9 @@ const ImagePlaceholder = ({ contentEffects, layer, assetUri, proceduralPaper, pr
   </Group>;
 };
 
-const ProceduralStickerLayer = ({ frame, sticker, textureUri }: { frame: { width: number; height: number }; sticker: ProceduralStickerPaint; textureUri?: string | null }) => {
+const ProceduralStickerLayer = ({ frame, sticker, textureUri, onImageReady }: { frame: { width: number; height: number }; sticker: ProceduralStickerPaint; textureUri?: string | null; onImageReady?: (uri: string) => void }) => {
   const texture = useImage(textureUri === undefined ? sticker.textureSource : textureUri);
+  useEffect(() => { if (texture && textureUri) onImageReady?.(textureUri); }, [onImageReady, texture, textureUri]);
   const placements = useMemo(() => makeStickerPlacements(sticker), [sticker]);
   const scale = Math.min(frame.width, frame.height) / 128;
   const offsetX = (frame.width - 128 * scale) / 2;
@@ -651,9 +658,10 @@ const makeStickerPath = (shape: ProceduralStickerPaint['shape'], cx: number, cy:
   path.close(); return path;
 };
 
-const ProceduralPaperLayer = ({ frame, paper, patternImageUri }: { frame: { width: number; height: number }; paper: ProceduralPaperPaint; patternImageUri?: string }) => {
+const ProceduralPaperLayer = ({ frame, paper, patternImageUri, onImageReady }: { frame: { width: number; height: number }; paper: ProceduralPaperPaint; patternImageUri?: string; onImageReady?: (uri: string) => void }) => {
   const marks = useMemo(() => makePaperMarks(frame.width, frame.height, paper), [frame.height, frame.width, paper]);
   const patternImage = useImage(paper.shape === 'image' ? patternImageUri : undefined);
+  useEffect(() => { if (patternImage && patternImageUri && paper.shape === 'image') onImageReady?.(patternImageUri); }, [onImageReady, paper.shape, patternImage, patternImageUri]);
   const foreground = paper.foreground ?? '#111111';
   const opacity = paper.style === 'soft' ? (paper.opacity ?? 0.64) * 0.58 : paper.opacity ?? (paper.pattern === 'solid' ? 1 : 0.16);
   return <>
@@ -740,7 +748,7 @@ const BrushEraserContent = ({ stroke }: Readonly<{ stroke: BrushStroke }>) => {
   return <Path blendMode="clear" path={path} color="#000000" strokeCap="round" strokeJoin="round" style="stroke" strokeWidth={stroke.style.size} />;
 };
 
-const BrushStrokeContent = ({ brushAssetUri, definition, sampleSpacing, stroke }: Readonly<{ brushAssetUri?: string; definition?: BrushDefinition; sampleSpacing?: number; stroke: BrushStroke }>) => {
+const BrushStrokeContent = memo(({ brushAssetUri, definition, sampleSpacing, stroke }: Readonly<{ brushAssetUri?: string; definition?: BrushDefinition; sampleSpacing?: number; stroke: BrushStroke }>) => {
   const recipe = definition?.recipe ?? 'plain';
   const path = useMemo(() => makeBrushPath(stroke), [stroke]);
   const crayonFibres = useMemo(() => makeCrayonFibres(stroke), [stroke]);
@@ -761,7 +769,7 @@ const BrushStrokeContent = ({ brushAssetUri, definition, sampleSpacing, stroke }
   if (recipe === 'beads') return <>{structuralSamples.map((sample) => <Group key={sample.index} opacity={stroke.style.opacity}><Circle cx={sample.x} cy={sample.y} r={Math.max(2.5, stroke.style.size * 0.5)} color={color} /><Circle cx={sample.x - stroke.style.size * 0.14} cy={sample.y - stroke.style.size * 0.14} r={Math.max(1.2, stroke.style.size * 0.12)} color="#FFFFFF" opacity={0.62} /></Group>)}</>;
   if (recipe === 'lace') return <>{structuralSamples.map((sample) => <LaceStamp color={color} index={sample.index} key={sample.index} opacity={stroke.style.opacity} sample={sample} size={stroke.style.size} />)}</>;
   return <>{structuralSamples.map((sample) => <BowStamp color={color} image={stampImage} index={sample.index} key={sample.index} opacity={stroke.style.opacity} sample={sample} size={stroke.style.size} />)}</>;
-};
+});
 
 export type EffectPlan = Readonly<Record<EffectStage, readonly Effect[]>>;
 

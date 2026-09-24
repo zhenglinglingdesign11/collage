@@ -6,7 +6,7 @@ import { assetUriMap, backgroundPaperPack, proceduralPaperForReferenceId, proced
 import type { Draft } from '@journalcollage/editor-core';
 import type { TemplateDefinition } from '@journalcollage/editor-core';
 import { ProceduralPaperPreview, SkiaEditorScene } from '@journalcollage/editor-renderer';
-import { cacheRemoteResource, loadCachedHomeShowcaseManifest, recoverWorkspaceProductAssets, saveCachedHomeShowcaseManifest, updateSavedDraftWorkspace, type StoredWorkspace } from '../localWorkspace';
+import { cacheRemoteResource, loadCachedHomeShowcaseManifest, loadUnfinishedWorkspace, recoverWorkspaceProductAssets, saveCachedHomeShowcaseManifest, updateSavedDraftWorkspace, type StoredWorkspace } from '../localWorkspace';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
 import { fallbackHomeShowcaseGroupsForMarket, homeShowcaseManifestUrlForMarket, normalizeHomeShowcaseManifest, withBackgroundShowcaseGroup, type HomeMarket, type HomeShowcaseEffect, type HomeShowcaseGroup, type HomeShowcaseItem } from './homeShowcases';
@@ -23,7 +23,8 @@ const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? '
 const HOME_PREVIEW_BATCH_SIZE = 3;
 const HOME_PREVIEW_START_DELAY_MS = 180;
 
-export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
+export const CreateHome = ({ editorOpen, locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
+  editorOpen: boolean;
   locale: ProductLocale;
   onOpenAssets: () => void;
   onOpenEditor: (entry: CreateEntry, savedDraftId?: string, showcase?: ShowcaseIntent) => void;
@@ -35,6 +36,13 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
   const supportedTemplates = locallySupportedTemplates(localTemplateCatalog);
   const [showcaseGroups, setShowcaseGroups] = useState<readonly HomeShowcaseGroup[]>(() => withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
   const [showcaseUris, setShowcaseUris] = useState<Readonly<Record<string, string>>>({});
+  const [hasUnfinishedWork, setHasUnfinishedWork] = useState(false);
+  useEffect(() => {
+    if (editorOpen) return;
+    let active = true;
+    void loadUnfinishedWorkspace().then((workspace) => { if (active) setHasUnfinishedWork(workspace !== null); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [editorOpen]);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -93,6 +101,7 @@ export const CreateHome = ({ locale, onOpenAssets, onOpenEditor, onOpenTemplate,
         <QuickStartCard kind="blank" label={t(locale, 'create.blankCanvas')} onPress={() => onOpenEditor('blank')} />
         <QuickStartCard kind="materials" label={t(locale, 'create.materialPack')} onPress={onOpenAssets} />
       </View>
+      {hasUnfinishedWork && <Pressable accessibilityRole="button" accessibilityLabel={t(locale, 'create.continueUnfinished')} onPress={() => onOpenEditor('restore')} style={styles.quickCard}><Text style={styles.quickLabel}>{t(locale, 'create.continueUnfinished')}</Text></Pressable>}
 
       {onOpenTemplateStudio && <Pressable accessibilityLabel="Open Template Studio" accessibilityRole="button" onPress={onOpenTemplateStudio} style={styles.templateStudioEntry}><Text style={styles.templateStudioEyebrow}>DEVELOPMENT ONLY</Text><Text style={styles.templateStudioLabel}>Template Studio</Text><Text style={styles.templateStudioHint}>Create and export template authoring JSON</Text></Pressable>}
 

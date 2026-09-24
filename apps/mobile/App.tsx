@@ -1,16 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { ActionSheetIOS, Alert, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
+import { ActionSheetIOS, Alert, AppState, Image, Keyboard, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type GestureResponderEvent, type KeyboardEvent, type LayoutChangeEvent } from 'react-native';
 import { Canvas, Path, Skia, useCanvasRef, type Transforms3d } from '@shopify/react-native-skia';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { runOnJS, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
-import { alignmentGuideKey, applyCommand, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, instantiateTemplateDefinition, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type EditorCommand, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type TemplateDefinition, type Transform } from '@journalcollage/editor-core';
+import { assetUriMap, backgroundPaperPack, brushDefinitions, brushDefinitionsById, createCustomBasicShape, createCustomPolkaPaper, createCustomSolidPaper, emptyAssetCatalog, getTextFont, proceduralPaperForReferenceId, proceduralStickerForReferenceId, remoteAssetUriMap, upsertAsset, type AssetCatalog, type LocalAssetRecord, type ProceduralSticker, type RemotePackItem } from '@journalcollage/asset-system';
+import { alignmentGuideKey, createDraft, createStableId, DEFAULT_CANVAS_BACKGROUND, hitTest, identityTransform, instantiateTemplateDefinition, migrateDraft, movementAlignmentGuides, pointInLayerSpace, rotationAlignmentGuides, stabilizeAlignmentGuides, visibleBoundsForLayer, type AlignmentGuide, type AlignmentGuideState, type BrushCutStroke, type BrushLayer, type BrushStroke, type Draft, type Effect, type ImageLayer, type MaskShapeId, type Point, type Rect, type TemplateDefinition, type Transform } from '@journalcollage/editor-core';
+import { editorReducer } from './src/editorHistory';
+import { runInitialPackImport } from './src/initialPackImport';
 import { SkiaEditorScene, type BrushCutPreview, type CanvasViewport, type CropPreview, type StraightCutPreview } from '@journalcollage/editor-renderer';
-import { cacheRemotePackItem, cacheRemoteResource, hydrateWorkspaceFromResolvedProductAssets, importLocalImage, loadSavedDraft, loadWorkspace, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
+import { cacheRemotePackItem, cacheRemoteResource, discardWorkspaceCheckpoint, exportResourceUriReady, hydrateWorkspaceFromResolvedProductAssets, importLocalImage, loadSavedDraft, loadWorkspace, missingExportImageReferences, recoverWorkspaceProductAssets, resolvedRemoteResourceUri, saveExportPng, saveWorkspace, wouldPruneOldestSavedDraft } from './src/localWorkspace';
 import { ProductAppShell } from './src/product-ui/ProductAppShell';
 import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product-ui/CreateHome';
 import { TemplateCatalogScreen, type TemplateCatalogShowcaseIntent } from './src/product-ui/TemplateCatalogScreen';
@@ -107,8 +109,7 @@ const LACE_FRAME_SOURCES = {
   'classic-doily': { cacheKey: 'effect-frame-lace-center-classic-doily', source: 'https://assets.zllarchi.site/packs/leisi/items/lace-doily-frame-transparent.png' },
   'foil-crumpled': { cacheKey: 'effect-frame-foil-center-crumpled', source: 'https://assets.zllarchi.site/effects/foil-frame-02-compress.png' },
 } as const;
-type EditorState = Readonly<{ past: readonly Draft[]; present: Draft; future: readonly Draft[] }>;
-type EditorAction = Readonly<{ type: 'command'; command: EditorCommand }> | Readonly<{ type: 'undo' }> | Readonly<{ type: 'redo' }> | Readonly<{ type: 'hydrate'; draft: Draft }>;
+const CHECKPOINT_IDLE_MS = 1_000;
 type MediaLibraryModule = typeof import('expo-media-library/legacy');
 type StraightCutSession = Readonly<{ layerId: string; start: Point; end: Point; style: 'straight' | 'wave' }>;
 /**
@@ -199,22 +200,6 @@ const createFixtureDraft = (): Draft => {
   };
 };
 
-const editorReducer = (state: EditorState, action: EditorAction): EditorState => {
-  if (action.type === 'hydrate') return { past: [], present: action.draft, future: [] };
-  if (action.type === 'undo') {
-    const previous = state.past.at(-1);
-    return previous === undefined ? state : { past: state.past.slice(0, -1), present: previous, future: [state.present, ...state.future] };
-  }
-  if (action.type === 'redo') {
-    const next = state.future[0];
-    return next === undefined ? state : { past: [...state.past, state.present], present: next, future: state.future.slice(1) };
-  }
-  const result = applyCommand(state.present, action.command, new Date().toISOString());
-  if (!result.changed) return state;
-  if (action.command.type === 'layer.select') return { ...state, present: result.draft };
-  return { past: [...state.past, state.present], present: result.draft, future: [] };
-};
-
 const EditorWorkspace = (props: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
@@ -253,6 +238,8 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     return uri ? [[id, uri]] : [];
   })));
   const [workspaceReady, setWorkspaceReady] = useState(false);
+  const [workspaceLoadFailed, setWorkspaceLoadFailed] = useState(false);
+  const [workspaceLoadAttempt, setWorkspaceLoadAttempt] = useState(0);
   const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
   const [canvasFrame, setCanvasFrame] = useState({ x: 0, y: 0 });
   const [assetDrawerOpen, setAssetDrawerOpen] = useState(false);
@@ -261,6 +248,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const [effectSheetOpen, setEffectSheetOpen] = useState(false);
   const [effectSheetBaseEffects, setEffectSheetBaseEffects] = useState<readonly Effect[] | null>(null);
   const [layerEffectControl, setLayerEffectControl] = useState<Readonly<{ layerId: string; type: 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners' }> | null>(null);
+  const [layerControlPreview, setLayerControlPreview] = useState<Readonly<{ layerId: string; type: 'edge.outline' | 'light.shadow' | 'opacity' | 'shape.round-corners'; value: number }> | null>(null);
   // Template entry presents the calibrated composition first; editing remains
   // an explicit action, as it is for a blank user canvas.
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
@@ -286,8 +274,46 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const [cutHint, setCutHint] = useState<string | null>(null);
   const [headerFeedback, setHeaderFeedback] = useState<string | null>(null);
   const [assetRecoveryFailureCount, setAssetRecoveryFailureCount] = useState(0);
+  const [initialPackImportPending, setInitialPackImportPending] = useState(initialPackItems.length > 0);
+  const [photoImportPending, setPhotoImportPending] = useState(false);
+  const photoImportPendingRef = useRef(false);
+  const [navigationPending, setNavigationPending] = useState(false);
+  const navigationPendingRef = useRef(false);
+  const backgroundRequestId = useRef(0);
+  const [exportPending, setExportPending] = useState(false);
+  const exportPendingRef = useRef(false);
+  const [exportDraft, setExportDraft] = useState<Draft | null>(null);
+  const lastExport = useRef<{ key: string; uri: string } | null>(null);
+  const readyExportImages = useRef(new Set<string>());
+  const exportImageWaiters = useRef(new Set<() => void>());
+  const markExportImageReady = useCallback((uri: string) => {
+    readyExportImages.current.add(uri);
+    exportImageWaiters.current.forEach((check) => check());
+  }, []);
+  const waitForExportImages = useCallback((uris: readonly string[], timeoutMs: number): Promise<boolean> => new Promise((resolve) => {
+    const ready = () => uris.every((uri) => readyExportImages.current.has(uri));
+    if (ready()) { resolve(true); return; }
+    const check = () => {
+      if (!ready()) return;
+      clearTimeout(timer);
+      exportImageWaiters.current.delete(check);
+      resolve(true);
+    };
+    const timer = setTimeout(() => { exportImageWaiters.current.delete(check); resolve(false); }, timeoutMs);
+    exportImageWaiters.current.add(check);
+  }), []);
+  const editorSessionAlive = useRef(true);
+  const currentDraft = useRef(state.present);
+  currentDraft.current = state.present;
+  useEffect(() => {
+    editorSessionAlive.current = true;
+    return () => { editorSessionAlive.current = false; };
+  }, []);
   const exportCanvasRef = useCanvasRef();
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastCheckpointContent = useRef<string | null>(null);
+  const checkpointWorkspace = useRef({ draft: state.present, catalog });
+  checkpointWorkspace.current = { draft: state.present, catalog };
   const initialPackItemsAdded = useRef(false);
   const initialShowcaseConsumed = useRef(false);
   const textLayerSequence = useRef(0);
@@ -313,7 +339,8 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const cropDragRef = useRef<CropDrag | null>(null);
   const templatePhotoContentDragRef = useRef<TemplatePhotoContentDrag | null>(null);
   const canvasSize = state.present.canvas.size;
-  const exportSurface = useMemo(() => exportSurfaceForCanvas(canvasSize), [canvasSize]);
+  const exportCanvasSize = exportDraft?.canvas.size ?? canvasSize;
+  const exportSurface = useMemo(() => exportSurfaceForCanvas(exportCanvasSize), [exportCanvasSize]);
   const selectedLayer = state.present.layers.find((layer) => layer.id === state.present.selectedLayerId) ?? null;
   brushCutRef.current = brushCut;
   decorativeBrushRef.current = decorativeBrush;
@@ -324,9 +351,18 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
       ...state.present,
       layers: state.present.layers.map((layer) => layer.id === textEdit.layerId && layer.type === 'text' ? { ...layer, text: textEdit.text } : layer),
     };
-    const withEffectPreview = effectPreview === null ? withTextPreview : {
+    const withLayerControlPreview = layerControlPreview === null ? withTextPreview : {
       ...withTextPreview,
-      layers: withTextPreview.layers.map((layer) => layer.id === effectPreview.layerId ? { ...layer, effects: effectPreview.effects } : layer),
+      layers: withTextPreview.layers.map((layer) => {
+        if (layer.id !== layerControlPreview.layerId) return layer;
+        if (layerControlPreview.type === 'opacity') return { ...layer, opacity: layerControlPreview.value };
+        const spec = layerEffectControlSpec(layerControlPreview.type);
+        return { ...layer, effects: layer.effects.map((effect) => effect.type === layerControlPreview.type ? { ...effect, params: { ...effect.params, [spec.param]: layerControlPreview.value } } : effect) };
+      }),
+    };
+    const withEffectPreview = effectPreview === null ? withLayerControlPreview : {
+      ...withLayerControlPreview,
+      layers: withLayerControlPreview.layers.map((layer) => layer.id === effectPreview.layerId ? { ...layer, effects: effectPreview.effects } : layer),
     };
     // Straight cut is a focused, ephemeral editing surface. Other layers stay
     // untouched in the document, but must not visually interfere with the
@@ -369,7 +405,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
       layers: [emboss.layer],
     };
     return withEffectPreview;
-  }, [brushCut, canvasSize, crop, decorativeBrush, effectPreview, emboss, state.present, straightCut, textEdit]);
+  }, [brushCut, canvasSize, crop, decorativeBrush, effectPreview, emboss, layerControlPreview, state.present, straightCut, textEdit]);
   const viewport = useMemo<CanvasViewport>(() => {
     if (surfaceSize.width === 0 || surfaceSize.height === 0) return { x: 0, y: 0, scale: 1 };
     const scale = Math.min(surfaceSize.width / canvasSize.width, surfaceSize.height / canvasSize.height);
@@ -391,31 +427,71 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   }, [window.height]);
 
   useEffect(() => {
+    let active = true;
     if (templateStudio) {
       setWorkspaceReady(true);
-      return;
+      return () => { active = false; };
     }
     if (initialTemplate !== null && initialTemplateDraftRef.current !== null) {
       void recoverWorkspaceProductAssets({ draft: initialTemplateDraftRef.current, catalog: emptyAssetCatalog() }).then((recovered) => {
-        dispatch({ type: 'hydrate', draft: recovered.workspace.draft });
+        if (!active) return;
+        // The template draft is already mounted; a late hydrate would erase edits.
         setCatalog(recovered.workspace.catalog);
         setAssetRecoveryFailureCount(recovered.failures.length);
-      }).finally(() => setWorkspaceReady(true));
-      return;
+      }).catch(() => {
+        if (active) setAssetRecoveryFailureCount(1);
+      }).finally(() => { if (active) setWorkspaceReady(true); });
+      return () => { active = false; };
     }
     const workspacePromise = restoreSavedDraftId ? loadSavedDraft(restoreSavedDraftId) : loadWorkspace();
     void workspacePromise.then(async (workspace) => {
-      if (initialEntry === 'restore' && workspace !== null) {
+      if (initialEntry === 'restore') {
+        if (workspace === null) throw new Error('Saved workspace is unavailable');
         const migration = migrateDraft(workspace.draft);
-        if (migration.ok) {
-          const recovered = await recoverWorkspaceProductAssets({ ...workspace, draft: migration.draft });
+        if (!migration.ok) throw new Error('Saved workspace cannot be migrated');
+        const recovered = await recoverWorkspaceProductAssets({ ...workspace, draft: migration.draft });
+        if (active) {
           dispatch({ type: 'hydrate', draft: recovered.workspace.draft });
           setCatalog(recovered.workspace.catalog);
           setAssetRecoveryFailureCount(recovered.failures.length);
         }
       }
-    }).finally(() => setWorkspaceReady(true));
-  }, [initialEntry, initialTemplate, restoreSavedDraftId, templateStudio]);
+    }).then(() => { if (active) { setWorkspaceLoadFailed(false); setWorkspaceReady(true); } }).catch(() => {
+      if (active) setWorkspaceLoadFailed(true);
+    });
+    return () => { active = false; };
+  }, [initialEntry, initialTemplate, restoreSavedDraftId, templateStudio, workspaceLoadAttempt]);
+  useEffect(() => {
+    if (!workspaceReady || templateStudio) return;
+    const content = JSON.stringify({ canvas: state.present.canvas, layers: state.present.layers, catalog });
+    if (lastCheckpointContent.current === null) {
+      lastCheckpointContent.current = content;
+      return;
+    }
+    if (content === lastCheckpointContent.current) return;
+    lastCheckpointContent.current = content;
+    if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveTimer.current = null;
+      void saveWorkspace(checkpointWorkspace.current).catch((error) => {
+        if (__DEV__) console.warn('[checkpoint] write failed', error);
+      });
+    }, CHECKPOINT_IDLE_MS);
+  }, [catalog, state.present, templateStudio, workspaceReady]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active' || !workspaceReady || templateStudio || saveTimer.current === null) return;
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      void saveWorkspace(checkpointWorkspace.current).catch((error) => {
+        if (__DEV__) console.warn('[checkpoint] background write failed', error);
+      });
+    });
+    return () => {
+      subscription.remove();
+      if (saveTimer.current !== null) clearTimeout(saveTimer.current);
+    };
+  }, [templateStudio, workspaceReady]);
   // Renderer-only values: no Draft or React state update occurs while fingers move.
   const positionX = useSharedValue(0);
   const positionY = useSharedValue(0);
@@ -423,6 +499,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const scaleY = useSharedValue(1);
   const rotation = useSharedValue(0);
   const gestureScale = useSharedValue(1);
+  const lastDecorativeBrushSampleAt = useSharedValue(0);
   const startX = useSharedValue(0);
   const startY = useSharedValue(0);
   const startScaleX = useSharedValue(1);
@@ -665,8 +742,10 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     if (selectedLayer === null || selectedLayer.isLocked) return;
     if (layerEffectControl?.layerId === selectedLayer.id && layerEffectControl.type === effectType) {
       setLayerEffectControl(null);
+      setLayerControlPreview(null);
       return;
     }
+    setLayerControlPreview(null);
     const existing = selectedLayer.effects.find((effect) => effect.type === effectType);
     if (!existing) dispatch({ type: 'command', command: { type: 'layer.effect.add', layerId: selectedLayer.id, effect: effectInstance(createStableId('effect'), effectType) } });
     setLayerEffectControl({ layerId: selectedLayer.id, type: effectType });
@@ -675,9 +754,24 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     if (selectedLayer === null || selectedLayer.isLocked) return;
     if (layerEffectControl?.layerId === selectedLayer.id && layerEffectControl.type === 'opacity') {
       setLayerEffectControl(null);
+      setLayerControlPreview(null);
       return;
     }
+    setLayerControlPreview(null);
     setLayerEffectControl({ layerId: selectedLayer.id, type: 'opacity' });
+  }, [layerEffectControl, selectedLayer]);
+  const commitLayerControl = useCallback((value: number) => {
+    if (selectedLayer === null || layerEffectControl?.layerId !== selectedLayer.id) return;
+    if (layerEffectControl.type === 'opacity') {
+      dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: value } });
+    } else {
+      const effect = selectedLayer.effects.find((item) => item.type === layerEffectControl.type);
+      if (effect) {
+        const spec = layerEffectControlSpec(layerEffectControl.type);
+        dispatch({ type: 'command', command: { type: 'layer.effect.patch', layerId: selectedLayer.id, instanceId: effect.instanceId, params: { ...effect.params, [spec.param]: value } } });
+      }
+    }
+    setLayerControlPreview(null);
   }, [layerEffectControl, selectedLayer]);
   const closeEffectSheet = useCallback(() => { setEffectPreview(null); setEffectSheetBaseEffects(null); setEffectSheetOpen(false); }, []);
   const commitEffectSheet = useCallback((effects: readonly Effect[]) => {
@@ -706,11 +800,24 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     setCutHint(message);
     cutHintTimer.current = setTimeout(() => { setCutHint(null); cutHintTimer.current = null; }, 2200);
   }, []);
-  const showHeaderFeedback = useCallback((message: string) => {
+  const showHeaderFeedback = useCallback((message: string, durationMs = 1600) => {
     if (headerFeedbackTimer.current !== null) clearTimeout(headerFeedbackTimer.current);
     setHeaderFeedback(message);
-    headerFeedbackTimer.current = setTimeout(() => { setHeaderFeedback(null); headerFeedbackTimer.current = null; }, 1600);
+    headerFeedbackTimer.current = setTimeout(() => { setHeaderFeedback(null); headerFeedbackTimer.current = null; }, durationMs);
   }, []);
+  const navigateAfterWrite = useCallback((write: () => Promise<void>, navigate: () => void, failureMessage: string) => {
+    if (navigationPendingRef.current) return;
+    navigationPendingRef.current = true;
+    setNavigationPending(true);
+    void write().then(() => {
+      if (editorSessionAlive.current) navigate();
+    }).catch(() => {
+      if (editorSessionAlive.current) Alert.alert(t(locale, 'editor.operation.failedTitle'), failureMessage);
+    }).finally(() => {
+      navigationPendingRef.current = false;
+      if (editorSessionAlive.current) setNavigationPending(false);
+    });
+  }, [locale]);
   useEffect(() => () => {
     if (cutHintTimer.current !== null) clearTimeout(cutHintTimer.current);
     if (headerFeedbackTimer.current !== null) clearTimeout(headerFeedbackTimer.current);
@@ -923,7 +1030,17 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
     setDecorativeBrush(null);
   }, [canvasSize, decorativeBrush]);
-  const decorativeBrushPan = Gesture.Pan().enabled(decorativeBrush !== null).onBegin((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, true); }).onUpdate((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false); }).onFinalize((_event, success) => { if (success) runOnJS(completeDecorativeBrushStroke)(); else runOnJS(undoDecorativeBrushStroke)(); });
+  // Do not enqueue a React render for every native pointer sample. Keep the
+  // final point on finger-up so the saved shape still reaches the gesture end.
+  const decorativeBrushPan = Gesture.Pan().enabled(decorativeBrush !== null).onBegin((event) => {
+    lastDecorativeBrushSampleAt.value = Date.now();
+    runOnJS(appendDecorativeBrushPoint)(event.x, event.y, true);
+  }).onUpdate((event) => {
+    const now = Date.now();
+    if (now - lastDecorativeBrushSampleAt.value < 40) return;
+    lastDecorativeBrushSampleAt.value = now;
+    runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false);
+  }).onEnd((event) => { runOnJS(appendDecorativeBrushPoint)(event.x, event.y, false); }).onFinalize((_event, success) => { if (success) runOnJS(completeDecorativeBrushStroke)(); else runOnJS(undoDecorativeBrushStroke)(); });
   const beginCrop = useCallback(() => {
     if (selectedLayer?.type !== 'image') return;
     if (selectedLayer.isLocked) {
@@ -1096,48 +1213,72 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     dispatch({ type: 'command', command: { type: 'image.mask.split', layerId: emboss.layer.id, resultLayerId: `image-emboss-${id}`, remainderLayerId: `image-emboss-remainder-${id}`, operationId: `emboss-${id}`, mask: { type: 'shape', shape: emboss.shape, bounds: emboss.bounds }, resultOffset: { x: 26, y: 32 } } });
     setEmboss(null);
   }, [emboss]);
+  const commitRemotePackItem = useCallback((item: RemotePackItem, record: LocalAssetRecord) => {
+    setCatalog((current) => upsertAsset(current, record));
+    const scale = Math.min(760 / item.width, 760 / item.height, 1.8);
+    const frame = { width: Math.round(item.width * scale), height: Math.round(item.height * scale) };
+    const size = currentDraft.current.canvas.size;
+    dispatch({ type: 'command', command: {
+      type: 'layer.add',
+      layer: {
+        // A detail-pack multi-add can resolve several cached assets in the
+        // same millisecond; item identity keeps every resulting layer unique.
+        id: createStableId('pack-layer'),
+        name: item.id,
+        type: 'image',
+        asset: item.reference,
+        frame,
+        crop: { x: 0, y: 0, width: 1, height: 1 },
+        transform: { ...identityTransform(), position: { x: (size.width - frame.width) / 2, y: (size.height - frame.height) / 2 } },
+        opacity: 1,
+        isLocked: false,
+        effects: [],
+      },
+    } });
+  }, []);
   const addRemotePackItem = useCallback(async (item: RemotePackItem) => {
+    const draftId = currentDraft.current.id;
     try {
       const reference = item.reference.revision ? item.reference as Required<typeof item.reference> : null;
       const verifiedUri = reference && isShippedProductAssetReference(reference) ? (await shippedProductAssetResolver.resolve(reference)).uri : undefined;
       const record = await cacheRemotePackItem(item, catalog, { verifiedUri });
-      setCatalog((current) => upsertAsset(current, record));
-      const scale = Math.min(760 / item.width, 760 / item.height, 1.8);
-      const frame = { width: Math.round(item.width * scale), height: Math.round(item.height * scale) };
-      dispatch({ type: 'command', command: {
-        type: 'layer.add',
-        layer: {
-          // A detail-pack multi-add can resolve several cached assets in the
-          // same millisecond; item identity keeps every resulting layer unique.
-          id: createStableId('pack-layer'),
-          name: item.id,
-          type: 'image',
-          asset: item.reference,
-          frame,
-          crop: { x: 0, y: 0, width: 1, height: 1 },
-          transform: { ...identityTransform(), position: { x: (canvasSize.width - frame.width) / 2, y: (canvasSize.height - frame.height) / 2 } },
-          opacity: 1,
-          isLocked: false,
-          effects: [],
-        },
-      } });
+      if (!editorSessionAlive.current || currentDraft.current.id !== draftId || navigationPendingRef.current) return;
+      commitRemotePackItem(item, record);
     } catch {
-      Alert.alert('Material unavailable', 'This material could not be downloaded. Please try again.');
+      if (editorSessionAlive.current && currentDraft.current.id === draftId) Alert.alert('Material unavailable', 'This material could not be downloaded. Please try again.');
     }
-  }, [canvasSize, catalog]);
+  }, [catalog, commitRemotePackItem]);
   useEffect(() => {
     if (!workspaceReady || initialPackItems.length === 0 || initialPackItemsAdded.current) return;
     initialPackItemsAdded.current = true;
-    initialPackItems.forEach((item) => { void addRemotePackItem(item); });
-    onInitialPackItemsConsumed?.();
-  }, [addRemotePackItem, initialPackItems, onInitialPackItemsConsumed, workspaceReady]);
+    let active = true;
+    setInitialPackImportPending(true);
+    void runInitialPackImport(initialPackItems, async (item) => {
+      const reference = item.reference.revision ? item.reference as Required<typeof item.reference> : null;
+      const verifiedUri = reference && isShippedProductAssetReference(reference) ? (await shippedProductAssetResolver.resolve(reference)).uri : undefined;
+      return cacheRemotePackItem(item, catalog, { verifiedUri });
+    }, () => active, (records) => {
+      records.forEach((record, index) => commitRemotePackItem(initialPackItems[index], record));
+    }).then((result) => {
+      if (result === 'cancelled') return;
+      setInitialPackImportPending(false);
+      onInitialPackItemsConsumed?.();
+      if (result === 'failed') Alert.alert('Materials unavailable', 'Some materials could not be loaded. Please try again from Assets.');
+    }).catch(() => {
+      if (active) { setInitialPackImportPending(false); onInitialPackItemsConsumed?.(); Alert.alert('Materials unavailable', 'Please try again from Assets.'); }
+    });
+    return () => { active = false; initialPackItemsAdded.current = false; };
+  }, [workspaceReady, initialPackItems]);
   const applyBackgroundItem = useCallback(async (item: RemotePackItem) => {
+    const draftId = currentDraft.current.id;
+    const requestId = ++backgroundRequestId.current;
     try {
       // Resolve through the same R2 cache used by material previews and layers
       // before committing the reference. A Draft still contains no URL/path.
       const reference = item.reference.revision ? item.reference as Required<typeof item.reference> : null;
       const verifiedUri = reference && isShippedProductAssetReference(reference) ? (await shippedProductAssetResolver.resolve(reference)).uri : undefined;
       const record = await cacheRemotePackItem(item, catalog, { verifiedUri });
+      if (!editorSessionAlive.current || currentDraft.current.id !== draftId || navigationPendingRef.current || backgroundRequestId.current !== requestId) return;
       setCatalog((current) => upsertAsset(current, record));
       const paper = proceduralPaperForReferenceId(item.reference.id);
       dispatch({ type: 'command', command: {
@@ -1146,7 +1287,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
         asset: item.reference,
       } });
     } catch {
-      Alert.alert('Background unavailable', 'This paper could not be downloaded. Please try again.');
+      if (editorSessionAlive.current && currentDraft.current.id === draftId && backgroundRequestId.current === requestId) Alert.alert('Background unavailable', 'This paper could not be downloaded. Please try again.');
     }
   }, [catalog]);
   useEffect(() => {
@@ -1156,46 +1297,60 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     initialShowcaseConsumed.current = true;
     void applyBackgroundItem(item);
   }, [applyBackgroundItem, initialShowcase, workspaceReady]);
-  const openAssetsFromEditor = useCallback(async () => {
+  const openAssetsFromEditor = useCallback(() => {
+    if (photoImportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; }
+    if (initialPackImportPending) { showHeaderFeedback(t(locale, 'editor.materialImport.wait')); return; }
+    if (navigationPendingRef.current || exportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.operation.wait')); return; }
     if (templateStudio) {
       Alert.alert('Template Studio', 'Use the material drawer here. The full user Assets flow is intentionally unavailable so this development document remains isolated.');
       return;
     }
     // The Assets tab is a separate product surface. Persist first so returning
     // through the pending transfer route restores this exact canvas.
-    await saveWorkspace({ draft: state.present, catalog });
-    onOpenAssets();
-  }, [catalog, onOpenAssets, state.present, templateStudio]);
-  const commitImportedPhotos = useCallback(async (assets: readonly ImagePicker.ImagePickerAsset[], replaceLayerId: string | null = null) => {
-    try {
-      const records = await Promise.all(assets.map((source) => importLocalImage({ uri: source.uri, width: source.width, height: source.height, mimeType: source.mimeType ?? null })));
-      records.forEach((record) => setCatalog((current) => upsertAsset(current, record)));
-      if (replaceLayerId !== null) {
-        const layer = state.present.layers.find((candidate) => candidate.id === replaceLayerId);
-        const crop = layer?.type === 'image' ? centeredCoverCrop(records[0], layer.frame) : undefined;
-        dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference, ...(crop ? { crop } : {}) } });
-        return;
-      }
-      records.forEach((record, index) => {
-        const source = assets[index];
-        const aspect = source.width > 0 && source.height > 0 ? source.width / source.height : 1;
-        const frame = aspect >= 1 ? { width: 1080, height: 1080 / aspect } : { width: 760 * aspect, height: 760 };
-        const layerId = createStableId('image-layer');
-        const effect = index === 0 ? showcaseEffectInstance(`showcase-${initialShowcase?.id ?? 'photo'}-${layerId}`, initialShowcase ?? undefined) : null;
-        dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: layerId, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (canvasSize.width - frame.width) / 2, y: (canvasSize.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: effect ? [effect] : [] } } });
-        if (index === 0 && (initialShowcase?.effect === 'emboss-circle' || initialShowcase?.effect === 'emboss-stamp')) {
-          dispatch({ type: 'command', command: { type: 'layer.select', layerId } });
-          setPendingEmbossShape(initialShowcase.effect === 'emboss-stamp' ? 'stamp' : 'circle');
-          setPendingEmbossSelection(true);
+    const workspace = checkpointWorkspace.current;
+    navigateAfterWrite(() => saveWorkspace(workspace), onOpenAssets, t(locale, 'editor.operation.storageBody'));
+  }, [initialPackImportPending, locale, navigateAfterWrite, onOpenAssets, showHeaderFeedback, templateStudio]);
+  const commitImportedPhotos = useCallback(async (assets: readonly ImagePicker.ImagePickerAsset[], draftId: string, replaceLayerId: string | null = null) => {
+    if (assets.length === 0 || !editorSessionAlive.current) return;
+    const isActive = () => editorSessionAlive.current && currentDraft.current.id === draftId
+      && (replaceLayerId === null || currentDraft.current.layers.some((layer) => layer.id === replaceLayerId && layer.type === 'image'));
+    const result = await runInitialPackImport(assets,
+      (source) => importLocalImage({ uri: source.uri, width: source.width, height: source.height, mimeType: source.mimeType ?? null }),
+      isActive,
+      (records) => {
+        records.forEach((record) => setCatalog((current) => upsertAsset(current, record)));
+        if (replaceLayerId !== null) {
+          const layer = currentDraft.current.layers.find((candidate) => candidate.id === replaceLayerId);
+          const crop = layer?.type === 'image' ? centeredCoverCrop(records[0], layer.frame) : undefined;
+          dispatch({ type: 'command', command: { type: 'image.asset.replace', layerId: replaceLayerId, asset: records[0].reference, ...(crop ? { crop } : {}) } });
+          return;
         }
-      });
-      // The mini-program returns to the neutral editing state after a standard import.
-      if (initialShowcase?.effect !== 'emboss-circle' && initialShowcase?.effect !== 'emboss-stamp') dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
-    } catch {
-      Alert.alert('Could not add photo', 'The selected photo could not be stored. Please try again.');
-    }
-  }, [canvasSize, initialShowcase, state.present.layers]);
+        const size = currentDraft.current.canvas.size;
+        records.forEach((record, index) => {
+          const source = assets[index];
+          const aspect = record.width > 0 && record.height > 0 ? record.width / record.height : 1;
+          const frame = aspect >= 1 ? { width: 1080, height: 1080 / aspect } : { width: 760 * aspect, height: 760 };
+          const layerId = createStableId('image-layer');
+          const effect = index === 0 ? showcaseEffectInstance(`showcase-${initialShowcase?.id ?? 'photo'}-${layerId}`, initialShowcase ?? undefined) : null;
+          dispatch({ type: 'command', command: { type: 'layer.add', layer: { id: layerId, name: source.fileName ?? 'My photo', type: 'image', asset: record.reference, frame, crop: { x: 0, y: 0, width: 1, height: 1 }, transform: { ...identityTransform(), position: { x: (size.width - frame.width) / 2, y: (size.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: effect ? [effect] : [] } } });
+          if (index === 0 && (initialShowcase?.effect === 'emboss-circle' || initialShowcase?.effect === 'emboss-stamp')) {
+            dispatch({ type: 'command', command: { type: 'layer.select', layerId } });
+            setPendingEmbossShape(initialShowcase.effect === 'emboss-stamp' ? 'stamp' : 'circle');
+            setPendingEmbossSelection(true);
+          }
+        });
+        // The mini-program returns to the neutral editing state after a standard import.
+        if (initialShowcase?.effect !== 'emboss-circle' && initialShowcase?.effect !== 'emboss-stamp') dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+      }, 1);
+    if (result === 'failed' && isActive()) Alert.alert('Could not add photo', 'The selected photo could not be stored. Please try again.');
+  }, [initialShowcase]);
   const pickPhoto = useCallback(async (source: 'camera' | 'library', replaceLayerId: string | null = null) => {
+    if (initialPackImportPending) { showHeaderFeedback(t(locale, 'editor.materialImport.wait')); return; }
+    if (navigationPendingRef.current || exportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.operation.wait')); return; }
+    if (photoImportPendingRef.current || !editorSessionAlive.current) return;
+    const draftId = currentDraft.current.id;
+    photoImportPendingRef.current = true;
+    setPhotoImportPending(true);
     try {
       if (source === 'camera') {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -1204,7 +1359,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
           return;
         }
         const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 });
-        if (!result.canceled) await commitImportedPhotos(result.assets, replaceLayerId);
+        if (!result.canceled && editorSessionAlive.current && currentDraft.current.id === draftId) await commitImportedPhotos(result.assets, draftId, replaceLayerId);
         return;
       }
 
@@ -1218,17 +1373,26 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
         quality: 1,
         selectionLimit: 9,
       });
-      if (!result.canceled) await commitImportedPhotos(result.assets, replaceLayerId);
+      if (!result.canceled && editorSessionAlive.current && currentDraft.current.id === draftId) await commitImportedPhotos(result.assets, draftId, replaceLayerId);
     } catch {
-      Alert.alert('Could not open photo library', 'Please close the picker and try again. If this continues, reinstall the development build.');
+      if (editorSessionAlive.current) Alert.alert('Could not open photo library', 'Please close the picker and try again. If this continues, reinstall the development build.');
+    } finally {
+      photoImportPendingRef.current = false;
+      if (editorSessionAlive.current) setPhotoImportPending(false);
     }
-  }, [commitImportedPhotos]);
+  }, [commitImportedPhotos, initialPackImportPending, locale, showHeaderFeedback]);
   templatePhotoPickerRef.current = (layerId) => { void pickPhoto('library', layerId); };
   const startTemplateFromCatalog = useCallback((template: TemplateDefinition) => {
+    if (photoImportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; }
+    if (initialPackImportPending) { showHeaderFeedback(t(locale, 'editor.materialImport.wait')); return; }
+    if (navigationPendingRef.current || exportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.operation.wait')); return; }
     const start = () => onStartTemplate(template);
+    const stopPendingCheckpoint = () => {
+      if (saveTimer.current !== null) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+    };
     const showCreatePrompt = () => Alert.alert('Create a new work?', 'This template starts a new work. Your current canvas will remain only if you save it as a draft.', [
       { text: 'Keep editing', style: 'cancel' },
-      { text: 'Create new', style: 'destructive', onPress: start },
+      { text: 'Create new', style: 'destructive', onPress: () => { stopPendingCheckpoint(); navigateAfterWrite(() => discardWorkspaceCheckpoint(state.present.id), start, t(locale, 'editor.operation.retryBody')); } },
     ]);
     if (templateStudio || state.past.length === 0) {
       showCreatePrompt();
@@ -1236,10 +1400,10 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     }
     Alert.alert('Save current draft?', 'This template starts a new work. Save your edited canvas first so you can continue it later.', [
       { text: 'Keep editing', style: 'cancel' },
-      { text: 'Don’t save', style: 'destructive', onPress: start },
-      { text: 'Save draft', onPress: () => { void saveWorkspace({ draft: state.present, catalog }, { markAsSaved: true }).then(start).catch(() => Alert.alert('Could not save draft', 'Please check available storage and try again.')); } },
+      { text: 'Don’t save', style: 'destructive', onPress: () => { stopPendingCheckpoint(); navigateAfterWrite(() => discardWorkspaceCheckpoint(state.present.id), start, t(locale, 'editor.operation.retryBody')); } },
+      { text: 'Save draft', onPress: () => { stopPendingCheckpoint(); navigateAfterWrite(() => saveWorkspace(checkpointWorkspace.current, { markAsSaved: true }), start, t(locale, 'editor.operation.storageBody')); } },
     ]);
-  }, [catalog, onStartTemplate, state.past.length, state.present, templateStudio]);
+  }, [initialPackImportPending, locale, navigateAfterWrite, onStartTemplate, showHeaderFeedback, state.past.length, state.present, templateStudio]);
   const insertBasicLayoutFromCatalog = useCallback((layout: BasicLayout) => {
     // Layout presets are tools, not creations: add their upload slots to this
     // Draft at its current dimensions and leave every existing layer intact.
@@ -1321,19 +1485,101 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     initialPhotoRequested.current = true;
     void pickPhoto('library');
   }, [initialEntry, initialShowcase, pickPhoto, workspaceReady]);
+  const shareExportPng = useCallback(async (uri: string) => {
+    try {
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share collage' });
+      } else {
+        Alert.alert(t(locale, 'editor.export.readyTitle'), t(locale, 'editor.export.readyBody'));
+      }
+    } catch {
+      if (editorSessionAlive.current) Alert.alert(t(locale, 'editor.export.unavailableTitle'), t(locale, 'editor.export.unavailableBody'));
+    }
+  }, [locale]);
   const exportPng = useCallback(async () => {
-    const snapshot = await exportCanvasRef.current?.makeImageSnapshotAsync();
-    if (!snapshot) {
-      Alert.alert('Export unavailable', 'The collage could not be rendered. Please try again.');
+    if (photoImportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; }
+    if (initialPackImportPending) { showHeaderFeedback(t(locale, 'editor.export.materialsLoadingBody')); return; }
+    if (navigationPendingRef.current || exportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.operation.wait')); return; }
+    const draft = state.present;
+    const assetIds = [
+      ...(draft.canvas.backgroundAsset ? [draft.canvas.backgroundAsset.id] : []),
+      ...draft.layers.flatMap((layer) => 'asset' in layer ? [layer.asset.id] : []),
+    ];
+    const key = JSON.stringify({ canvas: draft.canvas, layers: draft.layers, assets: [...new Set(assetIds)].map((id) => [id, assetUris[id] ?? null]) });
+    const cached = lastExport.current;
+    if (cached?.key === key && await exportResourceUriReady(cached.uri).catch(() => false)) {
+      await shareExportPng(cached.uri);
       return;
     }
-    const uri = await saveExportPng(snapshot.encodeToBase64());
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Share collage' });
-    } else {
-      Alert.alert('Export ready', 'Your PNG is ready to save or share from this device.');
+    exportPendingRef.current = true;
+    setExportPending(true);
+    readyExportImages.current.clear();
+    setExportDraft(draft);
+    let renderedUri: string | null = null;
+    try {
+      const missing = await missingExportImageReferences(draft, assetUris);
+      if (missing.length > 0) {
+        showHeaderFeedback(t(locale, 'editor.export.materialsNotReadyBody'), 3000);
+        return;
+      }
+      const fontVariants = [...new Set(draft.layers.filter((layer) => layer.type === 'text').map((layer) => layer.fontVariantId))]
+        .filter((variantId) => getTextFont(variantId).remoteSource);
+      const missingFonts = (await Promise.all(fontVariants.map(async (variantId) => await exportResourceUriReady(resolvedTextFontUri(variantId)) ? null : variantId)))
+        .filter((variantId): variantId is string => variantId !== null);
+      if (missingFonts.length > 0) {
+        const results = await Promise.all(missingFonts.map(ensureTextFont));
+        if (results.some((result) => result !== 'ready')) { showHeaderFeedback(t(locale, 'editor.export.fontUnavailableBody'), 3000); return; }
+        setFontRevision((value) => value + 1);
+        showHeaderFeedback(t(locale, 'editor.export.fontReadyBody'), 3000);
+        return;
+      }
+      const frameIds = new Set<keyof typeof LACE_FRAME_SOURCES>();
+      draft.layers.forEach((layer) => layer.effects.forEach((effect) => {
+        if (!effect.enabled) return;
+        if (effect.type === 'frame.foil-center') frameIds.add('foil-crumpled');
+        if (effect.type === 'frame.lace-center') frameIds.add(effect.params.frameId === 'classic-doily' ? 'classic-doily' : 'wide-hole');
+      }));
+      const missingFrames = (await Promise.all([...frameIds].map(async (id) => await exportResourceUriReady(laceFrameUris[id]) ? null : id)))
+        .filter((id): id is keyof typeof LACE_FRAME_SOURCES => id !== null);
+      if (missingFrames.length > 0) {
+        const resolved = await Promise.all(missingFrames.map(async (id) => [id, await cacheRemoteResource(LACE_FRAME_SOURCES[id].cacheKey, LACE_FRAME_SOURCES[id].source)] as const));
+        setLaceFrameUris((current) => ({ ...current, ...Object.fromEntries(resolved) }));
+        showHeaderFeedback(t(locale, 'editor.export.effectReadyBody'), 3000);
+        return;
+      }
+      const imageIds = [
+        ...(draft.canvas.backgroundAsset && (!proceduralPaperForReferenceId(draft.canvas.backgroundAsset.id) || proceduralPaperForReferenceId(draft.canvas.backgroundAsset.id)?.shape === 'image') ? [draft.canvas.backgroundAsset.id] : []),
+        ...draft.layers.flatMap((layer) => {
+          if (layer.type !== 'image') return [];
+          const paper = proceduralPaperForReferenceId(layer.asset.id);
+          const sticker = proceduralStickerForReferenceId(layer.asset.id);
+          return ((!paper && !sticker) || paper?.shape === 'image' || sticker?.textureSource) ? [layer.asset.id] : [];
+        }),
+      ];
+      const imageUris = [...new Set(imageIds.map((id) => assetUris[id]).filter((uri): uri is string => uri !== undefined))];
+      if (!await waitForExportImages(imageUris, 2_000)) {
+        showHeaderFeedback(t(locale, 'editor.export.imagesLoadingBody'), 3000);
+        return;
+      }
+      // Let React commit the frozen document and Skia present it before taking
+      // the off-screen snapshot, even when its images were already decoded.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      if (!editorSessionAlive.current) return;
+      const snapshot = await exportCanvasRef.current?.makeImageSnapshotAsync();
+      if (!snapshot) throw new Error('The collage could not be rendered.');
+      renderedUri = await saveExportPng(snapshot.encodeToBase64());
+      lastExport.current = { key, uri: renderedUri };
+    } catch {
+      if (editorSessionAlive.current) Alert.alert(t(locale, 'editor.export.unavailableTitle'), t(locale, 'editor.export.unavailableBody'));
+    } finally {
+      exportPendingRef.current = false;
+      if (editorSessionAlive.current) { setExportPending(false); setExportDraft(null); }
     }
-  }, [exportCanvasRef]);
+    if (renderedUri && editorSessionAlive.current) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      await shareExportPng(renderedUri);
+    }
+  }, [assetUris, exportCanvasRef, initialPackImportPending, laceFrameUris, locale, shareExportPng, showHeaderFeedback, state.present, waitForExportImages]);
   const exportTemplateStudio = useCallback(async () => {
     try {
       const uri = await exportTemplateStudioJson(state.present, catalog);
@@ -1397,6 +1643,9 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     }
   }, [importTemplateStudioFromFiles, importTemplateStudioFromUri]);
   const requestExit = useCallback(() => {
+    if (photoImportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; }
+    if (initialPackImportPending) { showHeaderFeedback(t(locale, 'editor.materialImport.wait')); return; }
+    if (navigationPendingRef.current || exportPendingRef.current) { showHeaderFeedback(t(locale, 'editor.operation.wait')); return; }
     // Studio documents deliberately do not become user workspaces or recent user drafts.
     if (templateStudio) {
       onExit();
@@ -1421,11 +1670,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
           clearTimeout(saveTimer.current);
           saveTimer.current = null;
         }
-        void saveWorkspace({ draft: state.present, catalog }, { markAsSaved: true }).then(() => {
-          onExit();
-        }).catch(() => {
-          Alert.alert('Could not save draft', 'Please check available storage and try again.');
-        });
+        navigateAfterWrite(() => saveWorkspace(checkpointWorkspace.current, { markAsSaved: true }), onExit, t(locale, 'editor.operation.storageBody'));
     };
     const showSavePrompt = (willPrune: boolean) => Alert.alert(
       willPrune ? 'Save draft and remove oldest?' : 'Save draft?',
@@ -1436,11 +1681,14 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
         { text: 'Save draft', onPress: saveAndLeave },
         { text: 'Keep editing', style: 'cancel' },
         // Keep the destructive escape hatch at the visual bottom of the iOS alert.
-        { text: 'Don’t save', style: 'destructive', onPress: leave },
+        { text: 'Don’t save', style: 'destructive', onPress: () => {
+          if (saveTimer.current !== null) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+          navigateAfterWrite(() => discardWorkspaceCheckpoint(state.present.id), leave, t(locale, 'editor.operation.retryBody'));
+        } },
       ],
     );
     void wouldPruneOldestSavedDraft(state.present.id).then(showSavePrompt).catch(() => showSavePrompt(false));
-  }, [catalog, onExit, state.present, templateStudio]);
+  }, [initialPackImportPending, locale, navigateAfterWrite, onExit, showHeaderFeedback, state.present, templateStudio]);
   const savePngToPhotoLibrary = useCallback(async () => {
     const mediaLibrary = loadMediaLibrary();
     if (mediaLibrary === null) {
@@ -1508,6 +1756,18 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const canvasBackgroundAsset = state.present.canvas.backgroundAsset;
   const canvasBackgroundPaper = canvasBackgroundAsset ? proceduralPaperForReferenceId(canvasBackgroundAsset.id) : undefined;
   const canvasBackgroundUri = canvasBackgroundAsset ? assetUris[canvasBackgroundAsset.id] : undefined;
+  const exportSceneDraft = exportDraft ?? state.present;
+  const exportBackgroundAsset = exportSceneDraft.canvas.backgroundAsset;
+  const exportBackgroundPaper = exportBackgroundAsset ? proceduralPaperForReferenceId(exportBackgroundAsset.id) : undefined;
+  const exportBackgroundUri = exportBackgroundAsset ? assetUris[exportBackgroundAsset.id] : undefined;
+  const exportProceduralPapers = exportDraft === null ? proceduralPapers : Object.fromEntries(exportSceneDraft.layers.flatMap((layer) => layer.type === 'image' ? (() => {
+    const paper = proceduralPaperForReferenceId(layer.asset.id);
+    return paper ? [[layer.asset.id, paper] as const] : [];
+  })() : []));
+  const exportProceduralStickers = exportDraft === null ? proceduralStickers : Object.fromEntries(exportSceneDraft.layers.flatMap((layer) => layer.type === 'image' ? (() => {
+    const sticker = proceduralStickerForReferenceId(layer.asset.id);
+    return sticker ? [[layer.asset.id, sticker] as const] : [];
+  })() : []));
   // Skia receives cached font files directly as Typeface sources. The Draft
   // remains limited to stable font IDs and never observes these local URIs.
   const fontUris = useMemo(() => Object.fromEntries(renderedDraft.layers.filter((layer) => layer.type === 'text').flatMap((layer) => { const uri = resolvedTextFontUri(layer.fontVariantId); return uri ? [[layer.fontVariantId, uri] as const] : []; })), [fontRevision, renderedDraft.layers]);
@@ -1621,7 +1881,8 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, crop !== null && a3Styles.cropEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
-        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null} canRedo={state.future.length > 0} canUndo={state.past.length > 0} exportLabel={templateStudio ? '导出 JSON' : undefined} locale={locale} onActionUnavailable={decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void (templateStudio ? exportTemplateStudio() : exportPng()); }} onExit={requestExit} onRatioPress={() => setRatioPickerOpen((open) => !open)} ratio={canvasLabel} />}
+        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null || photoImportPending} canRedo={state.future.length > 0} canUndo={state.past.length > 0} exportLabel={templateStudio ? '导出 JSON' : undefined} locale={locale} onActionUnavailable={photoImportPending ? () => showHeaderFeedback(t(locale, 'editor.photoImport.wait')) : decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void (templateStudio ? exportTemplateStudio() : exportPng()); }} onExit={requestExit} onRatioPress={() => { if (photoImportPending) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; } setRatioPickerOpen((open) => !open); }} ratio={canvasLabel} />}
+        {initialPackImportPending && <Text accessibilityRole="text" style={{ alignSelf: 'center', color: '#6D5041', fontSize: 13, marginBottom: 8 }}>Loading selected materials…</Text>}
         {assetRecoveryFailureCount > 0 && <Pressable accessibilityLabel="Retry unavailable materials" onPress={() => { void recoverWorkspaceProductAssets({ draft: state.present, catalog }).then((recovered) => { setCatalog(recovered.workspace.catalog); setAssetRecoveryFailureCount(recovered.failures.length); }); }} style={{ alignSelf: 'center', backgroundColor: '#6D5041', borderRadius: 14, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>{`${assetRecoveryFailureCount} material${assetRecoveryFailureCount === 1 ? '' : 's'} unavailable · Retry`}</Text></Pressable>}
         {ratioPickerOpen && (templateStudio
           ? <TemplateStudioCanvasPicker activeSize={canvasSize} onClose={() => setRatioPickerOpen(false)} onSelect={changeTemplateStudioCanvasSize} />
@@ -1636,7 +1897,6 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
           <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace, brushCut !== null && a3Styles.brushEditorWorkspace, crop !== null && a3Styles.cropEditorWorkspace, emboss !== null && a3Styles.embossEditorWorkspace]}>
             {layerPanelOpen && selectedLayer !== null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={dismissLayerEditing} style={a3Styles.workspaceDismissBackdrop} />}
             {canvas}
-            {headerFeedback !== null && <View pointerEvents="none" style={a3Styles.headerFeedback}><Text style={a3Styles.cutHintText}>{headerFeedback}</Text></View>}
             {brushCut !== null && <BrushCutHeader locale={locale} hasStrokes={brushCut.strokes.length > 0} onCancel={cancelBrushCut} onConfirm={confirmBrushCut} />}
             {crop !== null && <CropEditor bottomInset={insets.bottom} locale={locale} ratio={crop.ratio} onCancel={() => setCrop(null)} onConfirm={confirmCrop} onSelectRatio={(ratio) => setCrop((current) => current === null ? null : { ...current, ratio, bounds: cropBoundsForRatio(current.bounds, current.layer.frame, ratio) })} />}
             {emboss !== null && <EmbossEditor bottomInset={insets.bottom} locale={locale} session={emboss} onCancel={() => setEmboss(null)} onConfirm={confirmEmboss} onReset={() => setEmboss((current) => current ? { ...current, bounds: current.initialBounds } : null)} onToggleRatio={() => setEmboss((current) => current ? { ...current, aspectLocked: !current.aspectLocked } : null)} onSelectShape={(shape) => setEmboss((current) => current ? { ...current, shape } : null)} />}
@@ -1659,15 +1919,15 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
                 },
               } });
             }} />}
-            {layerEffectControl !== null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={() => setLayerEffectControl(null)} style={a3Styles.layerEffectControlBackdrop} />}
-            {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} type={layerEffectControl.type} onChange={(value) => { if (layerEffectControl.type === 'opacity') { dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId: selectedLayer.id, opacity: value } }); return; } const effect = selectedLayer.effects.find((item) => item.type === layerEffectControl.type); if (!effect) return; const spec = layerEffectControlSpec(layerEffectControl.type); dispatch({ type: 'command', command: { type: 'layer.effect.patch', layerId: selectedLayer.id, instanceId: effect.instanceId, params: { ...effect.params, [spec.param]: value } } }); }} />}
+            {layerEffectControl !== null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={() => { setLayerEffectControl(null); setLayerControlPreview(null); }} style={a3Styles.layerEffectControlBackdrop} />}
+            {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} previewValue={layerControlPreview?.layerId === selectedLayer.id && layerControlPreview.type === layerEffectControl.type ? layerControlPreview.value : null} type={layerEffectControl.type} onCancel={() => setLayerControlPreview(null)} onChange={(value) => setLayerControlPreview({ layerId: selectedLayer.id, type: layerEffectControl.type, value })} onCommit={commitLayerControl} />}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
               <AssetDrawer additionalPacks={templateStudio ? templateStudioDecorativePacks : undefined} initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
             </>}
             {backgroundDrawerOpen && <>
               <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } })} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} templateBackgroundItems={templateStudio ? templateStudioBackgroundItems : undefined} />
+              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => { backgroundRequestId.current += 1; dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } }); }} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} templateBackgroundItems={templateStudio ? templateStudioBackgroundItems : undefined} />
             </>}
             {textEdit !== null && selectedLayer?.type === 'text' && <TextEditorPanel key={textEdit.layerId} bottomInset={insets.bottom} keyboardHeight={keyboardHeight} layer={selectedLayer} locale={locale} text={textEdit.text} onCancel={cancelTextEditing} onChangeText={(text) => setTextEdit((current) => current === null ? null : { ...current, text })} onDone={finishTextEditing} onStyleChange={(change) => updateTextStyle(selectedLayer.id, change)} />}
             {cutPaletteOpen && straightCut === null && <Pressable accessibilityLabel={t(locale, 'editor.cut.dismiss')} accessibilityRole="button" onPress={() => setCutPaletteOpen(false)} style={a3Styles.cutPaletteBackdrop} />}
@@ -1684,7 +1944,12 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
           <View pointerEvents="auto" style={a3Styles.assetDrawerBackdrop} />
           <EffectSheet bottomInset={insets.bottom} effects={effectSheetBaseEffects ?? selectedLayer.effects} layer={selectedLayer} locale={locale} onCancel={closeEffectSheet} onCommit={commitEffectSheet} onPreview={(effects) => setEffectPreview({ layerId: selectedLayer.id, effects })} />
         </>}
-        <Canvas ref={exportCanvasRef} style={[a3Styles.exportCanvas, { height: exportSurface.height, width: exportSurface.width }]}><SkiaEditorScene draft={state.present} viewport={{ x: 0, y: 0, scale: exportSurface.scale }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={proceduralPapers} proceduralStickers={proceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={canvasBackgroundPaper} canvasBackgroundUri={canvasBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={false} /></Canvas>
+        {exportDraft !== null && <Canvas ref={exportCanvasRef} style={[a3Styles.exportCanvas, { height: exportSurface.height, width: exportSurface.width }]}><SkiaEditorScene draft={exportSceneDraft} viewport={{ x: 0, y: 0, scale: exportSurface.scale }} activeLayer={{ layerId: null, transform: activeTransform }} assetUris={assetUris} onImageReady={markExportImageReady} brushAssetUris={brushAssetUris} brushDefinitions={brushDefinitionsById} proceduralPapers={exportProceduralPapers} proceduralStickers={exportProceduralStickers} fontUris={fontUris} fontSupportsCjk={fontSupportsCjk} canvasBackgroundPaper={exportBackgroundPaper} canvasBackgroundUri={exportBackgroundUri} tornPaperEdgeAtlasUri={tornPaperEdgeAtlasUri} tornPaperFiberFringeUri={tornPaperFiberFringeUri} laceFrameFallback={false} laceFrameUris={laceFrameUris} showSelection={false} /></Canvas>}
+        {photoImportPending && <View accessibilityRole="progressbar" pointerEvents="auto" style={[StyleSheet.absoluteFill, { alignItems: 'center', backgroundColor: 'rgba(250, 250, 248, 0.86)', justifyContent: 'center', top: brushCut === null && crop === null && emboss === null ? 56 : 0, zIndex: 50 }]}><Text style={{ color: '#6D5041', fontSize: 15, fontWeight: '600' }}>{t(locale, 'editor.photoImport.wait')}</Text></View>}
+        {navigationPending && <View accessibilityRole="progressbar" pointerEvents="auto" style={[StyleSheet.absoluteFill, { alignItems: 'center', backgroundColor: 'rgba(250, 250, 248, 0.86)', justifyContent: 'center', zIndex: 50 }]}><Text style={{ color: '#6D5041', fontSize: 15, fontWeight: '600' }}>{t(locale, 'editor.operation.wait')}</Text></View>}
+        {exportPending && headerFeedback === null && <View pointerEvents="none" style={[a3Styles.headerFeedback, { top: 68, zIndex: 51 }]}><Text style={a3Styles.cutHintText}>{t(locale, 'editor.export.preparing')}</Text></View>}
+        {initialEntry === 'restore' && !workspaceReady && <View pointerEvents="auto" style={[StyleSheet.absoluteFill, { alignItems: 'center', backgroundColor: '#FAFAF8', justifyContent: 'center', paddingHorizontal: 32, zIndex: 52 }]}><Text style={{ color: '#6D5041', fontSize: 15, textAlign: 'center' }}>{t(locale, workspaceLoadFailed ? 'editor.restore.failed' : 'editor.restore.loading')}</Text>{workspaceLoadFailed && <View style={{ flexDirection: 'row', gap: 24, marginTop: 20 }}><Pressable onPress={() => { setWorkspaceLoadFailed(false); setWorkspaceLoadAttempt((attempt) => attempt + 1); }}><Text style={{ color: '#6D5041', fontWeight: '700' }}>{t(locale, 'editor.restore.retry')}</Text></Pressable><Pressable onPress={onExit}><Text style={{ color: '#6D5041' }}>{t(locale, 'editor.restore.back')}</Text></Pressable></View>}</View>}
+        {headerFeedback !== null && <View pointerEvents="none" style={[a3Styles.headerFeedback, { top: 68, zIndex: 51 }]}><Text style={a3Styles.cutHintText}>{headerFeedback}</Text></View>}
         <StatusBar style="dark" />
         </SafeAreaView>
       </GestureHandlerRootView>
@@ -1700,18 +1965,18 @@ const layerEffectControlSpec = (type: LayerControlKind): Readonly<{ label: Produ
   if (type === 'opacity') return { label: 'editor.layer.opacity', min: 0, max: 1, step: 0.05, param: 'opacity' };
   return { label: 'editor.effects.radius', min: 0, max: 160, step: 1, param: 'radius' };
 };
-const LayerEffectControlPanel = ({ bottomInset, effect, locale, onChange, opacity, type }: Readonly<{ bottomInset: number; effect: Effect | null; locale: ReturnType<typeof resolveProductLocale>; onChange: (value: number) => void; opacity: number; type: LayerControlKind }>) => {
+const LayerEffectControlPanel = ({ bottomInset, effect, locale, onCancel, onChange, onCommit, opacity, previewValue, type }: Readonly<{ bottomInset: number; effect: Effect | null; locale: ReturnType<typeof resolveProductLocale>; onCancel: () => void; onChange: (value: number) => void; onCommit: (value: number) => void; opacity: number; previewValue: number | null; type: LayerControlKind }>) => {
   const [width, setWidth] = useState(1);
   const spec = layerEffectControlSpec(type);
-  const value = type === 'opacity' ? opacity : effect !== null && typeof effect.params[spec.param] === 'number' ? effect.params[spec.param] as number : spec.min;
-  const setFromEvent = (event: GestureResponderEvent) => {
+  const value = previewValue ?? (type === 'opacity' ? opacity : effect !== null && typeof effect.params[spec.param] === 'number' ? effect.params[spec.param] as number : spec.min);
+  const valueFromEvent = (event: GestureResponderEvent): number => {
     const raw = spec.min + Math.max(0, Math.min(width, event.nativeEvent.locationX)) / width * (spec.max - spec.min);
-    onChange(Math.round(raw / spec.step) * spec.step);
+    return Math.round(raw / spec.step) * spec.step;
   };
   const ratio = Math.max(0, Math.min(1, (value - spec.min) / (spec.max - spec.min)));
   return <View style={[a3Styles.layerEffectControlPanel, { bottom: 160 + bottomInset }]}>
     <Text style={a3Styles.layerEffectControlLabel}>{t(locale, spec.label)}</Text>
-    <View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onResponderGrant={setFromEvent} onResponderMove={setFromEvent} onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} style={a3Styles.layerEffectSlider}><View style={[a3Styles.layerEffectSliderFill, { width: `${ratio * 100}%` }]} /><View pointerEvents="none" style={[a3Styles.layerEffectSliderThumb, { left: `${ratio * 100}%` }]} /></View>
+    <View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onResponderGrant={(event) => onChange(valueFromEvent(event))} onResponderMove={(event) => onChange(valueFromEvent(event))} onResponderRelease={(event) => onCommit(valueFromEvent(event))} onResponderTerminate={onCancel} onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} style={a3Styles.layerEffectSlider}><View style={[a3Styles.layerEffectSliderFill, { width: `${ratio * 100}%` }]} /><View pointerEvents="none" style={[a3Styles.layerEffectSliderThumb, { left: `${ratio * 100}%` }]} /></View>
   </View>;
 };
 const precisionValue = (value: number) => String(Math.round(value * 100) / 100);
@@ -2041,7 +2306,7 @@ export default function App() {
       <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
         <StatusBar style="dark" />
         <View pointerEvents={tab === 'create' && !templateCatalogOpen ? 'auto' : 'none'} style={tab === 'create' && !templateCatalogOpen ? productShellStyles.tabSurface : productShellStyles.hiddenTabSurface}>
-          <CreateHome locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
+          <CreateHome editorOpen={editing} locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
         </View>
         {templateCatalogOpen
           ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenShowcase={openShowcase} onOpenTemplate={openTemplate} />

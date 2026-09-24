@@ -1,4 +1,5 @@
 import * as Font from 'expo-font';
+import * as FileSystem from 'expo-file-system/legacy';
 import { cacheRemoteResource } from '../localWorkspace';
 import { getTextFont, type TextFont } from '@journalcollage/asset-system';
 
@@ -17,7 +18,8 @@ export const fontStatus = (variantId: string): RemoteFontStatus => states.get(va
 export const ensureTextFont = async (variantId: string): Promise<RemoteFontStatus> => {
   const font = getTextFont(variantId);
   if (!font.remoteSource || font.variantId === 'system') return 'ready';
-  if (Font.isLoaded(font.family)) return 'ready';
+  const cachedUri = cachedUris.get(font.variantId);
+  if (cachedUri && Font.isLoaded(font.family) && (await FileSystem.getInfoAsync(cachedUri)).exists) return 'ready';
   const existing = pending.get(font.variantId);
   if (existing) return existing;
   states.set(font.variantId, 'loading');
@@ -25,7 +27,7 @@ export const ensureTextFont = async (variantId: string): Promise<RemoteFontStatu
     try {
       const uri = await cacheRemoteResource(`font-${font.variantId}`, font.remoteSource!);
       cachedUris.set(font.variantId, uri);
-      await Font.loadAsync(font.family, uri);
+      if (!Font.isLoaded(font.family)) await Font.loadAsync(font.family, uri);
       states.set(font.variantId, 'ready');
       return 'ready' as const;
     } catch {

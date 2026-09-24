@@ -1,10 +1,17 @@
 # P1-T00：模板最小契约与依赖规则
 
-状态：共享数据边界与初始四个模板的真实审计已冻结；新增六个模板已纳入 1.0 上线目录，正进入 Recipe 与视觉校准；尚未把生产侧 Recipe 编译为实际首发模板。
+状态：P1-T00 契约已冻结，P1-T01～P1-T09 已实施；10 个首发模板已完成 strict Recipe 编译、bundle 依赖闭包与真机核心验证。正式 Archive/Release 构建复核仍是 P1-T10 / G1-T 的发布前事项。
 
 模板是创作页/再创作的输入，不能是首页运营卡片。它只描述新 Draft 的初始结构；保存后的 Draft 不保留模板对象、CDN URL、bundle 路径、缓存键或可执行脚本。
 
 P1-T01 的文件级差距、最小修订范围与自动化验收矩阵见 [TEMPLATE_SCHEMA_P1_T01_ACCEPTANCE_CHECKLIST.md](TEMPLATE_SCHEMA_P1_T01_ACCEPTANCE_CHECKLIST.md)。
+
+## 当前实施记录（2026-09-23）
+
+- 首发目录固定为 10 个已编译 `TemplateDefinition`；Create styles 和首页只消费随包目录，运营 manifest 不承载模板定义。
+- 构建脚本静态收集完整依赖闭包：10 个模板共 77 项 strict 资产。每项在生成 Expo `require(...)` 映射前校验 SHA-256、字节数、MIME 与像素尺寸；上游已替换但 Catalog 仍引用的三个对象保留为锁定字节副本。
+- 模板入口使用能力门控；照片槽支持替换、原图 crop 选区与槽内移动。模板实例化后的 Draft 不包含模板对象或运行时 URI。
+- 已在 iPhone 开发构建验证模板、草稿、清缓存和重新进入画布的核心路径。资源解析期间的通用图层占位为中性灰，不再使用测试场景插画。
 
 ## 已冻结的边界
 

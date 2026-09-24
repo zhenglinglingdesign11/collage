@@ -1,12 +1,14 @@
 # P1-T00 首发模板真实审计与冻结
 
-冻结日期：2026-09-20  
-状态：`ready`，等待 P1-A03 内容目录编译与 P1-T02 Recipe 编译。  
+冻结日期：2026-09-20
+状态：历史四模板源审计，已被 2026-09-23 的已编译 10 模板目录取代。
 契约：[TEMPLATE_CONTRACT_P1_T00.md](TEMPLATE_CONTRACT_P1_T00.md)
+
+> 本文保留早期构建期来源核对，不再是运行时模板能力或发布状态的依据。当前首发模板均已编译；`materialSlots` 为空，仅支持 `image.replace`、`image.crop` 与 `material.resolve`。以 `TEMPLATE_CONTRACT_P1_T00.md` 和 `ACCOUNT_SUBSCRIPTION_CLOUD_IMPLEMENTATION_PLAN.md` 的当前实施记录为准。
 
 本清单冻结首发四个模板的身份、组成与依赖闭包。`source-assets` 路径仅为构建期输入；客户端模板和保存的 Draft 只使用下列 `asset://pack/...` 稳定引用。所有引用 revision 均为 `1`；实际内容变更必须创建新 revision，不能原地替换。
 
-## 共同规则
+## 共同规则（历史审计）
 
 - 模板状态：`ready`；`requiredCapabilities`：`image.replace`、`image.crop`、`material.resolve`、`material.replace`。
 - 无 `textSlots`。成品中的英文、日期与手写字均是固定素材的一部分。

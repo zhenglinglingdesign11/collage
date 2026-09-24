@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { clearDownloadCache, getDownloadCacheSummary, loadSavedDrafts, pruneDownloadCache, type DownloadCacheSummary, type SavedDraft } from '../localWorkspace';
 import { RecentDraftArtwork } from './CreateHome';
@@ -30,11 +30,9 @@ export const MineHome = ({ locale, onOpenDraft }: Readonly<{ locale: ProductLoca
     <Text style={styles.sectionTitle}>{t(locale, 'mine.recentDrafts')}</Text>
     {drafts === null ? <View style={styles.loadingRow}>{[0, 1, 2].map((id) => <View key={id} style={styles.loadingCard} />)}</View>
       : drafts.length === 0 ? <View style={styles.empty}><Text style={styles.emptyText}>{t(locale, 'mine.noDrafts')}</Text></View>
-      : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.draftTrack}>
-        {drafts.map((saved) => <Pressable key={saved.id} accessibilityRole="button" accessibilityLabel={t(locale, 'mine.recentDrafts')} onPress={() => onOpenDraft(saved.id)} style={styles.draftCard}>
+      : <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.draftTrack} data={drafts} keyExtractor={(saved) => saved.id} initialNumToRender={4} maxToRenderPerBatch={4} windowSize={3} renderItem={({ item: saved }) => <Pressable accessibilityRole="button" accessibilityLabel={t(locale, 'mine.recentDrafts')} onPress={() => onOpenDraft(saved.id)} style={styles.draftCard}>
           <RecentDraftArtwork laceFrameUris={{}} workspace={saved.workspace} />
-        </Pressable>)}
-      </ScrollView>}
+        </Pressable>} />}
     <Text style={styles.sectionTitle}>{t(locale, 'mine.clearCache')}</Text>
     <Pressable accessibilityRole="button" accessibilityLabel={t(locale, 'mine.clearCache')} disabled={clearing} onPress={requestClear} style={[styles.setting, clearing && styles.settingDisabled]}>
       <View style={styles.settingCopy}><Text style={styles.settingTitle}>{t(locale, 'mine.clearCache')}</Text><Text style={styles.settingDetail}>{t(locale, 'mine.clearCacheDetail')}</Text></View>

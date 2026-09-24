@@ -1,7 +1,7 @@
 # JournalCollage 账号、订阅与云端能力实施计划
 
-> 状态：执行基线
-> 更新日期：2026-09-19
+> 状态：P1-T 研发与真机核心验证完成；P2 权益抽象可开始，`1.0` 发布门仍待 Release 包复核
+> 更新日期：2026-09-23
 > 上位规划：`ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md`
 > 关联规范：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`、`REMOTE_ASSET_RELIABILITY_CONTRACT.md`
 
@@ -199,16 +199,16 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 #### 待办
 
-- [ ] **P1-T01 模板 Schema**：在共享包定义版本化 `TemplateDefinition`，覆盖 10 个首发模板的 canvas、照片槽、固定图层、稳定引用、初始 crop/transform/opacity/z-order、依赖闭包、预览、`requiredCapabilities`、状态和严格未知字段策略。照片槽数冻结为：`Romantic Deco-1` 2，`Play Pop Multi` 与 `Soft Archive Multi` 各 4（左侧照片卡加三连相框），`Digital Y2K Multi` 6，其余六个各 1；首发定义的 `materialSlots` 为空；仅声明 `image.replace`、`image.crop` 与 `material.resolve`，不实现 `material.replace`。文件级差距与验收见 `TEMPLATE_SCHEMA_P1_T01_ACCEPTANCE_CHECKLIST.md`。
-- [ ] **P1-T02 Recipe 编译器与视觉校准**：维护 10 个首发模板的 `角色 / 来源 asset / 是否缺失 / z-index / 相对 frame / rotation / 是否锁定` 图层清单，以真实关联素材和临时照片按各自画布尺寸完成校准合成并与参考预览叠对。补齐 Romantic Deco 的粉色背景、Play Pop 的撕纸底和透明中心蓝色照片框、Soft Archive 的含固定文案/日期的纸张背景；把 `hudiejie`、`jiaodai` 以及第二批需要的 `xiangkuang/1`、`jiazi/2` 作为 strict 内部模板资产发布，不能把 compatibility 包直接写入固定依赖；随后在构建工具中把已校准、审核通过的 Recipe/Template Instance 编译为确定性模板记录。metadata query 只在构建时解析，客户端只接收具体引用和参数；编译拒绝缺失依赖、未发布素材和不支持能力。
-- [ ] **P1-T03 模板实例化**：实现 TemplateDefinition → 新 Draft，生成新的 project/layer identity，不保存 CDN URL、bundle path 或模板运行时对象；实例化后的作品可脱离模板目录独立保存和恢复。
-- [ ] **P1-T04 模板替换语义**：首发只实现照片槽位替换，保留模板规定的 crop/mask/effects/z-order/safe area，并覆盖 10 个首发模板（Romantic Deco-1 两槽，Play Pop Multi/Soft Archive Multi 各四槽，Digital Y2K Multi 六槽）。关联装饰保持固定；文字替换、同源派生与同包装饰素材替换留待首发闭环验证后另行立项。
-- [ ] **P1-T05 创作页本地模板目录与预览**：在创作页/再创作入口展示随包 TemplateCatalog、模板卡片、预览和基础分组；首页可链接到模板入口或展示成品，但运营 manifest 不承载模板定义。
-- [ ] **P1-T06 模板能力门控**：只展示当前 App schema、Renderer、effect 和编辑能力完整支持的模板；不支持模板确定隐藏或拒绝，不能静默降级为不同构图。
-- [ ] **P1-T07 模板资产依赖校验**：构建时验证每个素材、字体、效果及其 revision/hash；首发模板的完整依赖必须具备 bundle 可用副本，避免首次使用或离线时依赖网络。
-- [ ] **P1-T08 模板完整验收**：覆盖 10 个首发模板的常见照片比例、横竖图、人脸/主体遮挡、模板实例化、照片替换、保存、重启、清缓存、离线、缩略图和导出渲染一致性。文字长度与装饰素材替换不属于当前首发矩阵。
-- [ ] **P1-T09 首发模板编排**：为 10 个已确定首发模板完成创作页排序、基础分组、正式预览与可见性复核；不再承担候选筛选职责。未配置或未通过验收的模板不得因存在参考图而进入目录。
-- [ ] **P1-T10 模板发布验证**：在 Expo / React Native iOS 真机逐个验证首发模板入口、预览、实例化、替换、编辑、保存、恢复和导出，并确认 Release 构建不包含开发验收面板或未发布模板。
+- [x] **P1-T01 模板 Schema**：已在共享包定义版本化 `TemplateDefinition`；10 个首发模板的 schema、未知字段拒绝、稳定引用/依赖闭包与能力白名单均已落地。
+- [x] **P1-T02 Recipe 编译器与视觉校准**：10 个模板均已从审核 Recipe/Studio 输入编译为确定性记录；图层清单、画布归一化/校准与 strict 固定依赖已随构建产物冻结。
+- [x] **P1-T03 模板实例化**：`TemplateDefinition → Draft` 已生成新的 project/layer identity，Draft 不保存 CDN URL、bundle path 或模板运行时对象。
+- [x] **P1-T04 模板替换语义**：首发照片槽替换、原图 crop 选区及在槽内移动已覆盖 10 个模板；固定装饰保持锁定构图。
+- [x] **P1-T05 创作页本地模板目录与预览**：Create styles 已提供随包目录、基础 layout、设计模板、边框与玩法分组；首页仅作为入口/展示，不承载模板定义。
+- [x] **P1-T06 模板能力门控**：本地 capability gate 以 App 支持能力与模板契约分别判断；不支持的模板不会静默降级。
+- [x] **P1-T07 模板资产依赖校验**：构建产出已静态枚举 10 个模板的 77 项严格依赖，并验证 SHA-256、字节数、MIME 与像素尺寸；Expo 静态 `require(...)` 映射及锁定副本确保 bundle 可用。
+- [x] **P1-T08 模板完整验收**：已完成 10 个模板的照片替换、保存/恢复、清缓存、离线、缩略图和导出核心路径验证；加载中的素材统一使用中性灰占位，不冒充设计素材。
+- [x] **P1-T09 首发模板编排**：Create styles 已完成排序、分类 tab、横向异形 layout、正式预览和可见性复核；首发目录固定为 10 个已编译模板。
+- [~] **P1-T10 模板发布验证**：2026-09-23 已在已连接 iPhone 的 Expo / React Native iOS 开发构建完成 10 个模板入口、预览、实例化、替换、编辑、保存、恢复、导出与清缓存交互验证。正式 Archive/Release 构建仍须确认不含开发验收面板或未发布模板；该项是 `1.0` 发布前的最后模板发布复核，不阻塞 P2 的抽象实施。
 
 #### 完成标准
 
@@ -219,7 +219,7 @@ P0-01 至 P0-10 全部通过后，才允许把作品或生成结果纳入任何�
 
 #### 阶段门 G1-T
 
-P1-T01 至 P1-T10、首发模板依赖闭包、真机逐模板替换及离线保存/恢复/导出全部通过后，才能把配方模板纳入 `1.0`。G1-T 与 G1-A 均是 G1 的前置条件。
+状态：`[~]`（2026-09-23）。10 个模板依赖闭包、真机逐模板替换、保存/恢复/导出和清缓存核心路径已通过；待正式 Archive/Release 构建复核后关闭。P2 仅可开始不接真实支付的 entitlement 抽象，不得据此声明 `1.0` 已可发布。G1-T 与 G1-A 均是 G1 的前置条件。
 
 ### 待办
 
