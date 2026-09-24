@@ -175,7 +175,7 @@ export const EffectSheet = ({ bottomInset, effects, layer, locale, onCancel, onC
   if (adjusting && adjustmentControl) return <View style={[styles.sheet, { paddingBottom: Math.max(12, bottomInset + 4) }]}>
     <View style={styles.handle} />
     <View style={styles.header}><Pressable hitSlop={10} onPress={() => setAdjustingId(null)}><Text style={styles.cancel}>{t(locale, 'editor.effects.back')}</Text></Pressable><Text style={styles.title}>{effectLabel(locale, adjusting.type, adjusting.type)}</Text><Pressable hitSlop={10} onPress={() => setAdjustingId(null)}><Text style={styles.done}>{t(locale, 'editor.effects.done')}</Text></Pressable></View>
-    <View style={styles.adjustment}><Text style={styles.controlLabel}>{t(locale, adjustmentControl.label)}</Text><EffectSlider maximum={adjustmentControl.max} minimum={adjustmentControl.min} value={typeof adjusting.params[adjustmentControl.param] === 'number' ? adjusting.params[adjustmentControl.param] as number : adjustmentControl.min} onChange={setValue} /></View>
+    <View style={styles.adjustment}><Text style={styles.controlLabel}>{t(locale, adjustmentControl.label)}</Text><EffectSlider maximum={adjustmentControl.max} minimum={adjustmentControl.min} reversed={adjusting.type === 'light.shadow'} value={typeof adjusting.params[adjustmentControl.param] === 'number' ? adjusting.params[adjustmentControl.param] as number : adjustmentControl.min} onChange={setValue} /></View>
   </View>;
   return <View style={[styles.sheet, { paddingBottom: Math.max(12, bottomInset + 4) }]}>
     <View style={styles.handle} />
@@ -191,10 +191,14 @@ const effectLabel = (locale: ProductLocale, type: string, fallback: string): str
   return keys[type] ? t(locale, keys[type]) : fallback;
 };
 
-const EffectSlider = ({ maximum, minimum, onChange, value }: Readonly<{ maximum: number; minimum: number; onChange: (value: number) => void; value: number }>) => {
+const EffectSlider = ({ maximum, minimum, onChange, reversed = false, value }: Readonly<{ maximum: number; minimum: number; onChange: (value: number) => void; reversed?: boolean; value: number }>) => {
   const [width, setWidth] = useState(1);
-  const setFromEvent = (event: GestureResponderEvent) => onChange(minimum + Math.max(0, Math.min(width, event.nativeEvent.locationX)) / width * (maximum - minimum));
-  const ratio = (value - minimum) / (maximum - minimum);
+  const setFromEvent = (event: GestureResponderEvent) => {
+    const ratio = Math.max(0, Math.min(width, event.nativeEvent.locationX)) / width;
+    onChange(reversed ? maximum - ratio * (maximum - minimum) : minimum + ratio * (maximum - minimum));
+  };
+  const normalisedValue = (value - minimum) / (maximum - minimum);
+  const ratio = reversed ? 1 - normalisedValue : normalisedValue;
   return <View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width))} onResponderGrant={setFromEvent} onResponderMove={setFromEvent} onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} style={styles.slider}><View style={[styles.sliderFill, { width: `${ratio * 100}%` }]} /><View pointerEvents="none" style={[styles.thumb, { left: `${ratio * 100}%` }]} /></View>;
 };
 

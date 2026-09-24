@@ -9,23 +9,26 @@ import {
   ImageShader,
   Mask,
   matchFont,
+  Paint,
   Path,
   PathOp,
   Rect,
   RoundedRect,
   Skia,
   Shader,
+  Shadow,
   StrokeCap,
   StrokeJoin,
   Text,
   useFont,
   useImage,
+  useTexture,
   type Transforms3d,
 } from '@shopify/react-native-skia';
-import { memo, useEffect, useMemo, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { visibleBoundsForLayer } from '@journalcollage/editor-core';
 import type { AlignmentGuide, BrushCutMask, BrushCutStroke, BrushDefinition, BrushStroke, Draft, Effect, EffectStage, Layer, Point, VisibilityMask } from '@journalcollage/editor-core';
-import type { SharedValue } from 'react-native-reanimated';
+import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
 
 export type CanvasViewport = Readonly<{
   x: number;
@@ -130,6 +133,8 @@ type SkiaEditorSceneProps = Readonly<{
   brushAssetUris?: Readonly<Record<string, string>>;
   /** Catalog-owned definitions resolved by the product layer; never persisted in Draft. */
   brushDefinitions?: Readonly<Record<string, BrushDefinition>>;
+  /** Rasterize only heavy completed brush layers in the interactive editor. */
+  cacheBrushLayers?: boolean;
   proceduralPapers?: Readonly<Record<string, ProceduralPaperPaint>>;
   proceduralStickers?: Readonly<Record<string, ProceduralStickerPaint>>;
   /** Native adapter resolved font files; never stored in a Draft. */
@@ -165,7 +170,8 @@ type SkiaEditorSceneProps = Readonly<{
  * A later AssetResolver will replace only the content drawing, not its Draft
  * or transform contract.
  */
-export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, onImageReady, brushAssetUris = {}, brushDefinitions = {}, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showCanvasBackground = true, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris = {}, laceFrameFallback = true, showSelection = true, alignmentGuides = [], surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, cropPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => (
+export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, onImageReady, brushAssetUris = {}, brushDefinitions = {}, cacheBrushLayers = false, proceduralPapers = {}, proceduralStickers = {}, fontUris = {}, fontSupportsCjk = {}, canvasBackgroundUri, canvasBackgroundPaper, showCanvasBackground = true, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris = {}, laceFrameFallback = true, showSelection = true, alignmentGuides = [], surfaceColor = '#D9D2C7', straightCutPreview = null, brushCutPreview = null, cropPreview = null, visibilityMaskPreview = null }: SkiaEditorSceneProps) => {
+  return (
   <>
     <Fill color={surfaceColor} />
     <Group transform={[{ translateX: viewport.x }, { translateY: viewport.y }, { scale: viewport.scale }]}>
@@ -180,6 +186,9 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
           onImageReady={onImageReady}
           brushAssetUris={brushAssetUris}
           brushDefinitions={brushDefinitions}
+          cacheBrushLayers={cacheBrushLayers}
+          isTransforming={activeLayer.isInteracting === true}
+          viewportScale={viewport.scale}
           proceduralPaper={layer.type === 'image' ? proceduralPapers[layer.asset.id] : undefined}
           proceduralSticker={layer.type === 'image' ? proceduralStickers[layer.asset.id] : undefined}
           fontUri={layer.type === 'text' ? fontUris[layer.fontVariantId] : undefined}
@@ -198,7 +207,8 @@ export const SkiaEditorScene = ({ draft, viewport, activeLayer, assetUris = {}, 
       <CanvasAlignmentGuides guides={alignmentGuides} size={draft.canvas.size} strokeWidth={2 / Math.max(viewport.scale, 0.001)} />
     </Group>
   </>
-);
+  );
+};
 
 const CanvasAlignmentGuides = ({ guides, size, strokeWidth }: Readonly<{ guides: readonly AlignmentGuide[]; size: { width: number; height: number }; strokeWidth: number }>) => <>
   {guides.map((guide) => guide.axis === 'x'
@@ -228,6 +238,9 @@ type SkiaLayerProps = Readonly<{
   onImageReady?: (uri: string) => void;
   brushAssetUris: Readonly<Record<string, string>>;
   brushDefinitions: Readonly<Record<string, BrushDefinition>>;
+  cacheBrushLayers: boolean;
+  isTransforming: boolean;
+  viewportScale: number;
   proceduralPaper?: ProceduralPaperPaint;
   proceduralSticker?: ProceduralStickerPaint;
   fontUri?: string;
@@ -243,7 +256,7 @@ type SkiaLayerProps = Readonly<{
   visibilityMaskPreview: VisibilityMaskPreview | null;
 }>;
 
-const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAssetUris, brushDefinitions, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, cropPreview, visibilityMaskPreview }: SkiaLayerProps) => {
+const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAssetUris, brushDefinitions, cacheBrushLayers, isTransforming, viewportScale, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, cropPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
   const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
@@ -257,8 +270,11 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAs
   const visibilityMask = layer.type === 'image' ? layer.visibilityMask : undefined;
   const tornEdge = effectPlan.geometry.find((effect) => effect.type === 'paper.torn-edge');
   const corners = effectPlan.geometry.find((effect) => effect.type === 'shape.round-corners');
-  const shadows = effectPlan.underlay.filter((effect) => effect.type === 'light.shadow');
   const floatingEffects = effectPlan.underlay.filter((effect) => effect.type === 'paper.float');
+  // Floating owns the cast shadow. Stacking a separate shadow makes the
+  // cut-out look like a broad grey halo instead of a raised piece.
+  const shadows = floatingEffects.length > 0 ? [] : effectPlan.underlay.filter((effect) => effect.type === 'light.shadow'
+    && numberParam(effect, 'blur') > 0 && numberParam(effect, 'opacity') > 0);
   const attachments = effectPlan.overlay.filter((effect) => effect.type === 'attachment.tape');
   const centerFrame = effectPlan.overlay.find((effect) => effect.type === 'frame.lace-center' || effect.type === 'frame.foil-center');
   const shapePath = useMemo(
@@ -282,50 +298,69 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAs
   const previewPath = useMemo(() => straightCutPreview ? (straightCutPreview.style === 'wave' ? makeWaveCutPath(straightCutPreview.start, straightCutPreview.end, frame) : makeStraightCutPath(straightCutPreview.start, straightCutPreview.end)) : null, [frame, straightCutPreview]);
   const visibilityPreviewPath = useMemo(() => visibilityMaskPreview ? compileVisibilityMaskPath(visibilityMaskPreview.mask, frame) : null, [frame, visibilityMaskPreview]);
   const visibilityPreviewBounds = visibilityMaskPreview?.mask.type === 'shape' ? visibilityMaskPreview.mask.bounds : null;
+  // Tool chrome is measured in screen points even when its image is enlarged
+  // for editing. The mask and cut geometry remain in layer coordinates.
+  const toolUnit = 1 / Math.max(0.001, viewportScale * Math.abs(layer.transform.scale.x));
+  const selectionUnitX = 1 / Math.max(0.001, viewportScale * Math.abs(layer.transform.scale.x));
+  const selectionUnitY = 1 / Math.max(0.001, viewportScale * Math.abs(layer.transform.scale.y));
+  const visibleContent = <Group clip={contentPath}>
+    <ContentEffectStage evaluation={contentEvaluation}>
+      <Group transform={centerFrame ? [{ scale: laceContentZoom(centerFrame) }] : []} origin={{ x: frame.width / 2, y: frame.height / 2 }}>
+        {layer.type === 'image' && <ImageLayerContent contentEffects={activePrintEffect ? [activePrintEffect] : []} layer={layer} assetUri={assetUri} onImageReady={onImageReady} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
+        {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
+        {layer.type === 'brush' && (cacheBrushLayers && layer.strokes.reduce((count, stroke) => count + stroke.points.length, 0) > 80
+          ? <CachedBrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />
+          : <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />)}
+        {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
+      </Group>
+    </ContentEffectStage>
+  </Group>;
 
   return (
     <Group transform={transform} origin={{ x: frame.width / 2, y: frame.height / 2 }} opacity={layer.opacity}>
-      {shadows.map((shadow) => <Group key={shadow.instanceId} transform={[{ translateX: numberParam(shadow, 'offset.x') }, { translateY: numberParam(shadow, 'offset.y') }]} opacity={numberParam(shadow, 'opacity')}><Path path={effectivePath} color={stringParam(shadow, 'color')}><BlurMask blur={numberParam(shadow, 'blur')} style="normal" /></Path></Group>)}
-      {floatingEffects.map((effect) => <FloatingPaperUnderlay effect={effect} key={effect.instanceId} path={effectivePath} />)}
+      {shadows.map((shadow) => <VisibleContentShadow key={shadow.instanceId} dx={numberParam(shadow, 'offset.x')} dy={numberParam(shadow, 'offset.y')} blur={numberParam(shadow, 'blur')} color={stringParam(shadow, 'color')} opacity={numberParam(shadow, 'opacity')}>{visibleContent}</VisibleContentShadow>)}
+      {floatingEffects.map((effect) => <FloatingPaperUnderlay content={visibleContent} effect={effect} key={effect.instanceId} />)}
       {attachments.map((effect) => <TapeContactShadow effect={effect} key={effect.instanceId} path={effectivePath} />)}
       {/* Keep the aperture in layer coordinates; only its content may zoom. */}
-      <Group clip={contentPath}>
-        <ContentEffectStage evaluation={contentEvaluation}>
-          <Group transform={centerFrame ? [{ scale: laceContentZoom(centerFrame) }] : []} origin={{ x: frame.width / 2, y: frame.height / 2 }}>
-            {layer.type === 'image' && <ImageLayerContent contentEffects={activePrintEffect ? [activePrintEffect] : []} layer={layer} assetUri={assetUri} onImageReady={onImageReady} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
-            {layer.type === 'material' && <MaterialPlaceholder layer={layer} />}
-            {layer.type === 'brush' && <BrushLayerContent assetUris={brushAssetUris} definitions={brushDefinitions} layer={layer} />}
-            {layer.type === 'text' && <TextLayerContent layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} />}
-          </Group>
-        </ContentEffectStage>
-      </Group>
+      {visibleContent}
       {previewPath && <>
-        <Path path={previewPath} color="rgba(17,17,17,0.78)" strokeCap="round" style="stroke" strokeWidth={10}><DashPathEffect intervals={[34, 28]} /></Path>
-        <Circle cx={straightCutPreview!.start.x} cy={straightCutPreview!.start.y} r={28} color="rgba(255,255,255,0.94)" />
-        <Circle cx={straightCutPreview!.start.x} cy={straightCutPreview!.start.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
-        <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="rgba(255,255,255,0.94)" />
-        <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={28} color="#111111" style="stroke" strokeWidth={8} />
+        <Path path={previewPath} color="rgba(17,17,17,0.78)" strokeCap="round" style="stroke" strokeWidth={3 * toolUnit}><DashPathEffect intervals={[11 * toolUnit, 9 * toolUnit]} /></Path>
+        <Circle cx={straightCutPreview!.start.x} cy={straightCutPreview!.start.y} r={10 * toolUnit} color="rgba(255,255,255,0.94)" />
+        <Circle cx={straightCutPreview!.start.x} cy={straightCutPreview!.start.y} r={10 * toolUnit} color="#111111" style="stroke" strokeWidth={2.5 * toolUnit} />
+        <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={10 * toolUnit} color="rgba(255,255,255,0.94)" />
+        <Circle cx={straightCutPreview!.end.x} cy={straightCutPreview!.end.y} r={10 * toolUnit} color="#111111" style="stroke" strokeWidth={2.5 * toolUnit} />
       </>}
       {brushCutPreview && <Path path={makeBrushStrokePath({ mode: 'include', strokes: brushCutPreview.strokes })} color="rgba(217,74,56,0.62)" />}
       {cropPreview && <CropPreviewChrome bounds={cropPreview.bounds} frame={frame} />}
-      {visibilityPreviewPath && <><Path path={visibilityPreviewPath} color="rgba(217,74,56,0.18)" /><Path path={visibilityPreviewPath} color="#111111" style="stroke" strokeWidth={4} />
-        {visibilityPreviewBounds && <><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10} color="#111111" style="stroke" strokeWidth={3} /></>}
+      {visibilityPreviewPath && <><Path path={visibilityPreviewPath} color="rgba(217,74,56,0.18)" /><Path path={visibilityPreviewPath} color="#111111" style="stroke" strokeWidth={2 * toolUnit} />
+        {visibilityPreviewBounds && <><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={12 * toolUnit} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y} r={10 * toolUnit} color="#111111" style="stroke" strokeWidth={3 * toolUnit} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={12 * toolUnit} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y} r={10 * toolUnit} color="#111111" style="stroke" strokeWidth={3 * toolUnit} /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12 * toolUnit} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x + visibilityPreviewBounds.width} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10 * toolUnit} color="#111111" style="stroke" strokeWidth={3 * toolUnit} /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={12 * toolUnit} color="#FFFFFF" /><Circle cx={visibilityPreviewBounds.x} cy={visibilityPreviewBounds.y + visibilityPreviewBounds.height} r={10 * toolUnit} color="#111111" style="stroke" strokeWidth={3 * toolUnit} /></>}
       </>}
       {effectPlan.overlay.map((effect) => effect.type === 'material.grain' && activeTextureEffect?.instanceId !== effect.instanceId ? null : <OverlayEffect effect={effect} frame={frame} key={effect.instanceId} laceFrameFallback={laceFrameFallback} laceFrameUri={laceFrameUri} laceFrameUris={laceFrameUris} path={effectivePath} />)}
-      {floatingEffects.map((effect) => <FloatingPaperRim effect={effect} key={effect.instanceId} path={effectivePath} />)}
+      {layer.type !== 'image' && floatingEffects.map((effect) => <FloatingPaperRim content={visibleContent} effect={effect} key={effect.instanceId} />)}
       {/* Fibres sit above an optional outline, otherwise that solid stroke hides the scan. */}
       {tornEdge && <TornPaperEdge edgeAtlasUri={tornPaperEdgeAtlasUri} effect={tornEdge} fiberFringeUri={tornPaperFiberFringeUri} frame={frame} path={effectivePath} />}
-      {selectionBounds && (
-        <>
-          <Rect x={selectionBounds.x - 8} y={selectionBounds.y - 8} width={selectionBounds.width + 16} height={selectionBounds.height + 16} color="#111111" style="stroke" strokeWidth={6} />
-          <Rect x={selectionBounds.x - 14} y={selectionBounds.y - 14} width={16} height={16} color="#111111" />
-          <Rect x={selectionBounds.x + selectionBounds.width - 2} y={selectionBounds.y - 14} width={16} height={16} color="#111111" />
-          <Rect x={selectionBounds.x - 14} y={selectionBounds.y + selectionBounds.height - 2} width={16} height={16} color="#111111" />
-          <Rect x={selectionBounds.x + selectionBounds.width - 2} y={selectionBounds.y + selectionBounds.height - 2} width={16} height={16} color="#111111" />
-        </>
-      )}
+      {selectionBounds && <SelectionChrome bounds={selectionBounds} unitX={selectionUnitX} unitY={selectionUnitY} />}
     </Group>
   );
+};
+
+const SelectionChrome = ({ bounds, unitX, unitY }: Readonly<{ bounds: { x: number; y: number; width: number; height: number }; unitX: number; unitY: number }>) => {
+  const left = bounds.x - 3 * unitX;
+  const top = bounds.y - 3 * unitY;
+  const right = bounds.x + bounds.width + 3 * unitX;
+  const bottom = bounds.y + bounds.height + 3 * unitY;
+  const lineX = 1.5 * unitX;
+  const lineY = 1.5 * unitY;
+  const handleX = 7 * unitX;
+  const handleY = 7 * unitY;
+  return <>
+    <Rect x={left} y={top} width={right - left} height={lineY} color="#111111" />
+    <Rect x={left} y={bottom - lineY} width={right - left} height={lineY} color="#111111" />
+    <Rect x={left} y={top} width={lineX} height={bottom - top} color="#111111" />
+    <Rect x={right - lineX} y={top} width={lineX} height={bottom - top} color="#111111" />
+    {[[left, top], [right, top], [right, bottom], [left, bottom]].map(([x, y], index) =>
+      <Rect key={index} x={x - handleX / 2} y={y - handleY / 2} width={handleX} height={handleY} color="#111111" />)}
+  </>;
 };
 
 const CropPreviewChrome = ({ bounds, frame }: Readonly<{ bounds: { x: number; y: number; width: number; height: number }; frame: { width: number; height: number } }>) => {
@@ -741,6 +776,42 @@ const BrushLayerContent = ({ assetUris, definitions, layer }: Readonly<{ assetUr
     : <BrushStrokeContent brushAssetUri={definitions[stroke.brushId]?.asset ? assetUris[definitions[stroke.brushId].asset!.id] : undefined} definition={definitions[stroke.brushId]} key={stroke.id} stroke={stroke} />)}</Group>
 );
 
+const CachedBrushLayerContent = ({ assetUris, definitions, layer }: Readonly<{ assetUris: Readonly<Record<string, string>>; definitions: Readonly<Record<string, BrushDefinition>>; layer: Extract<Layer, { type: 'brush' }> }>) => {
+  // A transform moves one modest GPU texture instead of repainting hundreds
+  // of wax fibres or decorative stamps each frame. Export remains vector.
+  const scale = Math.min(1, 1024 / Math.max(layer.frame.width, layer.frame.height));
+  const size = useMemo(() => ({ width: Math.max(1, Math.ceil(layer.frame.width * scale)), height: Math.max(1, Math.ceil(layer.frame.height * scale)) }), [layer.frame.height, layer.frame.width, scale]);
+  const [readyBrushAssetUris, setReadyBrushAssetUris] = useState<ReadonlySet<string>>(() => new Set());
+  const requiredBrushAssetUris = useMemo(() => Array.from(new Set(layer.strokes.flatMap((stroke) => {
+    const asset = definitions[stroke.brushId]?.asset;
+    const uri = asset ? assetUris[asset.id] : undefined;
+    return uri ? [uri] : [];
+  }))), [assetUris, definitions, layer.strokes]);
+  const markBrushAssetReady = useCallback((uri: string) => {
+    setReadyBrushAssetUris((current) => current.has(uri) ? current : new Set(current).add(uri));
+  }, []);
+  const brushAssetsReady = requiredBrushAssetUris.every((uri) => readyBrushAssetUris.has(uri));
+  // `useImage` inside the offscreen drawing can initially render a vector
+  // fallback for image stamps. Wait for the real image before capturing, then
+  // rebuild the picture once so a cached layer never permanently loses stamps.
+  const content = useMemo(() => <Group transform={[{ scale }]}><BrushLayerContent assetUris={assetUris} definitions={definitions} layer={layer} /></Group>, [assetUris, brushAssetsReady, definitions, layer.strokes, scale]);
+  const texture = useTexture(content, size, [content, size]);
+  const fallbackOpacity = useDerivedValue(() => texture.value === null || !brushAssetsReady ? 1 : 0, [brushAssetsReady, texture]);
+  const textureOpacity = useDerivedValue(() => texture.value === null || !brushAssetsReady ? 0 : 1, [brushAssetsReady, texture]);
+  useEffect(() => { texture.value = null; }, [brushAssetsReady, layer.strokes, texture]);
+  return <>
+    {requiredBrushAssetUris.map((uri) => <BrushAssetReadiness key={uri} uri={uri} onReady={markBrushAssetReady} />)}
+    <Group opacity={fallbackOpacity}><BrushLayerContent assetUris={assetUris} definitions={definitions} layer={layer} /></Group>
+    <Group opacity={textureOpacity}><SkiaImage image={texture} x={0} y={0} width={layer.frame.width} height={layer.frame.height} fit="fill" /></Group>
+  </>;
+};
+
+const BrushAssetReadiness = memo(({ onReady, uri }: Readonly<{ onReady: (uri: string) => void; uri: string }>) => {
+  const image = useImage(uri);
+  useEffect(() => { if (image !== null) onReady(uri); }, [image, onReady, uri]);
+  return null;
+});
+
 const BrushEraserContent = ({ stroke }: Readonly<{ stroke: BrushStroke }>) => {
   const path = useMemo(() => makeBrushPath(stroke), [stroke]);
   const radius = Math.max(1, stroke.style.size / 2);
@@ -982,37 +1053,32 @@ const GrainOverlay = ({ effect, frame, path }: Readonly<{ effect: Effect; frame:
   return <Group clip={path}><Path path={grain} color={stringParam(effect, 'color')} opacity={numberParam(effect, 'intensity')} /></Group>;
 };
 
-/** A raised sheet needs three depth cues: occlusion, directional cast, and ambient falloff. */
-const FloatingPaperUnderlay = ({ effect, path }: Readonly<{ effect: Effect; path: ReturnType<typeof Skia.Path.Make> }>) => {
+/** Rasterize visible content before shadowing so transparent holes stay open. */
+const VisibleContentShadow = ({ blur, children, color, dx, dy, opacity }: Readonly<{ blur: number; children: ReactNode; color: string; dx: number; dy: number; opacity: number }>) => (
+  <Group layer={<Paint opacity={opacity}><Shadow blur={blur} color={color} dx={dx} dy={dy} shadowOnly /></Paint>}>
+    {children}
+  </Group>
+);
+
+/** A firm contact edge plus a short directional cast reads as lifted material. */
+const FloatingPaperUnderlay = ({ content, effect }: Readonly<{ content: ReactNode; effect: Effect }>) => {
   const opacity = numberParam(effect, 'opacity');
   const blur = Math.max(2, numberParam(effect, 'blur'));
   const offsetX = numberParam(effect, 'offset.x');
   const offsetY = numberParam(effect, 'offset.y');
   const color = stringParam(effect, 'color');
   return <>
-    {/* The narrow dark gap tells the eye that the cut-out is no longer touching the page. */}
-    <Group transform={[{ translateX: offsetX * 0.18 }, { translateY: offsetY * 0.2 }]} opacity={Math.min(0.36, opacity * 1.18 + 0.06)}>
-      <Path path={path} color={color}><BlurMask blur={Math.max(2.5, blur * 0.1)} style="normal" /></Path>
-    </Group>
-    {/* A darker offset mass creates the cast direction and perceived elevation. */}
-    <Group transform={[{ translateX: offsetX * 0.78 }, { translateY: offsetY * 0.82 }]} opacity={Math.min(0.3, opacity * 1.05 + 0.05)}>
-      <Path path={path} color={color}><BlurMask blur={Math.max(5, blur * 0.38)} style="normal" /></Path>
-    </Group>
-    {/* The far, soft tail anchors the object in the shared physical surface. */}
-    <Group transform={[{ translateX: offsetX * 1.22 }, { translateY: offsetY * 1.28 }]} opacity={Math.min(0.22, opacity * 0.88 + 0.035)}>
-      <Path path={path} color={color}><BlurMask blur={Math.max(10, blur * 1.38)} style="normal" /></Path>
-    </Group>
+    <VisibleContentShadow blur={Math.max(0.5, blur * 0.055)} color={color} dx={offsetX * 0.32} dy={offsetY * 0.35} opacity={Math.min(0.12, opacity * 0.35)}>{content}</VisibleContentShadow>
+    <VisibleContentShadow blur={Math.max(0.3, blur * 0.025)} color={color} dx={offsetX * 0.18} dy={offsetY * 0.18} opacity={Math.min(0.32, opacity * 1.2)}>{content}</VisibleContentShadow>
   </>;
 };
 
 /** A warm, hairline underside makes the lifted rim readable even on a pale canvas. */
-const FloatingPaperRim = ({ effect, path }: Readonly<{ effect: Effect; path: ReturnType<typeof Skia.Path.Make> }>) => {
+const FloatingPaperRim = ({ content, effect }: Readonly<{ content: ReactNode; effect: Effect }>) => {
   const opacity = numberParam(effect, 'opacity');
   const offsetX = numberParam(effect, 'offset.x');
   const offsetY = numberParam(effect, 'offset.y');
-  return <Group transform={[{ translateX: offsetX * 0.1 }, { translateY: offsetY * 0.12 }]} opacity={Math.min(0.24, opacity * 0.82 + 0.035)}>
-    <Path path={path} color="#8A796B" style="stroke" strokeWidth={1.35} />
-  </Group>;
+  return <VisibleContentShadow blur={0.8} color="#8A796B" dx={offsetX * 0.1} dy={offsetY * 0.12} opacity={Math.min(0.24, opacity * 0.82 + 0.035)}>{content}</VisibleContentShadow>;
 };
 
 /** Tape pins the sheet down, so it gets a short, concentrated contact shadow. */
