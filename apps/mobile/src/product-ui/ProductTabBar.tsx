@@ -1,4 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 import { resolveProductAsset, type ProductAssetId } from './assets';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace, productTabMetrics } from './tokens';
@@ -9,6 +10,23 @@ const tabDefinition: Readonly<Record<ProductTab, Readonly<{ label: Parameters<ty
   create: { label: 'tab.create', icon: 'asset://ui/tabbar/create/default', selectedIcon: 'asset://ui/tabbar/create/selected' },
   assets: { label: 'tab.assets', icon: 'asset://ui/tabbar/assets/default', selectedIcon: 'asset://ui/tabbar/assets/selected' },
   mine: { label: 'tab.mine', icon: 'asset://ui/tabbar/mine/default', selectedIcon: 'asset://ui/tabbar/mine/selected' },
+};
+
+const fallbackGlyph: Readonly<Record<ProductTab, string>> = { create: '＋', assets: '▧', mine: '◯' };
+
+const TabIcon = ({ asset, selected, tab }: Readonly<{ asset: ProductAssetId; selected: boolean; tab: ProductTab }>) => {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!failed) return;
+    const retry = setTimeout(() => { setFailed(false); setLoaded(false); setAttempt((current) => current + 1); }, 10000);
+    return () => clearTimeout(retry);
+  }, [failed]);
+  return <View style={styles.iconSlot}>
+    {!loaded && <Text style={[styles.iconFallback, selected && styles.iconFallbackSelected]}>{fallbackGlyph[tab]}</Text>}
+    {!failed && <Image key={attempt} accessibilityIgnoresInvertColors onError={() => setFailed(true)} onLoad={() => setLoaded(true)} source={resolveProductAsset(asset)} style={[styles.icon, !loaded && styles.iconPending]} />}
+  </View>;
 };
 
 export const ProductTabBar = ({ activeTab, bottomInset, locale, onChange }: Readonly<{
@@ -32,7 +50,7 @@ export const ProductTabBar = ({ activeTab, bottomInset, locale, onChange }: Read
           onPress={() => onChange(tab)}
           style={styles.item}
         >
-          <Image accessibilityIgnoresInvertColors source={resolveProductAsset(selected ? definition.selectedIcon : definition.icon)} style={styles.icon} />
+          <TabIcon key={selected ? definition.selectedIcon : definition.icon} asset={selected ? definition.selectedIcon : definition.icon} selected={selected} tab={tab} />
           <Text numberOfLines={1} style={[styles.label, selected && styles.labelSelected]}>{label}</Text>
         </Pressable>
       );
@@ -55,11 +73,17 @@ const styles = StyleSheet.create({
     height: productTabMetrics.itemHeight,
     justifyContent: 'center',
   },
-  icon: {
+  iconSlot: {
     height: productTabMetrics.iconSize,
     marginBottom: productTabMetrics.labelGap,
     width: productTabMetrics.iconSize,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  icon: { height: productTabMetrics.iconSize, position: 'absolute', width: productTabMetrics.iconSize },
+  iconPending: { opacity: 0 },
+  iconFallback: { color: productColor.secondaryText, fontSize: 22, lineHeight: 25, textAlign: 'center' },
+  iconFallbackSelected: { color: productColor.ink },
   label: {
     color: productColor.secondaryText,
     fontSize: productTabMetrics.labelSize,

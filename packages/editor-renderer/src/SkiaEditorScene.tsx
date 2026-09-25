@@ -1,4 +1,5 @@
 import {
+  Blur,
   BlurMask,
   Circle,
   Canvas,
@@ -258,7 +259,7 @@ type SkiaLayerProps = Readonly<{
 
 const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAssetUris, brushDefinitions, cacheBrushLayers, isTransforming, viewportScale, proceduralPaper, proceduralSticker, fontUri, fontSupportsCjk, tornPaperEdgeAtlasUri, tornPaperFiberFringeUri, laceFrameUri, laceFrameUris, laceFrameFallback, straightCutPreview, brushCutPreview, cropPreview, visibilityMaskPreview }: SkiaLayerProps) => {
   const { frame } = layer;
-  const selectionBounds = selected ? visibleBoundsForLayer(layer) : null;
+  const selectionBounds = selected && layer.type !== 'text' ? visibleBoundsForLayer(layer) : null;
   // Use the Android/iOS shared family name. `System` is not a resolvable
   // Android font family and can produce an empty SkFont there.
   const effectPlan = useMemo(() => compileEffectPlan(layer.effects), [layer.effects]);
@@ -303,7 +304,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAs
   const toolUnit = 1 / Math.max(0.001, viewportScale * Math.abs(layer.transform.scale.x));
   const selectionUnitX = 1 / Math.max(0.001, viewportScale * Math.abs(layer.transform.scale.x));
   const selectionUnitY = 1 / Math.max(0.001, viewportScale * Math.abs(layer.transform.scale.y));
-  const visibleContent = <Group clip={contentPath}>
+  const visibleContent = <Group clip={layer.type === 'text' ? undefined : contentPath}>
     <ContentEffectStage evaluation={contentEvaluation}>
       <Group transform={centerFrame ? [{ scale: laceContentZoom(centerFrame) }] : []} origin={{ x: frame.width / 2, y: frame.height / 2 }}>
         {layer.type === 'image' && <ImageLayerContent contentEffects={activePrintEffect ? [activePrintEffect] : []} layer={layer} assetUri={assetUri} onImageReady={onImageReady} clipPaths={cutPaths} proceduralPaper={proceduralPaper} proceduralSticker={proceduralSticker} />}
@@ -318,7 +319,15 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAs
 
   return (
     <Group transform={transform} origin={{ x: frame.width / 2, y: frame.height / 2 }} opacity={layer.opacity}>
-      {shadows.map((shadow) => <VisibleContentShadow key={shadow.instanceId} dx={numberParam(shadow, 'offset.x')} dy={numberParam(shadow, 'offset.y')} blur={numberParam(shadow, 'blur')} color={stringParam(shadow, 'color')} opacity={numberParam(shadow, 'opacity')}>{visibleContent}</VisibleContentShadow>)}
+      {shadows.map((shadow) => <VisibleAlphaShadow
+        key={shadow.instanceId}
+        dx={numberParam(shadow, 'offset.x')}
+        dy={numberParam(shadow, 'offset.y') * 1.15}
+        blur={Math.min(5, Math.max(0.5, numberParam(shadow, 'blur') * 0.14))}
+        color={stringParam(shadow, 'color')}
+        frame={frame}
+        opacity={Math.min(0.36, numberParam(shadow, 'opacity') * 1.3)}
+      >{visibleContent}</VisibleAlphaShadow>)}
       {floatingEffects.map((effect) => <FloatingPaperUnderlay content={visibleContent} effect={effect} key={effect.instanceId} />)}
       {attachments.map((effect) => <TapeContactShadow effect={effect} key={effect.instanceId} path={effectivePath} />)}
       {/* Keep the aperture in layer coordinates; only its content may zoom. */}
@@ -340,6 +349,7 @@ const SkiaLayer = ({ layer, selected, transform, assetUri, onImageReady, brushAs
       {/* Fibres sit above an optional outline, otherwise that solid stroke hides the scan. */}
       {tornEdge && <TornPaperEdge edgeAtlasUri={tornPaperEdgeAtlasUri} effect={tornEdge} fiberFringeUri={tornPaperFiberFringeUri} frame={frame} path={effectivePath} />}
       {selectionBounds && <SelectionChrome bounds={selectionBounds} unitX={selectionUnitX} unitY={selectionUnitY} />}
+      {selected && layer.type === 'text' && <TextSelectionChrome layer={layer} fontSupportsCjk={fontSupportsCjk} fontUri={fontUri} unitX={selectionUnitX} unitY={selectionUnitY} />}
     </Group>
   );
 };
@@ -540,21 +550,51 @@ const makeWaveCutPath = (start: Point, end: Point, frame: { width: number; heigh
   return path;
 };
 
-const TextLayerContent = ({ layer, fontSupportsCjk = false, fontUri }: Readonly<{ layer: Extract<Layer, { type: 'text' }>; fontSupportsCjk?: boolean; fontUri?: string }>) => {
+const useTextLayerLayout = (layer: Extract<Layer, { type: 'text' }>, fontSupportsCjk: boolean, fontUri?: string) => {
   const downloadedFont = useFont(fontUri, layer.fontSize);
   // PingFang SC is the iOS system CJK face. matchFont falls back to the
   // platform default on other targets, so the document stays cross-platform.
   const systemFont = matchFont({ fontFamily: 'PingFang SC', fontSize: layer.fontSize });
   const decorativeFont = downloadedFont ?? systemFont;
-  const runs = splitTextRuns(layer.text, fontSupportsCjk ? decorativeFont : systemFont, decorativeFont);
   const padding = 34;
-  const width = runs.reduce((total, run) => total + run.font.measureText(run.text).width, 0);
-  const x = layer.textAlign === 'right' ? layer.frame.width - padding - width : layer.textAlign === 'center' ? (layer.frame.width - width) / 2 : padding;
-  let cursor = x;
+  const lineHeight = layer.fontSize * 1.2;
+  const sourceLines = layer.text.split(/\r\n|\r|\n/);
+  const firstBaseline = layer.frame.height / 2 + layer.fontSize / 3 - (sourceLines.length - 1) * lineHeight / 2;
+  const lines = sourceLines.map((source, index) => {
+    const runs = splitTextRuns(source, fontSupportsCjk ? decorativeFont : systemFont, decorativeFont)
+      .map((run) => ({ ...run, width: run.font.measureText(run.text).width }));
+    const width = runs.reduce((total, run) => total + run.width, 0);
+    const x = layer.textAlign === 'right' ? layer.frame.width - padding - width : layer.textAlign === 'center' ? (layer.frame.width - width) / 2 : padding;
+    return { runs, width, x, baseline: firstBaseline + index * lineHeight };
+  });
+  const maxWidth = Math.max(0, ...lines.map((line) => line.width));
+  const textX = layer.textAlign === 'right' ? layer.frame.width - padding - maxWidth : layer.textAlign === 'center' ? (layer.frame.width - maxWidth) / 2 : padding;
+  const ascent = Math.min(systemFont.getMetrics().ascent, decorativeFont.getMetrics().ascent);
+  const descent = Math.max(systemFont.getMetrics().descent, decorativeFont.getMetrics().descent);
+  const bounds = layer.backgroundColor === null
+    ? { x: textX - 4, y: firstBaseline + ascent - 4, width: Math.max(8, maxWidth + 8), height: Math.max(8, (lines.length - 1) * lineHeight + descent - ascent + 8) }
+    : { x: 0, y: 0, width: layer.frame.width, height: layer.frame.height };
+  return { lines, bounds };
+};
+
+const TextLayerContent = ({ layer, fontSupportsCjk = false, fontUri }: Readonly<{ layer: Extract<Layer, { type: 'text' }>; fontSupportsCjk?: boolean; fontUri?: string }>) => {
+  const { lines } = useTextLayerLayout(layer, fontSupportsCjk, fontUri);
   return <>
     {layer.backgroundColor !== null && <RoundedRect x={0} y={0} width={layer.frame.width} height={layer.frame.height} r={20} color={layer.backgroundColor} />}
-    {runs.map((run, index) => { const runX = cursor; cursor += run.font.measureText(run.text).width; return <Text key={`${index}-${run.text}`} x={runX} y={layer.frame.height / 2 + layer.fontSize / 3} text={run.text} font={run.font} color={layer.color} />; })}
+    {lines.map((line, lineIndex) => {
+      let cursor = line.x;
+      return <Group key={lineIndex}>{line.runs.map((run, runIndex) => {
+        const x = cursor;
+        cursor += run.width;
+        return <Text key={runIndex} x={x} y={line.baseline} text={run.text} font={run.font} color={layer.color} />;
+      })}</Group>;
+    })}
   </>;
+};
+
+const TextSelectionChrome = ({ layer, fontSupportsCjk = false, fontUri, unitX, unitY }: Readonly<{ layer: Extract<Layer, { type: 'text' }>; fontSupportsCjk?: boolean; fontUri?: string; unitX: number; unitY: number }>) => {
+  const { bounds } = useTextLayerLayout(layer, fontSupportsCjk, fontUri);
+  return <SelectionChrome bounds={bounds} unitX={unitX} unitY={unitY} />;
 };
 
 const splitTextRuns = (text: string, cjkFont: ReturnType<typeof matchFont>, latinFont: ReturnType<typeof matchFont>) => {
@@ -1057,6 +1097,15 @@ const GrainOverlay = ({ effect, frame, path }: Readonly<{ effect: Effect; frame:
 const VisibleContentShadow = ({ blur, children, color, dx, dy, opacity }: Readonly<{ blur: number; children: ReactNode; color: string; dx: number; dy: number; opacity: number }>) => (
   <Group layer={<Paint opacity={opacity}><Shadow blur={blur} color={color} dx={dx} dy={dy} shadowOnly /></Paint>}>
     {children}
+  </Group>
+);
+
+/** Build the ordinary shadow from the final image alpha, after every cut and mask. */
+const VisibleAlphaShadow = ({ blur, children, color, dx, dy, frame, opacity }: Readonly<{ blur: number; children: ReactNode; color: string; dx: number; dy: number; frame: { width: number; height: number }; opacity: number }>) => (
+  <Group transform={[{ translateX: dx }, { translateY: dy }]} layer={<Paint opacity={opacity}><Blur blur={blur} /></Paint>}>
+    <Mask mode="alpha" mask={children}>
+      <Rect x={0} y={0} width={frame.width} height={frame.height} color={color} />
+    </Mask>
   </Group>
 );
 

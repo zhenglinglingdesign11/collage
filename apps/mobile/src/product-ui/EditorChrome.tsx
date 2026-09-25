@@ -1,4 +1,5 @@
 import { Canvas, Path } from '@shopify/react-native-skia';
+import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { resolveProductAsset, type ProductAssetId } from './assets';
 import { t, type ProductCopyKey, type ProductLocale } from './localization';
@@ -212,12 +213,26 @@ const LayerActionIcon = ({ kind }: Readonly<{ kind: LayerActionIconKind }>) => {
   }
 };
 
-const EditorTool = ({ asset, compact, label, locale, onPress, small = false, wide = false }: Readonly<{ asset: ProductAssetId; compact: boolean; label: ProductCopyKey; locale: ProductLocale; onPress?: () => void; small?: boolean; wide?: boolean }>) => (
-  <Pressable accessibilityLabel={t(locale, label)} accessibilityRole="button" onPress={onPress} style={[styles.tool, compact && styles.toolCompact, !compact && wide && styles.toolWide]}>
-    <View style={styles.toolIconSlot}><Image source={resolveProductAsset(asset)} style={[styles.toolIcon, small && styles.toolIconSmall]} /></View>
+const offlineToolGlyphs: Partial<Record<ProductAssetId, string>> = {
+  'asset://ui/editor/tool/image': '▧',
+  'asset://ui/editor/tool/material': '▤',
+  'asset://ui/editor/tool/background': '▱',
+  'asset://ui/editor/tool/text': 'A',
+  'asset://ui/editor/tool/scissors': '✂',
+  'asset://ui/editor/tool/emboss': '✿',
+  'asset://ui/editor/tool/brush': '✎',
+};
+const EditorTool = ({ asset, compact, label, locale, onPress, small = false, wide = false }: Readonly<{ asset: ProductAssetId; compact: boolean; label: ProductCopyKey; locale: ProductLocale; onPress?: () => void; small?: boolean; wide?: boolean }>) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  return <Pressable accessibilityLabel={t(locale, label)} accessibilityRole="button" onPress={onPress} style={[styles.tool, compact && styles.toolCompact, !compact && wide && styles.toolWide]}>
+    <View style={styles.toolIconSlot}>
+      <Text style={styles.toolOfflineGlyph}>{offlineToolGlyphs[asset] ?? '•'}</Text>
+      {!imageFailed && <View pointerEvents="none" style={[styles.toolImageOverlay, !imageLoaded && styles.toolImagePending]}><Image onError={() => setImageFailed(true)} onLoad={() => setImageLoaded(true)} source={resolveProductAsset(asset)} style={[styles.toolIcon, small && styles.toolIconSmall]} /></View>}
+    </View>
     <Text numberOfLines={1} style={styles.toolLabel}>{t(locale, label)}</Text>
-  </Pressable>
-);
+  </Pressable>;
+};
 
 const BackGlyph = () => <LineIcon paths={["M15 6l-6 6 6 6"]} />;
 
@@ -233,6 +248,9 @@ const LineIcon = ({ paths }: Readonly<{ paths: readonly string[] }>) => (
 );
 
 const styles = StyleSheet.create({
+  toolOfflineGlyph: { color: productColor.secondaryText, fontSize: 29, fontWeight: '300', lineHeight: 37, textAlign: 'center' },
+  toolImageOverlay: { alignItems: 'center', backgroundColor: productColor.surface, bottom: 0, justifyContent: 'center', left: 0, position: 'absolute', right: 0, top: 0 },
+  toolImagePending: { opacity: 0 },
   header: { alignItems: 'center', backgroundColor: productColor.page, borderBottomColor: productColor.divider, borderBottomWidth: StyleSheet.hairlineWidth, height: 56, position: 'relative' },
   headerIconButton: { alignItems: 'center', flexShrink: 0, height: 36, justifyContent: 'center', width: 36 },
   headerIconDisabled: { opacity: 0.75 },

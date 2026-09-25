@@ -14,6 +14,7 @@ import { productCatalogAssetForReference } from '../shippedProductAssetCatalog';
 import { localTemplateCatalog } from '../localTemplateCatalog';
 import { locallySupportedTemplates } from '../templateCapabilities';
 import { bundledTemplateDependencyModules } from '../bundledTemplateDependencies.generated';
+import { RemoteImageCard } from './RemoteImageCard';
 
 export type CreateEntry = 'blank' | 'photo' | 'restore' | 'showcase';
 export type ShowcaseIntent = Readonly<{ id: string; effect?: HomeShowcaseEffect; backgroundPresetId?: string }>;
@@ -23,7 +24,8 @@ const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? '
 const HOME_PREVIEW_BATCH_SIZE = 3;
 const HOME_PREVIEW_START_DELAY_MS = 180;
 
-export const CreateHome = ({ editorOpen, locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
+export const CreateHome = ({ active, editorOpen, locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
+  active: boolean;
   editorOpen: boolean;
   locale: ProductLocale;
   onOpenAssets: () => void;
@@ -44,45 +46,51 @@ export const CreateHome = ({ editorOpen, locale, onOpenAssets, onOpenEditor, onO
     return () => { active = false; };
   }, [editorOpen]);
   useEffect(() => {
-    let active = true;
+    if (!active) return;
+    let stillActive = true;
+    const controller = new AbortController();
     void (async () => {
       const cached = await loadCachedHomeShowcaseManifest(HOME_MARKET).catch(() => null);
       const cachedGroups = cached ? normalizeHomeShowcaseManifest(cached.payload) : [];
       let hasUsableGroups = cachedGroups.length > 0;
-      if (active && hasUsableGroups) setShowcaseGroups(withBackgroundShowcaseGroup(cachedGroups, HOME_MARKET));
+      if (!stillActive) return;
+      if (hasUsableGroups) setShowcaseGroups(withBackgroundShowcaseGroup(cachedGroups, HOME_MARKET));
       try {
-        const response = await fetch(homeShowcaseManifestUrlForMarket(HOME_MARKET), { headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined });
+        const response = await fetch(homeShowcaseManifestUrlForMarket(HOME_MARKET), { headers: cached?.etag ? { 'If-None-Match': cached.etag } : undefined, signal: controller.signal });
+        if (!stillActive) return;
         if (response.status === 304) return;
         if (!response.ok) throw new Error(`Home manifest returned ${response.status}`);
         const payload: unknown = await response.json();
         const groups = normalizeHomeShowcaseManifest(payload);
         if (groups.length === 0) throw new Error('Home manifest has no usable groups');
         hasUsableGroups = true;
-        if (active) setShowcaseGroups(withBackgroundShowcaseGroup(groups, HOME_MARKET));
+        if (stillActive) setShowcaseGroups(withBackgroundShowcaseGroup(groups, HOME_MARKET));
         void saveCachedHomeShowcaseManifest(HOME_MARKET, payload, response.headers.get('etag')).catch(() => undefined);
       } catch {
-        if (active && !hasUsableGroups) setShowcaseGroups(withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
+        if (stillActive && !hasUsableGroups) setShowcaseGroups(withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
       }
     })();
-    return () => { active = false; };
-  }, []);
+    return () => { stillActive = false; controller.abort(); };
+  }, [active]);
   useEffect(() => {
-    let active = true;
+    if (!active) return;
+    let stillActive = true;
     const timer = setTimeout(() => {
       void (async () => {
         const items = showcaseGroups.flatMap((group) => group.items).filter((item) => item.imageSrc);
         for (let start = 0; start < items.length; start += HOME_PREVIEW_BATCH_SIZE) {
+          if (!stillActive) return;
           const restored = await Promise.all(items.slice(start, start + HOME_PREVIEW_BATCH_SIZE).map(async (item) => {
             try { return [item.id, await cacheRemoteResource(`home-showcase-${item.id}`, item.imageSrc!)] as const; } catch { return null; }
           }));
-          if (!active) return;
+          if (!stillActive) return;
           const next = Object.fromEntries(restored.filter((entry): entry is readonly [string, string] => entry !== null));
           if (Object.keys(next).length > 0) setShowcaseUris((current) => ({ ...current, ...next }));
         }
       })();
     }, HOME_PREVIEW_START_DELAY_MS);
-    return () => { active = false; clearTimeout(timer); };
-  }, [showcaseGroups]);
+    return () => { stillActive = false; clearTimeout(timer); };
+  }, [active, showcaseGroups]);
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>{t(locale, 'create.title')}</Text>
@@ -106,9 +114,9 @@ export const CreateHome = ({ editorOpen, locale, onOpenAssets, onOpenEditor, onO
       {onOpenTemplateStudio && <Pressable accessibilityLabel="Open Template Studio" accessibilityRole="button" onPress={onOpenTemplateStudio} style={styles.templateStudioEntry}><Text style={styles.templateStudioEyebrow}>DEVELOPMENT ONLY</Text><Text style={styles.templateStudioLabel}>Template Studio</Text><Text style={styles.templateStudioHint}>Create and export template authoring JSON</Text></Pressable>}
 
       <SectionHeader actionLabel={t(locale, 'templateCatalog.viewAll')} onAction={onOpenTemplateCatalog} title={t(locale, 'templateCatalog.featured')} />
-      <FlatList contentContainerStyle={styles.templateTrack} data={supportedTemplates} horizontal initialNumToRender={4} keyExtractor={(template) => template.id} maxToRenderPerBatch={3} renderItem={({ item: template }) => <TemplateCard template={template} onPress={() => onOpenTemplate(template)} />} showsHorizontalScrollIndicator={false} windowSize={3} />
+      <FlatList contentContainerStyle={styles.templateTrack} data={supportedTemplates} horizontal initialNumToRender={4} keyExtractor={(template) => template.id} maxToRenderPerBatch={3} renderItem={({ item: template }) => <TemplateCard active={active} locale={locale} template={template} onPress={() => onOpenTemplate(template)} />} showsHorizontalScrollIndicator={false} windowSize={3} />
 
-      {showcaseGroups.map((group) => <View key={group.id}><SectionTitle>{group.title}</SectionTitle><ShowcaseRow items={group.items} previewUris={showcaseUris} onPress={(item) => onOpenEditor('showcase', undefined, { id: item.id, effect: item.effect, backgroundPresetId: item.backgroundPresetId })} /></View>)}
+      {showcaseGroups.map((group) => <View key={group.id}><SectionTitle>{group.title}</SectionTitle><ShowcaseRow active={active} items={group.items} locale={locale} previewUris={showcaseUris} onPress={(item) => onOpenEditor('showcase', undefined, { id: item.id, effect: item.effect, backgroundPresetId: item.backgroundPresetId })} /></View>)}
     </ScrollView>
   );
 };
@@ -120,25 +128,21 @@ const SectionHeader = ({ actionLabel, onAction, title }: Readonly<{ actionLabel:
   <Pressable accessibilityLabel={actionLabel} accessibilityRole="button" hitSlop={8} onPress={onAction} style={styles.sectionAction}><Text style={styles.sectionActionText}>{actionLabel}</Text></Pressable>
 </View>;
 
-const TemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
+const TemplateCard = ({ active, locale, onPress, template }: Readonly<{ active: boolean; locale: ProductLocale; onPress: () => void; template: TemplateDefinition }>) => {
   const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
   const bundledPreview = bundledTemplateDependencyModules[(template.preview as Required<typeof template.preview>).id];
   return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.templateCard}>
     {bundledPreview !== undefined && preview !== undefined
-      ? <HomeTemplatePreview fallbackSource={preview.sourceUrl} moduleId={bundledPreview} />
-      : preview ? <Image source={{ uri: preview.sourceUrl }} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
+      ? <HomeTemplatePreview active={active} fallbackSource={preview.sourceUrl} locale={locale} moduleId={bundledPreview} />
+      : preview ? <RemoteImageCard active={active} locale={locale} source={{ uri: preview.sourceUrl }} style={styles.templatePreview} /> : <View style={styles.templatePreviewFallback} />}
     <ImageCardTitleScrim />
     <View pointerEvents="none" style={styles.templateTitle}><Text numberOfLines={1} style={styles.templateTitleText}>{template.name}</Text></View>
   </Pressable>;
 };
 
 /** Mirrors Create styles: display-only previews never wait for strict Draft resolution. */
-const HomeTemplatePreview = ({ fallbackSource, moduleId }: Readonly<{ fallbackSource: string; moduleId: number }>) => {
-  const [useFallback, setUseFallback] = useState(false);
-  useEffect(() => { setUseFallback(false); }, [moduleId]);
-  return useFallback
-    ? <Image source={{ uri: fallbackSource }} style={styles.templatePreview} />
-    : <Image onError={() => setUseFallback(true)} source={moduleId} style={styles.templatePreview} />;
+const HomeTemplatePreview = ({ active, fallbackSource, locale, moduleId }: Readonly<{ active: boolean; fallbackSource: string; locale: ProductLocale; moduleId: number }>) => {
+  return <RemoteImageCard active={active} source={moduleId} fallbackSource={fallbackSource} locale={locale} style={styles.templatePreview} />;
 };
 
 const QuickStartCard = ({ kind, label, onPress }: Readonly<{ kind: 'blank' | 'materials'; label: string; onPress: () => void }>) => (
@@ -209,11 +213,11 @@ const recentTornPaperFiberFringeUri = Image.resolveAssetSource(require('../../..
 
 const backgroundItemById = (id: string) => backgroundPaperPack('polka').items.find((item) => item.id === id);
 
-const ShowcaseRow = ({ items, onPress, previewUris }: Readonly<{ items: readonly HomeShowcaseItem[]; previewUris: Readonly<Record<string, string>>; onPress: (item: HomeShowcaseItem) => void }>) => (
+const ShowcaseRow = ({ active, items, locale, onPress, previewUris }: Readonly<{ active: boolean; items: readonly HomeShowcaseItem[]; locale: ProductLocale; previewUris: Readonly<Record<string, string>>; onPress: (item: HomeShowcaseItem) => void }>) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.showcaseTrack}>
     {items.map((item) => (
       <Pressable accessibilityRole="button" accessibilityLabel={item.title} key={item.id} onPress={() => onPress(item)} style={styles.showcaseCard}>
-        {item.imageSrc ? <ShowcaseImagePreview fallbackSource={item.imageSrc} uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
+        {item.imageSrc ? <ShowcaseImagePreview active={active} fallbackSource={item.imageSrc} locale={locale} uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
         {!item.hideTitle && <><ImageCardTitleScrim /><View style={styles.showcaseTitle}><Text numberOfLines={1} style={styles.showcaseTitleText}>{item.title}</Text></View></>}
       </Pressable>
     ))}
@@ -231,10 +235,8 @@ const HomeBackgroundPreview = ({ item }: Readonly<{ item: ReturnType<typeof back
 /** Cache writes happen lazily. A cache clear can invalidate an existing
  * file:// URI while this mounted page still holds it, so fall back immediately
  * to the display-only source instead of leaving the card blank. */
-const ShowcaseImagePreview = ({ fallbackSource, uri }: Readonly<{ fallbackSource: string; uri: string | undefined }>) => {
-  const [useFallback, setUseFallback] = useState(false);
-  useEffect(() => { setUseFallback(false); }, [fallbackSource, uri]);
-  return <Image onError={() => setUseFallback(true)} source={{ uri: useFallback ? fallbackSource : uri ?? fallbackSource }} style={styles.showcaseImage} />;
+const ShowcaseImagePreview = ({ active, fallbackSource, locale, uri }: Readonly<{ active: boolean; fallbackSource: string; locale: ProductLocale; uri: string | undefined }>) => {
+  return <RemoteImageCard active={active} source={{ uri: uri ?? fallbackSource }} fallbackSource={uri && uri !== fallbackSource ? fallbackSource : undefined} locale={locale} style={styles.showcaseImage} />;
 };
 const ImageCardTitleScrim = () => <Canvas pointerEvents="none" style={styles.imageCardTitleScrim}><Rect height={52} width={123} x={0} y={0}><LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.15)']} end={vec(0, 52)} start={vec(0, 0)} /></Rect></Canvas>;
 

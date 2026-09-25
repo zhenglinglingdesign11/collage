@@ -5,6 +5,7 @@ import { shippedProductMaterialPacks } from '../shippedProductAssetCatalog';
 import { productColor, productSpace } from './tokens';
 import { ProceduralItemPreview, ProceduralPackPreview } from './ProceduralMaterialPreview';
 import { CachedRemoteImage } from './CachedRemoteImage';
+import type { ProductLocale } from './localization';
 
 type LibraryCategory = AssetPackCategory | 'favorites';
 
@@ -14,7 +15,7 @@ const categories: readonly Readonly<{ id: LibraryCategory; label: string }>[] = 
 ];
 
 /** Product catalogue backed by the exact pack records and cache used by editor. */
-export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange, onReturnToOrigin }: Readonly<{ entryContext: 'create' | 'editor' | null; onCreateWithItems: (items: readonly RemotePackItem[]) => void; onDetailChange: (open: boolean) => void; onReturnToOrigin: () => void }>) => {
+export const AssetsLibrary = ({ entryContext, locale, onCreateWithItems, onDetailChange, onReturnToOrigin }: Readonly<{ entryContext: 'create' | 'editor' | null; locale: ProductLocale; onCreateWithItems: (items: readonly RemotePackItem[]) => void; onDetailChange: (open: boolean) => void; onReturnToOrigin: () => void }>) => {
   const [category, setCategory] = useState<LibraryCategory>('recommended');
   const [activePack, setActivePack] = useState<RemoteAssetPack | null>(null);
   const [favoritePackIds, setFavoritePackIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -29,7 +30,7 @@ export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange,
     if (next.has(packId)) next.delete(packId); else next.add(packId);
     return next;
   });
-  if (activePack !== null) return <PackDetail isFavorite={favoritePackIds.has(activePack.id)} pack={activePack} onAddItems={onCreateWithItems} onBack={() => { setActivePack(null); onDetailChange(false); }} onToggleFavorite={() => toggleFavorite(activePack.id)} />;
+  if (activePack !== null) return <PackDetail isFavorite={favoritePackIds.has(activePack.id)} locale={locale} pack={activePack} onAddItems={onCreateWithItems} onBack={() => { setActivePack(null); onDetailChange(false); }} onToggleFavorite={() => toggleFavorite(activePack.id)} />;
   return <View style={styles.page}>
     {entryContext !== null && <Pressable accessibilityLabel={entryContext === 'create' ? 'Return to Create' : 'Return to canvas'} hitSlop={10} onPress={onReturnToOrigin} style={styles.originBack}><Text style={styles.originBackGlyph}>‹</Text><Text style={styles.originBackLabel}>{entryContext === 'create' ? 'Back to Create' : 'Back to canvas'}</Text></Pressable>}
     <Text style={styles.title}>Materials</Text>
@@ -47,7 +48,7 @@ export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange,
       maxToRenderPerBatch={6}
       numColumns={2}
       removeClippedSubviews
-      renderItem={({ item: pack }) => <Pressable accessibilityLabel={`Open ${pack.name}`} onPress={() => { setActivePack(pack); onDetailChange(true); }} style={styles.packCard}>{pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}</Pressable>}
+      renderItem={({ item: pack }) => <Pressable accessibilityLabel={`Open ${pack.name}`} onPress={() => { setActivePack(pack); onDetailChange(true); }} style={styles.packCard}>{pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} locale={locale} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}</Pressable>}
       showsVerticalScrollIndicator={false}
       style={styles.packList}
       windowSize={3}
@@ -55,12 +56,26 @@ export const AssetsLibrary = ({ entryContext, onCreateWithItems, onDetailChange,
   </View>;
 };
 
-const PackDetail = ({ isFavorite, pack, onAddItems, onBack, onToggleFavorite }: Readonly<{ isFavorite: boolean; pack: RemoteAssetPack; onAddItems: (items: readonly RemotePackItem[]) => void; onBack: () => void; onToggleFavorite: () => void }>) => {
+const PackDetail = ({ isFavorite, locale, pack, onAddItems, onBack, onToggleFavorite }: Readonly<{ isFavorite: boolean; locale: ProductLocale; pack: RemoteAssetPack; onAddItems: (items: readonly RemotePackItem[]) => void; onBack: () => void; onToggleFavorite: () => void }>) => {
   const [boardWidth, setBoardWidth] = useState(0);
   const [selectedItemIds, setSelectedItemIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [readyItemIds, setReadyItemIds] = useState<ReadonlySet<string>>(() => new Set());
   const items = useMemo(() => pack.items.filter((item) => item.action === undefined), [pack.items]);
   const layout = useMemo(() => layoutScatteredRows(items, boardWidth), [boardWidth, items]);
-  return <View style={styles.page}>
+  const setItemReady = (id: string, ready: boolean) => {
+    setReadyItemIds((current) => {
+      if (current.has(id) === ready) return current;
+      const next = new Set(current);
+      if (ready) next.add(id); else next.delete(id);
+      return next;
+    });
+    if (!ready) setSelectedItemIds((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current); next.delete(id); return next;
+    });
+  };
+  const selectedReadyItems = items.filter((item) => selectedItemIds.has(item.id) && (item.procedural || readyItemIds.has(item.id)));
+  return <View style={[styles.page, styles.detailPage]}>
   <View style={styles.detailHeader}>
     <Pressable accessibilityLabel="Back to materials" hitSlop={12} onPress={onBack} style={styles.back}><Text style={styles.backGlyph}>‹</Text></Pressable>
     <Text numberOfLines={1} style={styles.detailTitle}>{pack.name}</Text>
@@ -75,15 +90,15 @@ const PackDetail = ({ isFavorite, pack, onAddItems, onBack, onToggleFavorite }: 
       keyExtractor={(row) => row.id}
       maxToRenderPerBatch={3}
       removeClippedSubviews
-      renderItem={({ item: row }) => <View style={[styles.paperCanvas, { height: row.height }]}>{row.pieces.map(({ item, left, rotate, top, height, width }) => <Pressable key={item.id} accessibilityLabel={`Select ${item.id}`} accessibilityState={{ selected: selectedItemIds.has(item.id) }} onPress={() => setSelectedItemIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; })} style={[styles.itemTile, selectedItemIds.has(item.id) && styles.itemTileSelected, { height, left, top, transform: [{ rotate: `${rotate}deg` }], width }]}>
-        {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
+      renderItem={({ item: row }) => <View style={[styles.paperCanvas, { height: row.height }]}>{row.pieces.map(({ item, left, rotate, top, height, width }) => <Pressable key={item.id} accessibilityLabel={`Select ${item.id}`} accessibilityState={{ disabled: !item.procedural && !readyItemIds.has(item.id), selected: selectedItemIds.has(item.id) }} onPress={() => { if (!item.procedural && !readyItemIds.has(item.id)) return; setSelectedItemIds((current) => { const next = new Set(current); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; }); }} style={[styles.itemTile, selectedItemIds.has(item.id) && styles.itemTileSelected, { height, left, top, transform: [{ rotate: `${rotate}deg` }], width }]}>
+        {item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} locale={locale} onPreviewReadyChange={(ready) => setItemReady(item.id, ready)} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
       </Pressable>)}</View>}
       showsVerticalScrollIndicator={false}
       style={styles.detailList}
       windowSize={3}
     />
   </View>
-  <View style={styles.addBar}><Pressable accessibilityLabel="Add selected materials to canvas" disabled={selectedItemIds.size === 0} onPress={() => onAddItems(items.filter((item) => selectedItemIds.has(item.id)))} style={[styles.addButton, selectedItemIds.size === 0 && styles.addButtonDisabled]}><Text style={[styles.addButtonLabel, selectedItemIds.size === 0 && styles.addButtonLabelDisabled]}>{selectedItemIds.size === 0 ? 'Add to canvas' : `Add ${selectedItemIds.size} to canvas`}</Text></Pressable></View>
+  <View style={styles.addBar}><Pressable accessibilityLabel="Add selected materials to canvas" disabled={selectedReadyItems.length === 0} onPress={() => onAddItems(selectedReadyItems)} style={[styles.addButton, selectedReadyItems.length === 0 && styles.addButtonDisabled]}><Text style={[styles.addButtonLabel, selectedReadyItems.length === 0 && styles.addButtonLabelDisabled]}>{selectedReadyItems.length === 0 ? 'Add to canvas' : `Add ${selectedReadyItems.length} to canvas`}</Text></Pressable></View>
 </View>;
 };
 
@@ -137,6 +152,7 @@ const layoutScatteredRows = (items: readonly RemotePackItem[], boardWidth: numbe
 
 const styles = StyleSheet.create({
   page: { backgroundColor: productColor.page, flex: 1, paddingTop: 24 },
+  detailPage: { paddingTop: 0 },
   originBack: { alignItems: 'center', flexDirection: 'row', height: 34, marginBottom: 5, paddingHorizontal: productSpace.page },
   originBackGlyph: { color: productColor.ink, fontSize: 31, fontWeight: '300', lineHeight: 29, marginRight: 3 },
   originBackLabel: { color: productColor.ink, fontSize: 14, fontWeight: '600' },
@@ -152,12 +168,12 @@ const styles = StyleSheet.create({
   packCard: { alignItems: 'center', aspectRatio: 1, backgroundColor: productColor.surface, borderRadius: 16, justifyContent: 'center', overflow: 'hidden', shadowColor: productColor.ink, shadowOffset: { height: 5, width: 0 }, shadowOpacity: 0.04, shadowRadius: 12, width: '47.7%' },
   packCover: { height: '100%', resizeMode: 'contain', width: '100%' },
   empty: { color: productColor.secondaryText, fontSize: 15, marginTop: 30, textAlign: 'center', width: '100%' },
-  detailHeader: { alignItems: 'center', borderBottomColor: productColor.divider, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 66, justifyContent: 'space-between', marginBottom: 14, paddingHorizontal: productSpace.page },
+  detailHeader: { alignItems: 'center', borderBottomColor: productColor.divider, borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', height: 58, justifyContent: 'space-between', marginBottom: 14, paddingHorizontal: productSpace.page },
   back: { alignItems: 'flex-start', height: 42, justifyContent: 'center', width: 42 },
-  backGlyph: { color: productColor.ink, fontSize: 42, fontWeight: '300', lineHeight: 38 },
-  detailTitle: { color: productColor.ink, flex: 1, fontSize: 21, fontWeight: '700', textAlign: 'center' },
+  backGlyph: { color: productColor.ink, fontSize: 32, fontWeight: '300', lineHeight: 32 },
+  detailTitle: { color: productColor.ink, flex: 1, fontSize: 18, fontWeight: '700', textAlign: 'center' },
   favorite: { alignItems: 'flex-end', height: 42, justifyContent: 'center', width: 42 },
-  favoriteGlyph: { color: productColor.ink, fontSize: 34, fontWeight: '400', lineHeight: 38 },
+  favoriteGlyph: { color: productColor.ink, fontSize: 26, fontWeight: '400', lineHeight: 30 },
   favoriteGlyphActive: { color: '#D9A832' },
   detailBoard: { backgroundColor: productColor.surface, borderColor: productColor.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flex: 1, marginBottom: 14, marginHorizontal: productSpace.page, overflow: 'hidden' },
   detailList: { flex: 1 },

@@ -4,6 +4,7 @@ import { clearDownloadCache, getDownloadCacheSummary, loadSavedDrafts, pruneDown
 import { RecentDraftArtwork } from './CreateHome';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
+import { invalidateCachedTextFonts } from './fonts';
 
 const formatBytes = (bytes: number): string => bytes < 1024 * 1024
   ? `${Math.max(0, Math.round(bytes / 1024))} KB`
@@ -22,7 +23,7 @@ export const MineHome = ({ locale, onOpenDraft }: Readonly<{ locale: ProductLoca
     { text: t(locale, 'editor.source.cancel'), style: 'cancel' },
     { text: t(locale, 'mine.clearCacheAction'), style: 'destructive', onPress: () => {
       setClearing(true);
-      void clearDownloadCache().then(() => setCache({ bytes: 0, files: 0 })).finally(() => setClearing(false));
+      void clearDownloadCache().then(async () => { invalidateCachedTextFonts(); setCache(await getDownloadCacheSummary()); }).finally(() => setClearing(false));
     } },
   ]);
   return <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>

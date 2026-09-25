@@ -5,6 +5,7 @@ import { shippedProductMaterialPacks } from '../shippedProductAssetCatalog';
 import { productColor } from './tokens';
 import { CachedProceduralStickerPreview, ProceduralItemPreview, ProceduralPackPreview } from './ProceduralMaterialPreview';
 import { CachedRemoteImage } from './CachedRemoteImage';
+import type { ProductLocale } from './localization';
 import { ProceduralStickerPreview } from '@journalcollage/editor-renderer';
 
 const categories: readonly Readonly<{ id: AssetPackCategory; label: string }>[] = [
@@ -30,10 +31,11 @@ const basicShapeTextures = [
 ] as const;
 type BasicShapeCustom = ProceduralSticker;
 
-export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = false, onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = shippedProductMaterialPacks }: Readonly<{
+export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = false, locale = 'en', onAddItem, onAddCustomPolkaPaper, onAddCustomSolidPaper, onAddCustomBasicShape, onClose, onHeightChange, onViewAll, packs = shippedProductMaterialPacks }: Readonly<{
   /** Template Studio may opt into internal packs; ordinary creation leaves this empty. */
   additionalPacks?: readonly RemoteAssetPack[];
   initialCustomPolkaPaper?: boolean;
+  locale?: ProductLocale;
   onAddItem: (item: RemotePackItem) => void;
   onAddCustomPolkaPaper: (paper: PolkaCustom) => void;
   onAddCustomSolidPaper: (color: string) => void;
@@ -48,6 +50,7 @@ export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = fa
   const [customSolidPaper, setCustomSolidPaper] = useState(false);
   const [customPolkaPaper, setCustomPolkaPaper] = useState(initialCustomPolkaPaper);
   const [customBasicShape, setCustomBasicShape] = useState<null | boolean>(null);
+  const [readyItemIds, setReadyItemIds] = useState<ReadonlySet<string>>(() => new Set());
   const [customColor, setCustomColor] = useState<string>(solidPaperColors[0]);
   const [polka, setPolka] = useState<PolkaCustom>({ background: '#FDF7EC', foreground: polkaForegrounds[0], shape: 'circle', radius: 5, gap: 32, style: 'solid', opacity: 0.64, offset: 'grid' });
   const [basicShape, setBasicShape] = useState<BasicShapeCustom>({ shape: 'circle', fillColor: '#f4b8c4', strokeColor: '', strokeWidth: 0, opacity: 1, count: 1, layout: 'single' });
@@ -56,6 +59,24 @@ export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = fa
     ? availablePacks.filter((pack) => recommendedRemoteAssetPackIds.has(pack.id))
     : availablePacks.filter((pack) => pack.category === category);
   const packRows = intoRows(visiblePacks, 3);
+  const setItemReady = (id: string, ready: boolean) => setReadyItemIds((current) => {
+    if (current.has(id) === ready) return current;
+    const next = new Set(current);
+    if (ready) next.add(id); else next.delete(id);
+    return next;
+  });
+  const pressItem = (item: RemotePackItem) => {
+    if (!item.action && !item.procedural && !readyItemIds.has(item.id)) return;
+    if (item.action === 'custom-solid-paper') setCustomSolidPaper(true);
+    else if (item.action === 'custom-polka-paper') setCustomPolkaPaper(true);
+    else if (item.action === 'custom-basic-shape') {
+      setBasicShape((value) => ({ ...value, fillColor: '#f4b8c4', textureSource: undefined }));
+      setCustomBasicShape(false);
+    } else if (item.action === 'custom-material-shape') {
+      setBasicShape((value) => ({ ...value, fillColor: '#FFFFFF', strokeColor: undefined, strokeWidth: 0, textureSource: value.textureSource ?? basicShapeTextures[0] }));
+      setCustomBasicShape(true);
+    } else onAddItem(item);
+  };
 
   return (
     <View onLayout={(event: LayoutChangeEvent) => onHeightChange?.(event.nativeEvent.layout.height)} style={styles.sheet}>
@@ -83,7 +104,7 @@ export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = fa
           <OptionRow label="Arrange" options={['Grid', 'Staggered']} selected={polka.offset === 'grid' ? 'Grid' : 'Staggered'} onSelect={(value) => setPolka((state) => ({ ...state, offset: value === 'Staggered' ? 'staggered' : 'grid' }))} />
         </ScrollView>
         <Pressable accessibilityLabel="Add custom polka paper" onPress={() => { onAddCustomPolkaPaper(polka); setCustomPolkaPaper(false); }} style={styles.addCustomButton}><Text style={styles.addCustomButtonText}>Add paper</Text></Pressable>
-      </View> : customBasicShape !== null ? <BasicShapeCustomPanel material={customBasicShape} value={basicShape} onChange={setBasicShape} onAdd={() => { onAddCustomBasicShape({ ...basicShape, textureSource: customBasicShape ? (basicShape.textureSource ?? basicShapeTextures[0]) : undefined, strokeColor: customBasicShape ? undefined : basicShape.strokeColor, strokeWidth: customBasicShape ? 0 : basicShape.strokeWidth }, customBasicShape); setCustomBasicShape(null); }} /> : activePack === null ? <>
+      </View> : customBasicShape !== null ? <BasicShapeCustomPanel locale={locale} material={customBasicShape} value={basicShape} onChange={setBasicShape} onAdd={() => { onAddCustomBasicShape({ ...basicShape, textureSource: customBasicShape ? (basicShape.textureSource ?? basicShapeTextures[0]) : undefined, strokeColor: customBasicShape ? undefined : basicShape.strokeColor, strokeWidth: customBasicShape ? 0 : basicShape.strokeWidth }, customBasicShape); setCustomBasicShape(null); }} /> : activePack === null ? <>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categories} style={styles.categoriesScroll}>
           {categories.map((entry) => <Pressable key={entry.id} onPress={() => setCategory(entry.id)} style={[styles.chip, category === entry.id && styles.chipActive]}><Text style={[styles.chipLabel, category === entry.id && styles.chipLabelActive]}>{entry.label}</Text></Pressable>)}
         </ScrollView>
@@ -97,7 +118,7 @@ export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = fa
           removeClippedSubviews
           renderItem={({ item: row }) => <View style={styles.packRow}>
               {row.map((pack) => <Pressable key={pack.id} accessibilityLabel={pack.name} onPress={() => setActivePack(pack)} style={styles.packTile}>
-                {pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}
+                {pack.proceduralPreview ? <ProceduralPackPreview pack={pack} /> : <CachedRemoteImage cacheKey={`cover-${pack.id}`} locale={locale} reference={pack.coverReference?.revision ? pack.coverReference as Required<typeof pack.coverReference> : undefined} source={pack.cover} style={styles.packCover} />}
               </Pressable>)}
             </View>}
           showsVerticalScrollIndicator={false}
@@ -112,8 +133,8 @@ export const AssetDrawer = ({ additionalPacks = [], initialCustomPolkaPaper = fa
         keyExtractor={(_, rowIndex) => `item-row-${rowIndex}`}
         maxToRenderPerBatch={3}
         removeClippedSubviews
-        renderItem={({ item: row }) => <View style={styles.itemRow}>{row.map((item) => <Pressable key={item.id} accessibilityLabel={item.action ? 'Customize material' : `Add ${item.id}`} onPress={() => item.action === 'custom-solid-paper' ? setCustomSolidPaper(true) : item.action === 'custom-polka-paper' ? setCustomPolkaPaper(true) : item.action === 'custom-basic-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#f4b8c4', textureSource: undefined })), setCustomBasicShape(false)) : item.action === 'custom-material-shape' ? (setBasicShape((value) => ({ ...value, fillColor: '#FFFFFF', strokeColor: undefined, strokeWidth: 0, textureSource: value.textureSource ?? basicShapeTextures[0] })), setCustomBasicShape(true)) : onAddItem(item)} style={styles.itemTile}>
-          {item.action ? <View style={styles.customEntry}><Text style={styles.customEntryPlus}>+</Text><Text style={styles.customEntryLabel}>Custom</Text></View> : item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
+        renderItem={({ item: row }) => <View style={styles.itemRow}>{row.map((item) => <Pressable key={item.id} accessibilityLabel={item.action ? 'Customize material' : `Add ${item.id}`} accessibilityState={{ disabled: !item.action && !item.procedural && !readyItemIds.has(item.id) }} onPress={() => pressItem(item)} style={styles.itemTile}>
+          {item.action ? <View style={styles.customEntry}><Text style={styles.customEntryPlus}>+</Text><Text style={styles.customEntryLabel}>Custom</Text></View> : item.procedural ? <ProceduralItemPreview item={item} /> : <CachedRemoteImage cacheKey={`item-${item.reference.id}`} locale={locale} onPreviewReadyChange={(ready) => setItemReady(item.id, ready)} reference={item.reference.revision ? item.reference as Required<typeof item.reference> : undefined} source={item.source} style={styles.itemImage} />}
         </Pressable>)}</View>}
         showsVerticalScrollIndicator={false}
         windowSize={3}
@@ -148,16 +169,16 @@ const ChoiceRow = ({ label, choices, selected, onSelect }: Readonly<{ label: str
 
 const StrokeRow = ({ selected, onSelect }: Readonly<{ selected: string; onSelect: (color: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>Stroke</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{colorsFor('shape.stroke').map((color) => <Pressable key={color || 'none'} accessibilityLabel={color ? `Use ${color} stroke` : 'No stroke'} onPress={() => onSelect(color)} style={[styles.strokeSwatch, color === selected && styles.strokeSwatchSelected]}>{color ? <View style={[styles.strokeDot, { backgroundColor: color }, isWhiteColor(color) && styles.whiteStrokeDot]} /> : <Text style={styles.strokeNone}>×</Text>}</Pressable>)}</ScrollView></View>;
 
-const TextureRow = ({ selected, onSelect }: Readonly<{ selected: string; onSelect: (source: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>Texture</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{basicShapeTextures.map((source, index) => <Pressable key={source} accessibilityLabel={`Use texture ${index + 1}`} onPress={() => onSelect(source)} style={[styles.textureSwatch, source === selected && styles.textureSwatchSelected]}><CachedRemoteImage cacheKey={`shape-texture-${index + 1}`} source={source} style={styles.textureImage} /></Pressable>)}</ScrollView></View>;
+const TextureRow = ({ locale, selected, onSelect }: Readonly<{ locale: ProductLocale; selected: string; onSelect: (source: string) => void }>) => <View style={styles.optionGroup}><Text style={styles.optionLabel}>Texture</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>{basicShapeTextures.map((source, index) => <Pressable key={source} accessibilityLabel={`Use texture ${index + 1}`} onPress={() => onSelect(source)} style={[styles.textureSwatch, source === selected && styles.textureSwatchSelected]}><CachedRemoteImage cacheKey={`shape-texture-${index + 1}`} locale={locale} source={source} style={styles.textureImage} /></Pressable>)}</ScrollView></View>;
 
-const BasicShapeCustomPanel = ({ material, value, onChange, onAdd }: Readonly<{ material: boolean; value: BasicShapeCustom; onChange: (next: BasicShapeCustom) => void; onAdd: () => void }>) => {
+const BasicShapeCustomPanel = ({ locale, material, value, onChange, onAdd }: Readonly<{ locale: ProductLocale; material: boolean; value: BasicShapeCustom; onChange: (next: BasicShapeCustom) => void; onAdd: () => void }>) => {
   const set = (patch: Partial<BasicShapeCustom>) => onChange({ ...value, ...patch });
   const shapeChoices = [{ value: 'circle', label: 'Circle' }, { value: 'square', label: 'Square' }, { value: 'triangle', label: 'Triangle' }, { value: 'heart', label: 'Heart' }, { value: 'star', label: 'Star' }, { value: 'sparkle', label: 'Sparkle' }, { value: 'flower', label: 'Flower' }, { value: 'raindrop', label: 'Drop' }, { value: 'diamond', label: 'Diamond' }, { value: 'rounded', label: 'Rounded' }, { value: 'cross', label: 'Cross' }, { value: 'tag', label: 'Tag' }] as const;
   return <View style={styles.polkaPanel}>
     <View style={styles.basicShapePreview}>{material ? <CachedProceduralStickerPreview cacheKey={`custom-shape-texture-${basicShapeTextures.indexOf((value.textureSource ?? basicShapeTextures[0]) as typeof basicShapeTextures[number]) + 1}`} sticker={{ ...value, fillColor: '#FFFFFF', textureSource: value.textureSource ?? basicShapeTextures[0], strokeColor: undefined, strokeWidth: 0 }} size={{ width: 112, height: 112 }} /> : <ProceduralStickerPreview sticker={{ ...value, textureSource: undefined }} size={{ width: 112, height: 112 }} />}</View>
     <ScrollView style={styles.polkaOptions} showsVerticalScrollIndicator={false}>
       <ChoiceRow label="Shape" choices={shapeChoices} selected={value.shape} onSelect={(shape) => set({ shape: shape as BasicShapeCustom['shape'] })} />
-      {material ? <TextureRow selected={value.textureSource ?? basicShapeTextures[0]} onSelect={(textureSource) => set({ textureSource })} /> : <ColorPickerRow label="Fill" target="shape.fill" selected={value.fillColor} onSelect={(fillColor) => set({ fillColor })} />}
+      {material ? <TextureRow locale={locale} selected={value.textureSource ?? basicShapeTextures[0]} onSelect={(textureSource) => set({ textureSource })} /> : <ColorPickerRow label="Fill" target="shape.fill" selected={value.fillColor} onSelect={(fillColor) => set({ fillColor })} />}
       {!material && <><StrokeRow selected={value.strokeColor ?? ''} onSelect={(strokeColor) => set({ strokeColor, strokeWidth: strokeColor && !value.strokeWidth ? 3 : strokeColor ? value.strokeWidth : 0 })} /><ChoiceRow label="Width" choices={[{ value: '0', label: 'None' }, { value: '3', label: 'Thin' }, { value: '6', label: 'Medium' }, { value: '10', label: 'Bold' }]} selected={String(value.strokeWidth ?? 0)} onSelect={(strokeWidth) => set({ strokeWidth: Number(strokeWidth) })} /></>}
       <ChoiceRow label="Opacity" choices={[{ value: '0.38', label: 'Light' }, { value: '0.64', label: 'Medium' }, { value: '0.82', label: 'Soft' }, { value: '1', label: 'Full' }]} selected={String(value.opacity)} onSelect={(opacity) => set({ opacity: Number(opacity) })} />
       <ChoiceRow label="Count" choices={['1', '3', '6', '9'].map((count) => ({ value: count, label: count }))} selected={String(value.count)} onSelect={(count) => set({ count: Number(count) as BasicShapeCustom['count'] })} />

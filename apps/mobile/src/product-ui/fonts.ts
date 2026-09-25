@@ -3,13 +3,31 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { cacheRemoteResource } from '../localWorkspace';
 import { getTextFont, type TextFont } from '@journalcollage/asset-system';
 
-export type RemoteFontStatus = 'ready' | 'loading' | 'failed';
+export type RemoteFontStatus = 'idle' | 'ready' | 'loading' | 'failed';
 
 const states = new Map<string, RemoteFontStatus>();
 const pending = new Map<string, Promise<RemoteFontStatus>>();
 const cachedUris = new Map<string, string>();
+const listeners = new Set<() => void>();
 
-export const fontStatus = (variantId: string): RemoteFontStatus => states.get(variantId) ?? 'ready';
+export const fontStatus = (variantId: string): RemoteFontStatus => {
+  const font = getTextFont(variantId);
+  return !font.remoteSource || font.variantId === 'system' ? 'ready' : states.get(font.variantId) ?? 'idle';
+};
+export const subscribeFontStatus = (listener: () => void): (() => void) => {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+};
+const setFontStatus = (variantId: string, status: RemoteFontStatus): void => {
+  if (states.get(variantId) === status) return;
+  states.set(variantId, status);
+  listeners.forEach((listener) => listener());
+};
+export const invalidateCachedTextFonts = (): void => {
+  cachedUris.clear();
+  states.clear();
+  listeners.forEach((listener) => listener());
+};
 
 /**
  * Loads only the requested variant.  Cached file URIs and CDN URLs are kept in
@@ -19,19 +37,28 @@ export const ensureTextFont = async (variantId: string): Promise<RemoteFontStatu
   const font = getTextFont(variantId);
   if (!font.remoteSource || font.variantId === 'system') return 'ready';
   const cachedUri = cachedUris.get(font.variantId);
-  if (cachedUri && Font.isLoaded(font.family) && (await FileSystem.getInfoAsync(cachedUri)).exists) return 'ready';
+  if (cachedUri && Font.isLoaded(font.family)) {
+    try {
+      if ((await FileSystem.getInfoAsync(cachedUri)).exists) {
+        setFontStatus(font.variantId, 'ready');
+        return 'ready';
+      }
+    } catch {
+      // An inaccessible cache file should enter the normal retry path.
+    }
+  }
   const existing = pending.get(font.variantId);
   if (existing) return existing;
-  states.set(font.variantId, 'loading');
+  setFontStatus(font.variantId, 'loading');
   const operation = (async () => {
     try {
       const uri = await cacheRemoteResource(`font-${font.variantId}`, font.remoteSource!);
       cachedUris.set(font.variantId, uri);
       if (!Font.isLoaded(font.family)) await Font.loadAsync(font.family, uri);
-      states.set(font.variantId, 'ready');
+      setFontStatus(font.variantId, 'ready');
       return 'ready' as const;
     } catch {
-      states.set(font.variantId, 'failed');
+      setFontStatus(font.variantId, 'failed');
       return 'failed' as const;
     } finally {
       pending.delete(font.variantId);

@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Image, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
+import { type ImageStyle, type StyleProp } from 'react-native';
 import { cacheRemoteResource, resolvedRemoteResourceUri } from '../localWorkspace';
 import { isCompatibilityProductAssetReference, isShippedProductAssetReference, shippedProductAssetResolver } from '../shippedProductAssetCatalog';
 import { resolvedVerifiedProductAssetUri } from '../productAssetResolver';
 import type { AssetReference } from '@journalcollage/editor-core';
+import { RemoteImageCard } from './RemoteImageCard';
+import type { ProductLocale } from './localization';
 
 const strictPreviewRetryDelaysMs = [1_000, 3_000] as const;
 
 /** Disk-backed image surface for remote material covers and thumbnails. */
-export const CachedRemoteImage = ({ cacheKey, reference, source, style }: Readonly<{ cacheKey: string; reference?: Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>; source: string; style: StyleProp<ImageStyle> }>) => {
+export const CachedRemoteImage = ({ cacheKey, locale, onPreviewReadyChange, reference, source, style }: Readonly<{ cacheKey: string; locale?: ProductLocale; onPreviewReadyChange?: (ready: boolean) => void; reference?: Required<Pick<AssetReference, 'id' | 'kind' | 'revision'>>; source: string; style: StyleProp<ImageStyle> }>) => {
   const cachedUri = resolvedRemoteResourceUri(cacheKey, source);
   const shippedReference = reference && isShippedProductAssetReference(reference) ? reference : undefined;
   const compatibilityReference = reference && isCompatibilityProductAssetReference(reference) ? reference : undefined;
   const resolvedUri = (): string | null => source.startsWith('data:') ? source : (shippedReference ? resolvedVerifiedProductAssetUri(shippedReference) : cachedUri) ?? null;
   const [uri, setUri] = useState<string | null>(resolvedUri);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -54,6 +57,6 @@ export const CachedRemoteImage = ({ cacheKey, reference, source, style }: Readon
       void cacheRemoteResource(cacheKey, source).then((localUri) => { if (active) setUri(localUri); }).catch(() => { if (active) setUri(source); });
     }
     return () => { active = false; if (retryTimer !== undefined) clearTimeout(retryTimer); };
-  }, [cacheKey, compatibilityReference, shippedReference, source]);
-  return uri === null ? <View style={style as StyleProp<ViewStyle>} /> : <Image source={{ uri }} style={style} />;
+  }, [cacheKey, compatibilityReference, shippedReference, source, retryAttempt]);
+  return <RemoteImageCard source={uri ? { uri } : null} fallbackSource={uri?.startsWith('file:') ? source : undefined} locale={locale} onReadyChange={onPreviewReadyChange} onRetry={() => setRetryAttempt((value) => value + 1)} style={style} />;
 };

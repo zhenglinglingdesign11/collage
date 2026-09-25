@@ -54,6 +54,8 @@ const readRecoverableJson = async (uri: string): Promise<string | null> => {
 type RemoteCacheEntry = Readonly<{ key: string; source: string; uri: string; lastAccessedAt: string }>;
 type RemoteCacheIndex = Readonly<{ version: 1; entries: readonly RemoteCacheEntry[] }>;
 let remoteCacheIndex: RemoteCacheIndex | null = null;
+let remoteCacheIndexLoad: Promise<RemoteCacheIndex> | null = null;
+let remoteCacheIndexWriteQueue: Promise<void> = Promise.resolve();
 const pendingRemoteDownloads = new Map<string, Promise<string>>();
 /** Avoid a disk round-trip (and a blank first frame) when a drawer view remounts. */
 const resolvedRemoteUris = new Map<string, string>();
@@ -130,21 +132,31 @@ export const saveCachedHomeShowcaseManifest = async (market: string, payload: un
   await FileSystem.writeAsStringAsync(homeShowcaseManifestUri(market), JSON.stringify({ version: 1, payload, etag, cachedAt: new Date().toISOString() }), { encoding: FileSystem.EncodingType.UTF8 });
 };
 
-const loadRemoteCacheIndex = async (): Promise<RemoteCacheIndex> => {
-  if (remoteCacheIndex !== null) return remoteCacheIndex;
-  const info = await FileSystem.getInfoAsync(remoteCacheIndexUri);
-  if (!info.exists) return (remoteCacheIndex = { version: 1, entries: [] });
-  try {
-    const parsed = JSON.parse(await FileSystem.readAsStringAsync(remoteCacheIndexUri, { encoding: FileSystem.EncodingType.UTF8 })) as RemoteCacheIndex;
-    return (remoteCacheIndex = parsed.version === 1 && Array.isArray(parsed.entries) ? parsed : { version: 1, entries: [] });
-  } catch {
-    return (remoteCacheIndex = { version: 1, entries: [] });
-  }
+const loadRemoteCacheIndex = (): Promise<RemoteCacheIndex> => {
+  if (remoteCacheIndex !== null) return Promise.resolve(remoteCacheIndex);
+  if (remoteCacheIndexLoad !== null) return remoteCacheIndexLoad;
+  remoteCacheIndexLoad = (async () => {
+    const info = await FileSystem.getInfoAsync(remoteCacheIndexUri);
+    if (!info.exists) return (remoteCacheIndex = { version: 1, entries: [] });
+    try {
+      const parsed = JSON.parse(await FileSystem.readAsStringAsync(remoteCacheIndexUri, { encoding: FileSystem.EncodingType.UTF8 })) as RemoteCacheIndex;
+      return (remoteCacheIndex = parsed.version === 1 && Array.isArray(parsed.entries) ? parsed : { version: 1, entries: [] });
+    } catch {
+      return (remoteCacheIndex = { version: 1, entries: [] });
+    }
+  })().finally(() => { remoteCacheIndexLoad = null; });
+  return remoteCacheIndexLoad;
 };
 
-const saveRemoteCacheIndex = async (entries: readonly RemoteCacheEntry[]): Promise<void> => {
-  remoteCacheIndex = { version: 1, entries };
-  await FileSystem.writeAsStringAsync(remoteCacheIndexUri, JSON.stringify(remoteCacheIndex), { encoding: FileSystem.EncodingType.UTF8 });
+const updateRemoteCacheIndex = (update: (entries: readonly RemoteCacheEntry[]) => readonly RemoteCacheEntry[]): Promise<void> => {
+  const write = remoteCacheIndexWriteQueue.then(async () => {
+    const current = await loadRemoteCacheIndex();
+    const next: RemoteCacheIndex = { version: 1, entries: update(current.entries) };
+    await FileSystem.writeAsStringAsync(remoteCacheIndexUri, JSON.stringify(next), { encoding: FileSystem.EncodingType.UTF8 });
+    remoteCacheIndex = next;
+  });
+  remoteCacheIndexWriteQueue = write.catch(() => undefined);
+  return write;
 };
 
 const cacheFileExtension = (source: string): string => /\.(?:jpe?g)(?:\?|$)/i.test(source) ? 'jpg' : /\.webp(?:\?|$)/i.test(source) ? 'webp' : 'png';
@@ -198,7 +210,7 @@ export const cacheRemoteResource = async (key: string, source: string, options: 
       const info = await FileSystem.getInfoAsync(entry.uri);
       if (info.exists) {
         resolvedRemoteUris.set(memoryKey, entry.uri);
-        void saveRemoteCacheIndex(index.entries.map((candidate) => candidate.key === key ? { ...candidate, lastAccessedAt: new Date().toISOString() } : candidate));
+        void updateRemoteCacheIndex((entries) => entries.map((candidate) => candidate.key === key ? { ...candidate, lastAccessedAt: new Date().toISOString() } : candidate)).catch(() => undefined);
         return entry.uri;
       }
     }
@@ -210,8 +222,8 @@ export const cacheRemoteResource = async (key: string, source: string, options: 
       await FileSystem.deleteAsync(uri, { idempotent: true });
       throw new Error(`Remote image is unavailable or has an invalid MIME type: ${source}`);
     }
-    await saveRemoteCacheIndex([
-      ...index.entries.filter((candidate) => candidate.key !== key),
+    await updateRemoteCacheIndex((entries) => [
+      ...entries.filter((candidate) => candidate.key !== key),
       { key, source, uri: result.uri, lastAccessedAt: new Date().toISOString() },
     ]);
     resolvedRemoteUris.set(memoryKey, result.uri);
@@ -249,6 +261,7 @@ export const getDownloadCacheSummary = async (): Promise<DownloadCacheSummary> =
 /** Clears the re-downloadable preview/configuration cache, never user work. */
 export const clearDownloadCache = async (): Promise<DownloadCacheSummary> => {
   const before = await getDownloadCacheSummary();
+  await remoteCacheIndexWriteQueue;
   await FileSystem.deleteAsync(remoteCacheDirectory, { idempotent: true });
   await FileSystem.deleteAsync(remoteCacheIndexUri, { idempotent: true });
   const rootFiles = await FileSystem.readDirectoryAsync(root).catch(() => []);
@@ -292,7 +305,7 @@ export const pruneDownloadCache = async (currentWorkspace?: StoredWorkspace): Pr
     compatibilityBytes -= cacheEntryBytes(candidate.info);
     removedKeys.add(candidate.entry.key);
   }
-  await saveRemoteCacheIndex(index.entries.filter((entry) => !removedKeys.has(entry.key)));
+  await updateRemoteCacheIndex((entries) => entries.filter((entry) => !removedKeys.has(entry.key)));
   await pruneVerifiedRemoteAssetCache(Math.max(0, DOWNLOAD_CACHE_LIMIT_BYTES - Math.max(0, compatibilityBytes)), protectedReferenceKeys);
   return getDownloadCacheSummary();
 };

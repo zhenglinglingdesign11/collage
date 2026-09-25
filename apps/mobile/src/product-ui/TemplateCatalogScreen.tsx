@@ -8,6 +8,7 @@ import { localTemplateCatalog } from '../localTemplateCatalog';
 import { locallySupportedTemplates } from '../templateCapabilities';
 import { productCatalogAssetForReference } from '../shippedProductAssetCatalog';
 import { bundledTemplateDependencyModules } from '../bundledTemplateDependencies.generated';
+import { RemoteImageCard } from './RemoteImageCard';
 import { CachedRemoteImage } from './CachedRemoteImage';
 import { fallbackHomeShowcaseGroupsForMarket, type HomeShowcaseEffect, type HomeShowcaseItem } from './homeShowcases';
 import { t, type ProductLocale } from './localization';
@@ -53,13 +54,13 @@ export const TemplateCatalogScreen = ({ locale, onBack, onOpenBasicLayout, onOpe
       {shapedLayouts.map((layout) => <BasicLayoutCard compact key={layout.id} layout={layout} locale={locale} onPress={() => onOpenBasicLayout(layout)} />)}
     </HorizontalSection></SectionAnchor>
     <SectionAnchor id="designed" onLayout={saveSectionOffset}><Section title={t(locale, 'templateCatalog.designedTemplates')}>
-      {supportedTemplates.map((template) => <DesignedTemplateCard key={template.id} template={template} onPress={() => onOpenTemplate(template)} />)}
+      {supportedTemplates.map((template) => <DesignedTemplateCard key={template.id} locale={locale} template={template} onPress={() => onOpenTemplate(template)} />)}
     </Section></SectionAnchor>
     <SectionAnchor id="frames" onLayout={saveSectionOffset}><Section title={t(locale, 'templateCatalog.photoFrames')}>
-      {effectsIn('lace').map((item) => <ShowcaseEffectCard item={item} key={item.id} onPress={() => onOpenShowcase({ id: item.id, effect: item.effect })} />)}
+      {effectsIn('lace').map((item) => <ShowcaseEffectCard item={item} key={item.id} locale={locale} onPress={() => onOpenShowcase({ id: item.id, effect: item.effect })} />)}
     </Section></SectionAnchor>
     <SectionAnchor id="effects" onLayout={saveSectionOffset}><HorizontalSection title={t(locale, 'templateCatalog.creativeEffects')}>
-      {[...effectsIn('creative-tear-paper'), ...effectsIn('texture')].map((item) => <ShowcaseEffectCard compact item={item} key={item.id} onPress={() => onOpenShowcase({ id: item.id, effect: item.effect })} />)}
+      {[...effectsIn('creative-tear-paper'), ...effectsIn('texture')].map((item) => <ShowcaseEffectCard compact item={item} key={item.id} locale={locale} onPress={() => onOpenShowcase({ id: item.id, effect: item.effect })} />)}
     </HorizontalSection></SectionAnchor>
   </ScrollView>
   </>;
@@ -100,7 +101,7 @@ const BasicLayoutCard = ({ compact = false, layout, locale, onPress }: Readonly<
 </Pressable>;
 };
 
-const DesignedTemplateCard = ({ onPress, template }: Readonly<{ onPress: () => void; template: TemplateDefinition }>) => {
+const DesignedTemplateCard = ({ locale, onPress, template }: Readonly<{ locale: ProductLocale; onPress: () => void; template: TemplateDefinition }>) => {
   const preview = productCatalogAssetForReference(template.preview as Required<typeof template.preview>);
   const bundledPreview = bundledTemplateDependencyModules[(template.preview as Required<typeof template.preview>).id];
   return <Pressable accessibilityLabel={`Use ${template.name} template`} accessibilityRole="button" onPress={onPress} style={styles.card}>
@@ -109,25 +110,21 @@ const DesignedTemplateCard = ({ onPress, template }: Readonly<{ onPress: () => v
         a subsequent template press, so use the already verified static module.
         The editor still resolves every actual template dependency strictly. */}
     {bundledPreview !== undefined && preview !== undefined
-      ? <BundledTemplatePreview fallbackSource={preview.sourceUrl} moduleId={bundledPreview} />
-      : preview ? <CatalogPreview source={preview.sourceUrl} /> : <View style={styles.designedPreviewFallback} />}
+      ? <BundledTemplatePreview fallbackSource={preview.sourceUrl} locale={locale} moduleId={bundledPreview} />
+      : preview ? <CatalogPreview locale={locale} source={preview.sourceUrl} /> : <View style={styles.designedPreviewFallback} />}
     <CardTitleGradient />
     <Text numberOfLines={1} style={styles.designedTitle}>{template.name}</Text>
   </Pressable>;
 };
 
 /** Preview display is deliberately independent of the strict Draft resolver. */
-const CatalogPreview = ({ source }: Readonly<{ source: string }>) => <Image source={{ uri: source }} style={styles.designedPreview} />;
-const BundledTemplatePreview = ({ fallbackSource, moduleId }: Readonly<{ fallbackSource: string; moduleId: number }>) => {
-  const [useFallback, setUseFallback] = useState(false);
-  useEffect(() => { setUseFallback(false); }, [moduleId]);
-  return useFallback
-    ? <CatalogPreview source={fallbackSource} />
-    : <Image onError={() => setUseFallback(true)} source={moduleId} style={styles.designedPreview} />;
+const CatalogPreview = ({ locale, source }: Readonly<{ locale: ProductLocale; source: string }>) => <RemoteImageCard locale={locale} source={{ uri: source }} style={styles.designedPreview} />;
+const BundledTemplatePreview = ({ fallbackSource, locale, moduleId }: Readonly<{ fallbackSource: string; locale: ProductLocale; moduleId: number }>) => {
+  return <RemoteImageCard source={moduleId} fallbackSource={fallbackSource} locale={locale} style={styles.designedPreview} />;
 };
 
-const ShowcaseEffectCard = ({ compact = false, item, onPress }: Readonly<{ compact?: boolean; item: HomeShowcaseItem; onPress: () => void }>) => <Pressable accessibilityLabel={item.title} accessibilityRole="button" onPress={onPress} style={[styles.card, styles.effectCard, compact && styles.compactEffectCard]}>
-  {item.imageSrc ? <CachedRemoteImage cacheKey={`template-catalog-effect-${item.id}`} source={item.imageSrc} style={styles.designedPreview} /> : <View style={styles.designedPreviewFallback} />}
+const ShowcaseEffectCard = ({ compact = false, item, locale, onPress }: Readonly<{ compact?: boolean; item: HomeShowcaseItem; locale: ProductLocale; onPress: () => void }>) => <Pressable accessibilityLabel={item.title} accessibilityRole="button" onPress={onPress} style={[styles.card, styles.effectCard, compact && styles.compactEffectCard]}>
+  {item.imageSrc ? <CachedRemoteImage cacheKey={`template-catalog-effect-${item.id}`} locale={locale} source={item.imageSrc} style={styles.designedPreview} /> : <View style={styles.designedPreviewFallback} />}
   <CardTitleGradient />
   <Text numberOfLines={1} style={styles.designedTitle}>{item.title}</Text>
 </Pressable>;

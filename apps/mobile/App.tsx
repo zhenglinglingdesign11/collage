@@ -19,6 +19,7 @@ import { CreateHome, type CreateEntry, type ShowcaseIntent } from './src/product
 import { TemplateCatalogScreen, type TemplateCatalogShowcaseIntent } from './src/product-ui/TemplateCatalogScreen';
 import { basicLayoutTemplate, basicLayouts, type BasicLayout, type BasicLayoutId } from './src/basicLayouts';
 import { MineHome } from './src/product-ui/MineHome';
+import { CenterToast } from './src/product-ui/CenterToast';
 import { NativeRenderParityProbe } from './src/NativeRenderParityProbe';
 import { RemoteAssetVerificationProbe } from './src/RemoteAssetVerificationProbe';
 import { EffectSheet } from './src/product-ui/EffectSheet';
@@ -569,6 +570,9 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   ]);
   /** In Studio, decorative assets should win a tap over a broad photo placeholder beneath them. */
   const templatePhotoPickerRef = useRef<(layerId: string) => void>(() => undefined);
+  const finishTextEditingRef = useRef<() => void>(() => undefined);
+  const textEditingRef = useRef(textEdit !== null);
+  textEditingRef.current = textEdit !== null;
   const layerAtCanvasPoint = useCallback((point: Point) => {
     if (!templateStudio) {
       // Template frame art is deliberately locked and often sits above its
@@ -589,6 +593,10 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     if (viewport.scale === 0) return;
     const canvasPoint = { x: (screenX - viewport.x) / viewport.scale, y: (screenY - viewport.y) / viewport.scale };
     const layer = layerAtCanvasPoint(canvasPoint);
+    if (textEditingRef.current && layer === null) {
+      finishTextEditingRef.current();
+      return;
+    }
     // This assignment must happen in the same turn as selection. Otherwise
     // Skia briefly applies the previously selected layer's shared transform
     // before the effect below synchronizes it.
@@ -1593,18 +1601,19 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     textLayerSequence.current += 1;
     const id = createStableId('text-layer');
     setTextEdit(null);
+    const frame = { width: 1240, height: 220 };
     const layer = {
-      id, name: 'Text', type: 'text' as const, text: '', frame: { width: 1240, height: 220 },
+      id, name: 'Text', type: 'text' as const, text: '', frame,
       fontId: 'system', fontVariantId: 'system', fontSize: 92, color: '#111111', textAlign: 'center' as const, backgroundColor: null,
-      transform: { ...identityTransform(), position: { x: 280, y: 1090 } }, opacity: 1, isLocked: false, effects: [],
+      transform: { ...identityTransform(), position: { x: (canvasSize.width - frame.width) / 2, y: (canvasSize.height - frame.height) / 2 } }, opacity: 1, isLocked: false, effects: [],
     };
     dispatch({ type: 'command', command: { type: 'layer.add', layer } });
     setTextEdit({ layerId: id, initialText: '', text: '', created: true });
-  }, []);
+  }, [canvasSize.height, canvasSize.width]);
   const finishTextEditing = useCallback(() => {
     if (textEdit === null) return;
-    const text = textEdit.text.trim();
-    if (text.length === 0 && textEdit.created) {
+    const text = textEdit.text;
+    if (text.trim().length === 0 && textEdit.created) {
       dispatch({ type: 'command', command: { type: 'layer.delete', layerId: textEdit.layerId } });
     } else if (text !== textEdit.initialText) {
       dispatch({ type: 'command', command: { type: 'text.content.set', layerId: textEdit.layerId, text } });
@@ -1612,10 +1621,19 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     // Completing text input returns to neutral editing, matching the primary
     // toolbar state. A later canvas tap deliberately reselects this layer.
     dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+    Keyboard.dismiss();
+    setKeyboardHeight(0);
+    setLayerPanelOpen(false);
     setTextEdit(null);
   }, [textEdit]);
+  finishTextEditingRef.current = finishTextEditing;
   const cancelTextEditing = useCallback(() => {
-    if (textEdit?.created) dispatch({ type: 'command', command: { type: 'layer.delete', layerId: textEdit.layerId } });
+    if (textEdit === null) return;
+    if (textEdit.created) dispatch({ type: 'command', command: { type: 'layer.delete', layerId: textEdit.layerId } });
+    dispatch({ type: 'command', command: { type: 'layer.select', layerId: null } });
+    Keyboard.dismiss();
+    setKeyboardHeight(0);
+    setLayerPanelOpen(false);
     setTextEdit(null);
   }, [textEdit]);
   const beginTextEditing = useCallback((layer: Extract<Draft['layers'][number], { type: 'text' }>) => {
@@ -2045,8 +2063,8 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
         {initialPackImportPending && <Text accessibilityRole="text" style={{ alignSelf: 'center', color: '#6D5041', fontSize: 13, marginBottom: 8 }}>Loading selected materials…</Text>}
         {assetRecoveryFailureCount > 0 && <Pressable accessibilityLabel="Retry unavailable materials" onPress={() => { void recoverWorkspaceProductAssets({ draft: state.present, catalog }).then((recovered) => { setCatalog(recovered.workspace.catalog); setAssetRecoveryFailureCount(recovered.failures.length); }); }} style={{ alignSelf: 'center', backgroundColor: '#6D5041', borderRadius: 14, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>{`${assetRecoveryFailureCount} material${assetRecoveryFailureCount === 1 ? '' : 's'} unavailable · Retry`}</Text></Pressable>}
         {ratioPickerOpen && (templateStudio
-          ? <TemplateStudioCanvasPicker activeSize={canvasSize} onClose={() => setRatioPickerOpen(false)} onSelect={changeTemplateStudioCanvasSize} />
-          : <CanvasRatioPicker activeRatio={canvasRatio} onClose={() => setRatioPickerOpen(false)} onSelect={changeCanvasRatio} />)}
+          ? <TemplateStudioCanvasPicker activeSize={canvasSize} onClose={() => setRatioPickerOpen(false)} onSelect={changeTemplateStudioCanvasSize} top={insets.top + 56} />
+          : <CanvasRatioPicker activeRatio={canvasRatio} onClose={() => setRatioPickerOpen(false)} onSelect={changeCanvasRatio} top={insets.top + 56} />)}
         {isTablet ? (
           <View style={styles.tabletWorkspace}>
             <LayerPanel layers={state.present.layers} selectedLayerId={selectedLayerId} onSelect={selectLayer} />
@@ -2055,7 +2073,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
           </View>
         ) : (
           <View style={[styles.phoneWorkspace, a3Styles.phoneWorkspace, brushCut !== null && a3Styles.brushEditorWorkspace, crop !== null && a3Styles.cropEditorWorkspace, emboss !== null && a3Styles.embossEditorWorkspace]}>
-            {layerPanelOpen && selectedLayer !== null && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={dismissLayerEditing} style={a3Styles.workspaceDismissBackdrop} />}
+            {(textEdit !== null || (layerPanelOpen && selectedLayer !== null)) && straightCut === null && brushCut === null && decorativeBrush === null && crop === null && emboss === null && <Pressable accessibilityLabel="Close layer adjustment" accessibilityRole="button" onPress={textEdit !== null ? finishTextEditing : dismissLayerEditing} style={a3Styles.workspaceDismissBackdrop} />}
             {canvas}
             {brushCut !== null && <BrushCutHeader locale={locale} hasStrokes={brushCut.strokes.length > 0} onCancel={cancelBrushCut} onConfirm={confirmBrushCut} />}
             {crop !== null && <CropEditor bottomInset={insets.bottom} locale={locale} ratio={crop.ratio} onCancel={() => setCrop(null)} onConfirm={confirmCrop} onSelectRatio={(ratio) => setCrop((current) => current === null ? null : { ...current, ratio, bounds: cropBoundsForRatio(current.bounds, current.layer.frame, ratio) })} />}
@@ -2083,7 +2101,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
             {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} previewValue={layerControlPreview?.layerId === selectedLayer.id && layerControlPreview.type === layerEffectControl.type ? layerControlPreview.value : null} type={layerEffectControl.type} onCancel={() => setLayerControlPreview(null)} onChange={(value) => setLayerControlPreview({ layerId: selectedLayer.id, type: layerEffectControl.type, value })} onCommit={commitLayerControl} />}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <AssetDrawer additionalPacks={templateStudio ? templateStudioDecorativePacks : undefined} initialCustomPolkaPaper={customPolkaBackgroundOpen} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
+              <AssetDrawer additionalPacks={templateStudio ? templateStudioDecorativePacks : undefined} initialCustomPolkaPaper={customPolkaBackgroundOpen} locale={locale} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
             </>}
             {backgroundDrawerOpen && <>
               <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
@@ -2140,11 +2158,9 @@ const LayerEffectControlPanel = ({ bottomInset, effect, locale, onCancel, onChan
   const value = dragValue ?? previewValue ?? committedValue;
   const valueFromX = useCallback((x: number): number => {
     const ratio = Math.max(0, Math.min(width, x - 12)) / width;
-    const raw = type === 'light.shadow'
-      ? spec.max - ratio * (spec.max - spec.min)
-      : spec.min + ratio * (spec.max - spec.min);
+    const raw = spec.min + ratio * (spec.max - spec.min);
     return Math.round(raw / spec.step) * spec.step;
-  }, [spec.max, spec.min, spec.step, type, width]);
+  }, [spec.max, spec.min, spec.step, width]);
   const move = useCallback((x: number) => {
     const next = valueFromX(x);
     setDragValue((current) => current === next ? current : next);
@@ -2179,7 +2195,7 @@ const LayerEffectControlPanel = ({ bottomInset, effect, locale, onCancel, onChan
     return Gesture.Race(pan, tap);
   }, [cancel, finish, move]);
   const normalisedValue = Math.max(0, Math.min(1, (value - spec.min) / (spec.max - spec.min)));
-  const ratio = type === 'light.shadow' ? 1 - normalisedValue : normalisedValue;
+  const ratio = normalisedValue;
   return <View style={[a3Styles.layerEffectControlPanel, { bottom: 160 + bottomInset }]}>
     <Text style={a3Styles.layerEffectControlLabel}>{t(locale, spec.label)}</Text>
     <GestureDetector gesture={sliderGesture}><View onLayout={(event: LayoutChangeEvent) => setWidth(Math.max(1, event.nativeEvent.layout.width - 24))} style={a3Styles.layerEffectSlider}><View pointerEvents="none" style={a3Styles.layerEffectSliderTrack}><View style={[a3Styles.layerEffectSliderFill, { width: `${ratio * 100}%` }]} /><View style={[a3Styles.layerEffectSliderThumb, { left: `${ratio * 100}%` }]} /></View></View></GestureDetector>
@@ -2222,16 +2238,16 @@ const EditorCanvas = ({ bare = false, bottomOverlay, children, frame, gesture, i
     </View>
   </View>
 );
-const CanvasRatioPicker = ({ activeRatio, onClose, onSelect }: Readonly<{ activeRatio: CanvasRatio; onClose: () => void; onSelect: (ratio: CanvasRatio) => void }>) => (
+const CanvasRatioPicker = ({ activeRatio, onClose, onSelect, top }: Readonly<{ activeRatio: CanvasRatio; onClose: () => void; onSelect: (ratio: CanvasRatio) => void; top: number }>) => (
   <>
-    <Pressable accessibilityLabel="Close canvas ratios" accessibilityRole="button" onPress={onClose} style={a3Styles.ratioPickerBackdrop} />
-    <View style={a3Styles.ratioPicker}>{(Object.keys(CANVAS_RATIO_SIZES) as CanvasRatio[]).map((ratio) => <Pressable accessibilityRole="button" key={ratio} onPress={() => onSelect(ratio)} style={[a3Styles.ratioPickerOption, ratio === activeRatio && a3Styles.ratioPickerOptionActive]}><Text style={[a3Styles.ratioPickerLabel, ratio === activeRatio && a3Styles.ratioPickerLabelActive]}>{ratio}</Text></Pressable>)}</View>
+    <Pressable accessibilityLabel="Close canvas ratios" accessibilityRole="button" onPress={onClose} style={[a3Styles.ratioPickerBackdrop, { top }]} />
+    <View style={[a3Styles.ratioPicker, { top }]}>{(Object.keys(CANVAS_RATIO_SIZES) as CanvasRatio[]).map((ratio) => <Pressable accessibilityRole="button" key={ratio} onPress={() => onSelect(ratio)} style={[a3Styles.ratioPickerOption, ratio === activeRatio && a3Styles.ratioPickerOptionActive]}><Text style={[a3Styles.ratioPickerLabel, ratio === activeRatio && a3Styles.ratioPickerLabelActive]}>{ratio}</Text></Pressable>)}</View>
   </>
 );
-const TemplateStudioCanvasPicker = ({ activeSize, onClose, onSelect }: Readonly<{ activeSize: Draft['canvas']['size']; onClose: () => void; onSelect: (size: typeof TEMPLATE_STUDIO_CANVAS_SIZES[number]) => void }>) => (
+const TemplateStudioCanvasPicker = ({ activeSize, onClose, onSelect, top }: Readonly<{ activeSize: Draft['canvas']['size']; onClose: () => void; onSelect: (size: typeof TEMPLATE_STUDIO_CANVAS_SIZES[number]) => void; top: number }>) => (
   <>
-    <Pressable accessibilityLabel="Close template canvas sizes" accessibilityRole="button" onPress={onClose} style={a3Styles.ratioPickerBackdrop} />
-    <View style={a3Styles.ratioPicker}>{TEMPLATE_STUDIO_CANVAS_SIZES.map((size) => {
+    <Pressable accessibilityLabel="Close template canvas sizes" accessibilityRole="button" onPress={onClose} style={[a3Styles.ratioPickerBackdrop, { top }]} />
+    <View style={[a3Styles.ratioPicker, { top }]}>{TEMPLATE_STUDIO_CANVAS_SIZES.map((size) => {
       const active = activeSize.width === size.width && activeSize.height === size.height;
       return <Pressable accessibilityRole="button" key={size.label} onPress={() => onSelect(size)} style={[a3Styles.ratioPickerOption, active && a3Styles.ratioPickerOptionActive]}><Text style={[a3Styles.ratioPickerLabel, active && a3Styles.ratioPickerLabelActive]}>{size.label}</Text></Pressable>;
     })}</View>
@@ -2379,9 +2395,9 @@ const a3Styles = StyleSheet.create({
   canvasFrameBare: { backgroundColor: 'transparent', shadowOpacity: 0, shadowRadius: 0 },
   canvasMeasurement: { flex: 1 },
   exportCanvas: { left: -10000, position: 'absolute', top: -10000 },
-  ratioPickerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, top: 56, zIndex: 11 },
-  ratioPicker: { alignSelf: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 6, padding: 7, position: 'absolute', top: 62, zIndex: 12 },
-  ratioPickerOption: { alignItems: 'center', backgroundColor: '#F4F3F0', borderRadius: 12, height: 32, justifyContent: 'center', minWidth: 46, paddingHorizontal: 8 },
+  ratioPickerBackdrop: { bottom: 0, left: 0, position: 'absolute', right: 0, zIndex: 11 },
+  ratioPicker: { alignSelf: 'center', backgroundColor: '#FFFFFF', borderColor: '#ECEAE5', borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'column', gap: 6, padding: 8, position: 'absolute', zIndex: 12 },
+  ratioPickerOption: { alignItems: 'center', backgroundColor: '#F4F3F0', borderRadius: 12, height: 36, justifyContent: 'center', minWidth: 88, paddingHorizontal: 12 },
   ratioPickerOptionActive: { backgroundColor: '#111111' },
   ratioPickerLabel: { color: '#6F6F6F', fontSize: 12, fontWeight: '700' },
   ratioPickerLabelActive: { color: '#FFFFFF' },
@@ -2513,17 +2529,18 @@ export default function App() {
       <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
         <StatusBar style="dark" />
         <View pointerEvents={tab === 'create' && !templateCatalogOpen ? 'auto' : 'none'} style={tab === 'create' && !templateCatalogOpen ? productShellStyles.tabSurface : productShellStyles.hiddenTabSurface}>
-          <CreateHome editorOpen={editing} locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
+          <CreateHome active={tab === 'create' && !templateCatalogOpen && !editing} editorOpen={editing} locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
         </View>
         {templateCatalogOpen
           ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenShowcase={openShowcase} onOpenTemplate={openTemplate} />
           : tab === 'assets'
-            ? <AssetsLibrary entryContext={assetsEntryContext} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { const returnsToEditor = assetsEntryContext === 'editor'; setPendingPackItems(items); if (!returnsToEditor) { setEditorReturnDestination('assets'); setRestoreSavedDraftId(null); } setEditorEntry(returnsToEditor ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
+            ? <AssetsLibrary entryContext={assetsEntryContext} locale={locale} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { const returnsToEditor = assetsEntryContext === 'editor'; setPendingPackItems(items); if (!returnsToEditor) { setEditorReturnDestination('assets'); setRestoreSavedDraftId(null); } setEditorEntry(returnsToEditor ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
             : tab === 'mine'
               ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setEditorReturnDestination('mine'); setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setEditorEntry('restore'); setEditing(true); }} />
               : null}
       </ProductAppShell>
       {editor !== null && <View style={productShellStyles.editorOverlay}>{editor}</View>}
+      <CenterToast />
     </View>
     {showDevelopmentProbes && <NativeRenderParityProbe />}
     {showDevelopmentProbes && <RemoteAssetVerificationProbe />}
@@ -2537,7 +2554,7 @@ const productShellStyles = StyleSheet.create({
   // mounted editor initializes its canvas and resolves template resources.
   editorOverlay: { ...StyleSheet.absoluteFill, backgroundColor: '#FAFAF8', zIndex: 10 },
   tabSurface: { flex: 1 },
-  hiddenTabSurface: { display: 'none' },
+  hiddenTabSurface: { bottom: 0, left: 0, opacity: 0, position: 'absolute', right: 0, top: 0 },
   page: { flex: 1, paddingHorizontal: 20, paddingTop: 32 },
   title: { color: '#111111', fontSize: 22, fontWeight: '600', lineHeight: 28 },
 });
