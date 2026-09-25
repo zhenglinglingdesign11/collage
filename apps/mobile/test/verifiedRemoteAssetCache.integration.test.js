@@ -31,7 +31,7 @@ const legacyFileSystem = {
   EncodingType: { UTF8: 'utf8', Base64: 'base64' },
   async makeDirectoryAsync(uri) { fs.mkdirSync(uriPath(uri), { recursive: true }); },
   async getInfoAsync(uri) {
-    try { const stat = fs.statSync(uriPath(uri)); return { exists: true, isDirectory: stat.isDirectory(), size: stat.size }; }
+    try { const stat = fs.statSync(uriPath(uri)); return { exists: true, isDirectory: stat.isDirectory(), size: stat.size, modificationTime: stat.mtimeMs / 1000 }; }
     catch { return { exists: false, isDirectory: false }; }
   },
   async readDirectoryAsync(uri) { try { return fs.readdirSync(uriPath(uri)); } catch { return []; } },
@@ -53,11 +53,25 @@ Module._load = function remoteAssetTestLoad(request, parent, isMain) {
   if (request === '@journalcollage/asset-system') return { ...integrity, remoteAssetPacks: [], upsertAsset: (catalog, record) => ({ ...catalog, assets: [...catalog.assets.filter((asset) => asset.reference.id !== record.reference.id), record] }) };
   if (request === 'expo-file-system/legacy') return legacyFileSystem;
   if (request === 'expo-file-system') return { File: class File {} };
+  if (request === 'expo-image-manipulator') return { ImageManipulator: {} };
+  if (request === './productAssetResolver') return { clearResolvedVerifiedProductAssetUris: () => {}, resolvedVerifiedProductAssetUri: () => undefined };
   return originalLoad.call(this, request, parent, isMain);
 };
 
+global.fetch = async (source) => {
+  downloads += 1;
+  const destination = `file://${fixtureRoot}/fetch-${downloads}.png`;
+  const result = await downloadPlan(source, destination);
+  const bytes = fs.readFileSync(uriPath(destination));
+  return {
+    status: result.status,
+    headers: { forEach: (visit) => Object.entries(result.headers).forEach(([name, value]) => visit(value, name)) },
+    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  };
+};
+
 integrity = require(`${outputRoot}/packages/asset-system/src/remoteAssetIntegrity.js`);
-const { cacheVerifiedRemoteAsset, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } = require(`${outputRoot}/apps/mobile/src/verifiedRemoteAssetCache.js`);
+const { cacheVerifiedRemoteAsset, clearVerifiedRemoteAssetCache, findVerifiedRemoteAsset, getVerifiedRemoteCacheSummary, pruneVerifiedRemoteAssetCache } = require(`${outputRoot}/apps/mobile/src/verifiedRemoteAssetCache.js`);
 const { createProductAssetResolver } = require(`${outputRoot}/packages/asset-system/src/productAssetResolver.js`);
 
 const descriptor = {
@@ -182,6 +196,44 @@ test('P1-A07 reuses a verified strict asset while offline without another downlo
   assert.equal(downloads, 1);
 });
 
+test('a changed strict-cache file is revalidated before reuse', async () => {
+  resetFixture();
+  const uri = await cacheVerifiedRemoteAsset(descriptor);
+  const changed = Buffer.from(image);
+  changed[100] ^= 1;
+  fs.writeFileSync(uriPath(uri), changed);
+  const later = new Date(Date.now() + 2000);
+  fs.utimesSync(uriPath(uri), later, later);
+  assert.equal(await findVerifiedRemoteAsset(descriptor), null);
+  assert.equal(fs.existsSync(uriPath(uri)), false);
+});
+
+test('strict downloads share a three-request network limit', async () => {
+  resetFixture();
+  let active = 0;
+  let maximum = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  downloadPlan = async (source, uri) => {
+    active += 1;
+    maximum = Math.max(maximum, active);
+    await gate;
+    const result = await writeImage(source, uri);
+    active -= 1;
+    return result;
+  };
+  const requests = Array.from({ length: 5 }, (_, index) => cacheVerifiedRemoteAsset({
+    ...descriptor,
+    reference: { ...descriptor.reference, id: `${descriptor.reference.id}-limit-${index}` },
+  }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(maximum, 3);
+  release();
+  await Promise.all(requests);
+  assert.equal(downloads, 5);
+  assert.equal(maximum, 3);
+});
+
 test('P1-A07 rejects a strict CDN 404 without leaving a usable cache record', async () => {
   resetFixture();
   downloadPlan = async (_source, uri) => {
@@ -200,7 +252,7 @@ test('P1-A07 keeps all shipped template previews on the strict resolver path', a
   assert.equal(previews.status, 'shipped');
   assert.equal(previews.resolverMode, 'strict');
   assert.equal(previews.visibility, 'internal');
-  assert.deepEqual(previews.items.map((item) => item.itemId), ['play-pop', 'romantic-deco-two-photo', 'romantic-deco', 'soft-archive']);
+  assert.deepEqual(previews.items.map((item) => item.itemId), ['play-pop', 'play-pop-multi', 'romantic-deco-two-photo', 'romantic-deco', 'soft-archive', 'digital-y2k-ascii', 'digital-y2k-multi', 'soft-archive-multi', 'fan-moodboard', 'material-remix']);
   const resolved = [];
   const resolver = createProductAssetResolver(catalog, {
     findVerifiedCachedAsset: async (asset) => { resolved.push(asset.reference.id); return `file:///verified/${asset.itemId}.png`; },
@@ -263,4 +315,19 @@ test('a cancelled caller does not create a partial cache record while its shared
   const uri = await cacheVerifiedRemoteAsset(descriptor);
   assert.deepEqual(fs.readFileSync(uriPath(uri)), image);
   assert.equal(downloads, 1);
+});
+
+test('clearing cache prevents an in-flight strict download from restoring it', async () => {
+  resetFixture();
+  let started;
+  const begun = new Promise((resolve) => { started = resolve; });
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  downloadPlan = async (source, uri) => { started(); await gate; return writeImage(source, uri); };
+  const pending = cacheVerifiedRemoteAsset(descriptor);
+  await begun;
+  await clearVerifiedRemoteAssetCache();
+  release();
+  await assert.rejects(pending, (error) => error.code === 'asset-download-cancelled');
+  assert.deepEqual(await getVerifiedRemoteCacheSummary(), { bytes: 0, files: 0 });
 });

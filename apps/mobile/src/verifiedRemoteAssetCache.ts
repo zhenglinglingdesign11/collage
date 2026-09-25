@@ -15,6 +15,20 @@ export type VerifiedRemoteCachePruneResult = Readonly<{ before: VerifiedRemoteCa
 
 const root = `${FileSystem.documentDirectory}journalcollage/verified-remote-assets/v1/`;
 const downloads = new RemoteAssetDownloadCoordinator<string>();
+let cacheGeneration = 0;
+const validatedThisSession = new Map<string, Readonly<{ uri: string; size: number; modificationTime: number }>>();
+const maximumConcurrentDownloads = 3;
+let activeDownloads = 0;
+const downloadWaiters: Array<() => void> = [];
+const withDownloadSlot = async <T>(operation: () => Promise<T>): Promise<T> => {
+  if (activeDownloads >= maximumConcurrentDownloads) await new Promise<void>((resolve) => downloadWaiters.push(resolve));
+  else activeDownloads += 1;
+  try { return await operation(); }
+  finally {
+    const next = downloadWaiters.shift();
+    if (next) next(); else activeDownloads -= 1;
+  }
+};
 const maximumDownloadAttempts = 2;
 const retryDelayMs = 200;
 const downloadTimeoutMs = 8_000;
@@ -37,6 +51,13 @@ const location = (descriptor: RemoteAssetIntegrityDescriptor) => {
   const directory = `${root}${identity(descriptor)}/`;
   const relativePath = `${identity(descriptor)}/asset.${extensionFor(descriptor.mimeType)}`;
   return { directory, assetUri: `${directory}asset.${extensionFor(descriptor.mimeType)}`, recordUri: `${directory}record.json`, relativePath };
+};
+
+const rememberValidated = async (descriptor: RemoteAssetIntegrityDescriptor, uri: string): Promise<void> => {
+  const info = await FileSystem.getInfoAsync(uri).catch(() => null);
+  if (info?.exists && typeof info.size === 'number' && typeof info.modificationTime === 'number') {
+    validatedThisSession.set(identity(descriptor), { uri, size: info.size, modificationTime: info.modificationTime });
+  }
 };
 
 const sameDescriptor = (left: RemoteAssetIntegrityDescriptor, right: RemoteAssetIntegrityDescriptor): boolean =>
@@ -77,19 +98,37 @@ const downloadWithTimeout = async (sourceUrl: string, destination: string): Prom
 };
 
 const cachedAssetUri = async (descriptor: RemoteAssetIntegrityDescriptor): Promise<string | null> => {
+  const generation = cacheGeneration;
   const current = location(descriptor);
   const [asset, record] = await Promise.all([FileSystem.getInfoAsync(current.assetUri), FileSystem.getInfoAsync(current.recordUri)]);
   if (!asset.exists || !record.exists) return null;
   try {
     const parsed = JSON.parse(await FileSystem.readAsStringAsync(current.recordUri, { encoding: FileSystem.EncodingType.UTF8 })) as VerifiedRemoteAssetRecord;
     if (parsed.version !== 1 || parsed.relativePath !== current.relativePath || !sameDescriptor(parsed.descriptor, descriptor)) throw new Error('record mismatch');
-    validateRemoteAssetDownload(descriptor, { bytes: await readBytes(current.assetUri), mimeType: descriptor.mimeType });
+    const previous = validatedThisSession.get(identity(descriptor));
+    if (!previous || previous.uri !== current.assetUri || previous.size !== asset.size || previous.modificationTime !== asset.modificationTime || typeof asset.modificationTime !== 'number') {
+      validateRemoteAssetDownload(descriptor, { bytes: await readBytes(current.assetUri), mimeType: descriptor.mimeType });
+      await rememberValidated(descriptor, current.assetUri);
+    }
     void FileSystem.writeAsStringAsync(current.recordUri, JSON.stringify({ ...parsed, lastAccessedAt: new Date().toISOString() }), { encoding: FileSystem.EncodingType.UTF8 }).catch(() => undefined);
-    return current.assetUri;
+    return generation === cacheGeneration ? current.assetUri : null;
   } catch {
+    validatedThisSession.delete(identity(descriptor));
     await deleteLocation(current.directory);
     return null;
   }
+};
+
+/** Preview-only lookup: trusts the previously verified record and file size.
+ * Draft insertion still re-reads and hashes the complete file. */
+export const findCachedVerifiedPreviewUri = async (descriptor: RemoteAssetIntegrityDescriptor): Promise<string | null> => {
+  const current = location(descriptor);
+  try {
+    const [asset, record] = await Promise.all([FileSystem.getInfoAsync(current.assetUri), FileSystem.getInfoAsync(current.recordUri)]);
+    if (!asset.exists || asset.size !== descriptor.byteLength || !record.exists) return null;
+    const parsed = JSON.parse(await FileSystem.readAsStringAsync(current.recordUri, { encoding: FileSystem.EncodingType.UTF8 })) as VerifiedRemoteAssetRecord;
+    return parsed.version === 1 && parsed.relativePath === current.relativePath && sameDescriptor(parsed.descriptor, descriptor) ? current.assetUri : null;
+  } catch { return null; }
 };
 
 /** Reads only a complete, descriptor-verified cache entry; invalid entries are removed. */
@@ -103,9 +142,13 @@ export const findVerifiedBundledAsset = async (descriptor: RemoteAssetIntegrityD
   if (!uri) return null;
   try {
     validateRemoteAssetDescriptor(descriptor);
+    const info = await FileSystem.getInfoAsync(uri);
+    const previous = validatedThisSession.get(identity(descriptor));
+    if (info.exists && previous?.uri === uri && previous.size === info.size && previous.modificationTime === info.modificationTime && typeof info.modificationTime === 'number') return uri;
     validateRemoteAssetDownload(descriptor, { bytes: await readBytes(uri), mimeType: descriptor.mimeType });
+    await rememberValidated(descriptor, uri);
     return uri;
-  } catch { return null; }
+  } catch { validatedThisSession.delete(identity(descriptor)); return null; }
 };
 
 const cancelled = <T>(signal: AbortSignal | undefined, promise: Promise<T>): Promise<T> => {
@@ -127,7 +170,9 @@ export const cacheVerifiedRemoteAsset = async (
   options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<string> => {
   validateRemoteAssetDescriptor(descriptor);
+  const generation = cacheGeneration;
   const cached = await cachedAssetUri(descriptor);
+  if (generation !== cacheGeneration) throw new RemoteAssetIntegrityError('asset-download-cancelled', 'Asset cache was cleared during lookup.');
   if (cached) return cached;
 
   const key = remoteAssetCacheKey(descriptor);
@@ -142,7 +187,8 @@ export const cacheVerifiedRemoteAsset = async (
       const stagingRecord = `${staging}record.json`;
       try {
         await FileSystem.makeDirectoryAsync(staging, { intermediates: true });
-        const result = await downloadWithTimeout(descriptor.sourceUrl, stagingAsset);
+        const result = await withDownloadSlot(() => downloadWithTimeout(descriptor.sourceUrl, stagingAsset));
+        if (generation !== cacheGeneration) throw new RemoteAssetIntegrityError('asset-download-cancelled', 'Asset cache was cleared during download.');
         if (result.status < 200 || result.status >= 300) throw new RemoteAssetIntegrityError('asset-download-failed', `Remote asset returned HTTP ${result.status}.`);
         const headerMime = result.headers['content-type'] ?? result.headers['Content-Type'] ?? null;
         validateRemoteAssetDownload(descriptor, { bytes: await readBytes(stagingAsset), mimeType: headerMime });
@@ -151,6 +197,11 @@ export const cacheVerifiedRemoteAsset = async (
         await FileSystem.writeAsStringAsync(stagingRecord, JSON.stringify(record), { encoding: FileSystem.EncodingType.UTF8 });
         await deleteLocation(current.directory);
         await FileSystem.moveAsync({ from: staging, to: current.directory });
+        if (generation !== cacheGeneration) {
+          await deleteLocation(current.directory);
+          throw new RemoteAssetIntegrityError('asset-download-cancelled', 'Asset cache was cleared during download.');
+        }
+        await rememberValidated(descriptor, current.assetUri);
         return current.assetUri;
       } catch (error) {
         lastError = error;
@@ -201,6 +252,7 @@ export const pruneVerifiedRemoteAssetCache = async (maximumBytes: number, protec
   for (const entry of [...entries].filter((entry) => !protectedReferenceKeys.has(referenceKey(entry.descriptor))).sort((left, right) => left.lastAccessedAt.localeCompare(right.lastAccessedAt))) {
     if (bytes <= maximumBytes) break;
     await deleteLocation(entry.directory);
+    validatedThisSession.delete(identity(entry.descriptor));
     bytes -= entry.bytes;
     removed += 1;
   }
@@ -209,7 +261,9 @@ export const pruneVerifiedRemoteAssetCache = async (maximumBytes: number, protec
 
 /** Never touches user-owned files, workspaces, or exports. */
 export const clearVerifiedRemoteAssetCache = async (): Promise<VerifiedRemoteCacheSummary> => {
+  cacheGeneration += 1;
   const before = await getVerifiedRemoteCacheSummary();
   await FileSystem.deleteAsync(root, { idempotent: true });
+  validatedThisSession.clear();
   return before;
 };

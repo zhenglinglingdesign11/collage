@@ -20,6 +20,7 @@ const homeShowcaseManifestUri = (market: string): string => `${root}home-showcas
 const MAX_SAVED_DRAFTS = 20;
 const DOWNLOAD_CACHE_LIMIT_BYTES = 250 * 1024 * 1024;
 let workspaceWriteQueue: Promise<void> = Promise.resolve();
+let scheduledCachePrune: ReturnType<typeof setTimeout> | null = null;
 const serializeWorkspaceWrite = (write: () => Promise<void>): Promise<void> => {
   const result = workspaceWriteQueue.then(write);
   workspaceWriteQueue = result.catch(() => undefined);
@@ -57,6 +58,7 @@ let remoteCacheIndex: RemoteCacheIndex | null = null;
 let remoteCacheIndexLoad: Promise<RemoteCacheIndex> | null = null;
 let remoteCacheIndexWriteQueue: Promise<void> = Promise.resolve();
 const pendingRemoteDownloads = new Map<string, Promise<string>>();
+let remoteCacheGeneration = 0;
 /** Avoid a disk round-trip (and a blank first frame) when a drawer view remounts. */
 const resolvedRemoteUris = new Map<string, string>();
 const remotePreviewDownloadTimeoutMs = 8_000;
@@ -160,7 +162,14 @@ const updateRemoteCacheIndex = (update: (entries: readonly RemoteCacheEntry[]) =
 };
 
 const cacheFileExtension = (source: string): string => /\.(?:jpe?g)(?:\?|$)/i.test(source) ? 'jpg' : /\.webp(?:\?|$)/i.test(source) ? 'webp' : 'png';
-const remoteCacheMemoryKey = (key: string, source: string): string => `${key}\u0000${source}`;
+// The URL identifies the bytes. Different cards may give the same resource
+// different UI keys, but they should share one file and one in-flight request.
+const remoteCacheMemoryKey = (_key: string, source: string): string => source;
+const remoteCacheSourceHash = (source: string): string => {
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) hash = Math.imul(hash ^ source.charCodeAt(index), 16777619);
+  return (hash >>> 0).toString(16).padStart(8, '0');
+};
 const base64FromBytes = (bytes: Uint8Array): string => {
   let binary = '';
   const chunkSize = 0x8000;
@@ -194,46 +203,69 @@ const downloadRemotePreview = async (source: string, destination: string): Promi
 /** Returns a URI only when it was resolved during this app session; it never does I/O. */
 export const resolvedRemoteResourceUri = (key: string, source: string): string | undefined => resolvedRemoteUris.get(remoteCacheMemoryKey(key, source));
 
+/** Disk-only preview lookup. It must never start a network download. */
+export const findCachedRemoteResourceUri = async (key: string, source: string): Promise<string | null> => {
+  const memoryKey = remoteCacheMemoryKey(key, source);
+  const resolved = resolvedRemoteUris.get(memoryKey);
+  if (resolved !== undefined && (await FileSystem.getInfoAsync(resolved).catch(() => null))?.exists) return resolved;
+  const index = await loadRemoteCacheIndex();
+  for (const entry of index.entries.filter((candidate) => candidate.source === source)) {
+    if ((await FileSystem.getInfoAsync(entry.uri).catch(() => null))?.exists) {
+      resolvedRemoteUris.set(memoryKey, entry.uri);
+      return entry.uri;
+    }
+  }
+  return null;
+};
+
 /** Shared preview cache for covers and thumbnails. It is deliberately separate from a Draft's asset catalog. */
 export const cacheRemoteResource = async (key: string, source: string, options: Readonly<{ requireImageMime?: boolean }> = {}): Promise<string> => {
   if (source.startsWith('data:')) return source;
   const memoryKey = remoteCacheMemoryKey(key, source);
   const resolved = resolvedRemoteUris.get(memoryKey);
-  if (resolved !== undefined) return resolved;
-  const existingPending = pendingRemoteDownloads.get(key);
+  if (resolved !== undefined) {
+    if ((await FileSystem.getInfoAsync(resolved).catch(() => null))?.exists) return resolved;
+    resolvedRemoteUris.delete(memoryKey);
+  }
+  const existingPending = pendingRemoteDownloads.get(memoryKey);
   if (existingPending) return existingPending;
+  const generation = remoteCacheGeneration;
   const operation = (async () => {
     await ensureDirectories();
     const index = await loadRemoteCacheIndex();
-    const entry = index.entries.find((candidate) => candidate.key === key && candidate.source === source);
+    const entry = index.entries.find((candidate) => candidate.source === source);
     if (entry) {
       const info = await FileSystem.getInfoAsync(entry.uri);
       if (info.exists) {
         resolvedRemoteUris.set(memoryKey, entry.uri);
-        void updateRemoteCacheIndex((entries) => entries.map((candidate) => candidate.key === key ? { ...candidate, lastAccessedAt: new Date().toISOString() } : candidate)).catch(() => undefined);
+        void updateRemoteCacheIndex((entries) => entries.map((candidate) => candidate.source === source ? { ...candidate, lastAccessedAt: new Date().toISOString() } : candidate)).catch(() => undefined);
         return entry.uri;
       }
     }
-    const filename = `${key.replace(/[^a-zA-Z0-9_-]+/g, '_')}.${cacheFileExtension(source)}`;
+    const filename = `${key.replace(/[^a-zA-Z0-9_-]+/g, '_')}-${remoteCacheSourceHash(source)}.${cacheFileExtension(source)}`;
     const uri = `${remoteCacheDirectory}${filename}`;
     const result = await downloadRemotePreview(source, uri);
+    if (generation !== remoteCacheGeneration) {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+      throw new Error('Preview cache was cleared during download.');
+    }
     const contentType = Object.entries(result.headers ?? {}).find(([header]) => header.toLowerCase() === 'content-type')?.[1]?.split(';', 1)[0]?.trim().toLowerCase();
     if (result.status < 200 || result.status >= 300 || (options.requireImageMime && contentType !== 'image/png' && contentType !== 'image/jpeg')) {
       await FileSystem.deleteAsync(uri, { idempotent: true });
       throw new Error(`Remote image is unavailable or has an invalid MIME type: ${source}`);
     }
     await updateRemoteCacheIndex((entries) => [
-      ...entries.filter((candidate) => candidate.key !== key),
+      ...entries.filter((candidate) => candidate.source !== source && candidate.key !== key),
       { key, source, uri: result.uri, lastAccessedAt: new Date().toISOString() },
     ]);
     resolvedRemoteUris.set(memoryKey, result.uri);
     return result.uri;
   })();
-  pendingRemoteDownloads.set(key, operation);
+  pendingRemoteDownloads.set(memoryKey, operation);
   try {
     return await operation;
   } finally {
-    pendingRemoteDownloads.delete(key);
+    pendingRemoteDownloads.delete(memoryKey);
   }
 };
 
@@ -260,6 +292,8 @@ export const getDownloadCacheSummary = async (): Promise<DownloadCacheSummary> =
 
 /** Clears the re-downloadable preview/configuration cache, never user work. */
 export const clearDownloadCache = async (): Promise<DownloadCacheSummary> => {
+  remoteCacheGeneration += 1;
+  if (scheduledCachePrune !== null) { clearTimeout(scheduledCachePrune); scheduledCachePrune = null; }
   const before = await getDownloadCacheSummary();
   await remoteCacheIndexWriteQueue;
   await FileSystem.deleteAsync(remoteCacheDirectory, { idempotent: true });
@@ -509,7 +543,15 @@ export const saveWorkspace = async (workspace: StoredWorkspace, options: Readonl
     } else {
       await writeRecoverableJson(workspaceUri, payload);
     }
-    if (options.markAsSaved) void pruneDownloadCache(payload).catch(() => undefined);
+    if (options.markAsSaved) {
+      // Save completion should not immediately start a full cache scan while
+      // the editor is updating its canvas and thumbnails.
+      if (scheduledCachePrune !== null) clearTimeout(scheduledCachePrune);
+      scheduledCachePrune = setTimeout(() => {
+        scheduledCachePrune = null;
+        void workspaceWriteQueue.then(() => pruneDownloadCache(payload)).catch(() => undefined);
+      }, 5000);
+    }
   });
 };
 

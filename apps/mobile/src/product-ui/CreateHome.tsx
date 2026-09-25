@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Canvas, LinearGradient, Rect, vec, type Transforms3d } from '@shopify/react-native-skia';
 import { useSharedValue } from 'react-native-reanimated';
@@ -6,7 +6,7 @@ import { assetUriMap, backgroundPaperPack, proceduralPaperForReferenceId, proced
 import type { Draft } from '@journalcollage/editor-core';
 import type { TemplateDefinition } from '@journalcollage/editor-core';
 import { ProceduralPaperPreview, SkiaEditorScene } from '@journalcollage/editor-renderer';
-import { cacheRemoteResource, loadCachedHomeShowcaseManifest, loadUnfinishedWorkspace, recoverWorkspaceProductAssets, saveCachedHomeShowcaseManifest, updateSavedDraftWorkspace, type StoredWorkspace } from '../localWorkspace';
+import { findCachedRemoteResourceUri, loadCachedHomeShowcaseManifest, loadUnfinishedWorkspace, recoverWorkspaceProductAssets, saveCachedHomeShowcaseManifest, updateSavedDraftWorkspace, type StoredWorkspace } from '../localWorkspace';
 import { t, type ProductLocale } from './localization';
 import { productColor, productSpace } from './tokens';
 import { fallbackHomeShowcaseGroupsForMarket, homeShowcaseManifestUrlForMarket, normalizeHomeShowcaseManifest, withBackgroundShowcaseGroup, type HomeMarket, type HomeShowcaseEffect, type HomeShowcaseGroup, type HomeShowcaseItem } from './homeShowcases';
@@ -21,8 +21,6 @@ export type ShowcaseIntent = Readonly<{ id: string; effect?: HomeShowcaseEffect;
 // Build-time release setting. Set EXPO_PUBLIC_HOME_MARKET=cn for mainland
 // China; all other builds use the US English feed by default.
 const HOME_MARKET: HomeMarket = process.env.EXPO_PUBLIC_HOME_MARKET === 'cn' ? 'cn' : 'us';
-const HOME_PREVIEW_BATCH_SIZE = 3;
-const HOME_PREVIEW_START_DELAY_MS = 180;
 
 export const CreateHome = ({ active, editorOpen, locale, onOpenAssets, onOpenEditor, onOpenTemplate, onOpenTemplateCatalog, onOpenTemplateStudio }: Readonly<{
   active: boolean;
@@ -37,7 +35,6 @@ export const CreateHome = ({ active, editorOpen, locale, onOpenAssets, onOpenEdi
 }>) => {
   const supportedTemplates = locallySupportedTemplates(localTemplateCatalog);
   const [showcaseGroups, setShowcaseGroups] = useState<readonly HomeShowcaseGroup[]>(() => withBackgroundShowcaseGroup(fallbackHomeShowcaseGroupsForMarket(HOME_MARKET), HOME_MARKET));
-  const [showcaseUris, setShowcaseUris] = useState<Readonly<Record<string, string>>>({});
   const [hasUnfinishedWork, setHasUnfinishedWork] = useState(false);
   useEffect(() => {
     if (editorOpen) return;
@@ -72,25 +69,6 @@ export const CreateHome = ({ active, editorOpen, locale, onOpenAssets, onOpenEdi
     })();
     return () => { stillActive = false; controller.abort(); };
   }, [active]);
-  useEffect(() => {
-    if (!active) return;
-    let stillActive = true;
-    const timer = setTimeout(() => {
-      void (async () => {
-        const items = showcaseGroups.flatMap((group) => group.items).filter((item) => item.imageSrc);
-        for (let start = 0; start < items.length; start += HOME_PREVIEW_BATCH_SIZE) {
-          if (!stillActive) return;
-          const restored = await Promise.all(items.slice(start, start + HOME_PREVIEW_BATCH_SIZE).map(async (item) => {
-            try { return [item.id, await cacheRemoteResource(`home-showcase-${item.id}`, item.imageSrc!)] as const; } catch { return null; }
-          }));
-          if (!stillActive) return;
-          const next = Object.fromEntries(restored.filter((entry): entry is readonly [string, string] => entry !== null));
-          if (Object.keys(next).length > 0) setShowcaseUris((current) => ({ ...current, ...next }));
-        }
-      })();
-    }, HOME_PREVIEW_START_DELAY_MS);
-    return () => { stillActive = false; clearTimeout(timer); };
-  }, [active, showcaseGroups]);
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>{t(locale, 'create.title')}</Text>
@@ -116,7 +94,7 @@ export const CreateHome = ({ active, editorOpen, locale, onOpenAssets, onOpenEdi
       <SectionHeader actionLabel={t(locale, 'templateCatalog.viewAll')} onAction={onOpenTemplateCatalog} title={t(locale, 'templateCatalog.featured')} />
       <FlatList contentContainerStyle={styles.templateTrack} data={supportedTemplates} horizontal initialNumToRender={4} keyExtractor={(template) => template.id} maxToRenderPerBatch={3} renderItem={({ item: template }) => <TemplateCard active={active} locale={locale} template={template} onPress={() => onOpenTemplate(template)} />} showsHorizontalScrollIndicator={false} windowSize={3} />
 
-      {showcaseGroups.map((group) => <View key={group.id}><SectionTitle>{group.title}</SectionTitle><ShowcaseRow active={active} items={group.items} locale={locale} previewUris={showcaseUris} onPress={(item) => onOpenEditor('showcase', undefined, { id: item.id, effect: item.effect, backgroundPresetId: item.backgroundPresetId })} /></View>)}
+      {showcaseGroups.map((group) => <View key={group.id}><SectionTitle>{group.title}</SectionTitle><ShowcaseRow active={active} items={group.items} locale={locale} onPress={(item) => onOpenEditor('showcase', undefined, { id: item.id, effect: item.effect, backgroundPresetId: item.backgroundPresetId })} /></View>)}
     </ScrollView>
   );
 };
@@ -213,11 +191,11 @@ const recentTornPaperFiberFringeUri = Image.resolveAssetSource(require('../../..
 
 const backgroundItemById = (id: string) => backgroundPaperPack('polka').items.find((item) => item.id === id);
 
-const ShowcaseRow = ({ active, items, locale, onPress, previewUris }: Readonly<{ active: boolean; items: readonly HomeShowcaseItem[]; locale: ProductLocale; previewUris: Readonly<Record<string, string>>; onPress: (item: HomeShowcaseItem) => void }>) => (
+const ShowcaseRow = ({ active, items, locale, onPress }: Readonly<{ active: boolean; items: readonly HomeShowcaseItem[]; locale: ProductLocale; onPress: (item: HomeShowcaseItem) => void }>) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.showcaseTrack}>
     {items.map((item) => (
       <Pressable accessibilityRole="button" accessibilityLabel={item.title} key={item.id} onPress={() => onPress(item)} style={styles.showcaseCard}>
-        {item.imageSrc ? <ShowcaseImagePreview active={active} fallbackSource={item.imageSrc} locale={locale} uri={previewUris[item.id]} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
+        {item.imageSrc ? <ShowcaseImagePreview active={active} locale={locale} source={item.imageSrc} itemId={item.id} /> : <HomeBackgroundPreview item={backgroundItemById(item.backgroundPresetId ?? '')} />}
         {!item.hideTitle && <><ImageCardTitleScrim /><View style={styles.showcaseTitle}><Text numberOfLines={1} style={styles.showcaseTitleText}>{item.title}</Text></View></>}
       </Pressable>
     ))}
@@ -232,11 +210,26 @@ const homePolkaPatternUris = {
 const HomeBackgroundPreview = ({ item }: Readonly<{ item: ReturnType<typeof backgroundItemById> }>) => item?.paper
   ? <ProceduralPaperPreview paper={item.paper} patternImageUri={item.paper.imageAsset ? homePolkaPatternUris[item.paper.imageAsset] : undefined} size={{ width: 123, height: 150 }} />
   : <View style={styles.backgroundPreview} />;
-/** Cache writes happen lazily. A cache clear can invalidate an existing
- * file:// URI while this mounted page still holds it, so fall back immediately
- * to the display-only source instead of leaving the card blank. */
-const ShowcaseImagePreview = ({ active, fallbackSource, locale, uri }: Readonly<{ active: boolean; fallbackSource: string; locale: ProductLocale; uri: string | undefined }>) => {
-  return <RemoteImageCard active={active} source={{ uri: uri ?? fallbackSource }} fallbackSource={uri && uri !== fallbackSource ? fallbackSource : undefined} locale={locale} style={styles.showcaseImage} />;
+const ShowcaseImagePreview = ({ active, itemId, locale, source }: Readonly<{ active: boolean; itemId: string; locale: ProductLocale; source: string }>) => {
+  const [uri, setUri] = useState(source);
+  const [cachedUri, setCachedUri] = useState<string | null>(null);
+  const failed = useRef(false);
+  useEffect(() => {
+    let mounted = true;
+    failed.current = false;
+    setUri(source);
+    setCachedUri(null);
+    void findCachedRemoteResourceUri(`home-showcase-${itemId}`, source).then((localUri) => {
+      if (!mounted) return;
+      setCachedUri(localUri);
+      if (failed.current && localUri) setUri(localUri);
+    });
+    return () => { mounted = false; };
+  }, [itemId, source]);
+  return <RemoteImageCard active={active} fallbackSource={uri !== source ? source : undefined} locale={locale} source={{ uri }} onReadyChange={(ready) => {
+    failed.current = !ready;
+    if (!ready && cachedUri && uri === source) setUri(cachedUri);
+  }} style={styles.showcaseImage} />;
 };
 const ImageCardTitleScrim = () => <Canvas pointerEvents="none" style={styles.imageCardTitleScrim}><Rect height={52} width={123} x={0} y={0}><LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.15)']} end={vec(0, 52)} start={vec(0, 0)} /></Rect></Canvas>;
 
