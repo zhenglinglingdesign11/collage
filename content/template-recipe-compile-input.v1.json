@@ -6,14 +6,14 @@
     {
       "id": "romantic-deco",
       "name": "Romantic Deco",
-      "revision": "1",
+      "revision": "2",
       "preview": { "id": "asset://pack/template-previews/romantic-deco", "kind": "image", "revision": "1" },
       "source": { "kind": "template-definition", "path": "content/templates/romantic-deco.template.json" }
     },
     {
       "id": "romantic-deco-two-photo",
       "name": "Romantic Deco — Two Photo",
-      "revision": "1",
+      "revision": "2",
       "preview": { "id": "asset://pack/template-previews/romantic-deco-two-photo", "kind": "image", "revision": "1" },
       "source": {
         "kind": "template-studio",

@@ -54,7 +54,7 @@
       "type": "image",
       "id": "fixed-lace-frame",
       "name": "Decorative statement lace frame",
-      "asset": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "1" },
+      "asset": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "2" },
       "frame": { "width": 396, "height": 607 },
       "crop": { "x": 0, "y": 0, "width": 1, "height": 1 },
       "transform": {
@@ -101,7 +101,7 @@
   ],
   "dependencies": [
     { "reference": { "id": "asset://pack/template-previews/romantic-deco-two-photo", "kind": "image", "revision": "1" }, "availability": "bundled" },
-    { "reference": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "1" }, "availability": "bundled" },
+    { "reference": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "2" }, "availability": "bundled" },
     { "reference": { "id": "asset://pack/essential-lace-trims/3", "kind": "image", "revision": "1" }, "availability": "bundled" },
     { "reference": { "id": "asset://pack/pixel-ascii/7", "kind": "image", "revision": "1" }, "availability": "bundled" }
   ],

@@ -126,7 +126,7 @@
       "photoSlots": [{ "id": "hero-photo", "required": true, "role": "framed-portrait" }],
       "fixedAssets": [
         { "role": "background", "reference": { "id": "asset://pack/template-assets/romantic-deco-background", "kind": "image", "revision": "1" } },
-        { "role": "lace-frame", "reference": { "id": "asset://pack/romantic-deco-lace-frame-1/9", "kind": "image", "revision": "2" } },
+        { "role": "lace-frame", "reference": { "id": "asset://pack/romantic-deco-lace-frame-1/9", "kind": "image", "revision": "3" } },
         { "role": "butterfly-knot", "reference": { "id": "asset://pack/template-assets/romantic-deco-butterfly-knot", "kind": "image", "revision": "1" } }
       ]
     },
@@ -140,7 +140,7 @@
         { "id": "bottom-photo", "required": true, "role": "rotated-full-bleed" }
       ],
       "fixedAssets": [
-        { "role": "lace-frame", "reference": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "1" } },
+        { "role": "lace-frame", "reference": { "id": "asset://pack/decorative-statement-lace-1/2", "kind": "image", "revision": "2" } },
         { "role": "middle-lace-ribbon", "reference": { "id": "asset://pack/essential-lace-trims/3", "kind": "image", "revision": "1" } },
         { "role": "ascii-hearts", "reference": { "id": "asset://pack/pixel-ascii/7", "kind": "image", "revision": "1" } }
       ]

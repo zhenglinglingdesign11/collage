@@ -45,7 +45,7 @@
       "asset": {
         "id": "asset://pack/romantic-deco-lace-frame-1/9",
         "kind": "image",
-        "revision": "2"
+        "revision": "3"
       },
       "frame": { "width": 1094, "height": 1094 },
       "transform": {
@@ -100,7 +100,7 @@
       "reference": {
         "id": "asset://pack/romantic-deco-lace-frame-1/9",
         "kind": "image",
-        "revision": "2"
+        "revision": "3"
       },
       "availability": "bundled"
     },

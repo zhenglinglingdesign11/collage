@@ -2,6 +2,7 @@ import { remoteAssetPacks, type ProductAssetCatalog, type RemoteAssetPack } from
 import type { AssetReference } from '@journalcollage/editor-core';
 import { createMobileProductAssetResolver } from './productAssetResolver';
 import { bundledTemplateDependencyModules } from './bundledTemplateDependencies.generated';
+import { browseableMaterialAssets } from './productContentPolicy';
 
 declare const require: (path: string) => unknown;
 
@@ -33,7 +34,7 @@ export const shippedProductMaterialPacks: readonly RemoteAssetPack[] = [
       category: pack.category,
       cover: pack.cover.sourceUrl,
       coverReference: pack.cover.reference,
-      items: pack.items.map((asset) => ({
+      items: browseableMaterialAssets(pack.items).map((asset) => ({
         id: `${pack.id}-${asset.itemId}`,
         reference: asset.reference,
         source: asset.sourceUrl,

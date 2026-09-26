@@ -1,9 +1,10 @@
 # JournalCollage 账号、订阅与云端能力实施计划
 
-> 状态：P1-T 研发与真机核心验证完成；P2 权益抽象可开始，`1.0` 发布门仍待 Release 包复核
-> 更新日期：2026-09-23
+> 状态：P1-T 研发与真机核心验证完成；P2 纯权益抽象进行中，`1.0` 发布门仍待 Release 包复核
+> 更新日期：2026-09-24
 > 上位规划：`ACCOUNT_SUBSCRIPTION_CLOUD_ROADMAP.md`
-> 关联规范：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`、`REMOTE_ASSET_RELIABILITY_CONTRACT.md`
+> 关联规范：`PRODUCT_PARITY_SPEC.md`、`CROSS_PLATFORM_EDITOR_ARCHITECTURE.md`、`REMOTE_ASSET_RELIABILITY_CONTRACT.md`、`P2_ENTITLEMENT_CONTRACT.md`
+> 商业化调研与待决策项：`PRICING_PAYWALL_STRATEGY_V1.md`、`P2_PREMIUM_CONTENT_REVIEW.md`、`P2_USER_REVIEW_IMPORT_AUDIT.md`
 
 ## 1. 使用方式
 
@@ -259,20 +260,20 @@ G1-A、G1-T、真实草稿与资源删除回归测试均通过后，才能开始
 
 ### 前置依赖
 
-- Premium 功能范围已有产品清单；本地功能可以通过稳定 feature key 判断。
+- 已有稳定 feature key 和默认拒绝策略；具体素材、效果、画笔、导出规格的首发 Premium 清单待产品确认。
 
 ### 待办
 
-- [ ] **P2-01 Feature Catalog**：列出免费、Premium、本地和服务端能力的稳定 key 与默认策略。
-- [ ] **P2-02 Entitlement 状态机**：定义 free、premium、grace-period、expired、unknown、offline-cached。
-- [ ] **P2-03 服务接口**：定义查询、刷新、购买、恢复、观察变化和功能判断接口。
-- [ ] **P2-04 本地开发适配器**：提供无 RevenueCat 的 deterministic fake，支持所有状态测试。
-- [ ] **P2-05 UI 消费边界**：页面和工具只调用 entitlement 接口；不直接读取 RevenueCat CustomerInfo。
-- [ ] **P2-06 离线策略**：冻结离线缓存有效期、未知状态下本地已购能力和服务端能力的不同处理。
-- [ ] **P2-07 Paywall 契约**：定义入口、成功、取消、失败、恢复和管理订阅后的状态刷新。
-- [ ] **P2-08 遥测事件**：定义不含作品内容的 paywall、purchase、restore 与 entitlement 事件。
-- [ ] **P2-09 单元与状态测试**：覆盖状态迁移、重复回调、离线、过期和恢复。
-- [ ] **P2-10 产品复核**：确认 `cloud-backup` 等未发布能力无法被远程配置提前解锁。
+- [x] **P2-01 Feature Catalog**：列出免费、Premium、本地和服务端能力的稳定 key 与默认策略。
+- [x] **P2-02 Entitlement 状态机**：定义 free、premium、grace-period、expired、unknown、offline-cached。
+- [x] **P2-03 服务接口**：定义查询、刷新、购买、恢复、观察变化和功能判断接口。
+- [x] **P2-04 本地开发适配器**：提供无 RevenueCat 的 deterministic fake，支持所有状态测试。
+- [~] **P2-05 UI 消费边界**：模板、素材、背景、字体、效果、画笔和标准导出已通过产品入口协调层调用 entitlement；P3 服务端能力入口与正式 UI 待后续阶段。
+- [x] **P2-06 离线策略**：冻结离线缓存有效期、未知状态下本地已购能力和服务端能力的不同处理。
+- [x] **P2-07 Paywall 契约**：定义入口、成功、取消、失败、恢复和管理订阅后的状态刷新。
+- [x] **P2-08 遥测事件**：定义不含作品内容的 paywall、purchase、restore 与 entitlement 事件。
+- [~] **P2-09 单元与状态测试**：覆盖状态迁移、重复回调、离线、过期和恢复。
+- [~] **P2-10 产品复核**：确认 `cloud-backup` 等未发布能力无法被远程配置提前解锁。
 
 ### 完成标准
 
@@ -281,6 +282,8 @@ G1-A、G1-T、真实草稿与资源删除回归测试均通过后，才能开始
 - 服务端 AIGC 不依赖客户端 entitlement 作为授权依据。
 
 ### 阶段门 G2
+
+状态：`[~]`（2026-09-26）。Fake 已覆盖全 Feature × 六态矩阵、离线 TTL、observer 与操作结果；已冻结 Free AI 首次 3 次、Free 抠图每 UTC 日 3 次（两种抠图入口共用次数）；用户已审核 130 行候选并更正模板、素材子项和分组；逐项分类见 `content/p2-content-entitlements.v1.json`。19 个分组修正、高清／重切素材和 11 个指定重复项删除已编译到 catalog revision 16：目录素材 1,312 项，新浏览列表 1,302 项，另有 10 个旧子项仍在目录但不供新浏览；六个更新包共 114 个 PNG 已与 R2 逐项比对。用户确认开发期旧 Draft 无需恢复；封面处理与 R2 对象保留情况见 `docs/P2_USER_REVIEW_IMPORT_AUDIT.md`。模板、素材、字体、效果、画笔和标准导出入口已接入统一决策层与开发包 fake Paywall 预览；真实 adapter 共用契约测试、P3 服务端入口及真机 UI 验收仍待完成。G1 未关闭前不得在 My Studio 接入 Premium。详见 `docs/P2_ENTITLEMENT_CONTRACT.md`。
 
 Fake 适配器覆盖完整状态矩阵并通过测试后，才接入真实订阅 SDK 和服务端额度。
 
@@ -300,6 +303,7 @@ Fake 适配器覆盖完整状态矩阵并通过测试后，才接入真实订阅
 ### 前置依赖
 
 - G0、G1、G2 已通过；AIGC 供应商、模型、输入输出限制和订阅周期次数已有产品决定。
+- 上线价格、试用／折扣实验、Premium AI 周期额度和 Premium 抠图上限按 `PRICING_PAYWALL_STRATEGY_V1.md` 的待决策项冻结；调研数字不能直接视为商店配置。
 
 ### 待办
 

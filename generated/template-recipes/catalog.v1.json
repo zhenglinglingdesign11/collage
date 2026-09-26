@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "catalogRevision": "13",
+  "catalogRevision": "16",
   "templates": [
     {
       "id": "template://journalcollage/romantic-deco",
-      "revision": "1",
+      "revision": "2",
       "preview": {
         "id": "asset://pack/template-previews/romantic-deco",
         "kind": "image",
@@ -13,7 +13,7 @@
     },
     {
       "id": "template://journalcollage/romantic-deco-two-photo",
-      "revision": "1",
+      "revision": "2",
       "preview": {
         "id": "asset://pack/template-previews/romantic-deco-two-photo",
         "kind": "image",

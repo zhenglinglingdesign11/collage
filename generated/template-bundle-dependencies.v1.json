@@ -262,15 +262,15 @@
       "reference": {
         "id": "asset://pack/decorative-statement-lace-1/2",
         "kind": "image",
-        "revision": "1"
+        "revision": "2"
       },
-      "sourcePath": "source-assets/packs/Decorative-&-Statement-Lace（1）/items/2.png",
+      "sourcePath": "source-assets/packs/_updated-review/decorative-statement-lace-1/items/2.png",
       "mimeType": "image/png",
-      "byteLength": 47236,
-      "sha256": "0776e2a34af8fbb7f6b0941340f4d8c546ee11c419a2a1361ec772601245ada8",
+      "byteLength": 124073,
+      "sha256": "a582b567ff89901cad769e4edfd2756ab1b7dfe63d935098a94033207cfdec7a",
       "pixelSize": {
-        "width": 220,
-        "height": 337
+        "width": 371,
+        "height": 546
       }
     },
     {
@@ -697,15 +697,15 @@
       "reference": {
         "id": "asset://pack/romantic-deco-lace-frame-1/9",
         "kind": "image",
-        "revision": "2"
+        "revision": "3"
       },
-      "sourcePath": "source-assets/packs/Romantic Deco-Lace Frame(1)/items/9.png",
+      "sourcePath": "source-assets/archive/Romantic Deco-Lace Frame(1)/9.v1.png",
       "mimeType": "image/png",
-      "byteLength": 749087,
-      "sha256": "cd5df883bf3ee91bd71d048b13b6ea808ced8fa773c9d975e423a65bbe12f7fd",
+      "byteLength": 41077,
+      "sha256": "35858d9677ae30e4039178cc07de47f273ecf8774e50be9f7e72b6ebf88ecb13",
       "pixelSize": {
-        "width": 1254,
-        "height": 1254
+        "width": 286,
+        "height": 318
       }
     },
     {

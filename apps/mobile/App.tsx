@@ -25,6 +25,9 @@ import { RemoteAssetVerificationProbe } from './src/RemoteAssetVerificationProbe
 import { EffectSheet } from './src/product-ui/EffectSheet';
 import { BrushLayerToolbar, EditorHeader as ProductEditorHeader, EditorPrimaryToolbar, ImageLayerToolbar, ImageSelectionControls, TextLayerToolbar } from './src/product-ui/EditorChrome';
 import { localTemplateCapabilityGate } from './src/templateCapabilities';
+import { FakeEntitlementEventSink, FakeEntitlementService, type DenialReason, type FeatureKey } from './src/entitlements';
+import { ProductEntryAccess, type EntryDecision, type ProductEntry } from './src/entitlements/productEntryAccess';
+import { PaywallPreview } from './src/product-ui/PaywallPreview';
 
 type BuiltinEffectType = 'light.shadow' | 'edge.outline' | 'paper.torn-edge' | 'shape.round-corners';
 const effectInstance = (instanceId: string, type: BuiltinEffectType): Effect => type === 'light.shadow'
@@ -223,13 +226,14 @@ const createFixtureDraft = (): Draft => {
   };
 };
 
-const EditorWorkspace = (props: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => (
+type ProductEntryRequest = (entries: ProductEntry | readonly ProductEntry[], run: () => void) => EntryDecision;
+const EditorWorkspace = (props: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onProductEntry: ProductEntryRequest; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => (
   <SafeAreaProvider>
     <EditorWorkspaceContent {...props} />
   </SafeAreaProvider>
 );
 
-const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets, onStartShowcase, onStartTemplate }: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => {
+const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPackItems = [], initialShowcase, initialTemplate = null, restoreSavedDraftId, templateStudio = false, onExit, onInitialPackItemsConsumed, onOpenAssets, onProductEntry, onStartShowcase, onStartTemplate }: { basicLayoutId?: BasicLayoutId | null; initialEntry: CreateEntry; initialPackItems?: readonly RemotePackItem[]; initialShowcase?: ShowcaseIntent | null; initialTemplate?: TemplateDefinition | null; restoreSavedDraftId?: string | null; templateStudio?: boolean; onExit: () => void; onInitialPackItemsConsumed?: () => void; onOpenAssets: () => void; onProductEntry: ProductEntryRequest; onStartShowcase: (showcase: TemplateCatalogShowcaseIntent) => void; onStartTemplate: (template: TemplateDefinition, basicLayoutId?: BasicLayoutId | null) => void }) => {
   const insets = useSafeAreaInsets();
   const window = useWindowDimensions();
   const locale = resolveProductLocale();
@@ -828,11 +832,17 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   const closeEffectSheet = useCallback(() => { setEffectPreview(null); setEffectSheetBaseEffects(null); setEffectSheetOpen(false); }, []);
   const commitEffectSheet = useCallback((effects: readonly Effect[]) => {
     if (selectedLayer === null) return;
+    const existing = new Set((effectSheetBaseEffects ?? selectedLayer.effects).map((effect) => effect.type));
+    const added = effects.filter((effect) => !existing.has(effect.type)).map((effect): ProductEntry => ({ kind: 'effect', id: effect.type }));
     // One completed Sheet session is one undo step; its intermediate slider
     // positions existed only in renderer preview state.
-    dispatch({ type: 'command', command: { type: 'layer.effects.set', layerId: selectedLayer.id, effects } });
-    closeEffectSheet();
-  }, [closeEffectSheet, selectedLayer]);
+    const commit = () => {
+      dispatch({ type: 'command', command: { type: 'layer.effects.set', layerId: selectedLayer.id, effects } });
+      closeEffectSheet();
+    };
+    if (added.length) onProductEntry(added, commit);
+    else commit();
+  }, [closeEffectSheet, effectSheetBaseEffects, onProductEntry, selectedLayer]);
   const updateCrop = useCallback((action: 'in' | 'out' | 'left' | 'right' | 'reset') => {
     if (selectedLayer?.type !== 'image') return;
     const crop = selectedLayer.crop;
@@ -1405,6 +1415,10 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
       if (editorSessionAlive.current && currentDraft.current.id === draftId) Alert.alert('Material unavailable', 'This material could not be downloaded. Please try again.');
     }
   }, [catalog, commitRemotePackItem]);
+  const requestAddRemotePackItem = (item: RemotePackItem) => {
+    if (templateStudio && item.reference.id.startsWith('asset://pack/template-assets/')) { void addRemotePackItem(item); return; }
+    onProductEntry({ kind: 'material', id: item.reference.id }, () => { void addRemotePackItem(item); });
+  };
   useEffect(() => {
     if (!workspaceReady || initialPackItems.length === 0 || initialPackItemsAdded.current) return;
     initialPackItemsAdded.current = true;
@@ -1641,11 +1655,15 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
     void ensureTextFont(layer.fontVariantId).then(() => setFontRevision((value) => value + 1));
   }, []);
   const updateTextStyle = useCallback((layerId: string, change: { fontId?: string; fontVariantId?: string; fontSize?: number; color?: string; textAlign?: 'left' | 'center' | 'right'; backgroundColor?: string | null; opacity?: number }) => {
-    const { opacity, ...style } = change;
-    if (Object.keys(style).length > 0) dispatch({ type: 'command', command: { type: 'text.style.set', layerId, ...style } });
-    if (opacity !== undefined) dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId, opacity } });
-    if (change.fontVariantId !== undefined) void ensureTextFont(change.fontVariantId).then(() => setFontRevision((value) => value + 1));
-  }, []);
+    const apply = () => {
+      const { opacity, ...style } = change;
+      if (Object.keys(style).length > 0) dispatch({ type: 'command', command: { type: 'text.style.set', layerId, ...style } });
+      if (opacity !== undefined) dispatch({ type: 'command', command: { type: 'layer.opacity.set', layerId, opacity } });
+      if (change.fontVariantId !== undefined) void ensureTextFont(change.fontVariantId).then(() => setFontRevision((value) => value + 1));
+    };
+    if (change.fontId !== undefined) onProductEntry({ kind: 'font', id: change.fontId }, apply);
+    else apply();
+  }, [onProductEntry]);
   const initialPhotoRequested = useRef(false);
   useEffect(() => {
     if ((initialEntry !== 'photo' && initialEntry !== 'showcase') || initialShowcase?.backgroundPresetId || !workspaceReady || initialPhotoRequested.current) return;
@@ -2059,7 +2077,7 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
   return (
     <GestureHandlerRootView style={[styles.root, a3Styles.editorRoot]}>
         <SafeAreaView edges={['top']} style={[styles.safeArea, brushCut !== null && a3Styles.brushEditorSafeArea, crop !== null && a3Styles.cropEditorSafeArea, emboss !== null && a3Styles.embossEditorSafeArea]}>
-        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null || photoImportPending} canRedo={state.future.length > 0} canUndo={state.past.length > 0} exportLabel={templateStudio ? '导出 JSON' : undefined} locale={locale} onActionUnavailable={photoImportPending ? () => showHeaderFeedback(t(locale, 'editor.photoImport.wait')) : decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { void (templateStudio ? exportTemplateStudio() : exportPng()); }} onExit={requestExit} onRatioPress={() => { if (photoImportPending) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; } setRatioPickerOpen((open) => !open); }} ratio={canvasLabel} />}
+        {brushCut === null && crop === null && emboss === null && <ProductEditorHeader actionsDisabled={decorativeBrush !== null || photoImportPending} canRedo={state.future.length > 0} canUndo={state.past.length > 0} exportLabel={templateStudio ? '导出 JSON' : undefined} locale={locale} onActionUnavailable={photoImportPending ? () => showHeaderFeedback(t(locale, 'editor.photoImport.wait')) : decorativeBrush !== null ? () => showHeaderFeedback(t(locale, 'editor.feedback.finishBrush')) : undefined} onUndo={() => dispatch({ type: 'undo' })} onRedo={() => dispatch({ type: 'redo' })} onExport={() => { if (templateStudio) void exportTemplateStudio(); else onProductEntry({ kind: 'export', id: 'export.standard' }, () => { void exportPng(); }); }} onExit={requestExit} onRatioPress={() => { if (photoImportPending) { showHeaderFeedback(t(locale, 'editor.photoImport.wait')); return; } setRatioPickerOpen((open) => !open); }} ratio={canvasLabel} />}
         {initialPackImportPending && <Text accessibilityRole="text" style={{ alignSelf: 'center', color: '#6D5041', fontSize: 13, marginBottom: 8 }}>Loading selected materials…</Text>}
         {assetRecoveryFailureCount > 0 && <Pressable accessibilityLabel="Retry unavailable materials" onPress={() => { void recoverWorkspaceProductAssets({ draft: state.present, catalog }).then((recovered) => { setCatalog(recovered.workspace.catalog); setAssetRecoveryFailureCount(recovered.failures.length); }); }} style={{ alignSelf: 'center', backgroundColor: '#6D5041', borderRadius: 14, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }}>{`${assetRecoveryFailureCount} material${assetRecoveryFailureCount === 1 ? '' : 's'} unavailable · Retry`}</Text></Pressable>}
         {ratioPickerOpen && (templateStudio
@@ -2101,18 +2119,18 @@ const EditorWorkspaceContent = ({ basicLayoutId = null, initialEntry, initialPac
             {layerEffectControl !== null && selectedLayer?.id === layerEffectControl.layerId && <LayerEffectControlPanel bottomInset={insets.bottom} effect={layerEffectControl.type === 'opacity' ? null : selectedLayer.effects.find((effect) => effect.type === layerEffectControl.type) ?? effectInstance(`preview-${layerEffectControl.type}`, layerEffectControl.type)} locale={locale} opacity={selectedLayer.opacity} previewValue={layerControlPreview?.layerId === selectedLayer.id && layerControlPreview.type === layerEffectControl.type ? layerControlPreview.value : null} type={layerEffectControl.type} onCancel={() => setLayerControlPreview(null)} onChange={(value) => setLayerControlPreview({ layerId: selectedLayer.id, type: layerEffectControl.type, value })} onCommit={commitLayerControl} />}
             {assetDrawerOpen && <>
               <Pressable accessibilityLabel="Close materials" accessibilityRole="button" onPress={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <AssetDrawer additionalPacks={templateStudio ? templateStudioDecorativePacks : undefined} initialCustomPolkaPaper={customPolkaBackgroundOpen} locale={locale} onAddItem={(item) => { void addRemotePackItem(item); }} onAddCustomPolkaPaper={(paper) => { if (customPolkaBackgroundOpen) { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); return; } void addRemotePackItem(createCustomPolkaPaper({ ...paper, pattern: 'polka' })); }} onAddCustomSolidPaper={(color) => { void addRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { void addRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
+              <AssetDrawer additionalPacks={templateStudio ? templateStudioDecorativePacks : undefined} initialCustomPolkaPaper={customPolkaBackgroundOpen} locale={locale} onAddItem={requestAddRemotePackItem} onAddCustomPolkaPaper={(paper) => { const item = createCustomPolkaPaper({ ...paper, pattern: 'polka' }); if (customPolkaBackgroundOpen) { onProductEntry({ kind: 'material', id: item.reference.id }, () => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); void applyBackgroundItem(item); }); return; } requestAddRemotePackItem(item); }} onAddCustomSolidPaper={(color) => { requestAddRemotePackItem(createCustomSolidPaper(color)); }} onAddCustomBasicShape={(sticker: ProceduralSticker, material) => { requestAddRemotePackItem(createCustomBasicShape(sticker, material)); }} onClose={() => { setAssetDrawerOpen(false); setCustomPolkaBackgroundOpen(false); setAssetDrawerHeight(0); }} onHeightChange={setAssetDrawerHeight} onViewAll={() => { setAssetDrawerOpen(false); void openAssetsFromEditor(); }} />
             </>}
             {backgroundDrawerOpen && <>
               <Pressable accessibilityLabel="Close backgrounds" accessibilityRole="button" onPress={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} style={a3Styles.assetDrawerBackdrop} />
-              <BackgroundDrawer onApply={(item) => { void applyBackgroundItem(item); }} onClear={() => { backgroundRequestId.current += 1; dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } }); }} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} templateBackgroundItems={templateStudio ? templateStudioBackgroundItems : undefined} />
+              <BackgroundDrawer onApply={(item) => { if (templateStudio && item.reference.id.startsWith('asset://pack/template-assets/')) void applyBackgroundItem(item); else onProductEntry({ kind: 'material', id: item.reference.id }, () => { void applyBackgroundItem(item); }); }} onClear={() => { backgroundRequestId.current += 1; dispatch({ type: 'command', command: { type: 'canvas.background.set', background: DEFAULT_CANVAS_BACKGROUND, asset: null } }); }} onClose={() => { setBackgroundDrawerOpen(false); setAssetDrawerHeight(0); }} onCustomPolka={() => { setBackgroundDrawerOpen(false); setCustomPolkaBackgroundOpen(true); setAssetDrawerOpen(true); }} onHeightChange={setAssetDrawerHeight} templateBackgroundItems={templateStudio ? templateStudioBackgroundItems : undefined} />
             </>}
             {textEdit !== null && selectedLayer?.type === 'text' && <TextEditorPanel key={textEdit.layerId} bottomInset={insets.bottom} keyboardHeight={keyboardHeight} layer={selectedLayer} locale={locale} text={textEdit.text} onCancel={cancelTextEditing} onChangeText={(text) => setTextEdit((current) => current === null ? null : { ...current, text })} onDone={finishTextEditing} onStyleChange={(change) => updateTextStyle(selectedLayer.id, change)} />}
             {cutPaletteOpen && straightCut === null && <Pressable accessibilityLabel={t(locale, 'editor.cut.dismiss')} accessibilityRole="button" onPress={() => setCutPaletteOpen(false)} style={a3Styles.cutPaletteBackdrop} />}
             {cutPaletteOpen && straightCut === null && <CutPalette bottomInset={insets.bottom} hasSelectedLayer={selectedLayer !== null} locale={locale} onClose={() => setCutPaletteOpen(false)} onSelect={selectCutStyle} />}
             {straightCut !== null && <StraightCutActions bottomInset={insets.bottom} locale={locale} onCancel={cancelStraightCut} onConfirm={confirmStraightCut} />}
             {brushCut !== null && <BrushCutPanel bottomInset={insets.bottom} locale={locale} hasStrokes={brushCut.strokes.length > 0} hollowOriginal={brushCut.hollowOriginal} showHollowOption onClear={clearBrushCut} onToggleHollow={toggleBrushHollow} />}
-            {decorativeBrush !== null && <BrushPanel bottomInset={insets.bottom} brushAssetUris={brushAssetUris} brushId={decorativeBrush.brushId} color={decorativeBrush.color} definitions={brushDefinitions} hasPaintStrokes={decorativeBrush.strokes.some((stroke) => stroke.mode !== 'erase')} hasRedo={decorativeBrush.redoStrokes.length > 0} hasStrokes={decorativeBrush.strokes.length > 0 || decorativeBrush.activeStroke !== null} isErasing={decorativeBrush.isErasing} locale={locale} onBrushChange={(definition) => setDecorativeBrush((current) => current ? { ...current, brushId: definition.id, brushRevision: definition.revision, size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, opacity: definition.defaults.opacity, isErasing: false } : null)} onCancel={() => setDecorativeBrush(null)} onClear={() => setDecorativeBrush((current) => current ? { ...current, strokes: [], redoStrokes: [], activeStroke: null } : null)} onColorChange={(color) => setDecorativeBrush((current) => current ? { ...current, color } : null)} onDone={finishDecorativeBrush} onEraserToggle={() => setDecorativeBrush((current) => current ? { ...current, isErasing: !current.isErasing } : null)} onRedo={redoDecorativeBrushStroke} onSizeChange={(size) => setDecorativeBrush((current) => current ? { ...current, size } : null)} onUndo={undoDecorativeBrushStroke} size={decorativeBrush.size} />}
+            {decorativeBrush !== null && <BrushPanel bottomInset={insets.bottom} brushAssetUris={brushAssetUris} brushId={decorativeBrush.brushId} color={decorativeBrush.color} definitions={brushDefinitions} hasPaintStrokes={decorativeBrush.strokes.some((stroke) => stroke.mode !== 'erase')} hasRedo={decorativeBrush.redoStrokes.length > 0} hasStrokes={decorativeBrush.strokes.length > 0 || decorativeBrush.activeStroke !== null} isErasing={decorativeBrush.isErasing} locale={locale} onBrushChange={(definition) => { onProductEntry({ kind: 'brush', id: definition.id }, () => setDecorativeBrush((current) => current ? { ...current, brushId: definition.id, brushRevision: definition.revision, size: definition.defaults.size, spacing: definition.defaults.spacing, jitter: definition.defaults.jitter, opacity: definition.defaults.opacity, isErasing: false } : null)); }} onCancel={() => setDecorativeBrush(null)} onClear={() => setDecorativeBrush((current) => current ? { ...current, strokes: [], redoStrokes: [], activeStroke: null } : null)} onColorChange={(color) => setDecorativeBrush((current) => current ? { ...current, color } : null)} onDone={finishDecorativeBrush} onEraserToggle={() => setDecorativeBrush((current) => current ? { ...current, isErasing: !current.isErasing } : null)} onRedo={redoDecorativeBrushStroke} onSizeChange={(size) => setDecorativeBrush((current) => current ? { ...current, size } : null)} onUndo={undoDecorativeBrushStroke} size={decorativeBrush.size} />}
             {cutHint !== null && <View pointerEvents="none" style={[a3Styles.cutHint, { bottom: 112 + insets.bottom }]}><Text style={a3Styles.cutHintText}>{cutHint}</Text></View>}
           </View>
         )}
@@ -2489,6 +2507,41 @@ export default function App() {
   // launch surface explicitly instead of making every Back action go home.
   const [editorReturnDestination, setEditorReturnDestination] = useState<EditorReturnDestination>('create-home');
   const locale = resolveProductLocale();
+  const [fakeEntitlements] = useState(() => new FakeEntitlementService({ status: __DEV__ ? 'free' : 'unknown', checkedAt: Date.now() }));
+  const [entitlementEvents] = useState(() => new FakeEntitlementEventSink());
+  const [productAccess] = useState(() => new ProductEntryAccess(fakeEntitlements, entitlementEvents));
+  const [paywall, setPaywall] = useState<Readonly<{ feature: FeatureKey; reason: DenialReason }> | null>(null);
+  const [paywallBusy, setPaywallBusy] = useState(false);
+  const [paywallMessage, setPaywallMessage] = useState<string | undefined>();
+  const requestProductEntry = (entries: ProductEntry | readonly ProductEntry[], run: () => void): EntryDecision => {
+    const decision = productAccess.request(entries, run);
+    if (decision.type === 'paywall') {
+      setPaywall({ feature: decision.feature, reason: decision.reason });
+      setPaywallMessage(undefined);
+    } else if (decision.type === 'unavailable' || decision.type === 'limit') {
+      Alert.alert(locale === 'zh-Hans' ? '暂时不可用' : 'Unavailable', locale === 'zh-Hans' ? `此功能当前不可用（${decision.reason}）。` : `This feature is unavailable (${decision.reason}).`);
+    } else if (decision.type === 'unreviewed') {
+      Alert.alert(locale === 'zh-Hans' ? '尚未开放' : 'Not available', locale === 'zh-Hans' ? '此内容尚未完成权益复核。' : 'This content has not been reviewed for access.');
+    }
+    return decision;
+  };
+  const completeFakePaywall = async (action: 'purchase' | 'restore') => {
+    if (paywallBusy || paywall === null) return;
+    if (action === 'purchase' && __DEV__) {
+      fakeEntitlements.setOperationResult('purchase', { outcome: 'success' });
+      fakeEntitlements.setRefreshResult({ status: 'premium', checkedAt: Date.now() });
+    } else if (action === 'restore') {
+      fakeEntitlements.setOperationResult('restore', { outcome: 'success', reason: 'no-purchases' });
+    }
+    setPaywallBusy(true);
+    try {
+      const result = await productAccess.complete(action, action === 'purchase' ? 'fake-premium' : undefined);
+      if (!result || result.gate.type === 'allowed' || result.operation.outcome === 'cancelled') setPaywall(null);
+      else setPaywallMessage(result.operation.reason === 'no-purchases'
+        ? (locale === 'zh-Hans' ? '没有可恢复的购买记录。' : 'No previous purchase was found.')
+        : (locale === 'zh-Hans' ? '权益未改变，请稍后重试。' : 'Access did not change. Please try again.'));
+    } finally { setPaywallBusy(false); }
+  };
 
   const openTemplate = (template: TemplateDefinition, basicLayoutId: BasicLayoutId | null = null) => {
     const capabilityGate = localTemplateCapabilityGate(template);
@@ -2496,6 +2549,7 @@ export default function App() {
       Alert.alert('Template unavailable', `This version of the app does not support: ${capabilityGate.missing.join(', ')}.`);
       return;
     }
+    requestProductEntry({ kind: 'template', id: template.id }, () => {
     setEditorReturnDestination(templateCatalogOpen ? 'create-styles' : 'create-home');
     setTemplateCatalogOpen(false);
     setTemplateStudio(false);
@@ -2506,9 +2560,11 @@ export default function App() {
     setEditorEntry('blank');
     setEditorSessionKey((key) => key + 1);
     setEditing(true);
+    });
   };
   const openBasicLayout = (layout: BasicLayout) => openTemplate(basicLayoutTemplate(layout), layout.id);
   const openShowcase = (showcase: TemplateCatalogShowcaseIntent) => {
+    const launch = () => {
     setEditorReturnDestination(templateCatalogOpen ? 'create-styles' : 'create-home');
     setTemplateCatalogOpen(false);
     setTemplateStudio(false);
@@ -2519,9 +2575,23 @@ export default function App() {
     setEditorEntry('showcase');
     setEditorSessionKey((key) => key + 1);
     setEditing(true);
+    };
+    const effect = showcaseEffectInstance(`showcase-gate-${showcase.id}`, showcase);
+    if (effect) requestProductEntry({ kind: 'effect', id: effect.type }, launch);
+    else launch();
   };
 
-  const editor = editing ? <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { const returnToCreateStyles = editorReturnDestination === 'create-styles'; setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab(editorReturnDestination === 'mine' ? 'mine' : editorReturnDestination === 'assets' ? 'assets' : 'create'); setTemplateCatalogOpen(returnToCreateStyles); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartShowcase={openShowcase} onStartTemplate={openTemplate} /> : null;
+  const openEditorEntry = (entry: CreateEntry, savedDraftId?: string, showcase?: ShowcaseIntent) => {
+    const launch = () => {
+      setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null);
+      setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true);
+    };
+    const effect = showcase ? showcaseEffectInstance(`showcase-gate-${showcase.id}`, showcase) : null;
+    if (effect) requestProductEntry({ kind: 'effect', id: effect.type }, launch);
+    else launch();
+  };
+
+  const editor = editing ? <EditorWorkspace basicLayoutId={initialBasicLayoutId} initialEntry={editorEntry} initialPackItems={pendingPackItems} initialShowcase={initialShowcase} initialTemplate={initialTemplate} key={editorSessionKey} restoreSavedDraftId={restoreSavedDraftId} templateStudio={templateStudio} onProductEntry={requestProductEntry} onInitialPackItemsConsumed={() => setPendingPackItems([])} onExit={() => { const returnToCreateStyles = editorReturnDestination === 'create-styles'; setAssetsDetailOpen(false); setAssetsEntryContext(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(false); setEditing(false); setTab(editorReturnDestination === 'mine' ? 'mine' : editorReturnDestination === 'assets' ? 'assets' : 'create'); setTemplateCatalogOpen(returnToCreateStyles); }} onOpenAssets={() => { setAssetsEntryContext('editor'); setEditing(false); setTab('assets'); }} onStartShowcase={openShowcase} onStartTemplate={openTemplate} /> : null;
 
   return (
     <>
@@ -2529,17 +2599,18 @@ export default function App() {
       <ProductAppShell activeTab={tab} hideTabBar={assetsDetailOpen || templateCatalogOpen} locale={locale} onTabChange={(nextTab) => { setAssetsDetailOpen(false); setAssetsEntryContext(null); setTemplateCatalogOpen(false); setTab(nextTab); }}>
         <StatusBar style="dark" />
         <View pointerEvents={tab === 'create' && !templateCatalogOpen ? 'auto' : 'none'} style={tab === 'create' && !templateCatalogOpen ? productShellStyles.tabSurface : productShellStyles.hiddenTabSurface}>
-          <CreateHome active={tab === 'create' && !templateCatalogOpen && !editing} editorOpen={editing} locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={(entry, savedDraftId, showcase) => { setEditorReturnDestination('create-home'); setTemplateStudio(false); setInitialTemplate(null); setInitialBasicLayoutId(null); setRestoreSavedDraftId(savedDraftId ?? null); setInitialShowcase(showcase ?? null); setEditorEntry(entry); setEditing(true); }} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
+          <CreateHome active={tab === 'create' && !templateCatalogOpen && !editing} editorOpen={editing} locale={locale} onOpenAssets={() => { setAssetsEntryContext('create'); setTab('assets'); }} onOpenEditor={openEditorEntry} onOpenTemplate={openTemplate} onOpenTemplateCatalog={() => setTemplateCatalogOpen(true)} onOpenTemplateStudio={__DEV__ ? () => { setEditorReturnDestination('create-home'); setRestoreSavedDraftId(null); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setTemplateStudio(true); setEditorEntry('blank'); setEditing(true); } : undefined} />
         </View>
         {templateCatalogOpen
           ? <TemplateCatalogScreen locale={locale} onBack={() => setTemplateCatalogOpen(false)} onOpenBasicLayout={openBasicLayout} onOpenShowcase={openShowcase} onOpenTemplate={openTemplate} />
           : tab === 'assets'
-            ? <AssetsLibrary entryContext={assetsEntryContext} locale={locale} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { const returnsToEditor = assetsEntryContext === 'editor'; setPendingPackItems(items); if (!returnsToEditor) { setEditorReturnDestination('assets'); setRestoreSavedDraftId(null); } setEditorEntry(returnsToEditor ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }} />
+            ? <AssetsLibrary entryContext={assetsEntryContext} locale={locale} onDetailChange={setAssetsDetailOpen} onReturnToOrigin={() => { const context = assetsEntryContext; setAssetsEntryContext(null); if (context === 'editor') { setEditorEntry('restore'); setEditing(true); } else setTab('create'); }} onCreateWithItems={(items) => { requestProductEntry(items.map((item) => ({ kind: 'material', id: item.reference.id })), () => { const returnsToEditor = assetsEntryContext === 'editor'; setPendingPackItems(items); if (!returnsToEditor) { setEditorReturnDestination('assets'); setRestoreSavedDraftId(null); } setEditorEntry(returnsToEditor ? 'restore' : 'blank'); setAssetsEntryContext(null); setEditing(true); }); }} />
             : tab === 'mine'
               ? <MineHome locale={locale} onOpenDraft={(savedDraftId) => { setEditorReturnDestination('mine'); setRestoreSavedDraftId(savedDraftId); setInitialShowcase(null); setInitialTemplate(null); setInitialBasicLayoutId(null); setEditorEntry('restore'); setEditing(true); }} />
               : null}
       </ProductAppShell>
       {editor !== null && <View style={productShellStyles.editorOverlay}>{editor}</View>}
+      {paywall !== null && <PaywallPreview busy={paywallBusy} feature={paywall.feature} locale={locale} message={paywallMessage} onClose={() => { productAccess.dismiss(); setPaywall(null); }} onRestore={() => { void completeFakePaywall('restore'); }} onSimulatePurchase={() => { void completeFakePaywall('purchase'); }} reason={paywall.reason} />}
       <CenterToast />
     </View>
     {showDevelopmentProbes && <NativeRenderParityProbe />}

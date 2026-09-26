@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "template://journalcollage/romantic-deco-two-photo",
-  "revision": "1",
+  "revision": "2",
   "status": "ready",
   "name": "Romantic Deco — Two Photo",
   "canvas": {
@@ -88,7 +88,7 @@
       "asset": {
         "id": "asset://pack/decorative-statement-lace-1/2",
         "kind": "image",
-        "revision": "1"
+        "revision": "2"
       },
       "frame": {
         "width": 417.65625,
@@ -204,7 +204,7 @@
       "reference": {
         "id": "asset://pack/decorative-statement-lace-1/2",
         "kind": "image",
-        "revision": "1"
+        "revision": "2"
       },
       "availability": "bundled"
     },

@@ -10,7 +10,7 @@
       "photoSlots": [{ "id": "hero-photo", "role": "framed-portrait", "required": true, "normalizedFrame": null }],
       "layers": [
         { "role": "background", "source": "asset://pack/template-assets/romantic-deco-background@1", "strictState": "strict", "zIndex": 0, "normalizedFrame": null, "rotation": 0, "locked": true },
-        { "role": "lace-frame", "source": "asset://pack/romantic-deco-lace-frame-1/9@2", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "lace-frame", "source": "asset://pack/romantic-deco-lace-frame-1/9@3", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
         { "role": "butterfly-knot", "source": "asset://pack/template-assets/romantic-deco-butterfly-knot@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true }
       ]
     },
@@ -23,7 +23,7 @@
         { "id": "bottom-photo", "role": "rotated-full-bleed", "required": true, "normalizedFrame": null }
       ],
       "layers": [
-        { "role": "lace-frame", "source": "asset://pack/decorative-statement-lace-1/2@1", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
+        { "role": "lace-frame", "source": "asset://pack/decorative-statement-lace-1/2@2", "strictState": "strict", "zIndex": 20, "normalizedFrame": null, "rotation": 0, "locked": true },
         { "role": "middle-lace-ribbon", "source": "asset://pack/essential-lace-trims/3@1", "strictState": "strict", "zIndex": 30, "normalizedFrame": null, "rotation": 0, "locked": true },
         { "role": "ascii-hearts", "source": "asset://pack/pixel-ascii/7@1", "strictState": "strict", "zIndex": 40, "normalizedFrame": null, "rotation": 0, "locked": true }
       ]

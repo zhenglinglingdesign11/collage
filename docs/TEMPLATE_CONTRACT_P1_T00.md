@@ -8,6 +8,8 @@ P1-T01 的文件级差距、最小修订范围与自动化验收矩阵见 [TEMPL
 
 ## 当前实施记录（2026-09-23）
 
+2026-09-26 素材更新：`Romantic Deco` 固定边框改用 `romantic-deco-lace-frame-1/9@3`，R2 对象为 `items/9.png`；`Romantic Deco — Two Photo` 固定边框改用 `decorative-statement-lace-1/2@2`。两张模板的编译 revision 均升至 `2`，77 项 bundle 依赖闭包已重新生成。下文早期 `9@2` 来源表仅作 P1-T00 历史记录。
+
 - 首发目录固定为 10 个已编译 `TemplateDefinition`；Create styles 和首页只消费随包目录，运营 manifest 不承载模板定义。
 - 构建脚本静态收集完整依赖闭包：10 个模板共 77 项 strict 资产。每项在生成 Expo `require(...)` 映射前校验 SHA-256、字节数、MIME 与像素尺寸；上游已替换但 Catalog 仍引用的三个对象保留为锁定字节副本。
 - 模板入口使用能力门控；照片槽支持替换、原图 crop 选区与槽内移动。模板实例化后的 Draft 不包含模板对象或运行时 URI。
